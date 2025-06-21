@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المصروفات - نظام إدارة التاكسي</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .balance-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .balance-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .balance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .balance-item {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .balance-item.clickable {
+            cursor: pointer;
+            border-color: #667eea;
+        }
+
+        .balance-item.clickable:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .balance-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .balance-amount {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .form-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .expense-history {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .expense-history h3 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .expense-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .expense-table th,
+        .expense-table td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .expense-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        .expense-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .amount {
+            font-weight: bold;
+            color: #dc3545;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            opacity: 0.7;
+        }
+
+        #debtsContent {
+            padding: 20px;
+        }
+
+        .debt-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #dc3545;
+        }
+
+        .debt-driver {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .debt-amount {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .balance-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+
+        /* نظام الصفحات */
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pagination-controls label {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .pagination-controls select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+            font-size: 14px;
+        }
+
+        .pagination-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding: 10px 0;
+            border-top: 1px solid #eee;
+        }
+
+        .pagination-info {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .pagination-buttons {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .pagination-buttons button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .pagination-buttons button:hover:not(:disabled) {
+            background: #f8f9fa;
+            border-color: #007bff;
+        }
+
+        .pagination-buttons button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-number {
+            padding: 8px 12px;
+            margin: 0 2px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: #333;
+            display: inline-block;
+        }
+
+        .page-number:hover {
+            background: #f8f9fa;
+            border-color: #007bff;
+        }
+
+        .page-number.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        @media (max-width: 768px) {
+            .table-header {
+                flex-direction: column;
+                gap: 10px;
+                align-items: stretch;
+            }
+
+            .pagination-footer {
+                flex-direction: column;
+                gap: 10px;
+                align-items: center;
+            }
+
+            .pagination-buttons {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>💸 إدارة المصروفات</h1>
+            <p>إدارة وتتبع جميع مصروفات الشركة</p>
+            <div class="nav-buttons">
+                <a href="index.html" class="nav-btn">🏠 الرئيسية</a>
+                <a href="drivers-overview.html" class="nav-btn">👥 السائقين</a>
+                <a href="revenues.html" class="nav-btn">💰 الإيرادات</a>
+                <a href="balance-display.html" class="nav-btn">📊 الميزانية</a>
+            </div>
+        </div>
+
+        <!-- Balance Section -->
+        <div class="balance-section">
+            <h3>💰 الأرصدة الحالية</h3>
+            <div class="balance-grid">
+                <div class="balance-item">
+                    <div class="balance-label">حساب الرواتب (د.ك)</div>
+                    <div class="balance-amount" id="salaryBalance">0.000 د.ك</div>
+                </div>
+                <div class="balance-item">
+                    <div class="balance-label">الرصيد البنكي (د.ك)</div>
+                    <div class="balance-amount" id="bankBalance">0.000 د.ك</div>
+                </div>
+                <div class="balance-item clickable" onclick="showDriverDebts()">
+                    <div class="balance-label">ديون على السائقين</div>
+                    <div class="balance-amount" id="driverDebts">0.000 د.ك</div>
+                </div>
+                <div class="balance-item">
+                    <div class="balance-label">إجمالي المصروفات (د.ك)</div>
+                    <div class="balance-amount" id="totalExpenses">0.000 د.ك</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Expense Form -->
+        <div class="form-section">
+            <h3>➕ إضافة مصروف جديد</h3>
+            <form id="expenseForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>📅 التاريخ</label>
+                        <input type="date" id="expenseDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>📋 نوع المصروف</label>
+                        <select id="expenseType" required>
+                            <option value="">اختر نوع المصروف</option>
+                            <option value="وقود">وقود</option>
+                            <option value="صيانة">صيانة</option>
+                            <option value="تأمين">تأمين</option>
+                            <option value="رواتب">رواتب</option>
+                            <option value="مصاريف إيداعات الرواتب">مصاريف إيداعات الرواتب</option>
+                            <option value="إيجار">إيجار</option>
+                            <option value="كهرباء وماء">كهرباء وماء</option>
+                            <option value="اتصالات">اتصالات</option>
+                            <option value="أخرى">أخرى</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>💰 المبلغ (د.ك)</label>
+                        <input type="number" id="expenseAmount" step="0.001" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>📝 الوصف</label>
+                        <textarea id="expenseDescription" rows="3" placeholder="وصف تفصيلي للمصروف..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>📋 ملاحظة</label>
+                        <input type="text" id="expenseNote" placeholder="ملاحظة إضافية...">
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary">💾 حفظ المصروف</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Expense History -->
+        <div class="expense-history">
+            <div class="table-header">
+                <h3>📋 تاريخ المصروفات</h3>
+                <div class="pagination-controls">
+                    <label>عرض:</label>
+                    <select id="itemsPerPage" onchange="updatePagination()">
+                        <option value="10">10 عمليات</option>
+                        <option value="25" selected>25 عملية</option>
+                        <option value="50">50 عملية</option>
+                        <option value="100">100 عملية</option>
+                    </select>
+                </div>
+            </div>
+            <table class="expense-table">
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>النوع</th>
+                        <th>المبلغ</th>
+                        <th>الوصف</th>
+                        <th>الملاحظة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="expenseTableBody">
+                    <tr>
+                        <td colspan="6" class="no-data">جاري تحميل المصروفات...</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="pagination-footer">
+                <div class="pagination-info">
+                    <span id="paginationInfo">عرض 0 من 0 عمليات</span>
+                </div>
+                <div class="pagination-buttons">
+                    <button id="prevPage" onclick="changePage(-1)" disabled>السابق</button>
+                    <span id="pageNumbers"></span>
+                    <button id="nextPage" onclick="changePage(1)" disabled>التالي</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Driver Debts Modal -->
+    <div id="debtsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">تفاصيل ديون السائقين</h2>
+                <span class="close" onclick="closeDebtsModal()">&times;</span>
+            </div>
+            <div id="debtsContent">
+                <div class="no-data">جاري تحميل تفاصيل الديون...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="unified-balance.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let expenses = [];
+        let revenues = [];
+        let driverPayments = [];
+        let drivers = [];
+        let filteredExpenses = [];
+
+        // متغيرات نظام الصفحات
+        let currentPage = 1;
+        let itemsPerPage = 25;
+        let totalPages = 1;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
+            loadAllData();
+        });
+
+        // Load all data from Firebase
+        async function loadAllData() {
+            try {
+                // Load expenses
+                const expensesSnapshot = await db.collection('expenses').orderBy('date', 'desc').get();
+                expenses = expensesSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Load revenues
+                const revenuesSnapshot = await db.collection('revenues').orderBy('date', 'desc').get();
+                revenues = revenuesSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Load driver payments
+                const paymentsSnapshot = await db.collection('driverPayments').orderBy('date', 'desc').get();
+                driverPayments = paymentsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Load drivers
+                const driversSnapshot = await db.collection('drivers').get();
+                drivers = driversSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Calculate and display balances using unified system
+                const balances = calculateUnifiedBalances(revenues, expenses, driverPayments, drivers);
+                updateBalanceDisplay(balances);
+
+                // Display expenses including driver payments
+                displayExpensesWithDriverPayments();
+
+            } catch (error) {
+                console.error('خطأ في تحميل البيانات:', error);
+                document.getElementById('expenseTableBody').innerHTML = 
+                    '<tr><td colspan="6" class="no-data">خطأ في تحميل البيانات</td></tr>';
+            }
+        }
+
+        // Display expenses including relevant driver payments
+        function displayExpensesWithDriverPayments() {
+            // Combine expenses with relevant driver payments
+            let allExpenseItems = [...expenses];
+
+            // Add driver payments that should appear in expenses (دفع مخالفة، دفع رسوم إقامة)
+            driverPayments.forEach(payment => {
+                if (['دفع مخالفة', 'دفع رسوم إقامة'].includes(payment.type)) {
+                    const driver = drivers.find(d => d.id === payment.driverId);
+                    allExpenseItems.push({
+                        id: payment.id,
+                        date: payment.date,
+                        type: payment.type,
+                        amount: payment.amount,
+                        description: `${payment.type} - ${driver ? driver.name : 'سائق غير محدد'}`,
+                        note: payment.notes || '-',
+                        source: 'driverPayment'
+                    });
+                }
+            });
+
+            // Sort by date (newest first)
+            allExpenseItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            displayExpenses(allExpenseItems);
+        }
+
+        // Add new expense
+        document.getElementById('expenseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const expenseData = {
+                date: document.getElementById('expenseDate').value,
+                type: document.getElementById('expenseType').value,
+                amount: parseFloat(document.getElementById('expenseAmount').value),
+                description: document.getElementById('expenseDescription').value,
+                note: document.getElementById('expenseNote').value,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                await db.collection('expenses').add(expenseData);
+                alert('تم إضافة المصروف بنجاح!');
+                
+                // Reset form
+                document.getElementById('expenseForm').reset();
+                document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
+                
+                // Reload data
+                loadAllData();
+            } catch (error) {
+                console.error('خطأ في إضافة المصروف:', error);
+                alert('حدث خطأ في إضافة المصروف');
+            }
+        });
+
+        // Delete expense
+        async function deleteExpense(id) {
+            if (confirm('هل أنت متأكد من حذف هذا المصروف؟')) {
+                try {
+                    await db.collection('expenses').doc(id).delete();
+                    alert('تم حذف المصروف بنجاح!');
+                    loadAllData();
+                } catch (error) {
+                    console.error('خطأ في حذف المصروف:', error);
+                    alert('حدث خطأ في حذف المصروف');
+                }
+            }
+        }
+
+        // Display expenses with pagination
+        function displayExpenses(expenseItems) {
+            // تحديث المصروفات المفلترة
+            filteredExpenses = expenseItems;
+            
+            // حساب الصفحات
+            totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const currentPageData = filteredExpenses.slice(startIndex, endIndex);
+            
+            const tbody = document.getElementById('expenseTableBody');
+            
+            if (filteredExpenses.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="no-data">لا توجد مصروفات مسجلة</td></tr>';
+                updatePaginationInfo(0, 0, 0);
+                updatePaginationControls();
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            currentPageData.forEach(expense => {
+                const row = document.createElement('tr');
+                // عرض زر الحذف لجميع العمليات بغض النظر عن المصدر
+                const deleteButton = `<button class="delete-btn" onclick="deleteExpense('${expense.id}')">حذف</button>`;
+                
+                row.innerHTML = `
+                    <td>${formatDate(expense.date)}</td>
+                    <td>${expense.type || 'غير محدد'}</td>
+                    <td class="amount">${parseFloat(expense.amount || 0).toFixed(3)} د.ك</td>
+                    <td>${expense.description || '-'}</td>
+                    <td>${expense.note || '-'}</td>
+                    <td>${deleteButton}</td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            // تحديث معلومات وأزرار الصفحات
+            updatePaginationInfo(startIndex + 1, Math.min(endIndex, filteredExpenses.length), filteredExpenses.length);
+            updatePaginationControls();
+        }
+
+        // تحديث معلومات الصفحة
+        function updatePaginationInfo(start, end, total) {
+            const paginationInfo = document.getElementById('paginationInfo');
+            if (paginationInfo) {
+                paginationInfo.textContent = `عرض ${start} إلى ${end} من ${total} عمليات`;
+            }
+        }
+
+        // تحديث أزرار التحكم في الصفحات
+        function updatePaginationControls() {
+            const prevButton = document.getElementById('prevPage');
+            const nextButton = document.getElementById('nextPage');
+            const pageNumbers = document.getElementById('pageNumbers');
+            
+            // تحديث أزرار السابق والتالي
+            if (prevButton) {
+                prevButton.disabled = currentPage <= 1;
+            }
+            if (nextButton) {
+                nextButton.disabled = currentPage >= totalPages;
+            }
+            
+            // تحديث أرقام الصفحات
+            if (pageNumbers) {
+                let numbersHtml = '';
+                const maxVisiblePages = 5;
+                let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                
+                if (endPage - startPage + 1 < maxVisiblePages) {
+                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                }
+                
+                for (let i = startPage; i <= endPage; i++) {
+                    const activeClass = i === currentPage ? 'active' : '';
+                    numbersHtml += `<span class="page-number ${activeClass}" onclick="goToPage(${i})">${i}</span>`;
+                }
+                
+                pageNumbers.innerHTML = numbersHtml;
+            }
+        }
+
+        // تغيير الصفحة
+        function changePage(direction) {
+            const newPage = currentPage + direction;
+            if (newPage >= 1 && newPage <= totalPages) {
+                currentPage = newPage;
+                displayExpenses(filteredExpenses);
+            }
+        }
+
+        // الانتقال لصفحة محددة
+        function goToPage(page) {
+            if (page >= 1 && page <= totalPages) {
+                currentPage = page;
+                displayExpenses(filteredExpenses);
+            }
+        }
+
+        // تحديث عدد العمليات في الصفحة
+        function updatePagination() {
+            const itemsPerPageSelect = document.getElementById('itemsPerPage');
+            if (itemsPerPageSelect) {
+                itemsPerPage = parseInt(itemsPerPageSelect.value);
+                currentPage = 1; // إعادة تعيين للصفحة الأولى
+                displayExpenses(filteredExpenses);
+            }
+        }
+
+        // Show driver debts modal
+        function showDriverDebts() {
+            const modal = document.getElementById('debtsModal');
+            const content = document.getElementById('debtsContent');
+            
+            if (drivers.length === 0) {
+                content.innerHTML = '<div class="no-data">لا توجد بيانات سائقين</div>';
+                modal.style.display = 'block';
+                return;
+            }
+            
+            let debtsHtml = '';
+            let totalDebts = 0;
+            
+            drivers.forEach(driver => {
+                const debt = calculateDriverDebt(driver.id, driverPayments);
+                if (debt > 0) {
+                    totalDebts += debt;
+                    debtsHtml += `
+                        <div class="debt-item">
+                            <div class="debt-driver">${driver.name || 'غير محدد'}</div>
+                            <div class="debt-amount">${debt.toFixed(3)} د.ك</div>
+                        </div>
+                    `;
+                }
+            });
+            
+            if (debtsHtml === '') {
+                content.innerHTML = '<div class="no-data">لا توجد ديون على السائقين</div>';
+            } else {
+                content.innerHTML = `
+                    <div style="text-align: center; margin-bottom: 20px; font-weight: bold; color: #dc3545;">
+                        إجمالي الديون: ${totalDebts.toFixed(3)} د.ك
+                    </div>
+                    ${debtsHtml}
+                `;
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        // Close driver debts modal
+        function closeDebtsModal() {
+            document.getElementById('debtsModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('debtsModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-GB');
+        }
+    </script>
+</body>
+</html>
+

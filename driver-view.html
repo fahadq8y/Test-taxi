@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بيانات السائق - نظام إدارة التاكسي</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            min-height: 100vh;
+            direction: rtl;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #2563eb;
+            margin-bottom: 0.5rem;
+        }
+
+        .header .welcome {
+            color: #6b7280;
+            font-size: 1.1rem;
+        }
+
+        .card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            color: #374151;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .info-item {
+            padding: 1rem;
+            background: #f9fafb;
+            border-radius: 10px;
+            border-left: 4px solid #2563eb;
+        }
+
+        .info-item label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-item .value {
+            font-size: 1.1rem;
+            color: #1f2937;
+        }
+
+        .financial-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-indicator {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .status-good {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .maintenance-section {
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .maintenance-current {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .maintenance-item {
+            text-align: center;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .maintenance-item .icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .maintenance-item .label {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 0.25rem;
+        }
+
+        .maintenance-item .value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .oil-status {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-top: 0.5rem;
+            display: inline-block;
+        }
+
+        .update-form {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-top: 1rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-group input {
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            direction: rtl;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .update-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .update-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .update-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .logout-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+        }
+
+        .success-message, .error-message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            text-align: center;
+            display: none;
+        }
+
+        .success-message {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0.5rem;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚕 بيانات السائق</h1>
+            <div class="welcome" id="welcomeMessage">مرحباً بك</div>
+        </div>
+
+        <div class="success-message" id="successMessage"></div>
+        <div class="error-message" id="errorMessage"></div>
+
+        <!-- البيانات الأساسية -->
+        <div class="card">
+            <h2>📋 البيانات الأساسية</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>الاسم</label>
+                    <div class="value" id="driverName">-</div>
+                </div>
+                <div class="info-item">
+                    <label>رقم الهاتف</label>
+                    <div class="value" id="driverPhone">-</div>
+                </div>
+                <div class="info-item">
+                    <label>السيارة</label>
+                    <div class="value" id="driverCar">-</div>
+                </div>
+                <div class="info-item">
+                    <label>تاريخ التسجيل</label>
+                    <div class="value" id="registrationDate">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- الحالة المالية -->
+        <div class="card">
+            <h2>💰 الحالة المالية</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>المبلغ المستحق</label>
+                    <div class="financial-status">
+                        <div class="value" id="outstandingAmount">0</div>
+                        <span>دينار</span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <label>آخر دفعة</label>
+                    <div class="value" id="lastPayment">-</div>
+                </div>
+                <div class="info-item">
+                    <label>حالة الحساب</label>
+                    <div class="value">
+                        <span class="status-indicator" id="accountStatus">جيد</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- معلومات الصيانة -->
+        <div class="card">
+            <h2>🔧 معلومات الصيانة</h2>
+            
+            <!-- البيانات الحالية -->
+            <div class="maintenance-current">
+                <div class="maintenance-item">
+                    <div class="icon">🚗</div>
+                    <div class="label">الكيلومترات الحالية</div>
+                    <div class="value" id="currentKilometers">0 كم</div>
+                </div>
+                <div class="maintenance-item">
+                    <div class="icon">🛢️</div>
+                    <div class="label">آخر تغيير زيت</div>
+                    <div class="value" id="lastOilChange">غير محدد</div>
+                </div>
+                <div class="maintenance-item">
+                    <div class="icon">⚠️</div>
+                    <div class="label">حالة الزيت</div>
+                    <div class="value">
+                        <span class="oil-status" id="oilStatus">غير محدد</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- نموذج التحديث -->
+            <div class="update-form">
+                <h3>تحديث بيانات الصيانة</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="newKilometers">الكيلومترات الجديدة</label>
+                        <input type="number" id="newKilometers" placeholder="مثال: 125000" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="oilChangeDate">تاريخ تغيير الزيت</label>
+                        <input type="date" id="oilChangeDate">
+                    </div>
+                </div>
+                <button class="update-btn" id="updateBtn" onclick="updateMaintenance()">
+                    تحديث البيانات
+                </button>
+            </div>
+        </div>
+
+        <!-- الوثائق -->
+        <div class="card">
+            <h2>📄 الوثائق</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>انتهاء الإقامة</label>
+                    <div class="value" id="residenceExpiry">-</div>
+                </div>
+                <div class="info-item">
+                    <label>انتهاء الرخصة</label>
+                    <div class="value" id="licenseExpiry">-</div>
+                </div>
+                <div class="info-item">
+                    <label>انتهاء التأمين</label>
+                    <div class="value" id="insuranceExpiry">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center;">
+            <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, doc, updateDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let driverId = null;
+        let driverData = null;
+
+        // Check if user is logged in
+        function checkLogin() {
+            driverId = sessionStorage.getItem('driverId');
+            const driverDataStr = sessionStorage.getItem('driverData');
+            
+            if (!driverId || !driverDataStr) {
+                window.location.href = 'driver-login.html';
+                return false;
+            }
+            
+            driverData = JSON.parse(driverDataStr);
+            return true;
+        }
+
+        // Format date
+        function formatDate(dateStr) {
+            if (!dateStr) return 'غير محدد';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('ar-SA');
+        }
+
+        // Calculate oil change status
+        function getOilChangeStatus(lastOilChangeDate) {
+            if (!lastOilChangeDate) {
+                return { status: 'غير محدد', color: '#6b7280', message: 'لم يتم تحديد تاريخ تغيير الزيت' };
+            }
+
+            const today = new Date();
+            const lastChange = new Date(lastOilChangeDate);
+            const daysDiff = Math.floor((today - lastChange) / (1000 * 60 * 60 * 24));
+
+            if (daysDiff <= 10) {
+                return { status: 'جيد', color: '#10b981', message: 'الزيت في حالة جيدة' };
+            } else if (daysDiff <= 15) {
+                return { status: 'تحذير', color: '#f59e0b', message: 'يُنصح بتغيير الزيت قريباً' };
+            } else {
+                return { status: 'عاجل', color: '#ef4444', message: 'يجب تغيير الزيت فوراً!' };
+            }
+        }
+
+        // Load driver data
+        function loadDriverData() {
+            if (!checkLogin()) return;
+
+            // Basic info
+            document.getElementById('welcomeMessage').textContent = `مرحباً ${driverData.name}`;
+            document.getElementById('driverName').textContent = driverData.name || '-';
+            document.getElementById('driverPhone').textContent = driverData.phone || '-';
+            document.getElementById('driverCar').textContent = `${driverData.carNumber || ''} - ${driverData.carModel || ''}`.trim() || '-';
+            document.getElementById('registrationDate').textContent = formatDate(driverData.registrationDate);
+
+            // Financial info
+            const outstandingAmount = driverData.outstandingAmount || 0;
+            document.getElementById('outstandingAmount').textContent = outstandingAmount;
+            document.getElementById('lastPayment').textContent = formatDate(driverData.lastPaymentDate);
+            
+            const accountStatusEl = document.getElementById('accountStatus');
+            if (outstandingAmount > 0) {
+                accountStatusEl.textContent = 'مستحق';
+                accountStatusEl.className = 'status-indicator status-warning';
+            } else {
+                accountStatusEl.textContent = 'جيد';
+                accountStatusEl.className = 'status-indicator status-good';
+            }
+
+            // Maintenance info
+            const currentKm = driverData.currentKilometers || 0;
+            document.getElementById('currentKilometers').textContent = `${currentKm.toLocaleString()} كم`;
+            document.getElementById('lastOilChange').textContent = formatDate(driverData.lastOilChangeDate);
+
+            // Oil status
+            const oilStatus = getOilChangeStatus(driverData.lastOilChangeDate);
+            const oilStatusEl = document.getElementById('oilStatus');
+            oilStatusEl.textContent = oilStatus.status;
+            oilStatusEl.style.backgroundColor = oilStatus.color + '20';
+            oilStatusEl.style.color = oilStatus.color;
+
+            // Documents
+            document.getElementById('residenceExpiry').textContent = formatDate(driverData.residenceExpiry);
+            document.getElementById('licenseExpiry').textContent = formatDate(driverData.licenseExpiry);
+            document.getElementById('insuranceExpiry').textContent = formatDate(driverData.insuranceExpiry);
+
+            // Set current values in form
+            document.getElementById('newKilometers').value = currentKm;
+            if (driverData.lastOilChangeDate) {
+                document.getElementById('oilChangeDate').value = driverData.lastOilChangeDate;
+            }
+        }
+
+        // Show message
+        function showMessage(message, isError = false) {
+            const successEl = document.getElementById('successMessage');
+            const errorEl = document.getElementById('errorMessage');
+            
+            if (isError) {
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+                successEl.style.display = 'none';
+            } else {
+                successEl.textContent = message;
+                successEl.style.display = 'block';
+                errorEl.style.display = 'none';
+            }
+
+            setTimeout(() => {
+                successEl.style.display = 'none';
+                errorEl.style.display = 'none';
+            }, 5000);
+        }
+
+        // Update maintenance data
+        window.updateMaintenance = async function() {
+            const newKm = parseInt(document.getElementById('newKilometers').value);
+            const oilChangeDate = document.getElementById('oilChangeDate').value;
+            const updateBtn = document.getElementById('updateBtn');
+
+            if (!newKm && !oilChangeDate) {
+                showMessage('يرجى إدخال الكيلومترات أو تاريخ تغيير الزيت', true);
+                return;
+            }
+
+            if (newKm && newKm < (driverData.currentKilometers || 0)) {
+                showMessage('الكيلومترات الجديدة يجب أن تكون أكبر من الحالية', true);
+                return;
+            }
+
+            try {
+                updateBtn.disabled = true;
+                updateBtn.textContent = 'جاري التحديث...';
+
+                const updateData = {};
+                if (newKm) {
+                    updateData.currentKilometers = newKm;
+                    updateData.lastKilometersUpdate = new Date().toISOString();
+                }
+                if (oilChangeDate) {
+                    updateData.lastOilChangeDate = oilChangeDate;
+                }
+
+                await updateDoc(doc(db, 'drivers', driverId), updateData);
+
+                // Update local data
+                Object.assign(driverData, updateData);
+                sessionStorage.setItem('driverData', JSON.stringify(driverData));
+
+                // Reload display
+                loadDriverData();
+                showMessage('تم تحديث البيانات بنجاح');
+
+            } catch (error) {
+                console.error('Update error:', error);
+                showMessage('حدث خطأ أثناء التحديث', true);
+            } finally {
+                updateBtn.disabled = false;
+                updateBtn.textContent = 'تحديث البيانات';
+            }
+        };
+
+        // Logout function
+        window.logout = function() {
+            sessionStorage.removeItem('driverId');
+            sessionStorage.removeItem('driverData');
+            window.location.href = 'driver-login.html';
+        };
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', loadDriverData);
+    </script>
+</body>
+</html>
+

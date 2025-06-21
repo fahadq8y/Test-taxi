@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم المحاسب - نظام إدارة التاكسي</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8fafc;
+            direction: rtl;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #059669, #047857);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #059669;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .action-btn {
+            background: white;
+            border: 2px solid #e5e7eb;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-decoration: none;
+            color: #374151;
+            text-align: center;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .action-btn:hover {
+            border-color: #059669;
+            color: #059669;
+            transform: translateY(-2px);
+        }
+
+        .action-icon {
+            font-size: 2rem;
+        }
+
+        .recent-activities {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .activities-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 10px;
+            transition: background 0.3s;
+        }
+
+        .activity-item:hover {
+            background: #f9fafb;
+        }
+
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: white;
+        }
+
+        .activity-revenue {
+            background: #10b981;
+        }
+
+        .activity-expense {
+            background: #ef4444;
+        }
+
+        .activity-driver {
+            background: #3b82f6;
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .activity-desc {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .activity-time {
+            color: #9ca3af;
+            font-size: 0.8rem;
+        }
+
+        .pending-tasks {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 10px;
+            border-right: 4px solid #f59e0b;
+            background: #fffbeb;
+        }
+
+        .task-urgent {
+            border-right-color: #dc2626;
+            background: #fef2f2;
+        }
+
+        .task-icon {
+            font-size: 1.5rem;
+        }
+
+        .task-content {
+            flex: 1;
+        }
+
+        .task-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .task-desc {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #059669;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .container {
+                margin: 1rem auto;
+                padding: 0 0.5rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .quick-actions {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>💼 لوحة تحكم المحاسب</h1>
+        <div class="user-info">
+            <span id="userName">مرحباً، المحاسب</span>
+            <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>جاري تحميل البيانات...</p>
+        </div>
+
+        <div id="dashboard" style="display: none;">
+            <!-- إحصائيات سريعة -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">👨‍💼</div>
+                    <div class="stat-number" id="activeDrivers">0</div>
+                    <div class="stat-label">السائقين النشطين</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-number" id="todayRevenue">0</div>
+                    <div class="stat-label">إيرادات اليوم (د.ك)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-number" id="weeklyRevenue">0</div>
+                    <div class="stat-label">إيرادات الأسبوع (د.ك)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⚠️</div>
+                    <div class="stat-number" id="pendingPayments">0</div>
+                    <div class="stat-label">مدفوعات متأخرة</div>
+                </div>
+            </div>
+
+            <!-- الإجراءات السريعة -->
+            <div class="quick-actions">
+                <a href="drivers.html" class="action-btn">
+                    <div class="action-icon">👨‍💼</div>
+                    <span>إدارة السائقين</span>
+                </a>
+                <a href="drivers-overview.html" class="action-btn">
+                    <div class="action-icon">📊</div>
+                    <span>جدول السائقين الشامل</span>
+                </a>
+                <a href="revenues.html" class="action-btn">
+                    <div class="action-icon">💰</div>
+                    <span>تسجيل إيراد</span>
+                </a>
+                <a href="expenses.html" class="action-btn">
+                    <div class="action-icon">📊</div>
+                    <span>تسجيل مصروف</span>
+                </a>
+                <a href="cars.html" class="action-btn">
+                    <div class="action-icon">🚗</div>
+                    <span>إدارة السيارات</span>
+                </a>
+                <a href="reports.html" class="action-btn">
+                    <div class="action-icon">📈</div>
+                    <span>التقارير</span>
+                </a>
+                <a href="notifications.html" class="action-btn">
+                    <div class="action-icon">🔔</div>
+                    <span>إرسال إشعار</span>
+                </a>
+            </div>
+
+            <!-- الأنشطة الأخيرة -->
+            <div class="recent-activities">
+                <div class="activities-header">
+                    <h2>الأنشطة الأخيرة</h2>
+                    <span id="activitiesCount">0 نشاط</span>
+                </div>
+                <div id="activitiesList">
+                    <!-- سيتم ملء الأنشطة هنا -->
+                </div>
+            </div>
+
+            <!-- المهام المعلقة -->
+            <div class="pending-tasks">
+                <div class="activities-header">
+                    <h2>المهام المعلقة</h2>
+                    <span id="tasksCount">0 مهمة</span>
+                </div>
+                <div id="tasksList">
+                    <!-- سيتم ملء المهام هنا -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, query, where, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Check authentication
+        auth.onAuthStateChanged((user) => {
+            if (!user || localStorage.getItem('userRole') !== 'accountant') {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            document.getElementById('userName').textContent = `مرحباً، ${localStorage.getItem('userName') || 'المحاسب'}`;
+            loadDashboardData();
+        });
+
+        // Load dashboard data
+        async function loadDashboardData() {
+            try {
+                await Promise.all([
+                    loadStats(),
+                    loadRecentActivities(),
+                    loadPendingTasks()
+                ]);
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                document.getElementById('loading').innerHTML = '<p>حدث خطأ في تحميل البيانات</p>';
+            }
+        }
+
+        // Load statistics
+        async function loadStats() {
+            try {
+                // Get active drivers
+                const driversQuery = query(collection(db, 'drivers'), where('contractStatus', '==', 'active'));
+                const driversSnapshot = await getDocs(driversQuery);
+                document.getElementById('activeDrivers').textContent = driversSnapshot.size;
+
+                // Get today's revenue
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const todayRevenuesQuery = query(
+                    collection(db, 'revenues'),
+                    where('date', '>=', today)
+                );
+                const todayRevenuesSnapshot = await getDocs(todayRevenuesQuery);
+                let todayRevenue = 0;
+                todayRevenuesSnapshot.forEach(doc => {
+                    todayRevenue += doc.data().amount || 0;
+                });
+                document.getElementById('todayRevenue').textContent = todayRevenue.toFixed(3);
+
+                // Get weekly revenue
+                const weekStart = new Date();
+                weekStart.setDate(weekStart.getDate() - 7);
+                weekStart.setHours(0, 0, 0, 0);
+                const weeklyRevenuesQuery = query(
+                    collection(db, 'revenues'),
+                    where('date', '>=', weekStart)
+                );
+                const weeklyRevenuesSnapshot = await getDocs(weeklyRevenuesQuery);
+                let weeklyRevenue = 0;
+                weeklyRevenuesSnapshot.forEach(doc => {
+                    weeklyRevenue += doc.data().amount || 0;
+                });
+                document.getElementById('weeklyRevenue').textContent = weeklyRevenue.toFixed(3);
+
+                // Count pending payments (drivers with delay days > 0)
+                let pendingPayments = 0;
+                driversSnapshot.forEach(doc => {
+                    const driver = doc.data();
+                    if (driver.delayDays && driver.delayDays > 0) {
+                        pendingPayments++;
+                    }
+                });
+                document.getElementById('pendingPayments').textContent = pendingPayments;
+
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // Load recent activities
+        async function loadRecentActivities() {
+            try {
+                const activities = [];
+
+                // Get recent revenues
+                const revenuesQuery = query(
+                    collection(db, 'revenues'),
+                    orderBy('createdAt', 'desc'),
+                    limit(5)
+                );
+                const revenuesSnapshot = await getDocs(revenuesQuery);
+                revenuesSnapshot.forEach(doc => {
+                    const revenue = doc.data();
+                    activities.push({
+                        type: 'revenue',
+                        icon: '💰',
+                        title: 'تسجيل إيراد جديد',
+                        desc: `${revenue.amount} د.ك من السائق`,
+                        time: new Date(revenue.createdAt.seconds * 1000).toLocaleString('ar'),
+                        timestamp: revenue.createdAt.seconds
+                    });
+                });
+
+                // Get recent expenses
+                const expensesQuery = query(
+                    collection(db, 'expenses'),
+                    orderBy('createdAt', 'desc'),
+                    limit(5)
+                );
+                const expensesSnapshot = await getDocs(expensesQuery);
+                expensesSnapshot.forEach(doc => {
+                    const expense = doc.data();
+                    activities.push({
+                        type: 'expense',
+                        icon: '📊',
+                        title: 'تسجيل مصروف جديد',
+                        desc: `${expense.amount} د.ك - ${expense.type}`,
+                        time: new Date(expense.createdAt.seconds * 1000).toLocaleString('ar'),
+                        timestamp: expense.createdAt.seconds
+                    });
+                });
+
+                // Sort activities by timestamp
+                activities.sort((a, b) => b.timestamp - a.timestamp);
+
+                displayActivities(activities.slice(0, 10));
+
+            } catch (error) {
+                console.error('Error loading activities:', error);
+            }
+        }
+
+        // Display activities
+        function displayActivities(activities) {
+            const activitiesList = document.getElementById('activitiesList');
+            const activitiesCount = document.getElementById('activitiesCount');
+
+            activitiesCount.textContent = `${activities.length} نشاط`;
+
+            if (activities.length === 0) {
+                activitiesList.innerHTML = '<div class="activity-item"><div class="activity-content"><div class="activity-title">لا توجد أنشطة حديثة</div></div></div>';
+                return;
+            }
+
+            activitiesList.innerHTML = activities.map(activity => `
+                <div class="activity-item">
+                    <div class="activity-icon activity-${activity.type}">
+                        ${activity.icon}
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-title">${activity.title}</div>
+                        <div class="activity-desc">${activity.desc}</div>
+                    </div>
+                    <div class="activity-time">${activity.time}</div>
+                </div>
+            `).join('');
+        }
+
+        // Load pending tasks
+        async function loadPendingTasks() {
+            try {
+                const tasks = [];
+                const today = new Date();
+
+                // Check for drivers with pending payments
+                const driversSnapshot = await getDocs(collection(db, 'drivers'));
+                driversSnapshot.forEach(doc => {
+                    const driver = doc.data();
+                    
+                    // Check for delayed payments
+                    if (driver.delayDays && driver.delayDays > 0) {
+                        tasks.push({
+                            type: driver.delayDays > 7 ? 'urgent' : 'normal',
+                            icon: '💰',
+                            title: `دفعة متأخرة - ${driver.name}`,
+                            desc: `متأخر ${driver.delayDays} يوم`
+                        });
+                    }
+
+                    // Check for document expiry
+                    const documents = [
+                        { field: 'carRegistrationExpiry', name: 'دفتر السيارة', warningDays: 30 },
+                        { field: 'residenceExpiry', name: 'الإقامة', warningDays: 30 },
+                        { field: 'licenseExpiry', name: 'الرخصة', warningDays: 30 },
+                        { field: 'permitExpiry', name: 'التصريح', warningDays: 30 },
+                        { field: 'passportExpiry', name: 'جواز السفر', warningDays: 425 }
+                    ];
+
+                    documents.forEach(docType => {
+                        if (driver[docType.field]) {
+                            const expiryDate = driver[docType.field].toDate();
+                            const daysUntilExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+
+                            if (daysUntilExpiry <= docType.warningDays && daysUntilExpiry > 0) {
+                                tasks.push({
+                                    type: daysUntilExpiry <= 7 ? 'urgent' : 'normal',
+                                    icon: '📄',
+                                    title: `تجديد ${docType.name} - ${driver.name}`,
+                                    desc: `ينتهي خلال ${daysUntilExpiry} يوم`
+                                });
+                            }
+                        }
+                    });
+
+                    // Check for oil change
+                    if (driver.lastOilChangeDate) {
+                        const lastOilChange = driver.lastOilChangeDate.toDate();
+                        const daysSinceOilChange = Math.ceil((today - lastOilChange) / (1000 * 60 * 60 * 24));
+
+                        if (daysSinceOilChange >= 15) {
+                            tasks.push({
+                                type: 'normal',
+                                icon: '🔧',
+                                title: `تغيير زيت المكينة - ${driver.name}`,
+                                desc: `متأخر ${daysSinceOilChange} يوم`
+                            });
+                        }
+                    }
+                });
+
+                displayTasks(tasks);
+
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+            }
+        }
+
+        // Display tasks
+        function displayTasks(tasks) {
+            const tasksList = document.getElementById('tasksList');
+            const tasksCount = document.getElementById('tasksCount');
+
+            tasksCount.textContent = `${tasks.length} مهمة`;
+
+            if (tasks.length === 0) {
+                tasksList.innerHTML = '<div class="task-item"><div class="task-content"><div class="task-title">لا توجد مهام معلقة</div><div class="task-desc">جميع الأمور تسير بشكل طبيعي</div></div></div>';
+                return;
+            }
+
+            tasksList.innerHTML = tasks.map(task => `
+                <div class="task-item ${task.type === 'urgent' ? 'task-urgent' : ''}">
+                    <div class="task-icon">${task.icon}</div>
+                    <div class="task-content">
+                        <div class="task-title">${task.title}</div>
+                        <div class="task-desc">${task.desc}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Logout function
+        window.logout = async () => {
+            try {
+                await signOut(auth);
+                localStorage.clear();
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        };
+    </script>
+</body>
+</html>
+

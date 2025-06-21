@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التقارير - نظام إدارة التاكسي</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8fafc;
+            direction: rtl;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .nav-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .report-controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .control-input {
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            direction: rtl;
+        }
+
+        .control-input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .generate-btn {
+            background: linear-gradient(135deg, #059669, #047857);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+            justify-self: start;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .report-types {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .report-type-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .report-type-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .report-type-card.active {
+            border-color: #2563eb;
+            background: #eff6ff;
+        }
+
+        .report-type-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .report-type-description {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .report-results {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: none;
+        }
+
+        .report-header {
+            background: #f8fafc;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .report-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #1f2937;
+        }
+
+        .export-btn {
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .export-btn:hover {
+            background: #4b5563;
+        }
+
+        .report-content {
+            padding: 1.5rem;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .summary-title {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1f2937;
+        }
+
+        .summary-value.positive {
+            color: #059669;
+        }
+
+        .summary-value.negative {
+            color: #dc2626;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 0.75rem;
+            text-align: right;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .data-table th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .data-table tr:hover {
+            background: #f8fafc;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #2563eb;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .container {
+                margin: 1rem auto;
+                padding: 0 0.5rem;
+            }
+
+            .controls-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .report-types {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .data-table {
+                font-size: 0.8rem;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 التقارير</h1>
+        <div class="nav-buttons">
+            <a href="admin-dashboard.html" class="nav-btn">العودة للوحة التحكم</a>
+            <button class="nav-btn" onclick="logout()">تسجيل الخروج</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="report-controls">
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label>من تاريخ</label>
+                    <input type="date" class="control-input" id="fromDate">
+                </div>
+                <div class="control-group">
+                    <label>إلى تاريخ</label>
+                    <input type="date" class="control-input" id="toDate">
+                </div>
+                <div class="control-group">
+                    <label>نوع التقرير</label>
+                    <select class="control-input" id="reportType">
+                        <option value="">اختر نوع التقرير</option>
+                        <option value="financial">التقرير المالي</option>
+                        <option value="drivers">تقرير السائقين</option>
+                        <option value="cars">تقرير السيارات</option>
+                        <option value="expenses">تقرير المصروفات</option>
+                        <option value="revenues">تقرير الإيرادات</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>&nbsp;</label>
+                    <button class="generate-btn" onclick="generateReport()">إنشاء التقرير</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="report-types">
+            <div class="report-type-card" onclick="selectReportType('financial')">
+                <div class="report-type-title">💰 التقرير المالي الشامل</div>
+                <div class="report-type-description">تقرير شامل للإيرادات والمصروفات والأرباح</div>
+            </div>
+            <div class="report-type-card" onclick="selectReportType('drivers')">
+                <div class="report-type-title">👨‍💼 تقرير السائقين</div>
+                <div class="report-type-description">تفاصيل السائقين ومدفوعاتهم والتحذيرات</div>
+            </div>
+            <div class="report-type-card" onclick="selectReportType('cars')">
+                <div class="report-type-title">🚗 تقرير السيارات</div>
+                <div class="report-type-description">حالة السيارات وتكاليف الصيانة</div>
+            </div>
+            <div class="report-type-card" onclick="selectReportType('expenses')">
+                <div class="report-type-title">💸 تقرير المصروفات</div>
+                <div class="report-type-description">تفصيل المصروفات حسب النوع والفترة</div>
+            </div>
+            <div class="report-type-card" onclick="selectReportType('revenues')">
+                <div class="report-type-title">💵 تقرير الإيرادات</div>
+                <div class="report-type-description">إيرادات السائقين والمصادر الأخرى</div>
+            </div>
+        </div>
+
+        <div class="loading" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>جاري إنشاء التقرير...</p>
+        </div>
+
+        <div class="report-results" id="reportResults">
+            <div class="report-header">
+                <div class="report-title" id="reportTitle">التقرير المالي</div>
+                <button class="export-btn" onclick="exportReport()">تصدير PDF</button>
+            </div>
+            <div class="report-content" id="reportContent">
+                <!-- سيتم ملء محتوى التقرير هنا -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, doc, getDoc, query, where, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let selectedReportType = '';
+
+        // Check authentication
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            try {
+                // Get user data from Firestore
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (!userDoc.exists()) {
+                    console.error('User document not found');
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                const userData = userDoc.data();
+                if (!['admin', 'accountant'].includes(userData.role)) {
+                    console.error('User does not have required role');
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                // Store user data
+                currentUser = { uid: user.uid, ...userData };
+                
+                // Set default dates
+                setDefaultDates();
+            } catch (error) {
+                console.error('Error checking user role:', error);
+                window.location.href = 'index.html';
+            }
+        });
+
+        // Set default dates (current month)
+        function setDefaultDates() {
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            
+            document.getElementById('fromDate').value = firstDay.toISOString().split('T')[0];
+            document.getElementById('toDate').value = today.toISOString().split('T')[0];
+        }
+
+        // Select report type
+        window.selectReportType = (type) => {
+            selectedReportType = type;
+            document.getElementById('reportType').value = type;
+            
+            // Update UI
+            document.querySelectorAll('.report-type-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            event.target.closest('.report-type-card').classList.add('active');
+        };
+
+        // Generate report
+        window.generateReport = async () => {
+            const reportType = document.getElementById('reportType').value || selectedReportType;
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+
+            if (!reportType) {
+                alert('يرجى اختيار نوع التقرير');
+                return;
+            }
+
+            if (!fromDate || !toDate) {
+                alert('يرجى تحديد الفترة الزمنية');
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('reportResults').style.display = 'none';
+
+            try {
+                let reportData;
+                switch (reportType) {
+                    case 'financial':
+                        reportData = await generateFinancialReport(fromDate, toDate);
+                        break;
+                    case 'drivers':
+                        reportData = await generateDriversReport(fromDate, toDate);
+                        break;
+                    case 'cars':
+                        reportData = await generateCarsReport(fromDate, toDate);
+                        break;
+                    case 'expenses':
+                        reportData = await generateExpensesReport(fromDate, toDate);
+                        break;
+                    case 'revenues':
+                        reportData = await generateRevenuesReport(fromDate, toDate);
+                        break;
+                    default:
+                        throw new Error('نوع تقرير غير مدعوم');
+                }
+
+                displayReport(reportData);
+            } catch (error) {
+                console.error('Error generating report:', error);
+                alert('حدث خطأ في إنشاء التقرير');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        };
+
+        // Generate financial report
+        async function generateFinancialReport(fromDate, toDate) {
+            const [revenues, expenses] = await Promise.all([
+                getDataInRange('revenues', fromDate, toDate),
+                getDataInRange('expenses', fromDate, toDate)
+            ]);
+
+            const totalRevenues = revenues.reduce((sum, item) => sum + item.amount, 0);
+            const totalExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
+            const netProfit = totalRevenues - totalExpenses;
+
+            return {
+                title: 'التقرير المالي الشامل',
+                summary: [
+                    { title: 'إجمالي الإيرادات', value: totalRevenues.toFixed(3) + ' د.ك', class: 'positive' },
+                    { title: 'إجمالي المصروفات', value: totalExpenses.toFixed(3) + ' د.ك', class: 'negative' },
+                    { title: 'صافي الربح', value: netProfit.toFixed(3) + ' د.ك', class: netProfit >= 0 ? 'positive' : 'negative' },
+                    { title: 'عدد المعاملات', value: (revenues.length + expenses.length).toString() }
+                ],
+                tables: [
+                    {
+                        title: 'الإيرادات',
+                        headers: ['التاريخ', 'المصدر', 'المبلغ', 'الوصف'],
+                        data: revenues.map(item => [
+                            new Date(item.date?.seconds * 1000 || item.createdAt?.seconds * 1000).toLocaleDateString('ar'),
+                            item.source || 'غير محدد',
+                            item.amount.toFixed(3) + ' د.ك',
+                            item.description || 'لا يوجد وصف'
+                        ])
+                    },
+                    {
+                        title: 'المصروفات',
+                        headers: ['التاريخ', 'النوع', 'المبلغ', 'الوصف'],
+                        data: expenses.map(item => [
+                            new Date(item.expenseDate?.seconds * 1000 || item.createdAt?.seconds * 1000).toLocaleDateString('ar'),
+                            getExpenseTypeName(item.type),
+                            item.amount.toFixed(3) + ' د.ك',
+                            item.description || 'لا يوجد وصف'
+                        ])
+                    }
+                ]
+            };
+        }
+
+        // Generate drivers report
+        async function generateDriversReport(fromDate, toDate) {
+            const drivers = await getDocs(collection(db, 'drivers'));
+            const driversData = [];
+            
+            drivers.forEach(doc => {
+                const data = doc.data();
+                driversData.push({
+                    name: data.name,
+                    phone: data.phone,
+                    dailyRent: data.dailyRent || 0,
+                    status: data.contractStatus === 'active' ? 'نشط' : 'غير نشط',
+                    lastPayment: data.lastPaymentDate ? new Date(data.lastPaymentDate.seconds * 1000).toLocaleDateString('ar') : 'لا توجد'
+                });
+            });
+
+            return {
+                title: 'تقرير السائقين',
+                summary: [
+                    { title: 'إجمالي السائقين', value: driversData.length.toString() },
+                    { title: 'السائقين النشطين', value: driversData.filter(d => d.status === 'نشط').length.toString() },
+                    { title: 'متوسط الأجرة اليومية', value: (driversData.reduce((sum, d) => sum + d.dailyRent, 0) / driversData.length || 0).toFixed(3) + ' د.ك' }
+                ],
+                tables: [
+                    {
+                        title: 'قائمة السائقين',
+                        headers: ['الاسم', 'رقم الهاتف', 'الأجرة اليومية', 'الحالة', 'آخر دفعة'],
+                        data: driversData.map(driver => [
+                            driver.name,
+                            driver.phone || 'غير محدد',
+                            driver.dailyRent.toFixed(3) + ' د.ك',
+                            driver.status,
+                            driver.lastPayment
+                        ])
+                    }
+                ]
+            };
+        }
+
+        // Generate cars report
+        async function generateCarsReport(fromDate, toDate) {
+            const cars = await getDocs(collection(db, 'cars'));
+            const carsData = [];
+            
+            cars.forEach(doc => {
+                const data = doc.data();
+                carsData.push({
+                    plateNumber: data.plateNumber,
+                    brand: data.brand,
+                    model: data.model,
+                    year: data.year,
+                    status: getCarStatusName(data.status),
+                    purchasePrice: data.purchasePrice || 0
+                });
+            });
+
+            const totalValue = carsData.reduce((sum, car) => sum + car.purchasePrice, 0);
+
+            return {
+                title: 'تقرير السيارات',
+                summary: [
+                    { title: 'إجمالي السيارات', value: carsData.length.toString() },
+                    { title: 'السيارات المتاحة', value: carsData.filter(c => c.status === 'متاحة').length.toString() },
+                    { title: 'السيارات المؤجرة', value: carsData.filter(c => c.status === 'مؤجرة').length.toString() },
+                    { title: 'إجمالي قيمة الأسطول', value: totalValue.toFixed(3) + ' د.ك' }
+                ],
+                tables: [
+                    {
+                        title: 'قائمة السيارات',
+                        headers: ['رقم اللوحة', 'الماركة', 'الموديل', 'السنة', 'الحالة', 'سعر الشراء'],
+                        data: carsData.map(car => [
+                            car.plateNumber,
+                            car.brand || 'غير محدد',
+                            car.model || 'غير محدد',
+                            car.year?.toString() || 'غير محدد',
+                            car.status,
+                            car.purchasePrice.toFixed(3) + ' د.ك'
+                        ])
+                    }
+                ]
+            };
+        }
+
+        // Generate expenses report
+        async function generateExpensesReport(fromDate, toDate) {
+            const expenses = await getDataInRange('expenses', fromDate, toDate);
+            const totalExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
+
+            // Group by type
+            const expensesByType = {};
+            expenses.forEach(expense => {
+                const type = getExpenseTypeName(expense.type);
+                if (!expensesByType[type]) {
+                    expensesByType[type] = { count: 0, total: 0 };
+                }
+                expensesByType[type].count++;
+                expensesByType[type].total += expense.amount;
+            });
+
+            return {
+                title: 'تقرير المصروفات',
+                summary: [
+                    { title: 'إجمالي المصروفات', value: totalExpenses.toFixed(3) + ' د.ك', class: 'negative' },
+                    { title: 'عدد المصروفات', value: expenses.length.toString() },
+                    { title: 'متوسط المصروف', value: (totalExpenses / expenses.length || 0).toFixed(3) + ' د.ك' }
+                ],
+                tables: [
+                    {
+                        title: 'المصروفات حسب النوع',
+                        headers: ['نوع المصروف', 'العدد', 'إجمالي المبلغ', 'النسبة'],
+                        data: Object.entries(expensesByType).map(([type, data]) => [
+                            type,
+                            data.count.toString(),
+                            data.total.toFixed(3) + ' د.ك',
+                            ((data.total / totalExpenses) * 100).toFixed(1) + '%'
+                        ])
+                    },
+                    {
+                        title: 'تفاصيل المصروفات',
+                        headers: ['التاريخ', 'النوع', 'المبلغ', 'الوصف'],
+                        data: expenses.map(expense => [
+                            new Date(expense.expenseDate?.seconds * 1000).toLocaleDateString('ar'),
+                            getExpenseTypeName(expense.type),
+                            expense.amount.toFixed(3) + ' د.ك',
+                            expense.description || 'لا يوجد وصف'
+                        ])
+                    }
+                ]
+            };
+        }
+
+        // Generate revenues report
+        async function generateRevenuesReport(fromDate, toDate) {
+            const revenues = await getDataInRange('revenues', fromDate, toDate);
+            const totalRevenues = revenues.reduce((sum, item) => sum + item.amount, 0);
+
+            return {
+                title: 'تقرير الإيرادات',
+                summary: [
+                    { title: 'إجمالي الإيرادات', value: totalRevenues.toFixed(3) + ' د.ك', class: 'positive' },
+                    { title: 'عدد الإيرادات', value: revenues.length.toString() },
+                    { title: 'متوسط الإيراد', value: (totalRevenues / revenues.length || 0).toFixed(3) + ' د.ك' }
+                ],
+                tables: [
+                    {
+                        title: 'تفاصيل الإيرادات',
+                        headers: ['التاريخ', 'المصدر', 'المبلغ', 'الوصف'],
+                        data: revenues.map(revenue => [
+                            new Date(revenue.date?.seconds * 1000 || revenue.createdAt?.seconds * 1000).toLocaleDateString('ar'),
+                            revenue.source || 'غير محدد',
+                            revenue.amount.toFixed(3) + ' د.ك',
+                            revenue.description || 'لا يوجد وصف'
+                        ])
+                    }
+                ]
+            };
+        }
+
+        // Get data in date range
+        async function getDataInRange(collection_name, fromDate, toDate) {
+            const startDate = new Date(fromDate);
+            const endDate = new Date(toDate);
+            endDate.setHours(23, 59, 59, 999);
+
+            const snapshot = await getDocs(collection(db, collection_name));
+            const data = [];
+            
+            snapshot.forEach(doc => {
+                const item = doc.data();
+                const itemDate = new Date(
+                    item.date?.seconds * 1000 || 
+                    item.expenseDate?.seconds * 1000 || 
+                    item.createdAt?.seconds * 1000
+                );
+                
+                if (itemDate >= startDate && itemDate <= endDate) {
+                    data.push(item);
+                }
+            });
+
+            return data;
+        }
+
+        // Helper functions
+        function getExpenseTypeName(type) {
+            const types = {
+                'rent': 'الإيجارات',
+                'salaries': 'رواتب الموظفين',
+                'salary_deposits': 'مصاريف إيداعات الرواتب',
+                'buffet': 'بوفيه',
+                'cleaning': 'نظافة',
+                'car_purchase': 'شراء سيارات',
+                'meter_purchase': 'شراء عداد',
+                'meter_installation': 'تركيب عداد',
+                'car_painting': 'صبغ سيارة',
+                'car_maintenance': 'صيانة سيارة',
+                'administrative': 'مصاريف إدارية',
+                'other': 'أخرى'
+            };
+            return types[type] || type;
+        }
+
+        function getCarStatusName(status) {
+            const statuses = {
+                'available': 'متاحة',
+                'rented': 'مؤجرة',
+                'maintenance': 'صيانة'
+            };
+            return statuses[status] || status;
+        }
+
+        // Display report
+        function displayReport(reportData) {
+            document.getElementById('reportTitle').textContent = reportData.title;
+            
+            let content = '';
+
+            // Summary cards
+            if (reportData.summary) {
+                content += '<div class="summary-cards">';
+                reportData.summary.forEach(item => {
+                    content += `
+                        <div class="summary-card">
+                            <div class="summary-title">${item.title}</div>
+                            <div class="summary-value ${item.class || ''}">${item.value}</div>
+                        </div>
+                    `;
+                });
+                content += '</div>';
+            }
+
+            // Tables
+            if (reportData.tables) {
+                reportData.tables.forEach(table => {
+                    content += `<h3 style="margin: 1.5rem 0 1rem 0; color: #374151;">${table.title}</h3>`;
+                    
+                    if (table.data.length === 0) {
+                        content += '<div class="no-data">لا توجد بيانات للعرض</div>';
+                    } else {
+                        content += '<table class="data-table">';
+                        content += '<thead><tr>';
+                        table.headers.forEach(header => {
+                            content += `<th>${header}</th>`;
+                        });
+                        content += '</tr></thead><tbody>';
+                        
+                        table.data.forEach(row => {
+                            content += '<tr>';
+                            row.forEach(cell => {
+                                content += `<td>${cell}</td>`;
+                            });
+                            content += '</tr>';
+                        });
+                        content += '</tbody></table>';
+                    }
+                });
+            }
+
+            document.getElementById('reportContent').innerHTML = content;
+            document.getElementById('reportResults').style.display = 'block';
+        }
+
+        // Export report
+        window.exportReport = () => {
+            window.print();
+        };
+
+        // Logout function
+        window.logout = async () => {
+            try {
+                await signOut(auth);
+                localStorage.clear();
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        };
+    </script>
+</body>
+</html>
+

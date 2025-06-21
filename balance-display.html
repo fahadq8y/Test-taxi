@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عرض الأرصدة - نظام إدارة التاكسي</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .balance-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .balance-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .balance-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .balance-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+        }
+
+        .bank-balance::before {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .salary-balance::before {
+            background: linear-gradient(90deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .drivers-debt-balance::before {
+            background: linear-gradient(90deg, #ff6b6b 0%, #ffa500 100%);
+        }
+
+        .balance-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+
+        .bank-balance .balance-icon {
+            color: #4facfe;
+        }
+
+        .salary-balance .balance-icon {
+            color: #fa709a;
+        }
+
+        .drivers-debt-balance .balance-icon {
+            color: #ff6b6b;
+        }
+
+        .balance-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .balance-amount {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .bank-balance .balance-amount {
+            color: #4facfe;
+        }
+
+        .salary-balance .balance-amount {
+            color: #fa709a;
+        }
+
+        .drivers-debt-balance .balance-amount {
+            color: #ff6b6b;
+        }
+
+        .balance-currency {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .last-updated {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .btn {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+
+        .refresh-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .refresh-btn:hover {
+            background: linear-gradient(45deg, #764ba2, #667eea);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .debt-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .debt-driver {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .debt-details {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .debt-amount {
+            font-weight: bold;
+            color: #ff6b6b;
+            float: left;
+        }
+
+        .no-debts {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 عرض الأرصدة</h1>
+            <p>نظام إدارة شركة التاكسي</p>
+        </div>
+
+        <div class="last-updated" id="lastUpdated">
+            آخر تحديث: جاري التحميل...
+        </div>
+
+        <div class="balance-cards">
+            <div class="balance-card bank-balance">
+                <div class="balance-icon">🏦</div>
+                <div class="balance-title">الرصيد البنكي</div>
+                <div class="balance-amount" id="bankBalance">0.000</div>
+                <div class="balance-currency">دينار كويتي</div>
+            </div>
+
+            <div class="balance-card salary-balance">
+                <div class="balance-icon">💼</div>
+                <div class="balance-title">رصيد الرواتب</div>
+                <div class="balance-amount" id="salaryBalance">0.000</div>
+                <div class="balance-currency">دينار كويتي</div>
+            </div>
+
+            <div class="balance-card drivers-debt-balance" onclick="showDriversDebt()">
+                <div class="balance-icon">📋</div>
+                <div class="balance-title">ديون على السائقين</div>
+                <div class="balance-amount" id="driversDebtBalance">0.000</div>
+                <div class="balance-currency">دينار كويتي</div>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn refresh-btn" onclick="loadBalances()">🔄 تحديث الأرصدة</button>
+            <a href="revenues.html" class="btn">💰 إدارة الإيرادات</a>
+            <a href="expenses.html" class="btn">💸 إدارة المصروفات</a>
+            <a href="drivers-overview.html" class="btn">👥 جدول السائقين</a>
+            <a href="index.html" class="btn">🏠 العودة للرئيسية</a>
+        </div>
+    </div>
+
+    <!-- Modal for Drivers Debt Details -->
+    <div id="driversDebtModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📋 تفاصيل ديون السائقين</h2>
+                <span class="close" onclick="closeDriversDebtModal()">&times;</span>
+            </div>
+            <div id="driversDebtContent">
+                <div class="no-debts">جاري تحميل البيانات...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Load balances on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadBalances();
+        });
+
+        async function loadBalances() {
+            try {
+                // Calculate bank balance
+                const bankBalance = await calculateBankBalance();
+                document.getElementById('bankBalance').textContent = bankBalance.toFixed(3);
+
+                // Calculate salary balance
+                const salaryBalance = await calculateSalaryBalance();
+                document.getElementById('salaryBalance').textContent = salaryBalance.toFixed(3);
+
+                // Calculate drivers debt balance
+                const driversDebtBalance = await calculateDriversDebtBalance();
+                document.getElementById('driversDebtBalance').textContent = driversDebtBalance.toFixed(3);
+
+                // Update last updated time
+                document.getElementById('lastUpdated').textContent = 
+                    'آخر تحديث: ' + new Date().toLocaleString('ar-SA');
+
+            } catch (error) {
+                console.error('Error loading balances:', error);
+                alert('حدث خطأ في تحميل الأرصدة');
+            }
+        }
+
+        async function calculateBankBalance() {
+            let balance = 0;
+
+            // Add revenues (excluding salary deposits)
+            const revenuesSnapshot = await db.collection('revenues').get();
+            revenuesSnapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.type !== 'رسوم إيداع رواتب') {
+                    balance += parseFloat(data.amount) || 0;
+                }
+            });
+
+            // Subtract expenses
+            const expensesSnapshot = await db.collection('expenses').get();
+            expensesSnapshot.forEach(doc => {
+                const data = doc.data();
+                balance -= parseFloat(data.amount) || 0;
+            });
+
+            // Add/subtract from driver payments (violations, residence fees, etc.)
+            const paymentsSnapshot = await db.collection('driverPayments').get();
+            paymentsSnapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.type === 'أجرة يومية' || data.type === 'تحصيل مخالفة' || 
+                    data.type === 'تحصيل رسوم إقامة' || data.type === 'دين قديم') {
+                    balance += parseFloat(data.amount) || 0;
+                } else if (data.type === 'دفع مخالفة' || data.type === 'دفع رسوم إقامة') {
+                    balance -= parseFloat(data.amount) || 0;
+                }
+            });
+
+            return balance;
+        }
+
+        async function calculateSalaryBalance() {
+            let balance = 0;
+
+            // Add salary deposits from revenues
+            const revenuesSnapshot = await db.collection('revenues').get();
+            revenuesSnapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.type === 'رسوم إيداع رواتب') {
+                    balance += parseFloat(data.amount) || 0;
+                }
+            });
+
+            // Add salary fees from driver payments
+            const paymentsSnapshot = await db.collection('driverPayments').get();
+            paymentsSnapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.type === 'تحصيل رسوم رواتب') {
+                    balance += parseFloat(data.amount) || 0;
+                } else if (data.type === 'دفع رواتب') {
+                    balance -= parseFloat(data.amount) || 0;
+                }
+            });
+
+            return balance;
+        }
+
+        async function calculateDriversDebtBalance() {
+            let totalDebt = 0;
+
+            // Get all drivers debt
+            const driversSnapshot = await db.collection('drivers').get();
+            driversSnapshot.forEach(doc => {
+                const data = doc.data();
+                totalDebt += parseFloat(data.totalDebt) || 0;
+            });
+
+            return totalDebt;
+        }
+
+        async function showDriversDebt() {
+            const modal = document.getElementById('driversDebtModal');
+            const content = document.getElementById('driversDebtContent');
+            
+            modal.style.display = 'block';
+            content.innerHTML = '<div class="no-debts">جاري تحميل البيانات...</div>';
+
+            try {
+                const driversSnapshot = await db.collection('drivers').get();
+                let hasDebts = false;
+                let debtHtml = '';
+
+                driversSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    const totalDebt = parseFloat(data.totalDebt) || 0;
+                    
+                    if (totalDebt > 0) {
+                        hasDebts = true;
+                        debtHtml += `
+                            <div class="debt-item">
+                                <div class="debt-driver">${data.name}</div>
+                                <div class="debt-amount">${totalDebt.toFixed(3)} د.ك</div>
+                                <div class="debt-details">
+                                    الهاتف: ${data.phone || 'غير محدد'}<br>
+                                    آخر تحديث: ${data.lastPaymentDate || 'غير محدد'}
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                if (hasDebts) {
+                    content.innerHTML = debtHtml;
+                } else {
+                    content.innerHTML = '<div class="no-debts">🎉 لا توجد ديون على السائقين</div>';
+                }
+
+            } catch (error) {
+                console.error('Error loading drivers debt:', error);
+                content.innerHTML = '<div class="no-debts">❌ حدث خطأ في تحميل البيانات</div>';
+            }
+        }
+
+        function closeDriversDebtModal() {
+            document.getElementById('driversDebtModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('driversDebtModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
+

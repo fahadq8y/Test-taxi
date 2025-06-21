@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة السائقين - نظام إدارة التاكسي</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8fafc;
+            direction: rtl;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .nav-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .search-input {
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            width: 300px;
+            direction: rtl;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .add-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .add-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .drivers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .driver-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+
+        .driver-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .driver-header {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .driver-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .driver-phone {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .driver-body {
+            padding: 1.5rem;
+        }
+
+        .driver-info {
+            margin-bottom: 1rem;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .info-label {
+            color: #6b7280;
+        }
+
+        .info-value {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .alerts {
+            margin-bottom: 1rem;
+        }
+
+        .alert {
+            padding: 0.5rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .alert-urgent {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .driver-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 0.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .edit-btn {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .edit-btn:hover {
+            background: #d97706;
+        }
+
+        .delete-btn {
+            background: #ef4444;
+            color: white;
+        }
+
+        .delete-btn:hover {
+            background: #dc2626;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 1.5rem;
+            border-radius: 12px;
+            width: 95%;
+            max-width: 350px;
+            max-height: 75vh;
+            overflow-y: auto;
+            direction: rtl;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .form-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            background: #f9fafb;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #10b981;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #374151;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            direction: rtl;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .form-group input[readonly] {
+            background-color: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+        }
+
+        .save-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .cancel-btn {
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #10b981;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #6b7280;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .container {
+                margin: 1rem auto;
+                padding: 0 0.5rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-input {
+                width: 100%;
+            }
+
+            .drivers-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                width: 98%;
+                max-width: 320px;
+                margin: 3% auto;
+                padding: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>👥 إدارة السائقين</h1>
+        <div class="nav-buttons">
+            <a href="admin-dashboard.html" class="nav-btn">لوحة التحكم</a>
+            <button class="nav-btn" onclick="logout()">تسجيل الخروج</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <input type="text" class="search-input" id="searchInput" placeholder="البحث عن سائق..." onkeyup="filterDrivers()">
+            <button class="add-btn" onclick="openModal()">إضافة سائق جديد</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>جاري تحميل السائقين...</p>
+        </div>
+
+        <div class="drivers-grid" id="driversGrid" style="display: none;">
+            <!-- سيتم ملء السائقين هنا -->
+        </div>
+    </div>
+
+    <!-- Modal إضافة/تعديل سائق -->
+    <div id="driverModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">إضافة سائق جديد</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            
+            <form id="driverForm">
+                <!-- البيانات الشخصية -->
+                <div class="form-section">
+                    <h3 class="section-title">البيانات الشخصية</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="driverName">اسم السائق</label>
+                            <input type="text" id="driverName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="driverPhone">رقم الهاتف</label>
+                            <input type="tel" id="driverPhone" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="driverNationality">الجنسية</label>
+                            <input type="text" id="driverNationality">
+                        </div>
+                        <div class="form-group">
+                            <label for="driverAddress">العنوان</label>
+                            <input type="text" id="driverAddress">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- تفاصيل العقد -->
+                <div class="form-section">
+                    <h3 class="section-title">تفاصيل العقد</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="assignedCar">السيارة المخصصة</label>
+                            <select id="assignedCar" onchange="updateCarRegistrationExpiry()">
+                                <option value="">اختر السيارة</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="dailyRent">الأجرة اليومية (د.ك)</label>
+                            <input type="number" id="dailyRent" step="0.001" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="contractDuration">مدة العقد (بالأشهر)</label>
+                            <select id="contractDuration" onchange="calculateContractEndDate()">
+                                <option value="">اختر المدة</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="contractStartDate">تاريخ بداية العقد</label>
+                            <input type="date" id="contractStartDate" onchange="calculateContractEndDate()">
+                        </div>
+                        <div class="form-group">
+                            <label for="contractEndDate">تاريخ نهاية العقد</label>
+                            <input type="date" id="contractEndDate" readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- تواريخ انتهاء الوثائق -->
+                <div class="form-section">
+                    <h3 class="section-title">تواريخ انتهاء الوثائق</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="carRegistrationExpiry">انتهاء دفتر السيارة</label>
+                            <input type="date" id="carRegistrationExpiry" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label for="residencyExpiry">انتهاء الإقامة</label>
+                            <input type="date" id="residencyExpiry">
+                        </div>
+                        <div class="form-group">
+                            <label for="licenseExpiry">انتهاء الرخصة</label>
+                            <input type="date" id="licenseExpiry">
+                        </div>
+                        <div class="form-group">
+                            <label for="permitExpiry">انتهاء التصريح</label>
+                            <input type="date" id="permitExpiry">
+                        </div>
+                        <div class="form-group">
+                            <label for="passportExpiry">انتهاء جواز السفر</label>
+                            <input type="date" id="passportExpiry">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الديون والملاحظات -->
+                <div class="form-section">
+                    <h3 class="section-title">الديون والملاحظات</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="oldDebts">ديون قديمة (د.ك)</label>
+                            <input type="number" id="oldDebts" step="0.001" value="0">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="driverNotes">ملاحظة</label>
+                            <textarea id="driverNotes" rows="3" placeholder="ملاحظات إضافية..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="cancel-btn" onclick="closeModal()">إلغاء</button>
+                    <button type="submit" class="save-btn">حفظ السائق</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, addDoc, doc, getDoc, updateDoc, deleteDoc, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let drivers = [];
+        let cars = [];
+        let currentUser = null;
+        let editingDriverId = null;
+        let allDrivers = [];
+
+        // Check authentication
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            try {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (!userDoc.exists()) {
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                const userData = userDoc.data();
+                if (!['admin', 'accountant'].includes(userData.role)) {
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                currentUser = { uid: user.uid, ...userData };
+                
+                await loadCars();
+                await loadDrivers();
+                populateContractDurationOptions();
+                populateCarOptions();
+                displayDrivers(allDrivers);
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('driversGrid').style.display = 'grid';
+            } catch (error) {
+                console.error('Error checking user role:', error);
+                window.location.href = 'index.html';
+            }
+        });
+
+        // Populate contract duration options (1-60 months)
+        function populateContractDurationOptions() {
+            const select = document.getElementById('contractDuration');
+            for (let i = 1; i <= 60; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = `${i} شهر`;
+                select.appendChild(option);
+            }
+        }
+
+        // Load cars
+        async function loadCars() {
+            try {
+                const carsSnapshot = await getDocs(collection(db, 'cars'));
+                cars = [];
+                carsSnapshot.forEach(doc => {
+                    cars.push({ id: doc.id, ...doc.data() });
+                });
+            } catch (error) {
+                console.error('Error loading cars:', error);
+            }
+        }
+
+        // Populate car options
+        function populateCarOptions() {
+            const select = document.getElementById('assignedCar');
+            // Clear existing options except the first one
+            while (select.children.length > 1) {
+                select.removeChild(select.lastChild);
+            }
+            
+            cars.forEach(car => {
+                // Check if car is already assigned to another driver
+                const isAssigned = allDrivers.some(driver => 
+                    driver.assignedCar === car.id && driver.id !== editingDriverId
+                );
+                
+                if (!isAssigned || car.status === 'available') {
+                    const option = document.createElement('option');
+                    option.value = car.id;
+                    option.textContent = `${car.plateNumber} - ${car.model}`;
+                    select.appendChild(option);
+                }
+            });
+        }
+
+        // Update car registration expiry when car is selected
+        window.updateCarRegistrationExpiry = () => {
+            const carId = document.getElementById('assignedCar').value;
+            const car = cars.find(c => c.id === carId);
+            
+            if (car && car.registrationExpiry) {
+                const regDate = car.registrationExpiry.seconds ? 
+                    new Date(car.registrationExpiry.seconds * 1000) : 
+                    new Date(car.registrationExpiry);
+                document.getElementById('carRegistrationExpiry').value = regDate.toISOString().split('T')[0];
+            } else {
+                document.getElementById('carRegistrationExpiry').value = '';
+            }
+        };
+
+        // Calculate contract end date
+        window.calculateContractEndDate = () => {
+            const startDate = document.getElementById('contractStartDate').value;
+            const duration = parseInt(document.getElementById('contractDuration').value);
+            
+            if (startDate && duration) {
+                const start = new Date(startDate);
+                const end = new Date(start);
+                end.setMonth(end.getMonth() + duration);
+                
+                document.getElementById('contractEndDate').value = end.toISOString().split('T')[0];
+            } else {
+                document.getElementById('contractEndDate').value = '';
+            }
+        };
+
+        // Load drivers
+        async function loadDrivers() {
+            try {
+                const driversSnapshot = await getDocs(collection(db, 'drivers'));
+                allDrivers = [];
+                driversSnapshot.forEach(doc => {
+                    allDrivers.push({ id: doc.id, ...doc.data() });
+                });
+            } catch (error) {
+                console.error('Error loading drivers:', error);
+            }
+        }
+
+        // Display drivers
+        function displayDrivers(driversToShow) {
+            const grid = document.getElementById('driversGrid');
+            
+            if (driversToShow.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">👥</div>
+                        <h3>لا يوجد سائقين</h3>
+                        <p>لم يتم إضافة أي سائقين بعد</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = driversToShow.map(driver => {
+                // Calculate alerts
+                const alerts = [];
+                const today = new Date();
+                
+                // Check document expiry dates
+                const documents = [
+                    { name: 'دفتر السيارة', date: driver.carRegistrationExpiry },
+                    { name: 'الإقامة', date: driver.residencyExpiry },
+                    { name: 'الرخصة', date: driver.licenseExpiry },
+                    { name: 'التصريح', date: driver.permitExpiry },
+                    { name: 'جواز السفر', date: driver.passportExpiry }
+                ];
+                
+                documents.forEach(doc => {
+                    if (doc.date) {
+                        const expDate = doc.date.seconds ? 
+                            new Date(doc.date.seconds * 1000) : 
+                            new Date(doc.date);
+                        const daysToExpiry = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+                        
+                        if (daysToExpiry <= 30 && daysToExpiry > 0) {
+                            alerts.push({ type: 'warning', text: `انتهاء ${doc.name} خلال ${daysToExpiry} يوم` });
+                        } else if (daysToExpiry <= 0) {
+                            alerts.push({ type: 'urgent', text: `انتهت صلاحية ${doc.name}` });
+                        }
+                    }
+                });
+
+                // Check oil change status
+                if (driver.lastOilChangeDate) {
+                    const lastChange = driver.lastOilChangeDate.seconds ? 
+                        new Date(driver.lastOilChangeDate.seconds * 1000) : 
+                        new Date(driver.lastOilChangeDate);
+                    const daysSinceOilChange = Math.floor((today - lastChange) / (1000 * 60 * 60 * 24));
+                    
+                    if (daysSinceOilChange > 15) {
+                        alerts.push({ type: 'urgent', text: `لم يتم تغيير الزيت منذ ${daysSinceOilChange} يوم - عاجل!` });
+                    } else if (daysSinceOilChange > 10) {
+                        alerts.push({ type: 'warning', text: `تغيير الزيت مطلوب خلال ${15 - daysSinceOilChange} أيام` });
+                    }
+                } else {
+                    alerts.push({ type: 'warning', text: 'لم يتم تحديد تاريخ تغيير الزيت' });
+                }
+
+                // Get car info
+                const car = cars.find(c => c.id === driver.assignedCar);
+                const carInfo = car ? `${car.plateNumber} - ${car.model}` : 'غير محدد';
+
+                return `
+                    <div class="driver-card">
+                        <div class="driver-header">
+                            <div class="driver-name">${driver.name}</div>
+                            <div class="driver-phone">${driver.phone}</div>
+                        </div>
+                        <div class="driver-body">
+                            <div class="driver-info">
+                                <div class="info-row">
+                                    <span class="info-label">السيارة:</span>
+                                    <span class="info-value">${carInfo}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">الأجرة اليومية:</span>
+                                    <span class="info-value">${driver.dailyRent || 0} د.ك</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">الكيلومترات:</span>
+                                    <span class="info-value">${(driver.currentKilometers || 0).toLocaleString()} كم</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">آخر تغيير زيت:</span>
+                                    <span class="info-value">${driver.lastOilChangeDate ? 
+                                        (driver.lastOilChangeDate.seconds ? 
+                                            new Date(driver.lastOilChangeDate.seconds * 1000).toLocaleDateString('en-GB') :
+                                            new Date(driver.lastOilChangeDate).toLocaleDateString('en-GB')
+                                        ) : 'غير محدد'}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">حالة الزيت:</span>
+                                    <span class="info-value">
+                                        ${(() => {
+                                            if (!driver.lastOilChangeDate) {
+                                                return '<span style="color: #6b7280;">غير محدد</span>';
+                                            }
+                                            const lastChange = driver.lastOilChangeDate.seconds ? 
+                                                new Date(driver.lastOilChangeDate.seconds * 1000) : 
+                                                new Date(driver.lastOilChangeDate);
+                                            const daysDiff = Math.floor((new Date() - lastChange) / (1000 * 60 * 60 * 24));
+                                            
+                                            if (daysDiff <= 10) {
+                                                return '<span style="color: #10b981;">🟢 جيد</span>';
+                                            } else if (daysDiff <= 15) {
+                                                return '<span style="color: #f59e0b;">🟡 تحذير</span>';
+                                            } else {
+                                                return '<span style="color: #ef4444;">🔴 متأخر</span>';
+                                            }
+                                        })()}
+                                    </span>
+                                </div>
+                                ${driver.contractEndDate ? `
+                                    <div class="info-row">
+                                        <span class="info-label">نهاية العقد:</span>
+                                        <span class="info-value">${
+                                            driver.contractEndDate.seconds ? 
+                                            new Date(driver.contractEndDate.seconds * 1000).toLocaleDateString('en-GB') :
+                                            new Date(driver.contractEndDate).toLocaleDateString('en-GB')
+                                        }</span>
+                                    </div>
+                                ` : ''}
+                                ${driver.oldDebts && driver.oldDebts > 0 ? `
+                                    <div class="info-row">
+                                        <span class="info-label">ديون قديمة:</span>
+                                        <span class="info-value">${driver.oldDebts} د.ك</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            
+                            ${alerts.length > 0 ? `
+                                <div class="alerts">
+                                    ${alerts.map(alert => `
+                                        <div class="alert alert-${alert.type}">${alert.text}</div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                            
+                            <div class="driver-actions">
+                                <button class="action-btn edit-btn" onclick="editDriver('${driver.id}')">تعديل</button>
+                                <button class="action-btn delete-btn" onclick="deleteDriver('${driver.id}')">حذف</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Filter drivers
+        window.filterDrivers = () => {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filteredDrivers = allDrivers.filter(driver => 
+                driver.name.toLowerCase().includes(searchTerm) ||
+                driver.phone.includes(searchTerm)
+            );
+            displayDrivers(filteredDrivers);
+        };
+
+        // Open modal
+        window.openModal = () => {
+            editingDriverId = null;
+            document.getElementById('modalTitle').textContent = 'إضافة سائق جديد';
+            document.getElementById('driverForm').reset();
+            populateCarOptions();
+            document.getElementById('driverModal').style.display = 'block';
+        };
+
+        // Edit driver
+        window.editDriver = (driverId) => {
+            const driver = allDrivers.find(d => d.id === driverId);
+            if (!driver) return;
+
+            editingDriverId = driverId;
+            document.getElementById('modalTitle').textContent = 'تعديل السائق';
+            
+            // Fill form fields
+            document.getElementById('driverName').value = driver.name || '';
+            document.getElementById('driverPhone').value = driver.phone || '';
+            document.getElementById('driverNationality').value = driver.nationality || '';
+            document.getElementById('driverAddress').value = driver.address || '';
+            document.getElementById('dailyRent').value = driver.dailyRent || '';
+            document.getElementById('oldDebts').value = driver.oldDebts || 0;
+            document.getElementById('driverNotes').value = driver.notes || '';
+            
+            // Populate car options and set selected car
+            populateCarOptions();
+            document.getElementById('assignedCar').value = driver.assignedCar || '';
+            
+            // Set contract duration and dates
+            document.getElementById('contractDuration').value = driver.contractDuration || '';
+            
+            if (driver.contractStartDate) {
+                const startDate = driver.contractStartDate.seconds ? 
+                    new Date(driver.contractStartDate.seconds * 1000) : 
+                    new Date(driver.contractStartDate);
+                document.getElementById('contractStartDate').value = startDate.toISOString().split('T')[0];
+            }
+            
+            if (driver.contractEndDate) {
+                const endDate = driver.contractEndDate.seconds ? 
+                    new Date(driver.contractEndDate.seconds * 1000) : 
+                    new Date(driver.contractEndDate);
+                document.getElementById('contractEndDate').value = endDate.toISOString().split('T')[0];
+            }
+            
+            // Set document expiry dates
+            const dateFields = [
+                'carRegistrationExpiry', 'residencyExpiry', 'licenseExpiry', 
+                'permitExpiry', 'passportExpiry'
+            ];
+            
+            dateFields.forEach(field => {
+                if (driver[field]) {
+                    const date = driver[field].seconds ? 
+                        new Date(driver[field].seconds * 1000) : 
+                        new Date(driver[field]);
+                    document.getElementById(field).value = date.toISOString().split('T')[0];
+                }
+            });
+            
+            // Update car registration expiry
+            updateCarRegistrationExpiry();
+            
+            document.getElementById('driverModal').style.display = 'block';
+        };
+
+        // Close modal
+        window.closeModal = () => {
+            document.getElementById('driverModal').style.display = 'none';
+            editingDriverId = null;
+        };
+
+        // Delete driver
+        window.deleteDriver = async (driverId) => {
+            if (!confirm('هل أنت متأكد من حذف هذا السائق؟')) {
+                return;
+            }
+
+            try {
+                await deleteDoc(doc(db, 'drivers', driverId));
+                alert('تم حذف السائق بنجاح');
+                await loadDrivers();
+                displayDrivers(allDrivers);
+            } catch (error) {
+                console.error('Error deleting driver:', error);
+                alert('حدث خطأ في حذف السائق');
+            }
+        };
+
+        // Form submission
+        document.getElementById('driverForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const driverData = {
+                name: document.getElementById('driverName').value,
+                phone: document.getElementById('driverPhone').value,
+                nationality: document.getElementById('driverNationality').value,
+                address: document.getElementById('driverAddress').value,
+                assignedCar: document.getElementById('assignedCar').value,
+                dailyRent: parseFloat(document.getElementById('dailyRent').value) || 0,
+                contractDuration: parseInt(document.getElementById('contractDuration').value) || null,
+                contractStartDate: document.getElementById('contractStartDate').value ? 
+                    new Date(document.getElementById('contractStartDate').value) : null,
+                contractEndDate: document.getElementById('contractEndDate').value ? 
+                    new Date(document.getElementById('contractEndDate').value) : null,
+                carRegistrationExpiry: document.getElementById('carRegistrationExpiry').value ? 
+                    new Date(document.getElementById('carRegistrationExpiry').value) : null,
+                residencyExpiry: document.getElementById('residencyExpiry').value ? 
+                    new Date(document.getElementById('residencyExpiry').value) : null,
+                licenseExpiry: document.getElementById('licenseExpiry').value ? 
+                    new Date(document.getElementById('licenseExpiry').value) : null,
+                permitExpiry: document.getElementById('permitExpiry').value ? 
+                    new Date(document.getElementById('permitExpiry').value) : null,
+                passportExpiry: document.getElementById('passportExpiry').value ? 
+                    new Date(document.getElementById('passportExpiry').value) : null,
+                oldDebts: parseFloat(document.getElementById('oldDebts').value) || 0,
+                notes: document.getElementById('driverNotes').value,
+                updatedAt: new Date(),
+                updatedBy: currentUser.name || currentUser.email
+            };
+
+            if (!editingDriverId) {
+                driverData.createdAt = new Date();
+                driverData.createdBy = currentUser.name || currentUser.email;
+            }
+
+            try {
+                if (editingDriverId) {
+                    await updateDoc(doc(db, 'drivers', editingDriverId), driverData);
+                    alert('تم تحديث السائق بنجاح');
+                } else {
+                    await addDoc(collection(db, 'drivers'), driverData);
+                    alert('تم إضافة السائق بنجاح');
+                }
+                
+                closeModal();
+                await loadDrivers();
+                displayDrivers(allDrivers);
+            } catch (error) {
+                console.error('Error saving driver:', error);
+                alert('حدث خطأ في حفظ البيانات');
+            }
+        });
+
+        // Logout function
+        window.logout = async () => {
+            try {
+                await signOut(auth);
+                localStorage.clear();
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        };
+    </script>
+</body>
+</html>
+

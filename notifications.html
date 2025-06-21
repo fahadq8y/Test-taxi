@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الإشعارات - نظام إدارة التاكسي</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8fafc;
+            direction: rtl;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .nav-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .notification-stats {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            background: #f8fafc;
+        }
+
+        .stat-number {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #2563eb;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+
+        .add-btn {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .add-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .notifications-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .notification-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+            position: relative;
+            border-right: 4px solid #e5e7eb;
+        }
+
+        .notification-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .notification-card.urgent {
+            border-right-color: #ef4444;
+        }
+
+        .notification-card.warning {
+            border-right-color: #f59e0b;
+        }
+
+        .notification-card.info {
+            border-right-color: #3b82f6;
+        }
+
+        .notification-card.success {
+            border-right-color: #10b981;
+        }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .notification-type {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .type-urgent {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .type-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .type-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .type-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .notification-date {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+
+        .notification-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .notification-message {
+            color: #6b7280;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+        }
+
+        .notification-recipients {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-bottom: 1rem;
+        }
+
+        .notification-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+
+        .action-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .view-btn {
+            background: #6b7280;
+            color: white;
+        }
+
+        .view-btn:hover {
+            background: #4b5563;
+        }
+
+        .delete-btn {
+            background: #ef4444;
+            color: white;
+        }
+
+        .delete-btn:hover {
+            background: #dc2626;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            direction: rtl;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #374151;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            direction: rtl;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .recipients-section {
+            margin-bottom: 1rem;
+        }
+
+        .recipients-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .recipient-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+        }
+
+        .save-btn {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .cancel-btn {
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #2563eb;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .container {
+                margin: 1rem auto;
+                padding: 0 0.5rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .notification-stats {
+                justify-content: center;
+            }
+
+            .notifications-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+                padding: 1rem;
+            }
+
+            .recipients-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔔 الإشعارات</h1>
+        <div class="nav-buttons">
+            <a href="admin-dashboard.html" class="nav-btn">العودة للوحة التحكم</a>
+            <button class="nav-btn" onclick="logout()">تسجيل الخروج</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <div class="notification-stats" id="notificationStats">
+                <!-- سيتم ملء الإحصائيات هنا -->
+            </div>
+            <button class="add-btn" onclick="openAddModal()">إرسال إشعار جديد</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>جاري تحميل الإشعارات...</p>
+        </div>
+
+        <div class="notifications-grid" id="notificationsGrid" style="display: none;">
+            <!-- سيتم ملء الإشعارات هنا -->
+        </div>
+    </div>
+
+    <!-- Modal إرسال إشعار -->
+    <div id="notificationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>إرسال إشعار جديد</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            
+            <form id="notificationForm">
+                <div class="form-group">
+                    <label for="notificationType">نوع الإشعار</label>
+                    <select id="notificationType" required>
+                        <option value="">اختر نوع الإشعار</option>
+                        <option value="urgent">عاجل</option>
+                        <option value="warning">تحذير</option>
+                        <option value="info">معلومات</option>
+                        <option value="success">نجاح</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="notificationTitle">عنوان الإشعار</label>
+                    <input type="text" id="notificationTitle" required placeholder="عنوان مختصر للإشعار">
+                </div>
+
+                <div class="form-group">
+                    <label for="notificationMessage">رسالة الإشعار</label>
+                    <textarea id="notificationMessage" rows="4" required placeholder="اكتب رسالة الإشعار هنا..."></textarea>
+                </div>
+
+                <div class="recipients-section">
+                    <label>المستقبلين</label>
+                    <div class="form-group">
+                        <select id="recipientType" onchange="updateRecipients()">
+                            <option value="all">جميع السائقين</option>
+                            <option value="specific">سائقين محددين</option>
+                        </select>
+                    </div>
+                    <div id="specificRecipients" class="recipients-grid" style="display: none;">
+                        <!-- سيتم ملء السائقين هنا -->
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="cancel-btn" onclick="closeModal()">إلغاء</button>
+                    <button type="submit" class="save-btn">إرسال الإشعار</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, addDoc, doc, deleteDoc, getDoc, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let notifications = [];
+        let drivers = [];
+        let currentUser = null;
+
+        const notificationTypes = {
+            'urgent': { text: 'عاجل', class: 'type-urgent' },
+            'warning': { text: 'تحذير', class: 'type-warning' },
+            'info': { text: 'معلومات', class: 'type-info' },
+            'success': { text: 'نجاح', class: 'type-success' }
+        };
+
+        // Check authentication
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            try {
+                // Get user data from Firestore
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (!userDoc.exists()) {
+                    console.error('User document not found');
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                const userData = userDoc.data();
+                if (!['admin', 'accountant'].includes(userData.role)) {
+                    console.error('User does not have required role');
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                // Store user data
+                currentUser = { uid: user.uid, ...userData };
+                
+                // Load page data
+                loadData();
+            } catch (error) {
+                console.error('Error checking user role:', error);
+                window.location.href = 'index.html';
+            }
+        });
+
+        // Load data
+        async function loadData() {
+            try {
+                await Promise.all([
+                    loadNotifications(),
+                    loadDrivers()
+                ]);
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('notificationsGrid').style.display = 'grid';
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('loading').innerHTML = '<p>حدث خطأ في تحميل البيانات</p>';
+            }
+        }
+
+        // Load notifications
+        async function loadNotifications() {
+            const notificationsQuery = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'));
+            const notificationsSnapshot = await getDocs(notificationsQuery);
+            notifications = [];
+            notificationsSnapshot.forEach(doc => {
+                notifications.push({ id: doc.id, ...doc.data() });
+            });
+            
+            displayNotifications();
+            updateStats();
+        }
+
+        // Load drivers
+        async function loadDrivers() {
+            const driversSnapshot = await getDocs(collection(db, 'drivers'));
+            drivers = [];
+            driversSnapshot.forEach(doc => {
+                drivers.push({ id: doc.id, ...doc.data() });
+            });
+        }
+
+        // Display notifications
+        function displayNotifications() {
+            const grid = document.getElementById('notificationsGrid');
+            
+            if (notifications.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #6b7280;">لا توجد إشعارات</div>';
+                return;
+            }
+
+            grid.innerHTML = notifications.map(notification => {
+                const typeInfo = notificationTypes[notification.type] || { text: 'غير محدد', class: 'type-info' };
+                const recipients = notification.recipientType === 'all' ? 'جميع السائقين' : `${notification.recipients?.length || 0} سائق`;
+                
+                return `
+                    <div class="notification-card ${notification.type}">
+                        <div class="notification-header">
+                            <div class="notification-type ${typeInfo.class}">${typeInfo.text}</div>
+                            <div class="notification-date">${new Date(notification.createdAt.seconds * 1000).toLocaleDateString('ar')}</div>
+                        </div>
+                        
+                        <div class="notification-title">${notification.title}</div>
+                        <div class="notification-message">${notification.message}</div>
+                        <div class="notification-recipients">المستقبلين: ${recipients}</div>
+
+                        <div class="notification-actions">
+                            <button class="action-btn view-btn" onclick="viewNotification('${notification.id}')">عرض</button>
+                            <button class="action-btn delete-btn" onclick="deleteNotification('${notification.id}')">حذف</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update stats
+        function updateStats() {
+            const today = new Date();
+            const todayNotifications = notifications.filter(notification => {
+                const notificationDate = new Date(notification.createdAt.seconds * 1000);
+                return notificationDate.toDateString() === today.toDateString();
+            });
+
+            const urgentNotifications = notifications.filter(n => n.type === 'urgent');
+
+            document.getElementById('notificationStats').innerHTML = `
+                <div class="stat-item">
+                    <div class="stat-number">${notifications.length}</div>
+                    <div class="stat-label">إجمالي الإشعارات</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${todayNotifications.length}</div>
+                    <div class="stat-label">إشعارات اليوم</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${urgentNotifications.length}</div>
+                    <div class="stat-label">إشعارات عاجلة</div>
+                </div>
+            `;
+        }
+
+        // Update recipients based on type
+        window.updateRecipients = () => {
+            const recipientType = document.getElementById('recipientType').value;
+            const specificRecipients = document.getElementById('specificRecipients');
+
+            if (recipientType === 'specific') {
+                specificRecipients.style.display = 'grid';
+                specificRecipients.innerHTML = drivers.map(driver => `
+                    <div class="recipient-item">
+                        <input type="checkbox" id="driver_${driver.id}" value="${driver.id}">
+                        <label for="driver_${driver.id}">${driver.name}</label>
+                    </div>
+                `).join('');
+            } else {
+                specificRecipients.style.display = 'none';
+            }
+        };
+
+        // Modal functions
+        window.openAddModal = () => {
+            document.getElementById('notificationForm').reset();
+            document.getElementById('notificationModal').style.display = 'block';
+            updateRecipients();
+        };
+
+        window.viewNotification = (notificationId) => {
+            const notification = notifications.find(n => n.id === notificationId);
+            if (!notification) return;
+            
+            const typeInfo = notificationTypes[notification.type] || { text: 'غير محدد' };
+            const recipients = notification.recipientType === 'all' ? 'جميع السائقين' : 
+                notification.recipients?.map(id => {
+                    const driver = drivers.find(d => d.id === id);
+                    return driver ? driver.name : 'غير معروف';
+                }).join(', ') || 'لا يوجد';
+
+            const details = `
+تفاصيل الإشعار:
+النوع: ${typeInfo.text}
+العنوان: ${notification.title}
+الرسالة: ${notification.message}
+المستقبلين: ${recipients}
+تم الإرسال بواسطة: ${notification.createdBy || 'غير محدد'}
+تاريخ الإرسال: ${new Date(notification.createdAt.seconds * 1000).toLocaleString('ar')}
+            `;
+            alert(details);
+        };
+
+        window.deleteNotification = async (notificationId) => {
+            if (!confirm('هل أنت متأكد من حذف هذا الإشعار؟')) return;
+
+            try {
+                await deleteDoc(doc(db, 'notifications', notificationId));
+                await loadNotifications();
+                alert('تم حذف الإشعار بنجاح');
+            } catch (error) {
+                console.error('Error deleting notification:', error);
+                alert('حدث خطأ في حذف الإشعار');
+            }
+        };
+
+        window.closeModal = () => {
+            document.getElementById('notificationModal').style.display = 'none';
+        };
+
+        // Form submission
+        document.getElementById('notificationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const recipientType = document.getElementById('recipientType').value;
+            let recipients = [];
+
+            if (recipientType === 'specific') {
+                const checkboxes = document.querySelectorAll('#specificRecipients input[type="checkbox"]:checked');
+                recipients = Array.from(checkboxes).map(cb => cb.value);
+                
+                if (recipients.length === 0) {
+                    alert('يرجى اختيار سائق واحد على الأقل');
+                    return;
+                }
+            }
+
+            const formData = {
+                type: document.getElementById('notificationType').value,
+                title: document.getElementById('notificationTitle').value,
+                message: document.getElementById('notificationMessage').value,
+                recipientType: recipientType,
+                recipients: recipients,
+                createdBy: currentUser.name || currentUser.email,
+                createdAt: new Date(),
+                createdByUid: currentUser.uid
+            };
+
+            try {
+                await addDoc(collection(db, 'notifications'), formData);
+                alert('تم إرسال الإشعار بنجاح');
+                closeModal();
+                await loadNotifications();
+            } catch (error) {
+                console.error('Error sending notification:', error);
+                alert('حدث خطأ في إرسال الإشعار');
+            }
+        });
+
+        // Logout function
+        window.logout = async () => {
+            try {
+                await signOut(auth);
+                localStorage.clear();
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        };
+    </script>
+</body>
+</html>
+
