@@ -608,7 +608,7 @@
             return Math.max(0, debt);
         }
 
-        // Calculate driver balance (copied from drivers-overview.html)
+        // Calculate driver balance (الرصيد المتبقي من الدفعات)
         function calculateDriverBalance(driverId, dailyWage) {
             // Get all daily wage payments for this driver
             const dailyWagePayments = driverPayments.filter(payment => 
@@ -616,34 +616,23 @@
                 payment.type === 'أجرة يومية'
             );
 
-            // Sort payments by date (oldest first)
-            dailyWagePayments.sort((a, b) => {
-                const dateA = parseDate(a.date);
-                const dateB = parseDate(b.date);
-                return dateA.getTime() - dateB.getTime();
-            });
-
-            let currentBalance = 0;
-            let totalDaysPaid = 0;
-
-            // Calculate total days paid
+            // Calculate total amount paid as daily wages
+            let totalPaid = 0;
             dailyWagePayments.forEach(payment => {
                 const amount = parseFloat(payment.amount) || 0;
-                const daysPaid = amount / dailyWage;
-                totalDaysPaid += daysPaid;
+                totalPaid += amount;
             });
 
-            // Calculate expected days since contract start
-            const driver = drivers.find(d => d.id === driverId);
-            const contractStart = parseDate(driver?.contractStartDate || driver?.createdAt);
-            const today = new Date();
-            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
-
-            // Calculate balance
-            const excessDays = totalDaysPaid - daysSinceStart;
-            currentBalance = excessDays * dailyWage;
-
-            return Math.max(0, currentBalance);
+            // Calculate how many complete days this amount covers
+            const completeDays = Math.floor(totalPaid / dailyWage);
+            
+            // Calculate the amount used for complete days
+            const usedAmount = completeDays * dailyWage;
+            
+            // The remaining amount is the driver's balance
+            const remainingBalance = totalPaid - usedAmount;
+            
+            return remainingBalance;
         }
 
         // Calculate driver stats (copied and modified from drivers-overview.html)
