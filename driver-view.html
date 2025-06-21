@@ -537,14 +537,13 @@
         // Check if user is logged in
         function checkLogin() {
             driverId = sessionStorage.getItem('driverId');
-            const driverDataStr = sessionStorage.getItem('driverData');
             
-            if (!driverId || !driverDataStr) {
+            if (!driverId) {
                 window.location.href = 'driver-login.html';
                 return false;
             }
             
-            driverData = JSON.parse(driverDataStr);
+            // Don't rely on cached driver data, always fetch fresh data
             return true;
         }
 
@@ -635,15 +634,21 @@
 
             await loadCars();
 
-            // Refresh driver data from Firebase
+            // Always refresh driver data from Firebase to get latest updates
             try {
                 const driverDoc = await getDoc(doc(db, 'drivers', driverId));
                 if (driverDoc.exists()) {
                     driverData = driverDoc.data();
+                    // Update sessionStorage with fresh data
                     sessionStorage.setItem('driverData', JSON.stringify(driverData));
+                } else {
+                    showMessage('لم يتم العثور على بيانات السائق', true);
+                    return;
                 }
             } catch (error) {
                 console.error('Error refreshing driver data:', error);
+                showMessage('حدث خطأ في تحميل البيانات', true);
+                return;
             }
 
             // Basic info
