@@ -377,8 +377,8 @@
                     <div class="value amount-highlight positive-amount" id="dailyRent">0 د.ك</div>
                 </div>
                 <div class="info-item">
-                    <label>تاريخ السداد</label>
-                    <div class="value" id="paymentDate">-</div>
+                    <label>تاريخ آخر سداد</label>
+                    <div class="value" id="lastPaymentDate">-</div>
                 </div>
                 <div class="info-item">
                     <label>سداد حتى تاريخ</label>
@@ -389,12 +389,20 @@
                     <div class="value" id="overdueDays">0 يوم</div>
                 </div>
                 <div class="info-item">
-                    <label>رسوم الإقامة</label>
-                    <div class="value amount-highlight" id="residenceFees">0 د.ك</div>
+                    <label>المبلغ المتأخر</label>
+                    <div class="value amount-highlight negative-amount" id="overdueAmount">0 د.ك</div>
                 </div>
                 <div class="info-item">
-                    <label>رسوم الرواتب</label>
-                    <div class="value amount-highlight" id="salaryFees">0 د.ك</div>
+                    <label>رصيد السائق</label>
+                    <div class="value amount-highlight positive-amount" id="driverBalance">0 د.ك</div>
+                </div>
+                <div class="info-item">
+                    <label>المخالفات</label>
+                    <div class="value amount-highlight negative-amount" id="violations">0 د.ك</div>
+                </div>
+                <div class="info-item">
+                    <label>مصاريف الإقامة</label>
+                    <div class="value amount-highlight negative-amount" id="residenceExpenses">0 د.ك</div>
                 </div>
                 <div class="info-item">
                     <label>الديون القديمة</label>
@@ -877,22 +885,34 @@
 
             // Financial info using new calculations
             document.getElementById('dailyRent').textContent = `${stats.dailyWage} د.ك`;
-            document.getElementById('paymentDate').textContent = formatDate(stats.lastPayment);
+            document.getElementById('lastPaymentDate').textContent = formatDate(stats.lastPayment);
             document.getElementById('paidUntilDate').textContent = formatDate(stats.paidUntilDate);
             document.getElementById('overdueDays').textContent = `${stats.daysLate} يوم`;
+            document.getElementById('overdueAmount').textContent = `${stats.lateAmount.toFixed(3)} د.ك`;
             
             // Set driver balance with proper color
             const driverBalanceEl = document.getElementById('driverBalance');
             if (driverBalanceEl) {
-                driverBalanceEl.textContent = `${stats.driverBalance} د.ك`;
+                driverBalanceEl.textContent = `${stats.driverBalance.toFixed(3)} د.ك`;
                 driverBalanceEl.className = stats.driverBalance > 0 ? 'value amount-highlight positive-amount' : 'value amount-highlight';
             }
             
-            // Set individual debt components
-            document.getElementById('violations').textContent = `${stats.violations} د.ك`;
-            document.getElementById('residenceFees').textContent = `${stats.residencyFees} د.ك`;
-            document.getElementById('oldDebts').textContent = `${stats.oldDebts} د.ك`;
-            document.getElementById('totalDebts').textContent = `${stats.totalDebt} د.ك`;
+            // Set individual debt components with proper colors
+            const violationsEl = document.getElementById('violations');
+            violationsEl.textContent = `${stats.violations.toFixed(3)} د.ك`;
+            violationsEl.className = stats.violations > 0 ? 'value amount-highlight negative-amount' : 'value amount-highlight';
+            
+            const residenceEl = document.getElementById('residenceExpenses');
+            residenceEl.textContent = `${stats.residencyFees.toFixed(3)} د.ك`;
+            residenceEl.className = stats.residencyFees > 0 ? 'value amount-highlight negative-amount' : 'value amount-highlight';
+            
+            const oldDebtsEl = document.getElementById('oldDebts');
+            oldDebtsEl.textContent = `${stats.oldDebts.toFixed(3)} د.ك`;
+            oldDebtsEl.className = stats.oldDebts > 0 ? 'value amount-highlight negative-amount' : 'value amount-highlight';
+            
+            const totalDebtsEl = document.getElementById('totalDebts');
+            totalDebtsEl.textContent = `${stats.totalDebt.toFixed(3)} د.ك`;
+            totalDebtsEl.className = stats.totalDebt > 0 ? 'value amount-highlight negative-amount' : 'value amount-highlight';
             
             // Set account status
             const accountStatusEl = document.getElementById('accountStatus');
