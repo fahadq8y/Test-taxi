@@ -489,32 +489,16 @@
                 payment.type === 'أجرة يومية'
             );
 
-            // Sort payments by date (oldest first)
-            dailyWagePayments.sort((a, b) => {
-                const dateA = parseDate(a.date);
-                const dateB = parseDate(b.date);
-                return dateA.getTime() - dateB.getTime();
-            });
-
-            let currentBalance = 0;
-            let totalDaysPaid = 0;
-
-            // Process each payment
-            dailyWagePayments.forEach(payment => {
-                const amount = parseFloat(payment.amount) || 0;
-                currentBalance += amount;
-
-                // Check if balance can complete full daily wages
-                while (currentBalance >= dailyWage) {
-                    currentBalance -= dailyWage;
-                    totalDaysPaid++;
-                    // Here we record that a full day was paid
-                }
-            });
-
-            // Balance should never exceed daily wage
-            // Return the remaining balance (what the driver has credit for)
-            return Math.min(currentBalance, dailyWage - 0.001); // Keep it just under daily wage
+            // Calculate total paid
+            const totalPaid = dailyWagePayments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
+            
+            // Calculate how many complete days this covers
+            const completeDays = Math.floor(totalPaid / dailyWage);
+            
+            // Calculate the remaining balance (what the driver has credit for)
+            const remainingBalance = totalPaid - (completeDays * dailyWage);
+            
+            return remainingBalance;
         }
 
         // Calculate debt by payment type
@@ -546,7 +530,7 @@
             return Math.max(0, debt);
         }
 
-        // Oil status functions for maintenance data (based on date instead of kilometers)
+        // Oil status functions for maintenance data (updated logic based on date)
         function getOilStatusColor(driver) {
             const lastOilChangeDate = parseDate(driver.lastOilChangeDate);
             if (!lastOilChangeDate) {
@@ -735,7 +719,7 @@
         // Show driver details modal
         async function showDriverDetails(driverId) {
             // Reload driver data to get latest information
-            await loadDrivers();
+            await loadData();
             
             const driver = drivers.find(d => d.id === driverId);
             if (!driver) return;
@@ -1177,3 +1161,4 @@
     </script>
 </body>
 </html>
+
