@@ -204,7 +204,7 @@
         }
 
         .update-btn {
-            background: linear-gradient(135deg, #10b981, #059669);
+            background: #2563eb;
             color: white;
             border: none;
             padding: 0.75rem 2rem;
@@ -212,74 +212,26 @@
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s ease;
+            transition: background-color 0.3s;
         }
 
         .update-btn:hover {
-            transform: translateY(-2px);
+            background: #1d4ed8;
         }
 
         .update-btn:disabled {
             background: #9ca3af;
             cursor: not-allowed;
-            transform: none;
-        }
-
-        .logout-btn {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 0.75rem 2rem;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 1rem;
-        }
-
-        .logout-btn:hover {
-            background: #dc2626;
-        }
-
-        .success-message, .error-message {
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            text-align: center;
-            display: none;
-        }
-
-        .success-message {
-            background: #dcfce7;
-            color: #166534;
-        }
-
-        .error-message {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .amount-highlight {
-            font-size: 1.2rem;
-            font-weight: bold;
-        }
-
-        .positive-amount {
-            color: #10b981;
-        }
-
-        .negative-amount {
-            color: #ef4444;
         }
 
         .document-expiry {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 0.5rem;
         }
 
         .expiry-status {
-            padding: 0.2rem 0.5rem;
+            padding: 0.25rem 0.5rem;
             border-radius: 12px;
             font-size: 0.75rem;
             font-weight: 600;
@@ -300,6 +252,53 @@
             color: #991b1b;
         }
 
+        .amount-highlight {
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        .positive-amount {
+            color: #059669;
+        }
+
+        .negative-amount {
+            color: #dc2626;
+        }
+
+        .logout-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+
+        .logout-btn:hover {
+            background: #b91c1c;
+        }
+
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .success-message {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 0.5rem;
@@ -309,11 +308,11 @@
                 grid-template-columns: 1fr;
             }
             
-            .form-row {
+            .maintenance-current {
                 grid-template-columns: 1fr;
             }
-
-            .maintenance-current {
+            
+            .form-row {
                 grid-template-columns: 1fr;
             }
         }
@@ -321,20 +320,23 @@
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
         <div class="header">
-            <h1>🚕 بيانات السائق</h1>
+            <h1>🚗 نظام إدارة التاكسي</h1>
             <div class="welcome" id="welcomeMessage">مرحباً بك</div>
+            <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
         </div>
 
-        <div class="success-message" id="successMessage"></div>
-        <div class="error-message" id="errorMessage"></div>
+        <!-- Messages -->
+        <div id="successMessage" class="message success-message"></div>
+        <div id="errorMessage" class="message error-message"></div>
 
-        <!-- البيانات الأساسية -->
+        <!-- البيانات الشخصية -->
         <div class="card">
-            <h2>📋 البيانات الأساسية</h2>
+            <h2>👤 البيانات الشخصية</h2>
             <div class="info-grid">
                 <div class="info-item">
-                    <label>الاسم الكامل</label>
+                    <label>اسم السائق</label>
                     <div class="value" id="driverName">-</div>
                 </div>
                 <div class="info-item">
@@ -349,9 +351,20 @@
                     <label>العنوان</label>
                     <div class="value" id="driverAddress">-</div>
                 </div>
+            </div>
+        </div>
+
+        <!-- معلومات السيارة والعقد -->
+        <div class="card">
+            <h2>🚙 معلومات السيارة والعقد</h2>
+            <div class="info-grid">
                 <div class="info-item">
                     <label>السيارة المخصصة</label>
                     <div class="value" id="assignedCar">-</div>
+                </div>
+                <div class="info-item">
+                    <label>الأجرة اليومية</label>
+                    <div class="value" id="dailyRent">-</div>
                 </div>
                 <div class="info-item">
                     <label>تاريخ بداية العقد</label>
@@ -362,7 +375,7 @@
                     <div class="value" id="contractDuration">-</div>
                 </div>
                 <div class="info-item">
-                    <label>تاريخ انتهاء العقد</label>
+                    <label>تاريخ نهاية العقد</label>
                     <div class="value" id="contractEndDate">-</div>
                 </div>
             </div>
@@ -373,49 +386,45 @@
             <h2>💰 الحالة المالية</h2>
             <div class="info-grid">
                 <div class="info-item">
-                    <label>الأجرة اليومية</label>
-                    <div class="value amount-highlight positive-amount" id="dailyRent">0 د.ك</div>
-                </div>
-                <div class="info-item">
-                    <label>تاريخ آخر سداد</label>
+                    <label>آخر دفعة</label>
                     <div class="value" id="lastPaymentDate">-</div>
                 </div>
                 <div class="info-item">
-                    <label>سداد حتى تاريخ</label>
+                    <label>مدفوع حتى تاريخ</label>
                     <div class="value" id="paidUntilDate">-</div>
                 </div>
                 <div class="info-item">
-                    <label>الأيام المتأخرة</label>
-                    <div class="value" id="overdueDays">0 يوم</div>
+                    <label>عدد أيام التأخير</label>
+                    <div class="value" id="overdueDays">-</div>
                 </div>
                 <div class="info-item">
-                    <label>المبلغ المتأخر</label>
-                    <div class="value amount-highlight negative-amount" id="overdueAmount">0 د.ك</div>
+                    <label>قيمة التأخير</label>
+                    <div class="value" id="overdueAmount">-</div>
                 </div>
                 <div class="info-item">
                     <label>رصيد السائق</label>
-                    <div class="value amount-highlight positive-amount" id="driverBalance">0 د.ك</div>
+                    <div class="value" id="driverBalance">-</div>
                 </div>
                 <div class="info-item">
                     <label>المخالفات</label>
-                    <div class="value amount-highlight negative-amount" id="violations">0 د.ك</div>
+                    <div class="value" id="violations">-</div>
                 </div>
                 <div class="info-item">
                     <label>مصاريف الإقامة</label>
-                    <div class="value amount-highlight negative-amount" id="residenceExpenses">0 د.ك</div>
+                    <div class="value" id="residenceExpenses">-</div>
                 </div>
                 <div class="info-item">
-                    <label>الديون القديمة</label>
-                    <div class="value amount-highlight negative-amount" id="oldDebts">0 د.ك</div>
+                    <label>ديون قديمة</label>
+                    <div class="value" id="oldDebts">-</div>
                 </div>
                 <div class="info-item">
                     <label>إجمالي الديون</label>
-                    <div class="value amount-highlight negative-amount" id="totalDebts">0 د.ك</div>
+                    <div class="value" id="totalDebts">-</div>
                 </div>
                 <div class="info-item">
                     <label>حالة الحساب</label>
-                    <div class="value">
-                        <span class="status-indicator" id="accountStatus">جيد</span>
+                    <div class="financial-status">
+                        <span class="status-indicator" id="accountStatus">-</span>
                     </div>
                 </div>
             </div>
@@ -429,8 +438,8 @@
             <div class="maintenance-current">
                 <div class="maintenance-item">
                     <div class="icon">🚗</div>
-                    <div class="label">الكيلومترات الحالية</div>
-                    <div class="value" id="currentKilometers">0 كم</div>
+                    <div class="label">كيلومترات آخر تغيير</div>
+                    <div class="value" id="lastOilChangeKm">0 كم</div>
                 </div>
                 <div class="maintenance-item">
                     <div class="icon">🛢️</div>
@@ -451,7 +460,7 @@
                 <h3>تحديث بيانات الصيانة</h3>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="newKilometers">الكيلومترات الجديدة</label>
+                        <label for="newKilometers">كيلومترات آخر تغيير الجديدة</label>
                         <input type="number" id="newKilometers" placeholder="مثال: 125000" min="0">
                     </div>
                     <div class="form-group">
@@ -513,18 +522,13 @@
                 </div>
             </div>
         </div>
-
-        <div style="text-align: center;">
-            <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
-        </div>
     </div>
 
     <!-- Firebase SDK -->
     <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, doc, updateDoc, getDoc, collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+        import { getFirestore, doc, getDoc, updateDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 
-        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
             authDomain: "taxi-management-system-d8210.firebaseapp.com",
@@ -538,38 +542,42 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // Make Firebase functions globally available
+        window.db = db;
+        window.doc = doc;
+        window.getDoc = getDoc;
+        window.updateDoc = updateDoc;
+        window.getDocs = getDocs;
+        window.collection = collection;
+
         let driverId = null;
-        let driverData = null;
-        let cars = [];
+        let driverData = {};
         let drivers = [];
         let driverPayments = [];
+        let cars = [];
 
-        // Parse date function (copied from drivers-overview.html)
+        // Parse date from various formats
         function parseDate(dateValue) {
             if (!dateValue) return new Date();
             
-            if (dateValue instanceof Date) {
-                return dateValue;
+            if (dateValue instanceof Date) return dateValue;
+            
+            if (dateValue && typeof dateValue.toDate === 'function') {
+                return dateValue.toDate();
             }
             
             if (typeof dateValue === 'string') {
-                // Try different date formats
                 const date = new Date(dateValue);
                 if (!isNaN(date.getTime())) return date;
                 
-                // Try ISO format
                 const isoDate = new Date(dateValue + 'T00:00:00');
                 if (!isNaN(isoDate.getTime())) return isoDate;
-            }
-            
-            if (dateValue && dateValue.seconds) {
-                return new Date(dateValue.seconds * 1000);
             }
             
             return new Date();
         }
 
-        // Format date for display (Gregorian calendar)
+        // Format date for display
         function formatDate(date) {
             const parsedDate = parseDate(date);
             return parsedDate.toLocaleDateString('en-GB', {
@@ -579,101 +587,36 @@
             });
         }
 
-        // Calculate debt by type (copied from drivers-overview.html)
-        function calculateDebtByType(driverId, types) {
-            let debt = 0;
-            
-            // Get driver's initial old debts
-            const driver = drivers.find(d => d.id === driverId);
-            if (driver && types.includes('دين قديم') && driver.oldDebts) {
-                debt += parseFloat(driver.oldDebts) || 0;
-            }
-            
-            const payments = driverPayments.filter(payment => 
-                payment.driverId === driverId && 
-                types.includes(payment.type)
-            );
-
-            payments.forEach(payment => {
-                const amount = parseFloat(payment.amount) || 0;
-                if (payment.type === 'دين قديم') {
-                    debt -= amount; // Reduce old debt when paid
-                } else if (payment.type.startsWith('دفع')) {
-                    debt += amount; // Increase debt
-                } else if (payment.type.startsWith('تحصيل')) {
-                    debt -= amount; // Reduce debt
-                }
-            });
-
-            return Math.max(0, debt);
-        }
-
-        // Calculate driver balance (الرصيد المتبقي من الدفعات)
-        function calculateDriverBalance(driverId, dailyWage) {
-            // Get all daily wage payments for this driver
-            const dailyWagePayments = driverPayments.filter(payment => 
-                payment.driverId === driverId && 
-                payment.type === 'أجرة يومية'
-            );
-
-            // Calculate total amount paid as daily wages
-            let totalPaid = 0;
-            dailyWagePayments.forEach(payment => {
-                const amount = parseFloat(payment.amount) || 0;
-                totalPaid += amount;
-            });
-
-            // Calculate how many complete days this amount covers
-            const completeDays = Math.floor(totalPaid / dailyWage);
-            
-            // Calculate the amount used for complete days
-            const usedAmount = completeDays * dailyWage;
-            
-            // The remaining amount is the driver's balance
-            const remainingBalance = totalPaid - usedAmount;
-            
-            return remainingBalance;
-        }
-
-        // Calculate driver stats (copied and modified from drivers-overview.html)
+        // Calculate driver statistics
         function calculateDriverStats(driver) {
             const today = new Date();
             const contractStart = parseDate(driver.contractStartDate || driver.createdAt);
             const lastPayment = parseDate(driver.lastPaymentDate || driver.contractStartDate || driver.createdAt);
             
-            // Calculate days since contract start
             const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
             
-            // Calculate expected payment (daily wage * days)
             const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
             const expectedTotal = daysSinceStart * dailyWage;
             
-            // Calculate total paid from driver payments
             const payments = driverPayments.filter(payment => 
                 payment.driverId === driver.id && 
                 payment.type === 'أجرة يومية'
             );
             const totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
             
-            // Calculate debt
             const currentDebt = Math.max(0, expectedTotal - totalPaid);
             
-            // Calculate days late
             const paidUntilDate = new Date(lastPayment.getTime() + (totalPaid / dailyWage) * 24 * 60 * 60 * 1000);
             const daysLate = Math.max(0, Math.floor((today - paidUntilDate) / (1000 * 60 * 60 * 24)));
             
-            // Calculate late amount
             const lateAmount = daysLate * dailyWage;
             
-            // Calculate debt amounts using new system
             const violations = calculateDebtByType(driver.id, ['دفع مخالفة', 'تحصيل مخالفة']);
             const residencyFees = calculateDebtByType(driver.id, ['دفع رسوم إقامة', 'تحصيل رسوم إقامة']);
             const oldDebts = calculateDebtByType(driver.id, ['دين قديم']);
             
-            // Calculate driver balance using the new smart system first
             const driverBalance = calculateDriverBalance(driver.id, dailyWage);
             
-            // Calculate total debt properly (including all components)
             const totalDriverDebt = Math.max(0, lateAmount + violations + residencyFees + oldDebts - driverBalance);
 
             return {
@@ -692,7 +635,51 @@
             };
         }
 
-        // Load drivers from Firebase
+        // Calculate driver balance
+        function calculateDriverBalance(driverId, dailyWage) {
+            const dailyWagePayments = driverPayments.filter(payment => 
+                payment.driverId === driverId && 
+                payment.type === 'أجرة يومية'
+            );
+
+            const totalPaid = dailyWagePayments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
+            
+            const completeDays = Math.floor(totalPaid / dailyWage);
+            
+            const remainingBalance = totalPaid - (completeDays * dailyWage);
+            
+            return remainingBalance;
+        }
+
+        // Calculate debt by payment type
+        function calculateDebtByType(driverId, types) {
+            let debt = 0;
+            
+            const driver = drivers.find(d => d.id === driverId);
+            if (driver && types.includes('دين قديم') && driver.oldDebts) {
+                debt += parseFloat(driver.oldDebts) || 0;
+            }
+            
+            const payments = driverPayments.filter(payment => 
+                payment.driverId === driverId && 
+                types.includes(payment.type)
+            );
+
+            payments.forEach(payment => {
+                const amount = parseFloat(payment.amount) || 0;
+                if (payment.type === 'دين قديم') {
+                    debt -= amount;
+                } else if (payment.type.startsWith('دفع')) {
+                    debt += amount;
+                } else if (payment.type.startsWith('تحصيل')) {
+                    debt -= amount;
+                }
+            });
+
+            return Math.max(0, debt);
+        }
+
+        // Load drivers data
         async function loadDrivers() {
             try {
                 const querySnapshot = await getDocs(collection(db, 'drivers'));
@@ -727,7 +714,6 @@
                 return false;
             }
             
-            // Don't rely on cached driver data, always fetch fresh data
             return true;
         }
 
@@ -748,7 +734,7 @@
         function formatDateEnglish(dateStr) {
             if (!dateStr) return '-';
             const date = dateStr.seconds ? new Date(dateStr.seconds * 1000) : new Date(dateStr);
-            return date.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+            return date.toLocaleDateString('en-GB');
         }
 
         // Calculate days difference
@@ -788,9 +774,9 @@
                 new Date(lastOilChangeDate);
             const daysDiff = Math.floor((today - lastChange) / (1000 * 60 * 60 * 24));
 
-            if (daysDiff <= 10) {
+            if (daysDiff < 15) {
                 return { status: 'جيد', color: '#10b981', message: 'الزيت في حالة جيدة' };
-            } else if (daysDiff <= 15) {
+            } else if (daysDiff <= 20) {
                 return { status: 'تحذير', color: '#f59e0b', message: 'يُنصح بتغيير الزيت قريباً' };
             } else {
                 return { status: 'عاجل', color: '#ef4444', message: 'يجب تغيير الزيت فوراً!' };
@@ -915,8 +901,8 @@
             }
 
             // Maintenance info
-            const currentKm = driverData.currentKilometers || 0;
-            document.getElementById('currentKilometers').textContent = `${currentKm.toLocaleString()} كم`;
+            const lastOilChangeKm = driverData.lastOilChangeKm || 0;
+            document.getElementById('lastOilChangeKm').textContent = `${lastOilChangeKm.toLocaleString()} كم`;
             document.getElementById('lastOilChange').textContent = formatDate(driverData.lastOilChangeDate);
 
             // Oil status
@@ -942,7 +928,7 @@
             });
 
             // Set current values in form
-            document.getElementById('newKilometers').value = currentKm;
+            document.getElementById('newKilometers').value = lastOilChangeKm;
             if (driverData.lastOilChangeDate) {
                 const oilDate = parseDate(driverData.lastOilChangeDate);
                 document.getElementById('oilChangeDate').value = oilDate.toISOString().split('T')[0];
@@ -977,12 +963,7 @@
             const updateBtn = document.getElementById('updateBtn');
 
             if (!newKm && !oilChangeDate) {
-                showMessage('يرجى إدخال الكيلومترات أو تاريخ تغيير الزيت', true);
-                return;
-            }
-
-            if (newKm && newKm < (driverData.currentKilometers || 0)) {
-                showMessage('الكيلومترات الجديدة يجب أن تكون أكبر من الحالية', true);
+                showMessage('يرجى إدخال كيلومترات آخر تغيير أو تاريخ تغيير الزيت', true);
                 return;
             }
 
@@ -992,7 +973,7 @@
 
                 const updateData = {};
                 if (newKm) {
-                    updateData.currentKilometers = newKm;
+                    updateData.lastOilChangeKm = newKm;
                     updateData.lastKilometersUpdate = new Date().toISOString();
                 }
                 if (oilChangeDate) {
