@@ -533,6 +533,193 @@
         let driverId = null;
         let driverData = null;
         let cars = [];
+        let drivers = [];
+        let driverPayments = [];
+
+        // Parse date function (copied from drivers-overview.html)
+        function parseDate(dateValue) {
+            if (!dateValue) return new Date();
+            
+            if (dateValue instanceof Date) {
+                return dateValue;
+            }
+            
+            if (typeof dateValue === 'string') {
+                // Try different date formats
+                const date = new Date(dateValue);
+                if (!isNaN(date.getTime())) return date;
+                
+                // Try ISO format
+                const isoDate = new Date(dateValue + 'T00:00:00');
+                if (!isNaN(isoDate.getTime())) return isoDate;
+            }
+            
+            if (dateValue && dateValue.seconds) {
+                return new Date(dateValue.seconds * 1000);
+            }
+            
+            return new Date();
+        }
+
+        // Format date for display (Gregorian calendar)
+        function formatDate(date) {
+            const parsedDate = parseDate(date);
+            return parsedDate.toLocaleDateString('en-GB', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+        }
+
+        // Calculate debt by type (copied from drivers-overview.html)
+        function calculateDebtByType(driverId, types) {
+            let debt = 0;
+            
+            // Get driver's initial old debts
+            const driver = drivers.find(d => d.id === driverId);
+            if (driver && types.includes('دين قديم') && driver.oldDebts) {
+                debt += parseFloat(driver.oldDebts) || 0;
+            }
+            
+            const payments = driverPayments.filter(payment => 
+                payment.driverId === driverId && 
+                types.includes(payment.type)
+            );
+
+            payments.forEach(payment => {
+                const amount = parseFloat(payment.amount) || 0;
+                if (payment.type === 'دين قديم') {
+                    debt -= amount; // Reduce old debt when paid
+                } else if (payment.type.startsWith('دفع')) {
+                    debt += amount; // Increase debt
+                } else if (payment.type.startsWith('تحصيل')) {
+                    debt -= amount; // Reduce debt
+                }
+            });
+
+            return Math.max(0, debt);
+        }
+
+        // Calculate driver balance (copied from drivers-overview.html)
+        function calculateDriverBalance(driverId, dailyWage) {
+            // Get all daily wage payments for this driver
+            const dailyWagePayments = driverPayments.filter(payment => 
+                payment.driverId === driverId && 
+                payment.type === 'أجرة يومية'
+            );
+
+            // Sort payments by date (oldest first)
+            dailyWagePayments.sort((a, b) => {
+                const dateA = parseDate(a.date);
+                const dateB = parseDate(b.date);
+                return dateA.getTime() - dateB.getTime();
+            });
+
+            let currentBalance = 0;
+            let totalDaysPaid = 0;
+
+            // Calculate total days paid
+            dailyWagePayments.forEach(payment => {
+                const amount = parseFloat(payment.amount) || 0;
+                const daysPaid = amount / dailyWage;
+                totalDaysPaid += daysPaid;
+            });
+
+            // Calculate expected days since contract start
+            const driver = drivers.find(d => d.id === driverId);
+            const contractStart = parseDate(driver?.contractStartDate || driver?.createdAt);
+            const today = new Date();
+            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+
+            // Calculate balance
+            const excessDays = totalDaysPaid - daysSinceStart;
+            currentBalance = excessDays * dailyWage;
+
+            return Math.max(0, currentBalance);
+        }
+
+        // Calculate driver stats (copied and modified from drivers-overview.html)
+        function calculateDriverStats(driver) {
+            const today = new Date();
+            const contractStart = parseDate(driver.contractStartDate || driver.createdAt);
+            const lastPayment = parseDate(driver.lastPaymentDate || driver.contractStartDate || driver.createdAt);
+            
+            // Calculate days since contract start
+            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+            
+            // Calculate expected payment (daily wage * days)
+            const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
+            const expectedTotal = daysSinceStart * dailyWage;
+            
+            // Calculate total paid from driver payments
+            const payments = driverPayments.filter(payment => 
+                payment.driverId === driver.id && 
+                payment.type === 'أجرة يومية'
+            );
+            const totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
+            
+            // Calculate debt
+            const currentDebt = Math.max(0, expectedTotal - totalPaid);
+            
+            // Calculate days late
+            const paidUntilDate = new Date(lastPayment.getTime() + (totalPaid / dailyWage) * 24 * 60 * 60 * 1000);
+            const daysLate = Math.max(0, Math.floor((today - paidUntilDate) / (1000 * 60 * 60 * 24)));
+            
+            // Calculate late amount
+            const lateAmount = daysLate * dailyWage;
+            
+            // Calculate debt amounts using new system
+            const violations = calculateDebtByType(driver.id, ['دفع مخالفة', 'تحصيل مخالفة']);
+            const residencyFees = calculateDebtByType(driver.id, ['دفع رسوم إقامة', 'تحصيل رسوم إقامة']);
+            const oldDebts = calculateDebtByType(driver.id, ['دين قديم']);
+            
+            // Calculate driver balance using the new smart system first
+            const driverBalance = calculateDriverBalance(driver.id, dailyWage);
+            
+            // Calculate total debt properly (including all components)
+            const totalDriverDebt = Math.max(0, lateAmount + violations + residencyFees + oldDebts - driverBalance);
+
+            return {
+                dailyWage,
+                contractStart,
+                lastPayment,
+                paidUntilDate,
+                daysLate,
+                lateAmount,
+                driverBalance,
+                violations,
+                residencyFees,
+                oldDebts,
+                totalDebt: totalDriverDebt,
+                status: daysLate > 7 ? 'متأخر جداً' : daysLate > 0 ? 'متأخر' : 'منتظم'
+            };
+        }
+
+        // Load drivers from Firebase
+        async function loadDrivers() {
+            try {
+                const querySnapshot = await getDocs(collection(db, 'drivers'));
+                drivers = [];
+                querySnapshot.forEach((doc) => {
+                    drivers.push({ id: doc.id, ...doc.data() });
+                });
+            } catch (error) {
+                console.error('Error loading drivers:', error);
+            }
+        }
+
+        // Load driver payments from Firebase
+        async function loadDriverPayments() {
+            try {
+                const querySnapshot = await getDocs(collection(db, 'driverPayments'));
+                driverPayments = [];
+                querySnapshot.forEach((doc) => {
+                    driverPayments.push({ id: doc.id, ...doc.data() });
+                });
+            } catch (error) {
+                console.error('Error loading driver payments:', error);
+            }
+        }
 
         // Check if user is logged in
         function checkLogin() {
@@ -632,13 +819,18 @@
         async function loadDriverData() {
             if (!checkLogin()) return;
 
-            await loadCars();
+            // Load all required data
+            await Promise.all([
+                loadCars(),
+                loadDrivers(),
+                loadDriverPayments()
+            ]);
 
             // Always refresh driver data from Firebase to get latest updates
             try {
                 const driverDoc = await getDoc(doc(db, 'drivers', driverId));
                 if (driverDoc.exists()) {
-                    driverData = driverDoc.data();
+                    driverData = { id: driverId, ...driverDoc.data() };
                     // Update sessionStorage with fresh data
                     sessionStorage.setItem('driverData', JSON.stringify(driverData));
                 } else {
@@ -650,6 +842,9 @@
                 showMessage('حدث خطأ في تحميل البيانات', true);
                 return;
             }
+
+            // Calculate financial stats using the new system
+            const stats = calculateDriverStats(driverData);
 
             // Basic info
             document.getElementById('welcomeMessage').textContent = `مرحباً ${driverData.name}`;
@@ -676,41 +871,44 @@
             }
 
             // Contract info
-            document.getElementById('contractStartDate').textContent = formatDateEnglish(driverData.contractStartDate);
+            document.getElementById('contractStartDate').textContent = formatDate(driverData.contractStartDate);
             document.getElementById('contractDuration').textContent = driverData.contractDuration ? `${driverData.contractDuration} شهر` : '-';
-            document.getElementById('contractEndDate').textContent = formatDateEnglish(driverData.contractEndDate);
+            document.getElementById('contractEndDate').textContent = formatDate(driverData.contractEndDate);
 
-            // Financial info
-            const dailyRent = driverData.dailyRent || 0;
-            const residenceFees = driverData.residenceFees || 0;
-            const salaryFees = driverData.salaryFees || 0;
-            const oldDebts = driverData.oldDebts || 0;
-            const overdueDays = calculateOverdueDays(driverData.paidUntilDate);
-            const overdueAmount = overdueDays * dailyRent;
-            const totalDebts = oldDebts + overdueAmount + residenceFees + salaryFees;
-
-            document.getElementById('dailyRent').textContent = `${dailyRent} د.ك`;
-            document.getElementById('paymentDate').textContent = formatDateEnglish(driverData.lastPaymentDate);
-            document.getElementById('paidUntilDate').textContent = formatDateEnglish(driverData.paidUntilDate);
-            document.getElementById('overdueDays').textContent = `${overdueDays} يوم`;
-            document.getElementById('residenceFees').textContent = `${residenceFees} د.ك`;
-            document.getElementById('salaryFees').textContent = `${salaryFees} د.ك`;
-            document.getElementById('oldDebts').textContent = `${oldDebts} د.ك`;
-            document.getElementById('totalDebts').textContent = `${totalDebts} د.ك`;
+            // Financial info using new calculations
+            document.getElementById('dailyRent').textContent = `${stats.dailyWage} د.ك`;
+            document.getElementById('paymentDate').textContent = formatDate(stats.lastPayment);
+            document.getElementById('paidUntilDate').textContent = formatDate(stats.paidUntilDate);
+            document.getElementById('overdueDays').textContent = `${stats.daysLate} يوم`;
             
+            // Set driver balance with proper color
+            const driverBalanceEl = document.getElementById('driverBalance');
+            if (driverBalanceEl) {
+                driverBalanceEl.textContent = `${stats.driverBalance} د.ك`;
+                driverBalanceEl.className = stats.driverBalance > 0 ? 'value amount-highlight positive-amount' : 'value amount-highlight';
+            }
+            
+            // Set individual debt components
+            document.getElementById('violations').textContent = `${stats.violations} د.ك`;
+            document.getElementById('residenceFees').textContent = `${stats.residencyFees} د.ك`;
+            document.getElementById('oldDebts').textContent = `${stats.oldDebts} د.ك`;
+            document.getElementById('totalDebts').textContent = `${stats.totalDebt} د.ك`;
+            
+            // Set account status
             const accountStatusEl = document.getElementById('accountStatus');
-            if (totalDebts > 0) {
-                accountStatusEl.textContent = 'مستحق';
+            accountStatusEl.textContent = stats.status;
+            if (stats.status === 'منتظم') {
+                accountStatusEl.className = 'status-indicator status-good';
+            } else if (stats.status === 'متأخر') {
                 accountStatusEl.className = 'status-indicator status-warning';
             } else {
-                accountStatusEl.textContent = 'جيد';
-                accountStatusEl.className = 'status-indicator status-good';
+                accountStatusEl.className = 'status-indicator status-danger';
             }
 
             // Maintenance info
             const currentKm = driverData.currentKilometers || 0;
             document.getElementById('currentKilometers').textContent = `${currentKm.toLocaleString()} كم`;
-            document.getElementById('lastOilChange').textContent = formatDateEnglish(driverData.lastOilChangeDate);
+            document.getElementById('lastOilChange').textContent = formatDate(driverData.lastOilChangeDate);
 
             // Oil status
             const oilStatus = getOilChangeStatus(driverData.lastOilChangeDate);
@@ -728,7 +926,7 @@
             ];
 
             documents.forEach(doc => {
-                document.getElementById(doc.id).textContent = formatDateEnglish(doc.data);
+                document.getElementById(doc.id).textContent = formatDate(doc.data);
                 const status = getDocumentExpiryStatus(doc.data);
                 document.getElementById(doc.statusId).textContent = status.status;
                 document.getElementById(doc.statusId).className = `expiry-status ${status.class}`;
@@ -737,9 +935,7 @@
             // Set current values in form
             document.getElementById('newKilometers').value = currentKm;
             if (driverData.lastOilChangeDate) {
-                const oilDate = driverData.lastOilChangeDate.seconds ? 
-                    new Date(driverData.lastOilChangeDate.seconds * 1000) : 
-                    new Date(driverData.lastOilChangeDate);
+                const oilDate = parseDate(driverData.lastOilChangeDate);
                 document.getElementById('oilChangeDate').value = oilDate.toISOString().split('T')[0];
             }
         }
