@@ -4,820 +4,824 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>بيانات السائق - نظام إدارة التاكسي</title>
-    <link rel="stylesheet" href="unified-design-system.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="icon" type="image/png" href="icon-192.png">
     <style>
-        .driver-info {
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            min-height: 100vh;
+            direction: rtl;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header {
             background: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+            text-align: center;
         }
-        
-        .info-section {
-            margin-bottom: 25px;
+
+        .header h1 {
+            color: #2563eb;
+            margin-bottom: 0.5rem;
         }
-        
-        .info-section h3 {
-            color: #2c3e50;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 8px;
-            margin-bottom: 15px;
+
+        .header .welcome {
+            color: #6b7280;
+            font-size: 1.1rem;
         }
-        
+
+        .card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            color: #374151;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
         .info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
         }
-        
+
         .info-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-right: 4px solid #3498db;
+            padding: 1rem;
+            background: #f9fafb;
+            border-radius: 10px;
+            border-left: 4px solid #2563eb;
         }
-        
-        .info-label {
-            font-weight: bold;
-            color: #2c3e50;
-        }
-        
-        .info-value {
-            color: #34495e;
-        }
-        
-        .amount {
-            font-weight: bold;
-        }
-        
-        .positive {
-            color: #27ae60;
-        }
-        
-        .negative {
-            color: #e74c3c;
-        }
-        
-        .zero {
-            color: #7f8c8d;
-        }
-        
-        .status-good {
-            color: #27ae60;
-            background: #d5f4e6;
-            padding: 4px 8px;
-            border-radius: 4px;
-        }
-        
-        .status-warning {
-            color: #f39c12;
-            background: #fef9e7;
-            padding: 4px 8px;
-            border-radius: 4px;
-        }
-        
-        .status-danger {
-            color: #e74c3c;
-            background: #fadbd8;
-            padding: 4px 8px;
-            border-radius: 4px;
-        }
-        
-        .maintenance-form {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 15px;
-        }
-        
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        .form-group label {
+
+        .info-item label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #2c3e50;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
         }
-        
+
+        .info-item .value {
+            font-size: 1.1rem;
+            color: #1f2937;
+            font-weight: 500;
+        }
+
+        .financial-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-indicator {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .status-good {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .maintenance-section {
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .maintenance-current {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .maintenance-item {
+            text-align: center;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .maintenance-item .icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .maintenance-item .label {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 0.25rem;
+        }
+
+        .maintenance-item .value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .oil-status {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-top: 0.5rem;
+            display: inline-block;
+        }
+
+        .update-form {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-top: 1rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
         .form-group input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        
-        .btn-update {
-            background: #3498db;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        
-        .btn-update:hover {
-            background: #2980b9;
-        }
-        
-        .btn-logout {
-            background: #e74c3c;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 20px;
-        }
-        
-        .btn-logout:hover {
-            background: #c0392b;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 50px;
-            color: #7f8c8d;
-        }
-        
-        .error {
-            background: #fadbd8;
-            color: #e74c3c;
-            padding: 15px;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
             border-radius: 8px;
-            margin: 20px 0;
-            text-align: center;
+            font-size: 1rem;
+            direction: rtl;
         }
-        
-        .success {
-            background: #d5f4e6;
-            color: #27ae60;
-            padding: 15px;
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .update-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
             border-radius: 8px;
-            margin: 20px 0;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .update-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .update-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .logout-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+        }
+
+        .success-message, .error-message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
             text-align: center;
+            display: none;
+        }
+
+        .success-message {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .amount-highlight {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .positive-amount {
+            color: #10b981;
+        }
+
+        .negative-amount {
+            color: #ef4444;
+        }
+
+        .document-expiry {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .expiry-status {
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .expiry-good {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .expiry-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .expiry-expired {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0.5rem;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .maintenance-current {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🚗 بيانات السائق</h1>
-            <button class="btn-logout" onclick="logout()">تسجيل الخروج</button>
+            <h1>🚕 بيانات السائق</h1>
+            <div class="welcome" id="welcomeMessage">مرحباً بك</div>
         </div>
 
-        <div id="loadingDiv" class="loading">
-            <p>جاري تحميل البيانات...</p>
+        <div class="success-message" id="successMessage"></div>
+        <div class="error-message" id="errorMessage"></div>
+
+        <!-- البيانات الأساسية -->
+        <div class="card">
+            <h2>📋 البيانات الأساسية</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>الاسم الكامل</label>
+                    <div class="value" id="driverName">-</div>
+                </div>
+                <div class="info-item">
+                    <label>رقم الهاتف</label>
+                    <div class="value" id="driverPhone">-</div>
+                </div>
+                <div class="info-item">
+                    <label>الجنسية</label>
+                    <div class="value" id="driverNationality">-</div>
+                </div>
+                <div class="info-item">
+                    <label>العنوان</label>
+                    <div class="value" id="driverAddress">-</div>
+                </div>
+                <div class="info-item">
+                    <label>السيارة المخصصة</label>
+                    <div class="value" id="assignedCar">-</div>
+                </div>
+                <div class="info-item">
+                    <label>تاريخ بداية العقد</label>
+                    <div class="value" id="contractStartDate">-</div>
+                </div>
+                <div class="info-item">
+                    <label>مدة العقد</label>
+                    <div class="value" id="contractDuration">-</div>
+                </div>
+                <div class="info-item">
+                    <label>تاريخ انتهاء العقد</label>
+                    <div class="value" id="contractEndDate">-</div>
+                </div>
+            </div>
         </div>
 
-        <div id="errorDiv" class="error" style="display: none;">
-            <p id="errorMessage"></p>
+        <!-- الحالة المالية -->
+        <div class="card">
+            <h2>💰 الحالة المالية</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>الأجرة اليومية</label>
+                    <div class="value amount-highlight positive-amount" id="dailyRent">0 د.ك</div>
+                </div>
+                <div class="info-item">
+                    <label>تاريخ السداد</label>
+                    <div class="value" id="paymentDate">-</div>
+                </div>
+                <div class="info-item">
+                    <label>سداد حتى تاريخ</label>
+                    <div class="value" id="paidUntilDate">-</div>
+                </div>
+                <div class="info-item">
+                    <label>الأيام المتأخرة</label>
+                    <div class="value" id="overdueDays">0 يوم</div>
+                </div>
+                <div class="info-item">
+                    <label>رسوم الإقامة</label>
+                    <div class="value amount-highlight" id="residenceFees">0 د.ك</div>
+                </div>
+                <div class="info-item">
+                    <label>رسوم الرواتب</label>
+                    <div class="value amount-highlight" id="salaryFees">0 د.ك</div>
+                </div>
+                <div class="info-item">
+                    <label>الديون القديمة</label>
+                    <div class="value amount-highlight negative-amount" id="oldDebts">0 د.ك</div>
+                </div>
+                <div class="info-item">
+                    <label>إجمالي الديون</label>
+                    <div class="value amount-highlight negative-amount" id="totalDebts">0 د.ك</div>
+                </div>
+                <div class="info-item">
+                    <label>حالة الحساب</label>
+                    <div class="value">
+                        <span class="status-indicator" id="accountStatus">جيد</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div id="driverDataDiv" style="display: none;">
-            <!-- البيانات الأساسية -->
-            <div class="driver-info">
-                <div class="info-section">
-                    <h3>📋 البيانات الأساسية</h3>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <span class="info-label">الاسم:</span>
-                            <span class="info-value" id="driverName">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">رقم الهاتف:</span>
-                            <span class="info-value" id="driverPhone">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">الجنسية:</span>
-                            <span class="info-value" id="driverNationality">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">العنوان:</span>
-                            <span class="info-value" id="driverAddress">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">السيارة المخصصة:</span>
-                            <span class="info-value" id="assignedCar">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">تاريخ بداية العقد:</span>
-                            <span class="info-value" id="contractStart">-</span>
-                        </div>
+        <!-- معلومات الصيانة -->
+        <div class="card">
+            <h2>🔧 معلومات الصيانة</h2>
+            
+            <!-- البيانات الحالية -->
+            <div class="maintenance-current">
+                <div class="maintenance-item">
+                    <div class="icon">🚗</div>
+                    <div class="label">الكيلومترات الحالية</div>
+                    <div class="value" id="currentKilometers">0 كم</div>
+                </div>
+                <div class="maintenance-item">
+                    <div class="icon">🛢️</div>
+                    <div class="label">آخر تغيير زيت</div>
+                    <div class="value" id="lastOilChange">غير محدد</div>
+                </div>
+                <div class="maintenance-item">
+                    <div class="icon">⚠️</div>
+                    <div class="label">حالة الزيت</div>
+                    <div class="value">
+                        <span class="oil-status" id="oilStatus">غير محدد</span>
                     </div>
                 </div>
             </div>
 
-            <!-- الحالة المالية -->
-            <div class="driver-info">
-                <div class="info-section">
-                    <h3>💰 الحالة المالية</h3>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <span class="info-label">الأجرة اليومية:</span>
-                            <span class="info-value amount" id="dailyWage">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">آخر دفعة:</span>
-                            <span class="info-value" id="lastPayment">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">سداد حتى تاريخ:</span>
-                            <span class="info-value" id="paidUntilDate">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">الأيام المتأخرة:</span>
-                            <span class="info-value" id="daysLate">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">المبلغ المتأخر:</span>
-                            <span class="info-value amount" id="lateAmount">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">رصيد السائق:</span>
-                            <span class="info-value amount" id="driverBalance">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">المخالفات:</span>
-                            <span class="info-value amount" id="violations">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">رسوم الإقامة:</span>
-                            <span class="info-value amount" id="residencyFees">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">الديون القديمة:</span>
-                            <span class="info-value amount" id="oldDebts">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">إجمالي الديون:</span>
-                            <span class="info-value amount" id="totalDebt">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">حالة الحساب:</span>
-                            <span class="info-value" id="accountStatus">-</span>
-                        </div>
+            <!-- نموذج التحديث -->
+            <div class="update-form">
+                <h3>تحديث بيانات الصيانة</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="newKilometers">الكيلومترات الجديدة</label>
+                        <input type="number" id="newKilometers" placeholder="مثال: 125000" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="oilChangeDate">تاريخ تغيير الزيت</label>
+                        <input type="date" id="oilChangeDate">
                     </div>
                 </div>
+                <button class="update-btn" id="updateBtn" onclick="updateMaintenance()">
+                    تحديث البيانات
+                </button>
             </div>
+        </div>
 
-            <!-- معلومات الصيانة -->
-            <div class="driver-info">
-                <div class="info-section">
-                    <h3>🔧 معلومات الصيانة</h3>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <span class="info-label">الكيلومترات الحالية:</span>
-                            <span class="info-value" id="currentKilometers">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">آخر تغيير زيت:</span>
-                            <span class="info-value" id="lastOilChange">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">حالة الزيت:</span>
-                            <span class="info-value" id="oilStatus">-</span>
-                        </div>
+        <!-- الوثائق -->
+        <div class="card">
+            <h2>📄 الوثائق والتصاريح</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>انتهاء الرخصة</label>
+                    <div class="document-expiry">
+                        <div class="value" id="licenseExpiry">-</div>
+                        <span class="expiry-status" id="licenseStatus">-</span>
                     </div>
-                    
-                    <div class="maintenance-form">
-                        <h4>تحديث بيانات الصيانة</h4>
-                        <div class="form-group">
-                            <label for="newKilometers">الكيلومترات الجديدة:</label>
-                            <input type="number" id="newKilometers" placeholder="أدخل الكيلومترات الحالية">
-                        </div>
-                        <div class="form-group">
-                            <label for="newOilChangeDate">تاريخ تغيير الزيت:</label>
-                            <input type="date" id="newOilChangeDate">
-                        </div>
-                        <button class="btn-update" onclick="updateMaintenance()">تحديث البيانات</button>
+                </div>
+                <div class="info-item">
+                    <label>انتهاء التصريح</label>
+                    <div class="document-expiry">
+                        <div class="value" id="permitExpiry">-</div>
+                        <span class="expiry-status" id="permitStatus">-</span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <label>انتهاء دفتر السيارة</label>
+                    <div class="document-expiry">
+                        <div class="value" id="carRegistrationExpiry">-</div>
+                        <span class="expiry-status" id="carRegistrationStatus">-</span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <label>انتهاء الإقامة</label>
+                    <div class="document-expiry">
+                        <div class="value" id="residenceExpiry">-</div>
+                        <span class="expiry-status" id="residenceStatus">-</span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <label>انتهاء جواز السفر</label>
+                    <div class="document-expiry">
+                        <div class="value" id="passportExpiry">-</div>
+                        <span class="expiry-status" id="passportStatus">-</span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <label>انتهاء التأمين</label>
+                    <div class="document-expiry">
+                        <div class="value" id="insuranceExpiry">-</div>
+                        <span class="expiry-status" id="insuranceStatus">-</span>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- الوثائق -->
-            <div class="driver-info">
-                <div class="info-section">
-                    <h3>📄 الوثائق</h3>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <span class="info-label">انتهاء الرخصة:</span>
-                            <span class="info-value" id="licenseExpiry">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">انتهاء التصريح:</span>
-                            <span class="info-value" id="permitExpiry">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">انتهاء دفتر السيارة:</span>
-                            <span class="info-value" id="carRegistrationExpiry">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">انتهاء الإقامة:</span>
-                            <span class="info-value" id="residenceExpiry">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">انتهاء جواز السفر:</span>
-                            <span class="info-value" id="passportExpiry">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">انتهاء التأمين:</span>
-                            <span class="info-value" id="insuranceExpiry">-</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div style="text-align: center;">
+            <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
         </div>
     </div>
 
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, doc, updateDoc, getDoc, collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyDGpAHia_wEmrhnmYjrPf1n1TrAzwEMiAI",
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
             authDomain: "taxi-management-system-d8210.firebaseapp.com",
             projectId: "taxi-management-system-d8210",
-            storageBucket: "taxi-management-system-d8210.appspot.com",
-            messagingSenderId: "1012226491785",
-            appId: "1:1012226491785:web:a6b2e3d0f8c4e5f6g7h8i9"
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Global variables
-        let currentDriver = null;
-        let drivers = [];
+        let driverId = null;
+        let driverData = null;
         let cars = [];
-        let driverPayments = [];
-
-        // Initialize page
-        window.addEventListener('load', function() {
-            checkLogin();
-        });
 
         // Check if user is logged in
         function checkLogin() {
-            const driverId = sessionStorage.getItem('driverLoginId');
-            const driverName = sessionStorage.getItem('driverLoginName');
+            driverId = sessionStorage.getItem('driverId');
             
-            if (!driverId || !driverName) {
+            if (!driverId) {
                 window.location.href = 'driver-login.html';
+                return false;
+            }
+            
+            // Don't rely on cached driver data, always fetch fresh data
+            return true;
+        }
+
+        // Load cars data
+        async function loadCars() {
+            try {
+                const carsSnapshot = await getDocs(collection(db, 'cars'));
+                cars = [];
+                carsSnapshot.forEach(doc => {
+                    cars.push({ id: doc.id, ...doc.data() });
+                });
+            } catch (error) {
+                console.error('Error loading cars:', error);
+            }
+        }
+
+        // Format date to English format
+        function formatDateEnglish(dateStr) {
+            if (!dateStr) return '-';
+            const date = dateStr.seconds ? new Date(dateStr.seconds * 1000) : new Date(dateStr);
+            return date.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+        }
+
+        // Calculate days difference
+        function calculateDaysDifference(date1, date2) {
+            const diffTime = Math.abs(date2 - date1);
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        // Get document expiry status
+        function getDocumentExpiryStatus(expiryDate) {
+            if (!expiryDate) {
+                return { status: '-', class: '', message: 'غير محدد' };
+            }
+
+            const today = new Date();
+            const expiry = expiryDate.seconds ? new Date(expiryDate.seconds * 1000) : new Date(expiryDate);
+            const daysToExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+
+            if (daysToExpiry > 30) {
+                return { status: 'سارية', class: 'expiry-good', message: 'سارية المفعول' };
+            } else if (daysToExpiry > 0) {
+                return { status: `${daysToExpiry} يوم`, class: 'expiry-warning', message: `تنتهي خلال ${daysToExpiry} يوم` };
+            } else {
+                return { status: 'منتهية', class: 'expiry-expired', message: 'منتهية الصلاحية' };
+            }
+        }
+
+        // Calculate oil change status
+        function getOilChangeStatus(lastOilChangeDate) {
+            if (!lastOilChangeDate) {
+                return { status: 'غير محدد', color: '#6b7280', message: 'لم يتم تحديد تاريخ تغيير الزيت' };
+            }
+
+            const today = new Date();
+            const lastChange = lastOilChangeDate.seconds ? 
+                new Date(lastOilChangeDate.seconds * 1000) : 
+                new Date(lastOilChangeDate);
+            const daysDiff = Math.floor((today - lastChange) / (1000 * 60 * 60 * 24));
+
+            if (daysDiff <= 10) {
+                return { status: 'جيد', color: '#10b981', message: 'الزيت في حالة جيدة' };
+            } else if (daysDiff <= 15) {
+                return { status: 'تحذير', color: '#f59e0b', message: 'يُنصح بتغيير الزيت قريباً' };
+            } else {
+                return { status: 'عاجل', color: '#ef4444', message: 'يجب تغيير الزيت فوراً!' };
+            }
+        }
+
+        // Calculate overdue days
+        function calculateOverdueDays(paidUntilDate) {
+            if (!paidUntilDate) return 0;
+            
+            const today = new Date();
+            const paidUntil = paidUntilDate.seconds ? 
+                new Date(paidUntilDate.seconds * 1000) : 
+                new Date(paidUntilDate);
+            
+            const diffTime = today - paidUntil;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
+            return diffDays > 0 ? diffDays : 0;
+        }
+
+        // Load driver data
+        async function loadDriverData() {
+            if (!checkLogin()) return;
+
+            await loadCars();
+
+            // Always refresh driver data from Firebase to get latest updates
+            try {
+                const driverDoc = await getDoc(doc(db, 'drivers', driverId));
+                if (driverDoc.exists()) {
+                    driverData = driverDoc.data();
+                    // Update sessionStorage with fresh data
+                    sessionStorage.setItem('driverData', JSON.stringify(driverData));
+                } else {
+                    showMessage('لم يتم العثور على بيانات السائق', true);
+                    return;
+                }
+            } catch (error) {
+                console.error('Error refreshing driver data:', error);
+                showMessage('حدث خطأ في تحميل البيانات', true);
                 return;
             }
-            
-            loadAllData();
-        }
 
-        // Load all required data
-        async function loadAllData() {
-            try {
-                document.getElementById('loadingDiv').style.display = 'block';
-                document.getElementById('errorDiv').style.display = 'none';
-                document.getElementById('driverDataDiv').style.display = 'none';
+            // Basic info
+            document.getElementById('welcomeMessage').textContent = `مرحباً ${driverData.name}`;
+            document.getElementById('driverName').textContent = driverData.name || '-';
+            document.getElementById('driverPhone').textContent = driverData.phone || '-';
+            document.getElementById('driverNationality').textContent = driverData.nationality || '-';
+            document.getElementById('driverAddress').textContent = driverData.address || '-';
 
-                // Load all collections
-                await Promise.all([
-                    loadDrivers(),
-                    loadCars(),
-                    loadDriverPayments()
-                ]);
-
-                // Find current driver
-                const driverId = sessionStorage.getItem('driverLoginId');
-                currentDriver = drivers.find(d => d.id === driverId);
+            // Car info
+            const assignedCar = cars.find(car => car.id === driverData.assignedCar);
+            if (assignedCar) {
+                document.getElementById('assignedCar').textContent = `${assignedCar.plateNumber} - ${assignedCar.model}`;
+                // Set car registration expiry as insurance expiry
+                document.getElementById('carRegistrationExpiry').textContent = formatDateEnglish(assignedCar.registrationExpiry);
+                document.getElementById('insuranceExpiry').textContent = formatDateEnglish(assignedCar.registrationExpiry);
                 
-                if (!currentDriver) {
-                    throw new Error('لم يتم العثور على بيانات السائق');
-                }
-
-                displayDriverData();
-                
-            } catch (error) {
-                console.error('خطأ في تحميل البيانات:', error);
-                showError('حدث خطأ في تحميل البيانات: ' + error.message);
-            }
-        }
-
-        // Load drivers from Firebase
-        async function loadDrivers() {
-            const querySnapshot = await getDocs(collection(db, 'drivers'));
-            drivers = [];
-            querySnapshot.forEach((doc) => {
-                drivers.push({ id: doc.id, ...doc.data() });
-            });
-        }
-
-        // Load cars from Firebase
-        async function loadCars() {
-            const querySnapshot = await getDocs(collection(db, 'cars'));
-            cars = [];
-            querySnapshot.forEach((doc) => {
-                cars.push({ id: doc.id, ...doc.data() });
-            });
-        }
-
-        // Load driver payments from Firebase
-        async function loadDriverPayments() {
-            const querySnapshot = await getDocs(collection(db, 'driverPayments'));
-            driverPayments = [];
-            querySnapshot.forEach((doc) => {
-                driverPayments.push({ id: doc.id, ...doc.data() });
-            });
-        }
-
-        // Parse date function (copied from drivers-overview.html)
-        function parseDate(dateValue) {
-            if (!dateValue) return new Date();
-            
-            if (dateValue instanceof Date) {
-                return dateValue;
-            }
-            
-            if (typeof dateValue === 'string') {
-                // Try different date formats
-                const date = new Date(dateValue);
-                if (!isNaN(date.getTime())) return date;
-                
-                // Try ISO format
-                const isoDate = new Date(dateValue + 'T00:00:00');
-                if (!isNaN(isoDate.getTime())) return isoDate;
-            }
-            
-            return new Date();
-        }
-
-        // Format date for display (Gregorian calendar)
-        function formatDate(date) {
-            const parsedDate = parseDate(date);
-            return parsedDate.toLocaleDateString('en-GB', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
-            });
-        }
-
-        // Calculate debt by type (copied from drivers-overview.html)
-        function calculateDebtByType(driverId, types) {
-            let debt = 0;
-            
-            // Get driver's initial old debts
-            const driver = drivers.find(d => d.id === driverId);
-            if (driver && types.includes('دين قديم') && driver.oldDebts) {
-                debt += parseFloat(driver.oldDebts) || 0;
-            }
-            
-            const payments = driverPayments.filter(payment => 
-                payment.driverId === driverId && 
-                types.includes(payment.type)
-            );
-
-            payments.forEach(payment => {
-                const amount = parseFloat(payment.amount) || 0;
-                if (payment.type === 'دين قديم') {
-                    debt -= amount; // Reduce old debt when paid
-                } else if (payment.type.startsWith('دفع')) {
-                    debt += amount; // Increase debt
-                } else if (payment.type.startsWith('تحصيل')) {
-                    debt -= amount; // Reduce debt
-                }
-            });
-
-            return Math.max(0, debt);
-        }
-
-        // Calculate driver balance (copied from drivers-overview.html)
-        function calculateDriverBalance(driverId, dailyWage) {
-            // Get all daily wage payments for this driver
-            const dailyWagePayments = driverPayments.filter(payment => 
-                payment.driverId === driverId && 
-                payment.type === 'أجرة يومية'
-            );
-
-            // Sort payments by date (oldest first)
-            dailyWagePayments.sort((a, b) => {
-                const dateA = parseDate(a.date);
-                const dateB = parseDate(b.date);
-                return dateA.getTime() - dateB.getTime();
-            });
-
-            let currentBalance = 0;
-            let totalDaysPaid = 0;
-
-            // Calculate total days paid
-            dailyWagePayments.forEach(payment => {
-                const amount = parseFloat(payment.amount) || 0;
-                const daysPaid = amount / dailyWage;
-                totalDaysPaid += daysPaid;
-            });
-
-            // Calculate expected days since contract start
-            const driver = drivers.find(d => d.id === driverId);
-            const contractStart = parseDate(driver?.contractStartDate || driver?.createdAt);
-            const today = new Date();
-            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
-
-            // Calculate balance
-            const excessDays = totalDaysPaid - daysSinceStart;
-            currentBalance = excessDays * dailyWage;
-
-            return Math.max(0, currentBalance);
-        }
-
-        // Calculate driver stats (copied and modified from drivers-overview.html)
-        function calculateDriverStats(driver) {
-            const today = new Date();
-            const contractStart = parseDate(driver.contractStartDate || driver.createdAt);
-            const lastPayment = parseDate(driver.lastPaymentDate || driver.contractStartDate || driver.createdAt);
-            
-            // Calculate days since contract start
-            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
-            
-            // Calculate expected payment (daily wage * days)
-            const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
-            const expectedTotal = daysSinceStart * dailyWage;
-            
-            // Calculate total paid from driver payments
-            const payments = driverPayments.filter(payment => 
-                payment.driverId === driver.id && 
-                payment.type === 'أجرة يومية'
-            );
-            const totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
-            
-            // Calculate debt
-            const currentDebt = Math.max(0, expectedTotal - totalPaid);
-            
-            // Calculate days late
-            const paidUntilDate = new Date(lastPayment.getTime() + (totalPaid / dailyWage) * 24 * 60 * 60 * 1000);
-            const daysLate = Math.max(0, Math.floor((today - paidUntilDate) / (1000 * 60 * 60 * 24)));
-            
-            // Calculate late amount
-            const lateAmount = daysLate * dailyWage;
-            
-            // Calculate debt amounts using new system
-            const violations = calculateDebtByType(driver.id, ['دفع مخالفة', 'تحصيل مخالفة']);
-            const residencyFees = calculateDebtByType(driver.id, ['دفع رسوم إقامة', 'تحصيل رسوم إقامة']);
-            const oldDebts = calculateDebtByType(driver.id, ['دين قديم']);
-            
-            // Calculate driver balance using the new smart system first
-            const driverBalance = calculateDriverBalance(driver.id, dailyWage);
-            
-            // Calculate total debt properly (including all components)
-            const totalDriverDebt = Math.max(0, lateAmount + violations + residencyFees + oldDebts - driverBalance);
-
-            return {
-                dailyWage,
-                contractStart,
-                lastPayment,
-                paidUntilDate,
-                daysLate,
-                lateAmount,
-                driverBalance,
-                violations,
-                residencyFees,
-                oldDebts,
-                totalDebt: totalDriverDebt,
-                status: daysLate > 7 ? 'متأخر جداً' : daysLate > 0 ? 'متأخر' : 'منتظم'
-            };
-        }
-
-        // Get expiry status and color
-        function getExpiryStatus(expiryDate) {
-            if (!expiryDate) return { status: 'غير محدد', color: '#6c757d', class: 'status-warning' };
-            
-            const expiry = parseDate(expiryDate);
-            const today = new Date();
-            const diffTime = expiry - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            if (diffDays < 0) {
-                return { status: `منتهي منذ ${Math.abs(diffDays)} يوم`, color: '#e74c3c', class: 'status-danger' };
-            } else if (diffDays <= 30) {
-                return { status: `ينتهي خلال ${diffDays} يوم`, color: '#f39c12', class: 'status-warning' };
+                const carRegStatus = getDocumentExpiryStatus(assignedCar.registrationExpiry);
+                document.getElementById('carRegistrationStatus').textContent = carRegStatus.status;
+                document.getElementById('carRegistrationStatus').className = `expiry-status ${carRegStatus.class}`;
+                document.getElementById('insuranceStatus').textContent = carRegStatus.status;
+                document.getElementById('insuranceStatus').className = `expiry-status ${carRegStatus.class}`;
             } else {
-                return { status: `صالح (${diffDays} يوم متبقي)`, color: '#27ae60', class: 'status-good' };
+                document.getElementById('assignedCar').textContent = '-';
+            }
+
+            // Contract info
+            document.getElementById('contractStartDate').textContent = formatDateEnglish(driverData.contractStartDate);
+            document.getElementById('contractDuration').textContent = driverData.contractDuration ? `${driverData.contractDuration} شهر` : '-';
+            document.getElementById('contractEndDate').textContent = formatDateEnglish(driverData.contractEndDate);
+
+            // Financial info
+            const dailyRent = driverData.dailyRent || 0;
+            const residenceFees = driverData.residenceFees || 0;
+            const salaryFees = driverData.salaryFees || 0;
+            const oldDebts = driverData.oldDebts || 0;
+            const overdueDays = calculateOverdueDays(driverData.paidUntilDate);
+            const overdueAmount = overdueDays * dailyRent;
+            const totalDebts = oldDebts + overdueAmount + residenceFees + salaryFees;
+
+            document.getElementById('dailyRent').textContent = `${dailyRent} د.ك`;
+            document.getElementById('paymentDate').textContent = formatDateEnglish(driverData.lastPaymentDate);
+            document.getElementById('paidUntilDate').textContent = formatDateEnglish(driverData.paidUntilDate);
+            document.getElementById('overdueDays').textContent = `${overdueDays} يوم`;
+            document.getElementById('residenceFees').textContent = `${residenceFees} د.ك`;
+            document.getElementById('salaryFees').textContent = `${salaryFees} د.ك`;
+            document.getElementById('oldDebts').textContent = `${oldDebts} د.ك`;
+            document.getElementById('totalDebts').textContent = `${totalDebts} د.ك`;
+            
+            const accountStatusEl = document.getElementById('accountStatus');
+            if (totalDebts > 0) {
+                accountStatusEl.textContent = 'مستحق';
+                accountStatusEl.className = 'status-indicator status-warning';
+            } else {
+                accountStatusEl.textContent = 'جيد';
+                accountStatusEl.className = 'status-indicator status-good';
+            }
+
+            // Maintenance info
+            const currentKm = driverData.currentKilometers || 0;
+            document.getElementById('currentKilometers').textContent = `${currentKm.toLocaleString()} كم`;
+            document.getElementById('lastOilChange').textContent = formatDateEnglish(driverData.lastOilChangeDate);
+
+            // Oil status
+            const oilStatus = getOilChangeStatus(driverData.lastOilChangeDate);
+            const oilStatusEl = document.getElementById('oilStatus');
+            oilStatusEl.textContent = oilStatus.status;
+            oilStatusEl.style.backgroundColor = oilStatus.color + '20';
+            oilStatusEl.style.color = oilStatus.color;
+
+            // Documents
+            const documents = [
+                { id: 'licenseExpiry', statusId: 'licenseStatus', data: driverData.licenseExpiry },
+                { id: 'permitExpiry', statusId: 'permitStatus', data: driverData.permitExpiry },
+                { id: 'residenceExpiry', statusId: 'residenceStatus', data: driverData.residencyExpiry },
+                { id: 'passportExpiry', statusId: 'passportStatus', data: driverData.passportExpiry }
+            ];
+
+            documents.forEach(doc => {
+                document.getElementById(doc.id).textContent = formatDateEnglish(doc.data);
+                const status = getDocumentExpiryStatus(doc.data);
+                document.getElementById(doc.statusId).textContent = status.status;
+                document.getElementById(doc.statusId).className = `expiry-status ${status.class}`;
+            });
+
+            // Set current values in form
+            document.getElementById('newKilometers').value = currentKm;
+            if (driverData.lastOilChangeDate) {
+                const oilDate = driverData.lastOilChangeDate.seconds ? 
+                    new Date(driverData.lastOilChangeDate.seconds * 1000) : 
+                    new Date(driverData.lastOilChangeDate);
+                document.getElementById('oilChangeDate').value = oilDate.toISOString().split('T')[0];
             }
         }
 
-        // Display driver data
-        function displayDriverData() {
-            try {
-                // Calculate financial stats
-                const stats = calculateDriverStats(currentDriver);
-                
-                // Get car information
-                const car = cars?.find(c => c.id === currentDriver.assignedCar);
-                const carInfo = car ? `${car.plateNumber} - ${car.model} (${car.year || 'غير محدد'})` : 'غير محدد';
-                
-                // Basic information
-                document.getElementById('driverName').textContent = currentDriver.name || 'غير محدد';
-                document.getElementById('driverPhone').textContent = currentDriver.phone || 'غير محدد';
-                document.getElementById('driverNationality').textContent = currentDriver.nationality || 'غير محدد';
-                document.getElementById('driverAddress').textContent = currentDriver.address || 'غير محدد';
-                document.getElementById('assignedCar').textContent = carInfo;
-                document.getElementById('contractStart').textContent = formatDate(stats.contractStart);
-
-                // Financial information
-                document.getElementById('dailyWage').textContent = `${stats.dailyWage.toFixed(3)} د.ك`;
-                document.getElementById('dailyWage').className = 'info-value amount';
-                
-                document.getElementById('lastPayment').textContent = formatDate(stats.lastPayment);
-                document.getElementById('paidUntilDate').textContent = formatDate(stats.paidUntilDate);
-                document.getElementById('daysLate').textContent = stats.daysLate;
-                
-                // Late amount
-                const lateAmountEl = document.getElementById('lateAmount');
-                lateAmountEl.textContent = `${stats.lateAmount.toFixed(3)} د.ك`;
-                lateAmountEl.className = `info-value amount ${stats.lateAmount > 0 ? 'negative' : 'zero'}`;
-                
-                // Driver balance
-                const balanceEl = document.getElementById('driverBalance');
-                balanceEl.textContent = `${stats.driverBalance.toFixed(3)} د.ك`;
-                balanceEl.className = `info-value amount ${stats.driverBalance > 0 ? 'positive' : 'zero'}`;
-                
-                // Violations
-                const violationsEl = document.getElementById('violations');
-                violationsEl.textContent = `${stats.violations.toFixed(3)} د.ك`;
-                violationsEl.className = `info-value amount ${stats.violations > 0 ? 'negative' : 'zero'}`;
-                
-                // Residency fees
-                const residencyEl = document.getElementById('residencyFees');
-                residencyEl.textContent = `${stats.residencyFees.toFixed(3)} د.ك`;
-                residencyEl.className = `info-value amount ${stats.residencyFees > 0 ? 'negative' : 'zero'}`;
-                
-                // Old debts
-                const oldDebtsEl = document.getElementById('oldDebts');
-                oldDebtsEl.textContent = `${stats.oldDebts.toFixed(3)} د.ك`;
-                oldDebtsEl.className = `info-value amount ${stats.oldDebts > 0 ? 'negative' : 'zero'}`;
-                
-                // Total debt
-                const totalDebtEl = document.getElementById('totalDebt');
-                totalDebtEl.textContent = `${stats.totalDebt.toFixed(3)} د.ك`;
-                totalDebtEl.className = `info-value amount ${stats.totalDebt > 0 ? 'negative' : 'positive'}`;
-                
-                // Account status
-                const statusEl = document.getElementById('accountStatus');
-                statusEl.textContent = stats.status;
-                statusEl.className = `info-value ${stats.status === 'منتظم' ? 'status-good' : stats.status === 'متأخر' ? 'status-warning' : 'status-danger'}`;
-
-                // Maintenance information
-                document.getElementById('currentKilometers').textContent = currentDriver.currentKilometers || 'غير محدد';
-                document.getElementById('lastOilChange').textContent = currentDriver.lastOilChange ? formatDate(currentDriver.lastOilChange) : 'غير محدد';
-                
-                // Oil status
-                const oilStatusEl = document.getElementById('oilStatus');
-                if (currentDriver.lastOilChange) {
-                    const lastChange = parseDate(currentDriver.lastOilChange);
-                    const today = new Date();
-                    const daysSinceChange = Math.floor((today - lastChange) / (1000 * 60 * 60 * 24));
-                    
-                    if (daysSinceChange > 15) {
-                        oilStatusEl.textContent = `متأخر (${daysSinceChange} يوم)`;
-                        oilStatusEl.className = 'info-value status-danger';
-                    } else if (daysSinceChange > 10) {
-                        oilStatusEl.textContent = `تحذير (${daysSinceChange} يوم)`;
-                        oilStatusEl.className = 'info-value status-warning';
-                    } else {
-                        oilStatusEl.textContent = `جيد (${daysSinceChange} يوم)`;
-                        oilStatusEl.className = 'info-value status-good';
-                    }
-                } else {
-                    oilStatusEl.textContent = 'غير محدد';
-                    oilStatusEl.className = 'info-value status-warning';
-                }
-
-                // Documents
-                const licenseStatus = getExpiryStatus(currentDriver.licenseExpiry);
-                const licenseEl = document.getElementById('licenseExpiry');
-                licenseEl.textContent = currentDriver.licenseExpiry ? `${formatDate(currentDriver.licenseExpiry)} (${licenseStatus.status})` : 'غير محدد';
-                licenseEl.className = `info-value ${licenseStatus.class}`;
-
-                const permitStatus = getExpiryStatus(currentDriver.permitExpiry);
-                const permitEl = document.getElementById('permitExpiry');
-                permitEl.textContent = currentDriver.permitExpiry ? `${formatDate(currentDriver.permitExpiry)} (${permitStatus.status})` : 'غير محدد';
-                permitEl.className = `info-value ${permitStatus.class}`;
-
-                // Car registration (from car data)
-                const carRegStatus = getExpiryStatus(car?.registrationExpiry);
-                const carRegEl = document.getElementById('carRegistrationExpiry');
-                carRegEl.textContent = car?.registrationExpiry ? `${formatDate(car.registrationExpiry)} (${carRegStatus.status})` : 'غير محدد';
-                carRegEl.className = `info-value ${carRegStatus.class}`;
-
-                const residenceStatus = getExpiryStatus(currentDriver.residenceExpiry);
-                const residenceEl = document.getElementById('residenceExpiry');
-                residenceEl.textContent = currentDriver.residenceExpiry ? `${formatDate(currentDriver.residenceExpiry)} (${residenceStatus.status})` : 'غير محدد';
-                residenceEl.className = `info-value ${residenceStatus.class}`;
-
-                const passportStatus = getExpiryStatus(currentDriver.passportExpiry);
-                const passportEl = document.getElementById('passportExpiry');
-                passportEl.textContent = currentDriver.passportExpiry ? `${formatDate(currentDriver.passportExpiry)} (${passportStatus.status})` : 'غير محدد';
-                passportEl.className = `info-value ${passportStatus.class}`;
-
-                // Insurance (same as car registration)
-                const insuranceEl = document.getElementById('insuranceExpiry');
-                insuranceEl.textContent = car?.registrationExpiry ? `${formatDate(car.registrationExpiry)} (${carRegStatus.status})` : 'غير محدد';
-                insuranceEl.className = `info-value ${carRegStatus.class}`;
-
-                // Show data and hide loading
-                document.getElementById('loadingDiv').style.display = 'none';
-                document.getElementById('driverDataDiv').style.display = 'block';
-                
-            } catch (error) {
-                console.error('خطأ في عرض البيانات:', error);
-                showError('حدث خطأ في عرض البيانات: ' + error.message);
+        // Show message
+        function showMessage(message, isError = false) {
+            const successEl = document.getElementById('successMessage');
+            const errorEl = document.getElementById('errorMessage');
+            
+            if (isError) {
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+                successEl.style.display = 'none';
+            } else {
+                successEl.textContent = message;
+                successEl.style.display = 'block';
+                errorEl.style.display = 'none';
             }
+
+            setTimeout(() => {
+                successEl.style.display = 'none';
+                errorEl.style.display = 'none';
+            }, 5000);
         }
 
         // Update maintenance data
         window.updateMaintenance = async function() {
-            const newKilometers = document.getElementById('newKilometers').value;
-            const newOilChangeDate = document.getElementById('newOilChangeDate').value;
-            
-            if (!newKilometers && !newOilChangeDate) {
-                alert('يرجى إدخال الكيلومترات أو تاريخ تغيير الزيت على الأقل');
+            const newKm = parseInt(document.getElementById('newKilometers').value);
+            const oilChangeDate = document.getElementById('oilChangeDate').value;
+            const updateBtn = document.getElementById('updateBtn');
+
+            if (!newKm && !oilChangeDate) {
+                showMessage('يرجى إدخال الكيلومترات أو تاريخ تغيير الزيت', true);
                 return;
             }
-            
+
+            if (newKm && newKm < (driverData.currentKilometers || 0)) {
+                showMessage('الكيلومترات الجديدة يجب أن تكون أكبر من الحالية', true);
+                return;
+            }
+
             try {
+                updateBtn.disabled = true;
+                updateBtn.textContent = 'جاري التحديث...';
+
                 const updateData = {};
-                
-                if (newKilometers) {
-                    updateData.currentKilometers = parseInt(newKilometers);
+                if (newKm) {
+                    updateData.currentKilometers = newKm;
+                    updateData.lastKilometersUpdate = new Date().toISOString();
                 }
-                
-                if (newOilChangeDate) {
-                    updateData.lastOilChange = newOilChangeDate;
+                if (oilChangeDate) {
+                    updateData.lastOilChangeDate = oilChangeDate;
                 }
-                
-                // Update in Firebase
-                const driverRef = doc(db, 'drivers', currentDriver.id);
-                await updateDoc(driverRef, updateData);
-                
+
+                await updateDoc(doc(db, 'drivers', driverId), updateData);
+
                 // Update local data
-                Object.assign(currentDriver, updateData);
-                
-                // Refresh display
-                displayDriverData();
-                
-                // Clear form
-                document.getElementById('newKilometers').value = '';
-                document.getElementById('newOilChangeDate').value = '';
-                
-                // Show success message
-                showSuccess('تم تحديث بيانات الصيانة بنجاح');
-                
+                Object.assign(driverData, updateData);
+                sessionStorage.setItem('driverData', JSON.stringify(driverData));
+
+                // Reload display
+                loadDriverData();
+                showMessage('تم تحديث البيانات بنجاح');
+
             } catch (error) {
-                console.error('خطأ في تحديث البيانات:', error);
-                alert('حدث خطأ في تحديث البيانات: ' + error.message);
+                console.error('Update error:', error);
+                showMessage('حدث خطأ أثناء التحديث', true);
+            } finally {
+                updateBtn.disabled = false;
+                updateBtn.textContent = 'تحديث البيانات';
             }
         };
-
-        // Show error message
-        function showError(message) {
-            document.getElementById('errorMessage').textContent = message;
-            document.getElementById('errorDiv').style.display = 'block';
-            document.getElementById('loadingDiv').style.display = 'none';
-            document.getElementById('driverDataDiv').style.display = 'none';
-        }
-
-        // Show success message
-        function showSuccess(message) {
-            // Remove any existing success message
-            const existingSuccess = document.querySelector('.success');
-            if (existingSuccess) {
-                existingSuccess.remove();
-            }
-            
-            // Create and show success message
-            const successDiv = document.createElement('div');
-            successDiv.className = 'success';
-            successDiv.textContent = message;
-            
-            const container = document.querySelector('.container');
-            container.insertBefore(successDiv, container.firstChild);
-            
-            // Remove after 3 seconds
-            setTimeout(() => {
-                successDiv.remove();
-            }, 3000);
-        }
 
         // Logout function
         window.logout = function() {
-            sessionStorage.removeItem('driverLoginId');
-            sessionStorage.removeItem('driverLoginName');
+            sessionStorage.removeItem('driverId');
+            sessionStorage.removeItem('driverData');
             window.location.href = 'driver-login.html';
         };
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', loadDriverData);
     </script>
 </body>
 </html>
