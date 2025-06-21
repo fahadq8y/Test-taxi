@@ -790,6 +790,161 @@
             document.getElementById('driverDataDiv').style.display = 'none';
         }
 
+        // Parse date function (copied from drivers-overview.html)
+        function parseDate(dateValue) {
+            if (!dateValue) return new Date();
+            
+            if (dateValue instanceof Date) {
+                return dateValue;
+            }
+            
+            if (typeof dateValue === 'string') {
+                // Try different date formats
+                const date = new Date(dateValue);
+                if (!isNaN(date.getTime())) return date;
+                
+                // Try ISO format
+                const isoDate = new Date(dateValue + 'T00:00:00');
+                if (!isNaN(isoDate.getTime())) return isoDate;
+            }
+            
+            return new Date();
+        }
+
+        // Format date for display (Gregorian calendar)
+        function formatDate(date) {
+            const parsedDate = parseDate(date);
+            return parsedDate.toLocaleDateString('en-GB', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+        }
+
+        // Calculate debt by type (copied from drivers-overview.html)
+        function calculateDebtByType(driverId, types) {
+            let debt = 0;
+            
+            // Get driver's initial old debts
+            const driver = drivers.find(d => d.id === driverId);
+            if (driver && types.includes('دين قديم') && driver.oldDebts) {
+                debt += parseFloat(driver.oldDebts) || 0;
+            }
+            
+            const payments = driverPayments.filter(payment => 
+                payment.driverId === driverId && 
+                types.includes(payment.type)
+            );
+
+            payments.forEach(payment => {
+                const amount = parseFloat(payment.amount) || 0;
+                if (payment.type === 'دين قديم') {
+                    debt -= amount; // Reduce old debt when paid
+                } else if (payment.type.startsWith('دفع')) {
+                    debt += amount; // Increase debt
+                } else if (payment.type.startsWith('تحصيل')) {
+                    debt -= amount; // Reduce debt
+                }
+            });
+
+            return Math.max(0, debt);
+        }
+
+        // Calculate driver balance (copied from drivers-overview.html)
+        function calculateDriverBalance(driverId, dailyWage) {
+            // Get all daily wage payments for this driver
+            const dailyWagePayments = driverPayments.filter(payment => 
+                payment.driverId === driverId && 
+                payment.type === 'أجرة يومية'
+            );
+
+            // Sort payments by date (oldest first)
+            dailyWagePayments.sort((a, b) => {
+                const dateA = parseDate(a.date);
+                const dateB = parseDate(b.date);
+                return dateA.getTime() - dateB.getTime();
+            });
+
+            let currentBalance = 0;
+            let totalDaysPaid = 0;
+
+            // Calculate total days paid
+            dailyWagePayments.forEach(payment => {
+                const amount = parseFloat(payment.amount) || 0;
+                const daysPaid = amount / dailyWage;
+                totalDaysPaid += daysPaid;
+            });
+
+            // Calculate expected days since contract start
+            const driver = drivers.find(d => d.id === driverId);
+            const contractStart = parseDate(driver?.contractStartDate || driver?.createdAt);
+            const today = new Date();
+            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+
+            // Calculate balance
+            const excessDays = totalDaysPaid - daysSinceStart;
+            currentBalance = excessDays * dailyWage;
+
+            return Math.max(0, currentBalance);
+        }
+
+        // Calculate driver stats (copied and modified from drivers-overview.html)
+        function calculateDriverStats(driver) {
+            const today = new Date();
+            const contractStart = parseDate(driver.contractStartDate || driver.createdAt);
+            const lastPayment = parseDate(driver.lastPaymentDate || driver.contractStartDate || driver.createdAt);
+            
+            // Calculate days since contract start
+            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+            
+            // Calculate expected payment (daily wage * days)
+            const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
+            const expectedTotal = daysSinceStart * dailyWage;
+            
+            // Calculate total paid from driver payments
+            const payments = driverPayments.filter(payment => 
+                payment.driverId === driver.id && 
+                payment.type === 'أجرة يومية'
+            );
+            const totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
+            
+            // Calculate debt
+            const currentDebt = Math.max(0, expectedTotal - totalPaid);
+            
+            // Calculate days late
+            const paidUntilDate = new Date(lastPayment.getTime() + (totalPaid / dailyWage) * 24 * 60 * 60 * 1000);
+            const daysLate = Math.max(0, Math.floor((today - paidUntilDate) / (1000 * 60 * 60 * 24)));
+            
+            // Calculate late amount
+            const lateAmount = daysLate * dailyWage;
+            
+            // Calculate debt amounts using new system
+            const violations = calculateDebtByType(driver.id, ['دفع مخالفة', 'تحصيل مخالفة']);
+            const residencyFees = calculateDebtByType(driver.id, ['دفع رسوم إقامة', 'تحصيل رسوم إقامة']);
+            const oldDebts = calculateDebtByType(driver.id, ['دين قديم']);
+            
+            // Calculate driver balance using the new smart system first
+            const driverBalance = calculateDriverBalance(driver.id, dailyWage);
+            
+            // Calculate total debt properly (including all components)
+            const totalDriverDebt = Math.max(0, lateAmount + violations + residencyFees + oldDebts - driverBalance);
+
+            return {
+                dailyWage,
+                contractStart,
+                lastPayment,
+                paidUntilDate,
+                daysLate,
+                lateAmount,
+                driverBalance,
+                violations,
+                residencyFees,
+                oldDebts,
+                totalDebt: totalDriverDebt,
+                status: daysLate > 7 ? 'متأخر جداً' : daysLate > 0 ? 'متأخر' : 'منتظم'
+            };
+        }
+
         // Show success message
         function showSuccess(message) {
             // Remove any existing success message
