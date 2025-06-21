@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>جدول السائقين - نظام إدارة التاكسي</title>
+    
+    <!-- Cache Control Meta Tags -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            direction: rtl;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .regular { color: #28a745; }
+        .late { color: #ffc107; }
+        .very-late { color: #dc3545; }
+        .debt { color: #17a2b8; }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-input, .filter-select {
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .btn-refresh {
+            background: #667eea;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-refresh:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .table-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            overflow-x: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1200px;
+        }
+
+        .table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            font-weight: 600;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .table td {
+            padding: 1rem;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+            transition: background-color 0.3s ease;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(102, 126, 234, 0.1);
+        }
+
+        .driver-name {
+            color: #667eea;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: underline;
+            transition: color 0.3s ease;
+        }
+
+        .driver-name:hover {
+            color: #5a6fd8;
+        }
+
+        .amount {
+            font-weight: 600;
+        }
+
+        .positive { color: #28a745; }
+        .negative { color: #dc3545; }
+        .zero { color: #6c757d; }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 0.5rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-input {
+                min-width: auto;
+            }
+            
+            .table-container {
+                overflow-x: auto;
+            }
+            
+            .table {
+                min-width: 800px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚗 جدول السائقين</h1>
+        <div class="header-buttons">
+            <a href="add-driver.html" class="btn btn-primary">➕ إضافة سائق جديد</a>
+            <a href="balance-display.html" class="btn btn-secondary">💰 عرض الأرصدة</a>
+            <a href="index.html" class="btn btn-secondary">🏠 الرئيسية</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number regular" id="regularCount">0</div>
+                <div class="stat-label">سائقين منتظمين</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number late" id="lateCount">0</div>
+                <div class="stat-label">سائقين متأخرين</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number very-late" id="veryLateCount">0</div>
+                <div class="stat-label">سائقين متأخرين جداً</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number debt" id="totalDebt">0.000 د.ك</div>
+                <div class="stat-label">إجمالي الديون</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <input type="text" class="search-input" id="searchInput" placeholder="البحث عن سائق...">
+            <select class="filter-select" id="statusFilter">
+                <option value="">جميع الحالات</option>
+                <option value="regular">منتظم</option>
+                <option value="late">متأخر</option>
+                <option value="very-late">متأخر جداً</option>
+            </select>
+            <button class="btn-refresh" onclick="loadData()">🔄 تحديث البيانات</button>
+        </div>
+
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>اسم السائق</th>
+                        <th>الأجرة اليومية</th>
+                        <th>تاريخ بداية العقد</th>
+                        <th>تاريخ آخر سداد</th>
+                        <th>سداد حتى تاريخ</th>
+                        <th>عدد أيام التأخير</th>
+                        <th>قيمة التأخير</th>
+                        <th>رصيد السائق</th>
+                        <th>المخالفات</th>
+                        <th>مصاريف الإقامة</th>
+                        <th>ديون قديمة</th>
+                        <th>إجمالي الدين</th>
+                    </tr>
+                </thead>
+                <tbody id="driversTableBody">
+                    <tr>
+                        <td colspan="12" class="loading">جاري تحميل البيانات...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let drivers = [];
+        let driverPayments = [];
+        let cars = []; // إضافة متغير للسيارات
+
+        // Load data from Firebase
+        async function loadData() {
+            try {
+                console.log('Loading data from Firebase...');
+                
+                // Load drivers
+                const driversSnapshot = await db.collection('drivers').get();
+                drivers = [];
+                driversSnapshot.forEach(doc => {
+                    drivers.push({ id: doc.id, ...doc.data() });
+                });
+                console.log('Drivers loaded:', drivers.length);
+
+                // Load cars
+                console.log('🚗 بدء تحميل بيانات السيارات...');
+                const carsSnapshot = await db.collection('cars').get();
+                cars = [];
+                carsSnapshot.forEach(doc => {
+                    cars.push({ id: doc.id, ...doc.data() });
+                });
+                console.log('🚗 Cars loaded:', cars.length);
+                console.log('🚗 Cars data:', cars);
+                
+                // Make cars globally accessible for debugging
+                window.carsData = cars;
+
+                // Load driver payments (for new accounting system)
+                const paymentsSnapshot = await db.collection('driverPayments').get();
+                driverPayments = [];
+                paymentsSnapshot.forEach(doc => {
+                    driverPayments.push({ id: doc.id, ...doc.data() });
+                });
+                console.log('Driver payments loaded:', driverPayments.length);
+
+                displayDrivers();
+                updateStats();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('driversTableBody').innerHTML = 
+                    '<tr><td colspan="12" class="no-data">خطأ في تحميل البيانات</td></tr>';
+            }
+        }
+
+        // Calculate driver debt using new accounting system
+        function calculateDriverDebt(driverId) {
+            let totalDebt = 0;
+
+            // Get all payments for this driver
+            const payments = driverPayments.filter(payment => payment.driverId === driverId);
+
+            payments.forEach(payment => {
+                const amount = parseFloat(payment.amount) || 0;
+
+                // Apply new accounting rules
+                switch(payment.type) {
+                    case 'أجرة يومية':
+                    case 'تحصيل مخالفة':
+                    case 'تحصيل رسوم إقامة':
+                    case 'تحصيل رسوم رواتب':
+                    case 'دين قديم':
+                        totalDebt -= amount; // Reduce debt
+                        break;
+                    case 'دفع مخالفة':
+                    case 'دفع رسوم إقامة':
+                        totalDebt += amount; // Increase debt
+                        break;
+                    // 'دفع رواتب' doesn't affect driver debt
+                }
+            });
+
+            return Math.max(0, totalDebt); // Debt cannot be negative
+        }
+
+        // Calculate driver statistics
+        function calculateDriverStats(driver) {
+            const today = new Date();
+            const contractStart = parseDate(driver.contractStartDate || driver.createdAt);
+            const lastPayment = parseDate(driver.lastPaymentDate || driver.contractStartDate || driver.createdAt);
+            
+            // Calculate days since contract start
+            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+            
+            // Calculate expected payment (daily wage * days)
+            const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
+            const expectedTotal = daysSinceStart * dailyWage;
+            
+            // Calculate total paid from driver payments
+            const payments = driverPayments.filter(payment => 
+                payment.driverId === driver.id && 
+                payment.type === 'أجرة يومية'
+            );
+            const totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
+            
+            // Calculate debt
+            const currentDebt = Math.max(0, expectedTotal - totalPaid);
+            
+            // Calculate days late
+            const paidUntilDate = new Date(lastPayment.getTime() + (totalPaid / dailyWage) * 24 * 60 * 60 * 1000);
+            const daysLate = Math.max(0, Math.floor((today - paidUntilDate) / (1000 * 60 * 60 * 24)));
+            
+            // Calculate late amount
+            const lateAmount = daysLate * dailyWage;
+            
+            // Calculate remaining payment for current day
+            const dayProgress = (today.getHours() * 60 + today.getMinutes()) / (24 * 60);
+            const todayExpected = dailyWage * dayProgress;
+            const todayPaid = payments
+                .filter(payment => new Date(payment.date).toDateString() === today.toDateString())
+                .reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
+            const remainingToday = Math.max(0, todayExpected - todayPaid);
+
+            // Calculate debt amounts using new system
+            const violations = calculateDebtByType(driver.id, ['دفع مخالفة', 'تحصيل مخالفة']);
+            const residencyFees = calculateDebtByType(driver.id, ['دفع رسوم إقامة', 'تحصيل رسوم إقامة']);
+            const oldDebts = calculateDebtByType(driver.id, ['دين قديم']);
+            
+            // Calculate driver balance using the new smart system first
+            const driverBalance = calculateDriverBalance(driver.id, dailyWage);
+            
+            // Calculate total debt properly (including all components)
+            const totalDriverDebt = Math.max(0, lateAmount + violations + residencyFees + oldDebts - driverBalance);
+
+            return {
+                dailyWage,
+                contractStart,
+                lastPayment,
+                paidUntilDate,
+                daysLate,
+                lateAmount,
+                driverBalance,
+                violations,
+                residencyFees,
+                oldDebts,
+                totalDebt: totalDriverDebt,
+                status: daysLate > 7 ? 'متأخر جداً' : daysLate > 0 ? 'متأخر' : 'منتظم'
+            };
+        }
+
+        // Calculate driver balance using the new smart system
+        function calculateDriverBalance(driverId, dailyWage) {
+            // Get all daily wage payments for this driver
+            const dailyWagePayments = driverPayments.filter(payment => 
+                payment.driverId === driverId && 
+                payment.type === 'أجرة يومية'
+            );
+
+            // Sort payments by date (oldest first)
+            dailyWagePayments.sort((a, b) => {
+                const dateA = parseDate(a.date);
+                const dateB = parseDate(b.date);
+                return dateA.getTime() - dateB.getTime();
+            });
+
+            let currentBalance = 0;
+            let totalDaysPaid = 0;
+
+            // Process each payment
+            dailyWagePayments.forEach(payment => {
+                const amount = parseFloat(payment.amount) || 0;
+                currentBalance += amount;
+
+                // Check if balance can complete full daily wages
+                while (currentBalance >= dailyWage) {
+                    currentBalance -= dailyWage;
+                    totalDaysPaid++;
+                    // Here we record that a full day was paid
+                }
+            });
+
+            // Balance should never exceed daily wage
+            // Return the remaining balance (what the driver has credit for)
+            return Math.min(currentBalance, dailyWage - 0.001); // Keep it just under daily wage
+        }
+
+        // Calculate debt by payment type
+        function calculateDebtByType(driverId, types) {
+            let debt = 0;
+            
+            // Get driver's initial old debts
+            const driver = drivers.find(d => d.id === driverId);
+            if (driver && types.includes('دين قديم') && driver.oldDebts) {
+                debt += parseFloat(driver.oldDebts) || 0;
+            }
+            
+            const payments = driverPayments.filter(payment => 
+                payment.driverId === driverId && 
+                types.includes(payment.type)
+            );
+
+            payments.forEach(payment => {
+                const amount = parseFloat(payment.amount) || 0;
+                if (payment.type === 'دين قديم') {
+                    debt -= amount; // Reduce old debt when paid
+                } else if (payment.type.startsWith('دفع')) {
+                    debt += amount; // Increase debt
+                } else if (payment.type.startsWith('تحصيل')) {
+                    debt -= amount; // Reduce debt
+                }
+            });
+
+            return Math.max(0, debt);
+        }
+
+        // Oil status functions for maintenance data
+        function getOilStatusColor(driver) {
+            const currentKm = parseFloat(driver.kilometers) || 0;
+            const lastOilKm = parseFloat(driver.lastOilChangeKm) || 0;
+            const kmSinceOilChange = currentKm - lastOilKm;
+            
+            if (kmSinceOilChange <= 5000) {
+                return { bgColor: '#d4edda', color: '#155724' }; // Green
+            } else if (kmSinceOilChange <= 7000) {
+                return { bgColor: '#fff3cd', color: '#856404' }; // Yellow
+            } else {
+                return { bgColor: '#f8d7da', color: '#721c24' }; // Red
+            }
+        }
+        
+        function getOilStatusText(driver) {
+            const currentKm = parseFloat(driver.kilometers) || 0;
+            const lastOilKm = parseFloat(driver.lastOilChangeKm) || 0;
+            const kmSinceOilChange = currentKm - lastOilKm;
+            
+            if (kmSinceOilChange <= 5000) {
+                return 'جيد ✅';
+            } else if (kmSinceOilChange <= 7000) {
+                return 'تحذير ⚠️';
+            } else {
+                return 'خطر ❌';
+            }
+        }
+        
+        function getOilDistanceInfo(driver) {
+            const currentKm = parseFloat(driver.kilometers) || 0;
+            const lastOilKm = parseFloat(driver.lastOilChangeKm) || 0;
+            const kmSinceOilChange = currentKm - lastOilKm;
+            
+            if (kmSinceOilChange <= 5000) {
+                const remaining = 5000 - kmSinceOilChange;
+                return `متبقي ${remaining.toLocaleString()} كم للتحذير`;
+            } else if (kmSinceOilChange <= 7000) {
+                const remaining = 7000 - kmSinceOilChange;
+                return `متبقي ${remaining.toLocaleString()} كم للخطر`;
+            } else {
+                const overdue = kmSinceOilChange - 7000;
+                return `متأخر ${overdue.toLocaleString()} كم`;
+            }
+        }
+
+        // Display drivers in table
+        function displayDrivers() {
+            const tbody = document.getElementById('driversTableBody');
+            
+            if (drivers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="12" class="no-data">لا توجد بيانات سائقين</td></tr>';
+                return;
+            }
+
+            const filteredDrivers = filterDrivers();
+            
+            if (filteredDrivers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="12" class="no-data">لا توجد نتائج للبحث</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filteredDrivers.map(driver => {
+                const stats = calculateDriverStats(driver);
+                
+                return `
+                    <tr>
+                        <td><span class="driver-name" onclick="showDriverDetails('${driver.id}')">${driver.name || 'غير محدد'}</span></td>
+                        <td class="amount">${stats.dailyWage.toFixed(3)} د.ك</td>
+                        <td>${formatDate(stats.contractStart)}</td>
+                        <td>${formatDate(stats.lastPayment)}</td>
+                        <td>${formatDate(stats.paidUntilDate)}</td>
+                        <td>${stats.daysLate}</td>
+                        <td class="amount ${stats.lateAmount > 0 ? 'negative' : 'zero'}">${stats.lateAmount.toFixed(3)} د.ك</td>
+                        <td class="amount ${stats.driverBalance > 0 ? 'positive' : 'zero'}">${stats.driverBalance.toFixed(3)} د.ك</td>
+                        <td class="amount ${stats.violations > 0 ? 'negative' : 'zero'}">${stats.violations.toFixed(3)} د.ك</td>
+                        <td class="amount ${stats.residencyFees > 0 ? 'negative' : 'zero'}">${stats.residencyFees.toFixed(3)} د.ك</td>
+                        <td class="amount ${stats.oldDebts > 0 ? 'negative' : 'zero'}">${stats.oldDebts.toFixed(3)} د.ك</td>
+                        <td class="amount ${stats.totalDebt > 0 ? 'negative' : 'positive'}">${stats.totalDebt.toFixed(3)} د.ك</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Filter drivers based on search and status
+        function filterDrivers() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            return drivers.filter(driver => {
+                const matchesSearch = !searchTerm || 
+                    driver.name?.toLowerCase().includes(searchTerm) ||
+                    driver.phone?.includes(searchTerm) ||
+                    driver.carNumber?.includes(searchTerm);
+
+                const stats = calculateDriverStats(driver);
+                const matchesStatus = !statusFilter || stats.status === statusFilter;
+
+                return matchesSearch && matchesStatus;
+            });
+        }
+
+        // Update statistics
+        function updateStats() {
+            let regularCount = 0;
+            let lateCount = 0;
+            let veryLateCount = 0;
+            let totalDebt = 0;
+
+            drivers.forEach(driver => {
+                const stats = calculateDriverStats(driver);
+                totalDebt += stats.totalDebt;
+
+                switch (stats.status) {
+                    case 'منتظم':
+                        regularCount++;
+                        break;
+                    case 'متأخر':
+                        lateCount++;
+                        break;
+                    case 'متأخر جداً':
+                        veryLateCount++;
+                        break;
+                }
+            });
+
+            document.getElementById('regularCount').textContent = regularCount;
+            document.getElementById('lateCount').textContent = lateCount;
+            document.getElementById('veryLateCount').textContent = veryLateCount;
+            document.getElementById('totalDebt').textContent = totalDebt.toFixed(3) + ' د.ك';
+        }
+
+        // Parse date from various formats
+        function parseDate(dateValue) {
+            if (!dateValue) return new Date();
+            
+            // If it's already a Date object
+            if (dateValue instanceof Date) return dateValue;
+            
+            // If it's a Firebase Timestamp
+            if (dateValue && typeof dateValue.toDate === 'function') {
+                return dateValue.toDate();
+            }
+            
+            // If it's a string, try to parse it
+            if (typeof dateValue === 'string') {
+                // Try different date formats
+                const date = new Date(dateValue);
+                if (!isNaN(date.getTime())) return date;
+                
+                // Try ISO format
+                const isoDate = new Date(dateValue + 'T00:00:00');
+                if (!isNaN(isoDate.getTime())) return isoDate;
+            }
+            
+            // If all else fails, return current date
+            return new Date();
+        }
+
+        // Format date for display (Gregorian calendar)
+        function formatDate(date) {
+            const parsedDate = parseDate(date);
+            return parsedDate.toLocaleDateString('en-GB', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+        }
+
+        // Open driver payments page
+        function openDriverPayments(driverId) {
+            window.location.href = `driver-payments.html?driverId=${driverId}`;
+        }
+
+        // Show driver details modal
+        function showDriverDetails(driverId) {
+            const driver = drivers.find(d => d.id === driverId);
+            if (!driver) return;
+
+            const stats = calculateDriverStats(driver);
+            
+            // Get car information with debugging
+            console.log('🔍 البحث عن معلومات السيارة...');
+            console.log('🔍 معرف السيارة المطلوب:', driver.assignedCar);
+            console.log('🔍 عدد السيارات المتاحة:', cars?.length || 0);
+            console.log('🔍 السيارات المتاحة:', cars);
+            
+            const car = cars?.find(c => c.id === driver.assignedCar);
+            console.log('🔍 السيارة المعثور عليها:', car);
+            
+            const carInfo = car ? `${car.plateNumber} - ${car.model} (${car.year || 'غير محدد'})` : 'غير محدد';
+            console.log('🔍 معلومات السيارة النهائية:', carInfo);
+            
+            // Function to get expiry status and color
+            function getExpiryStatus(expiryDate, type = 'document') {
+                if (!expiryDate) return { status: 'غير محدد', color: '#6c757d', bgColor: '#f8f9fa' };
+                
+                const expiry = parseDate(expiryDate);
+                const today = new Date();
+                const diffTime = expiry.getTime() - today.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                let thresholdOrange, thresholdRed;
+                
+                if (type === 'passport') {
+                    // Passport: Orange before 14 months, Red before 12 months
+                    thresholdOrange = 14 * 30; // 14 months in days
+                    thresholdRed = 12 * 30; // 12 months in days
+                } else {
+                    // Documents: Orange before 1 month, Red before 1 week
+                    thresholdOrange = 30; // 1 month
+                    thresholdRed = 7; // 1 week
+                }
+                
+                if (diffDays < 0) {
+                    return { 
+                        status: `منتهي منذ ${Math.abs(diffDays)} يوم`, 
+                        color: '#fff', 
+                        bgColor: '#dc3545' 
+                    };
+                } else if (diffDays <= thresholdRed) {
+                    return { 
+                        status: `ينتهي خلال ${diffDays} يوم`, 
+                        color: '#fff', 
+                        bgColor: '#dc3545' 
+                    };
+                } else if (diffDays <= thresholdOrange) {
+                    return { 
+                        status: `ينتهي خلال ${diffDays} يوم`, 
+                        color: '#fff', 
+                        bgColor: '#fd7e14' 
+                    };
+                } else {
+                    return { 
+                        status: `ينتهي خلال ${diffDays} يوم`, 
+                        color: '#333', 
+                        bgColor: '#d4edda' 
+                    };
+                }
+            }
+            
+            // Get expiry statuses
+            const licenseStatus = getExpiryStatus(driver.licenseExpiry);
+            const residencyStatus = getExpiryStatus(driver.residencyExpiry);
+            const permitStatus = getExpiryStatus(driver.permitExpiry);
+            const carRegistrationStatus = getExpiryStatus(driver.carRegistrationExpiry);
+            const passportStatus = getExpiryStatus(driver.passportExpiry, 'passport');
+            
+            const modalContent = `
+                <div id="driverModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="closeDriverModal()">
+                    <div style="background: white; padding: 30px; border-radius: 15px; max-width: 800px; width: 95%; max-height: 90vh; overflow-y: auto;" onclick="event.stopPropagation()">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px;">
+                            <h2 style="color: #333; margin: 0;">📋 معلومات السائق</h2>
+                            <button onclick="closeDriverModal()" style="background: #ff4757; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 18px;">&times;</button>
+                        </div>
+                        
+                        <!-- البيانات الشخصية -->
+                        <div style="margin-bottom: 25px;">
+                            <h3 style="color: #28a745; border-bottom: 2px solid #28a745; padding-bottom: 8px; margin-bottom: 15px;">👤 البيانات الشخصية</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                    <strong style="color: #666;">اسم السائق:</strong><br>
+                                    <span style="font-size: 16px; color: #333;">${driver.name || 'غير محدد'}</span>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                    <strong style="color: #666;">رقم الهاتف:</strong><br>
+                                    <span style="font-size: 16px; color: #333;">${driver.phone || 'غير محدد'}</span>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                    <strong style="color: #666;">الجنسية:</strong><br>
+                                    <span style="font-size: 16px; color: #333;">${driver.nationality || 'غير محدد'}</span>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                    <strong style="color: #666;">العنوان:</strong><br>
+                                    <span style="font-size: 16px; color: #333;">${driver.address || 'غير محدد'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- تفاصيل العقد -->
+                        <div style="margin-bottom: 25px;">
+                            <h3 style="color: #007bff; border-bottom: 2px solid #007bff; padding-bottom: 8px; margin-bottom: 15px;">📄 تفاصيل العقد</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                    <strong style="color: #666;">السيارة المخصصة:</strong><br>
+                                    <span style="font-size: 16px; color: #333;">${carInfo}</span>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                    <strong style="color: #666;">الأجرة اليومية:</strong><br>
+                                    <span style="font-size: 16px; color: #333;">${stats.dailyWage.toFixed(3)} د.ك</span>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                    <strong style="color: #666;">مدة العقد:</strong><br>
+                                    <span style="font-size: 16px; color: #333;">${driver.contractDuration || 'غير محدد'}</span>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                    <strong style="color: #666;">تاريخ بداية العقد:</strong><br>
+                                    <span style="font-size: 16px; color: #333;">${formatDate(stats.contractStart)}</span>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                    <strong style="color: #666;">تاريخ نهاية العقد:</strong><br>
+                                    <span style="font-size: 16px; color: #333;">${formatDate(driver.contractEnd) || 'غير محدد'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- تواريخ انتهاء الوثائق -->
+                        <div style="margin-bottom: 25px;">
+                            <h3 style="color: #fd7e14; border-bottom: 2px solid #fd7e14; padding-bottom: 8px; margin-bottom: 15px;">📅 تواريخ انتهاء الوثائق</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                                <div style="background: ${carRegistrationStatus.bgColor}; color: ${carRegistrationStatus.color}; padding: 12px; border-radius: 8px; border-left: 4px solid #fd7e14;">
+                                    <strong>انتهاء دفتر السيارة:</strong><br>
+                                    <span style="font-size: 14px;">${formatDate(driver.carRegistrationExpiry) || 'غير محدد'}</span><br>
+                                    <small>${carRegistrationStatus.status}</small>
+                                </div>
+                                <div style="background: ${residencyStatus.bgColor}; color: ${residencyStatus.color}; padding: 12px; border-radius: 8px; border-left: 4px solid #fd7e14;">
+                                    <strong>انتهاء الإقامة:</strong><br>
+                                    <span style="font-size: 14px;">${formatDate(driver.residencyExpiry) || 'غير محدد'}</span><br>
+                                    <small>${residencyStatus.status}</small>
+                                </div>
+                                <div style="background: ${permitStatus.bgColor}; color: ${permitStatus.color}; padding: 12px; border-radius: 8px; border-left: 4px solid #fd7e14;">
+                                    <strong>انتهاء التصريح:</strong><br>
+                                    <span style="font-size: 14px;">${formatDate(driver.permitExpiry) || 'غير محدد'}</span><br>
+                                    <small>${permitStatus.status}</small>
+                                </div>
+                                <div style="background: ${licenseStatus.bgColor}; color: ${licenseStatus.color}; padding: 12px; border-radius: 8px; border-left: 4px solid #fd7e14;">
+                                    <strong>انتهاء الرخصة:</strong><br>
+                                    <span style="font-size: 14px;">${formatDate(driver.licenseExpiry) || 'غير محدد'}</span><br>
+                                    <small>${licenseStatus.status}</small>
+                                </div>
+                                <div style="background: ${passportStatus.bgColor}; color: ${passportStatus.color}; padding: 12px; border-radius: 8px; border-left: 4px solid #6f42c1;">
+                                    <strong>انتهاء جواز السفر:</strong><br>
+                                    <span style="font-size: 14px;">${formatDate(driver.passportExpiry) || 'غير محدد'}</span><br>
+                                    <small>${passportStatus.status}</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- بيانات الصيانة -->
+                        <div style="margin-bottom: 25px;">
+                            <h3 style="color: #17a2b8; border-bottom: 2px solid #17a2b8; padding-bottom: 8px; margin-bottom: 15px;">🔧 بيانات الصيانة</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                    <strong style="color: #666;">الكيلومترات الحالية:</strong><br>
+                                    <span style="font-size: 16px; color: #333;">${(driver.kilometers || 0).toLocaleString()} كم</span>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                    <strong style="color: #666;">تاريخ آخر تغيير زيت:</strong><br>
+                                    <span style="font-size: 16px; color: #333;">${formatDate(driver.lastOilChangeDate) || 'غير محدد'}</span>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                    <strong style="color: #666;">كيلومترات آخر تغيير:</strong><br>
+                                    <span style="font-size: 16px; color: #333;">${(driver.lastOilChangeKm || 0).toLocaleString()} كم</span>
+                                </div>
+                                <div style="background: ${getOilStatusColor(driver).bgColor}; color: ${getOilStatusColor(driver).color}; padding: 12px; border-radius: 8px; border-left: 4px solid #17a2b8;">
+                                    <strong>حالة الزيت:</strong><br>
+                                    <span style="font-size: 14px;">${getOilStatusText(driver)}</span><br>
+                                    <small>${getOilDistanceInfo(driver)}</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- الديون والملاحظات -->
+                        <div style="margin-bottom: 25px;">
+                            <h3 style="color: #dc3545; border-bottom: 2px solid #dc3545; padding-bottom: 8px; margin-bottom: 15px;">💰 الديون والملاحظات</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                    <strong style="color: #666;">ديون قديمة:</strong><br>
+                                    <span style="font-size: 16px; color: ${stats.oldDebts > 0 ? '#dc3545' : '#28a745'};">${stats.oldDebts.toFixed(3)} د.ك</span>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                    <strong style="color: #666;">إجمالي الدين:</strong><br>
+                                    <span style="font-size: 16px; color: ${stats.totalDebt > 0 ? '#dc3545' : '#28a745'};">${stats.totalDebt.toFixed(3)} د.ك</span>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                    <strong style="color: #666;">آخر دفعة:</strong><br>
+                                    <span style="font-size: 16px; color: #333;">${formatDate(stats.lastPayment)}</span>
+                                </div>
+                            </div>
+                            ${driver.notes ? `
+                            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #ffc107;">
+                                <strong style="color: #856404;">📝 ملاحظات:</strong><br>
+                                <span style="color: #856404;">${driver.notes}</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button onclick="openDriverPayments('${driver.id}')" style="background: #28a745; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                                💰 إدارة الدفعات
+                            </button>
+                            <button onclick="showDriverPaymentHistory('${driver.id}')" style="background: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                                📊 تاريخ المدفوعات
+                            </button>
+                            <button onclick="closeDriverModal()" style="background: #6c757d; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                                إغلاق
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalContent);
+        }
+
+        // Function to close driver modal
+        function closeDriverModal() {
+            const modal = document.getElementById('driverModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        // Function to show driver payment history
+        async function showDriverPaymentHistory(driverId) {
+            try {
+                // Get driver info
+                const driver = drivers.find(d => d.id === driverId);
+                if (!driver) return;
+
+                // Load driver payments using Firebase compat syntax
+                const paymentsSnapshot = await db.collection('driverPayments')
+                    .where('driverId', '==', driverId)
+                    .get();
+                    
+                const payments = [];
+                paymentsSnapshot.forEach(doc => {
+                    payments.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Sort payments by date (newest first)
+                payments.sort((a, b) => {
+                    const dateA = parseDate(a.date);
+                    const dateB = parseDate(b.date);
+                    return dateB.getTime() - dateA.getTime();
+                });
+
+                // Create payment history modal
+                const historyModalContent = `
+                    <div id="paymentHistoryModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1001; display: flex; align-items: center; justify-content: center;" onclick="closePaymentHistoryModal()">
+                        <div style="background: white; padding: 30px; border-radius: 15px; max-width: 1000px; width: 95%; max-height: 90vh; overflow-y: auto;" onclick="event.stopPropagation()">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px;">
+                                <h2 style="color: #333; margin: 0;">📊 تاريخ مدفوعات السائق: ${driver.name}</h2>
+                                <button onclick="closePaymentHistoryModal()" style="background: #ff4757; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 18px;">&times;</button>
+                            </div>
+                            
+                            <!-- Search and Filter -->
+                            <div style="margin-bottom: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                                <input type="text" id="historySearchInput" placeholder="البحث في المدفوعات..." style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; flex: 1; min-width: 200px;">
+                                <select id="historyTypeFilter" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                    <option value="">جميع الأنواع</option>
+                                    <option value="أجرة يومية">أجرة يومية</option>
+                                    <option value="دفع مخالفة">دفع مخالفة</option>
+                                    <option value="تحصيل مخالفة">تحصيل مخالفة</option>
+                                    <option value="دفع رسوم إقامة">دفع رسوم إقامة</option>
+                                    <option value="تحصيل رسوم إقامة">تحصيل رسوم إقامة</option>
+                                    <option value="دين قديم">دين قديم</option>
+                                    <option value="تحصيل رسوم رواتب">تحصيل رسوم رواتب</option>
+                                    <option value="دفع رواتب">دفع رواتب</option>
+                                </select>
+                                <button onclick="exportPaymentHistory()" style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
+                                    📥 تصدير Excel
+                                </button>
+                            </div>
+                            
+                            <!-- Payments Table -->
+                            <div style="overflow-x: auto;">
+                                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                                    <thead>
+                                        <tr style="background: #f8f9fa;">
+                                            <th style="padding: 12px; text-align: right; border: 1px solid #dee2e6;">التاريخ</th>
+                                            <th style="padding: 12px; text-align: right; border: 1px solid #dee2e6;">نوع الدفعة</th>
+                                            <th style="padding: 12px; text-align: right; border: 1px solid #dee2e6;">المبلغ</th>
+                                            <th style="padding: 12px; text-align: right; border: 1px solid #dee2e6;">الوصف</th>
+                                            <th style="padding: 12px; text-align: right; border: 1px solid #dee2e6;">الملاحظات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="paymentHistoryTableBody">
+                                        ${payments.length === 0 ? 
+                                            '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #666;">لا توجد مدفوعات لهذا السائق</td></tr>' :
+                                            payments.map(payment => {
+                                                const paymentType = payment.type || 'غير محدد';
+                                                const amount = parseFloat(payment.amount) || 0;
+                                                const isPositive = ['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم', 'تحصيل رسوم رواتب'].includes(paymentType);
+                                                const amountColor = isPositive ? '#28a745' : '#dc3545';
+                                                const amountSign = isPositive ? '+' : '-';
+                                                
+                                                return `
+                                                    <tr style="border-bottom: 1px solid #dee2e6;">
+                                                        <td style="padding: 12px; border: 1px solid #dee2e6;">${formatDate(payment.date)}</td>
+                                                        <td style="padding: 12px; border: 1px solid #dee2e6;">
+                                                            <span style="background: ${isPositive ? '#d4edda' : '#f8d7da'}; color: ${amountColor}; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                                                                ${paymentType}
+                                                            </span>
+                                                        </td>
+                                                        <td style="padding: 12px; border: 1px solid #dee2e6; color: ${amountColor}; font-weight: bold;">
+                                                            ${amountSign}${Math.abs(amount).toFixed(3)} د.ك
+                                                        </td>
+                                                        <td style="padding: 12px; border: 1px solid #dee2e6;">${payment.description || 'لا يوجد وصف'}</td>
+                                                        <td style="padding: 12px; border: 1px solid #dee2e6;">${payment.notes || '-'}</td>
+                                                    </tr>
+                                                `;
+                                            }).join('')
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Summary -->
+                            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                                <h4 style="margin: 0 0 10px 0; color: #333;">📊 ملخص المدفوعات:</h4>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                    <div style="text-align: center;">
+                                        <strong style="color: #666;">إجمالي المدفوعات:</strong><br>
+                                        <span style="font-size: 18px; color: #333;">${payments.length}</span>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <strong style="color: #666;">إجمالي المبالغ المدفوعة:</strong><br>
+                                        <span style="font-size: 18px; color: #dc3545;">-${payments.filter(p => ['دفع مخالفة', 'دفع رسوم إقامة', 'دفع رواتب'].includes(p.type)).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0).toFixed(3)} د.ك</span>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <strong style="color: #666;">إجمالي المبالغ المحصلة:</strong><br>
+                                        <span style="font-size: 18px; color: #28a745;">+${payments.filter(p => ['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم', 'تحصيل رسوم رواتب'].includes(p.type)).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0).toFixed(3)} د.ك</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                                <button onclick="closePaymentHistoryModal()" style="background: #6c757d; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                                    إغلاق
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', historyModalContent);
+                
+                // Add event listeners for search and filter
+                document.getElementById('historySearchInput').addEventListener('input', filterPaymentHistory);
+                document.getElementById('historyTypeFilter').addEventListener('change', filterPaymentHistory);
+                
+            } catch (error) {
+                console.error('Error loading payment history:', error);
+                alert('حدث خطأ في تحميل تاريخ المدفوعات');
+            }
+        }
+
+        // Function to close payment history modal
+        function closePaymentHistoryModal() {
+            const modal = document.getElementById('paymentHistoryModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        // Function to filter payment history
+        function filterPaymentHistory() {
+            const searchTerm = document.getElementById('historySearchInput').value.toLowerCase();
+            const typeFilter = document.getElementById('historyTypeFilter').value;
+            const rows = document.querySelectorAll('#paymentHistoryTableBody tr');
+            
+            rows.forEach(row => {
+                if (row.cells.length === 1) return; // Skip "no data" row
+                
+                const date = row.cells[0].textContent.toLowerCase();
+                const type = row.cells[1].textContent.toLowerCase();
+                const amount = row.cells[2].textContent.toLowerCase();
+                const description = row.cells[3].textContent.toLowerCase();
+                const notes = row.cells[4].textContent.toLowerCase();
+                
+                const matchesSearch = !searchTerm || 
+                    date.includes(searchTerm) || 
+                    type.includes(searchTerm) || 
+                    amount.includes(searchTerm) || 
+                    description.includes(searchTerm) || 
+                    notes.includes(searchTerm);
+                
+                const matchesType = !typeFilter || type.includes(typeFilter.toLowerCase());
+                
+                row.style.display = matchesSearch && matchesType ? '' : 'none';
+            });
+        }
+
+        // Function to export payment history
+        function exportPaymentHistory() {
+            const table = document.querySelector('#paymentHistoryModal table');
+            const rows = Array.from(table.querySelectorAll('tr')).filter(row => 
+                row.style.display !== 'none' && row.cells.length > 1
+            );
+            
+            let csv = 'التاريخ,نوع الدفعة,المبلغ,الوصف,الملاحظات\n';
+            
+            rows.slice(1).forEach(row => { // Skip header
+                const cells = Array.from(row.cells).map(cell => 
+                    '"' + cell.textContent.replace(/"/g, '""') + '"'
+                );
+                csv += cells.join(',') + '\n';
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `payment_history_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Search and filter functionality
+        document.getElementById('searchInput').addEventListener('input', displayDrivers);
+        document.getElementById('statusFilter').addEventListener('change', displayDrivers);
+
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>
