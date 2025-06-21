@@ -546,15 +546,19 @@
             return Math.max(0, debt);
         }
 
-        // Oil status functions for maintenance data
+        // Oil status functions for maintenance data (based on date instead of kilometers)
         function getOilStatusColor(driver) {
-            const currentKm = parseFloat(driver.kilometers) || 0;
-            const lastOilKm = parseFloat(driver.lastOilChangeKm) || 0;
-            const kmSinceOilChange = currentKm - lastOilKm;
+            const lastOilChangeDate = parseDate(driver.lastOilChangeDate);
+            if (!lastOilChangeDate) {
+                return { bgColor: '#f8d7da', color: '#721c24' }; // Red if no date
+            }
             
-            if (kmSinceOilChange <= 5000) {
+            const today = new Date();
+            const daysSinceOilChange = Math.floor((today - lastOilChangeDate) / (1000 * 60 * 60 * 24));
+            
+            if (daysSinceOilChange < 15) { // Less than 15 days
                 return { bgColor: '#d4edda', color: '#155724' }; // Green
-            } else if (kmSinceOilChange <= 7000) {
+            } else if (daysSinceOilChange <= 20) { // 15-20 days
                 return { bgColor: '#fff3cd', color: '#856404' }; // Yellow
             } else {
                 return { bgColor: '#f8d7da', color: '#721c24' }; // Red
@@ -562,13 +566,17 @@
         }
         
         function getOilStatusText(driver) {
-            const currentKm = parseFloat(driver.kilometers) || 0;
-            const lastOilKm = parseFloat(driver.lastOilChangeKm) || 0;
-            const kmSinceOilChange = currentKm - lastOilKm;
+            const lastOilChangeDate = parseDate(driver.lastOilChangeDate);
+            if (!lastOilChangeDate) {
+                return 'غير محدد ❓';
+            }
             
-            if (kmSinceOilChange <= 5000) {
+            const today = new Date();
+            const daysSinceOilChange = Math.floor((today - lastOilChangeDate) / (1000 * 60 * 60 * 24));
+            
+            if (daysSinceOilChange < 15) {
                 return 'جيد ✅';
-            } else if (kmSinceOilChange <= 7000) {
+            } else if (daysSinceOilChange <= 20) {
                 return 'تحذير ⚠️';
             } else {
                 return 'خطر ❌';
@@ -576,19 +584,23 @@
         }
         
         function getOilDistanceInfo(driver) {
-            const currentKm = parseFloat(driver.kilometers) || 0;
-            const lastOilKm = parseFloat(driver.lastOilChangeKm) || 0;
-            const kmSinceOilChange = currentKm - lastOilKm;
+            const lastOilChangeDate = parseDate(driver.lastOilChangeDate);
+            if (!lastOilChangeDate) {
+                return 'لم يتم تحديد تاريخ آخر تغيير';
+            }
             
-            if (kmSinceOilChange <= 5000) {
-                const remaining = 5000 - kmSinceOilChange;
-                return `متبقي ${remaining.toLocaleString()} كم للتحذير`;
-            } else if (kmSinceOilChange <= 7000) {
-                const remaining = 7000 - kmSinceOilChange;
-                return `متبقي ${remaining.toLocaleString()} كم للخطر`;
+            const today = new Date();
+            const daysSinceOilChange = Math.floor((today - lastOilChangeDate) / (1000 * 60 * 60 * 24));
+            
+            if (daysSinceOilChange < 15) {
+                const remaining = 15 - daysSinceOilChange;
+                return `متبقي ${remaining} يوم للتحذير`;
+            } else if (daysSinceOilChange <= 20) {
+                const remaining = 20 - daysSinceOilChange;
+                return `متبقي ${remaining} يوم للخطر`;
             } else {
-                const overdue = kmSinceOilChange - 7000;
-                return `متأخر ${overdue.toLocaleString()} كم`;
+                const overdue = daysSinceOilChange - 20;
+                return `متأخر ${overdue} يوم`;
             }
         }
 
@@ -721,7 +733,10 @@
         }
 
         // Show driver details modal
-        function showDriverDetails(driverId) {
+        async function showDriverDetails(driverId) {
+            // Reload driver data to get latest information
+            await loadDrivers();
+            
             const driver = drivers.find(d => d.id === driverId);
             if (!driver) return;
 
@@ -888,10 +903,6 @@
                         <div style="margin-bottom: 25px;">
                             <h3 style="color: #17a2b8; border-bottom: 2px solid #17a2b8; padding-bottom: 8px; margin-bottom: 15px;">🔧 بيانات الصيانة</h3>
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                    <strong style="color: #666;">الكيلومترات الحالية:</strong><br>
-                                    <span style="font-size: 16px; color: #333;">${(driver.kilometers || 0).toLocaleString()} كم</span>
-                                </div>
                                 <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
                                     <strong style="color: #666;">تاريخ آخر تغيير زيت:</strong><br>
                                     <span style="font-size: 16px; color: #333;">${formatDate(driver.lastOilChangeDate) || 'غير محدد'}</span>
