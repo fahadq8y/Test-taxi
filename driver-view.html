@@ -23,7 +23,7 @@
         }
 
         .container {
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
         }
 
@@ -59,11 +59,14 @@
             margin-bottom: 1rem;
             padding-bottom: 0.5rem;
             border-bottom: 2px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 1rem;
         }
 
@@ -79,11 +82,13 @@
             font-weight: 600;
             color: #374151;
             margin-bottom: 0.5rem;
+            font-size: 0.9rem;
         }
 
         .info-item .value {
             font-size: 1.1rem;
             color: #1f2937;
+            font-weight: 500;
         }
 
         .financial-status {
@@ -254,6 +259,47 @@
             color: #991b1b;
         }
 
+        .amount-highlight {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .positive-amount {
+            color: #10b981;
+        }
+
+        .negative-amount {
+            color: #ef4444;
+        }
+
+        .document-expiry {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .expiry-status {
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .expiry-good {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .expiry-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .expiry-expired {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 0.5rem;
@@ -264,6 +310,10 @@
             }
             
             .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .maintenance-current {
                 grid-template-columns: 1fr;
             }
         }
@@ -284,7 +334,7 @@
             <h2>📋 البيانات الأساسية</h2>
             <div class="info-grid">
                 <div class="info-item">
-                    <label>الاسم</label>
+                    <label>الاسم الكامل</label>
                     <div class="value" id="driverName">-</div>
                 </div>
                 <div class="info-item">
@@ -292,12 +342,28 @@
                     <div class="value" id="driverPhone">-</div>
                 </div>
                 <div class="info-item">
-                    <label>السيارة</label>
-                    <div class="value" id="driverCar">-</div>
+                    <label>الجنسية</label>
+                    <div class="value" id="driverNationality">-</div>
                 </div>
                 <div class="info-item">
-                    <label>تاريخ التسجيل</label>
-                    <div class="value" id="registrationDate">-</div>
+                    <label>العنوان</label>
+                    <div class="value" id="driverAddress">-</div>
+                </div>
+                <div class="info-item">
+                    <label>السيارة المخصصة</label>
+                    <div class="value" id="assignedCar">-</div>
+                </div>
+                <div class="info-item">
+                    <label>تاريخ بداية العقد</label>
+                    <div class="value" id="contractStartDate">-</div>
+                </div>
+                <div class="info-item">
+                    <label>مدة العقد</label>
+                    <div class="value" id="contractDuration">-</div>
+                </div>
+                <div class="info-item">
+                    <label>تاريخ انتهاء العقد</label>
+                    <div class="value" id="contractEndDate">-</div>
                 </div>
             </div>
         </div>
@@ -307,15 +373,36 @@
             <h2>💰 الحالة المالية</h2>
             <div class="info-grid">
                 <div class="info-item">
-                    <label>المبلغ المستحق</label>
-                    <div class="financial-status">
-                        <div class="value" id="outstandingAmount">0</div>
-                        <span>دينار</span>
-                    </div>
+                    <label>الأجرة اليومية</label>
+                    <div class="value amount-highlight positive-amount" id="dailyRent">0 د.ك</div>
                 </div>
                 <div class="info-item">
-                    <label>آخر دفعة</label>
-                    <div class="value" id="lastPayment">-</div>
+                    <label>تاريخ السداد</label>
+                    <div class="value" id="paymentDate">-</div>
+                </div>
+                <div class="info-item">
+                    <label>سداد حتى تاريخ</label>
+                    <div class="value" id="paidUntilDate">-</div>
+                </div>
+                <div class="info-item">
+                    <label>الأيام المتأخرة</label>
+                    <div class="value" id="overdueDays">0 يوم</div>
+                </div>
+                <div class="info-item">
+                    <label>رسوم الإقامة</label>
+                    <div class="value amount-highlight" id="residenceFees">0 د.ك</div>
+                </div>
+                <div class="info-item">
+                    <label>رسوم الرواتب</label>
+                    <div class="value amount-highlight" id="salaryFees">0 د.ك</div>
+                </div>
+                <div class="info-item">
+                    <label>الديون القديمة</label>
+                    <div class="value amount-highlight negative-amount" id="oldDebts">0 د.ك</div>
+                </div>
+                <div class="info-item">
+                    <label>إجمالي الديون</label>
+                    <div class="value amount-highlight negative-amount" id="totalDebts">0 د.ك</div>
                 </div>
                 <div class="info-item">
                     <label>حالة الحساب</label>
@@ -372,19 +459,49 @@
 
         <!-- الوثائق -->
         <div class="card">
-            <h2>📄 الوثائق</h2>
+            <h2>📄 الوثائق والتصاريح</h2>
             <div class="info-grid">
                 <div class="info-item">
-                    <label>انتهاء الإقامة</label>
-                    <div class="value" id="residenceExpiry">-</div>
+                    <label>انتهاء الرخصة</label>
+                    <div class="document-expiry">
+                        <div class="value" id="licenseExpiry">-</div>
+                        <span class="expiry-status" id="licenseStatus">-</span>
+                    </div>
                 </div>
                 <div class="info-item">
-                    <label>انتهاء الرخصة</label>
-                    <div class="value" id="licenseExpiry">-</div>
+                    <label>انتهاء التصريح</label>
+                    <div class="document-expiry">
+                        <div class="value" id="permitExpiry">-</div>
+                        <span class="expiry-status" id="permitStatus">-</span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <label>انتهاء دفتر السيارة</label>
+                    <div class="document-expiry">
+                        <div class="value" id="carRegistrationExpiry">-</div>
+                        <span class="expiry-status" id="carRegistrationStatus">-</span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <label>انتهاء الإقامة</label>
+                    <div class="document-expiry">
+                        <div class="value" id="residenceExpiry">-</div>
+                        <span class="expiry-status" id="residenceStatus">-</span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <label>انتهاء جواز السفر</label>
+                    <div class="document-expiry">
+                        <div class="value" id="passportExpiry">-</div>
+                        <span class="expiry-status" id="passportStatus">-</span>
+                    </div>
                 </div>
                 <div class="info-item">
                     <label>انتهاء التأمين</label>
-                    <div class="value" id="insuranceExpiry">-</div>
+                    <div class="document-expiry">
+                        <div class="value" id="insuranceExpiry">-</div>
+                        <span class="expiry-status" id="insuranceStatus">-</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -397,7 +514,7 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, doc, updateDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, doc, updateDoc, getDoc, collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -415,6 +532,7 @@
 
         let driverId = null;
         let driverData = null;
+        let cars = [];
 
         // Check if user is logged in
         function checkLogin() {
@@ -430,11 +548,49 @@
             return true;
         }
 
-        // Format date
-        function formatDate(dateStr) {
-            if (!dateStr) return 'غير محدد';
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('ar-SA');
+        // Load cars data
+        async function loadCars() {
+            try {
+                const carsSnapshot = await getDocs(collection(db, 'cars'));
+                cars = [];
+                carsSnapshot.forEach(doc => {
+                    cars.push({ id: doc.id, ...doc.data() });
+                });
+            } catch (error) {
+                console.error('Error loading cars:', error);
+            }
+        }
+
+        // Format date to English format
+        function formatDateEnglish(dateStr) {
+            if (!dateStr) return '-';
+            const date = dateStr.seconds ? new Date(dateStr.seconds * 1000) : new Date(dateStr);
+            return date.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+        }
+
+        // Calculate days difference
+        function calculateDaysDifference(date1, date2) {
+            const diffTime = Math.abs(date2 - date1);
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        // Get document expiry status
+        function getDocumentExpiryStatus(expiryDate) {
+            if (!expiryDate) {
+                return { status: '-', class: '', message: 'غير محدد' };
+            }
+
+            const today = new Date();
+            const expiry = expiryDate.seconds ? new Date(expiryDate.seconds * 1000) : new Date(expiryDate);
+            const daysToExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+
+            if (daysToExpiry > 30) {
+                return { status: 'سارية', class: 'expiry-good', message: 'سارية المفعول' };
+            } else if (daysToExpiry > 0) {
+                return { status: `${daysToExpiry} يوم`, class: 'expiry-warning', message: `تنتهي خلال ${daysToExpiry} يوم` };
+            } else {
+                return { status: 'منتهية', class: 'expiry-expired', message: 'منتهية الصلاحية' };
+            }
         }
 
         // Calculate oil change status
@@ -444,7 +600,9 @@
             }
 
             const today = new Date();
-            const lastChange = new Date(lastOilChangeDate);
+            const lastChange = lastOilChangeDate.seconds ? 
+                new Date(lastOilChangeDate.seconds * 1000) : 
+                new Date(lastOilChangeDate);
             const daysDiff = Math.floor((today - lastChange) / (1000 * 60 * 60 * 24));
 
             if (daysDiff <= 10) {
@@ -456,24 +614,87 @@
             }
         }
 
+        // Calculate overdue days
+        function calculateOverdueDays(paidUntilDate) {
+            if (!paidUntilDate) return 0;
+            
+            const today = new Date();
+            const paidUntil = paidUntilDate.seconds ? 
+                new Date(paidUntilDate.seconds * 1000) : 
+                new Date(paidUntilDate);
+            
+            const diffTime = today - paidUntil;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
+            return diffDays > 0 ? diffDays : 0;
+        }
+
         // Load driver data
-        function loadDriverData() {
+        async function loadDriverData() {
             if (!checkLogin()) return;
+
+            await loadCars();
+
+            // Refresh driver data from Firebase
+            try {
+                const driverDoc = await getDoc(doc(db, 'drivers', driverId));
+                if (driverDoc.exists()) {
+                    driverData = driverDoc.data();
+                    sessionStorage.setItem('driverData', JSON.stringify(driverData));
+                }
+            } catch (error) {
+                console.error('Error refreshing driver data:', error);
+            }
 
             // Basic info
             document.getElementById('welcomeMessage').textContent = `مرحباً ${driverData.name}`;
             document.getElementById('driverName').textContent = driverData.name || '-';
             document.getElementById('driverPhone').textContent = driverData.phone || '-';
-            document.getElementById('driverCar').textContent = `${driverData.carNumber || ''} - ${driverData.carModel || ''}`.trim() || '-';
-            document.getElementById('registrationDate').textContent = formatDate(driverData.registrationDate);
+            document.getElementById('driverNationality').textContent = driverData.nationality || '-';
+            document.getElementById('driverAddress').textContent = driverData.address || '-';
+
+            // Car info
+            const assignedCar = cars.find(car => car.id === driverData.assignedCar);
+            if (assignedCar) {
+                document.getElementById('assignedCar').textContent = `${assignedCar.plateNumber} - ${assignedCar.model}`;
+                // Set car registration expiry as insurance expiry
+                document.getElementById('carRegistrationExpiry').textContent = formatDateEnglish(assignedCar.registrationExpiry);
+                document.getElementById('insuranceExpiry').textContent = formatDateEnglish(assignedCar.registrationExpiry);
+                
+                const carRegStatus = getDocumentExpiryStatus(assignedCar.registrationExpiry);
+                document.getElementById('carRegistrationStatus').textContent = carRegStatus.status;
+                document.getElementById('carRegistrationStatus').className = `expiry-status ${carRegStatus.class}`;
+                document.getElementById('insuranceStatus').textContent = carRegStatus.status;
+                document.getElementById('insuranceStatus').className = `expiry-status ${carRegStatus.class}`;
+            } else {
+                document.getElementById('assignedCar').textContent = '-';
+            }
+
+            // Contract info
+            document.getElementById('contractStartDate').textContent = formatDateEnglish(driverData.contractStartDate);
+            document.getElementById('contractDuration').textContent = driverData.contractDuration ? `${driverData.contractDuration} شهر` : '-';
+            document.getElementById('contractEndDate').textContent = formatDateEnglish(driverData.contractEndDate);
 
             // Financial info
-            const outstandingAmount = driverData.outstandingAmount || 0;
-            document.getElementById('outstandingAmount').textContent = outstandingAmount;
-            document.getElementById('lastPayment').textContent = formatDate(driverData.lastPaymentDate);
+            const dailyRent = driverData.dailyRent || 0;
+            const residenceFees = driverData.residenceFees || 0;
+            const salaryFees = driverData.salaryFees || 0;
+            const oldDebts = driverData.oldDebts || 0;
+            const overdueDays = calculateOverdueDays(driverData.paidUntilDate);
+            const overdueAmount = overdueDays * dailyRent;
+            const totalDebts = oldDebts + overdueAmount + residenceFees + salaryFees;
+
+            document.getElementById('dailyRent').textContent = `${dailyRent} د.ك`;
+            document.getElementById('paymentDate').textContent = formatDateEnglish(driverData.lastPaymentDate);
+            document.getElementById('paidUntilDate').textContent = formatDateEnglish(driverData.paidUntilDate);
+            document.getElementById('overdueDays').textContent = `${overdueDays} يوم`;
+            document.getElementById('residenceFees').textContent = `${residenceFees} د.ك`;
+            document.getElementById('salaryFees').textContent = `${salaryFees} د.ك`;
+            document.getElementById('oldDebts').textContent = `${oldDebts} د.ك`;
+            document.getElementById('totalDebts').textContent = `${totalDebts} د.ك`;
             
             const accountStatusEl = document.getElementById('accountStatus');
-            if (outstandingAmount > 0) {
+            if (totalDebts > 0) {
                 accountStatusEl.textContent = 'مستحق';
                 accountStatusEl.className = 'status-indicator status-warning';
             } else {
@@ -484,7 +705,7 @@
             // Maintenance info
             const currentKm = driverData.currentKilometers || 0;
             document.getElementById('currentKilometers').textContent = `${currentKm.toLocaleString()} كم`;
-            document.getElementById('lastOilChange').textContent = formatDate(driverData.lastOilChangeDate);
+            document.getElementById('lastOilChange').textContent = formatDateEnglish(driverData.lastOilChangeDate);
 
             // Oil status
             const oilStatus = getOilChangeStatus(driverData.lastOilChangeDate);
@@ -494,14 +715,27 @@
             oilStatusEl.style.color = oilStatus.color;
 
             // Documents
-            document.getElementById('residenceExpiry').textContent = formatDate(driverData.residenceExpiry);
-            document.getElementById('licenseExpiry').textContent = formatDate(driverData.licenseExpiry);
-            document.getElementById('insuranceExpiry').textContent = formatDate(driverData.insuranceExpiry);
+            const documents = [
+                { id: 'licenseExpiry', statusId: 'licenseStatus', data: driverData.licenseExpiry },
+                { id: 'permitExpiry', statusId: 'permitStatus', data: driverData.permitExpiry },
+                { id: 'residenceExpiry', statusId: 'residenceStatus', data: driverData.residencyExpiry },
+                { id: 'passportExpiry', statusId: 'passportStatus', data: driverData.passportExpiry }
+            ];
+
+            documents.forEach(doc => {
+                document.getElementById(doc.id).textContent = formatDateEnglish(doc.data);
+                const status = getDocumentExpiryStatus(doc.data);
+                document.getElementById(doc.statusId).textContent = status.status;
+                document.getElementById(doc.statusId).className = `expiry-status ${status.class}`;
+            });
 
             // Set current values in form
             document.getElementById('newKilometers').value = currentKm;
             if (driverData.lastOilChangeDate) {
-                document.getElementById('oilChangeDate').value = driverData.lastOilChangeDate;
+                const oilDate = driverData.lastOilChangeDate.seconds ? 
+                    new Date(driverData.lastOilChangeDate.seconds * 1000) : 
+                    new Date(driverData.lastOilChangeDate);
+                document.getElementById('oilChangeDate').value = oilDate.toISOString().split('T')[0];
             }
         }
 
