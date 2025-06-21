@@ -243,8 +243,8 @@
         }
 
         .expiry-warning {
-            background: #fef3c7;
-            color: #92400e;
+            background: #fed7aa;
+            color: #ea580c;
         }
 
         .expiry-expired {
@@ -744,7 +744,7 @@
         }
 
         // Get document expiry status
-        function getDocumentExpiryStatus(expiryDate) {
+        function getDocumentExpiryStatus(expiryDate, documentType = 'document') {
             if (!expiryDate) {
                 return { status: '-', class: '', message: 'غير محدد' };
             }
@@ -753,12 +753,62 @@
             const expiry = expiryDate.seconds ? new Date(expiryDate.seconds * 1000) : new Date(expiryDate);
             const daysToExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
 
-            if (daysToExpiry > 30) {
-                return { status: 'سارية', class: 'expiry-good', message: 'سارية المفعول' };
-            } else if (daysToExpiry > 0) {
-                return { status: `${daysToExpiry} يوم`, class: 'expiry-warning', message: `تنتهي خلال ${daysToExpiry} يوم` };
+            if (documentType === 'passport') {
+                // Passport logic: Orange before 14 months, Red before 12 months
+                const monthsToExpiry = daysToExpiry / 30;
+                
+                if (daysToExpiry < 0) {
+                    return { 
+                        status: `منتهي منذ ${Math.abs(daysToExpiry)} يوم`, 
+                        class: 'expiry-expired', 
+                        message: 'منتهي الصلاحية' 
+                    };
+                } else if (monthsToExpiry < 12) { // Less than 12 months (1 year)
+                    return { 
+                        status: `${daysToExpiry} يوم`, 
+                        class: 'expiry-expired', 
+                        message: `ينتهي خلال ${daysToExpiry} يوم` 
+                    };
+                } else if (monthsToExpiry < 14) { // Less than 14 months (1 year and 2 months)
+                    return { 
+                        status: `${daysToExpiry} يوم`, 
+                        class: 'expiry-warning', 
+                        message: `ينتهي خلال ${daysToExpiry} يوم` 
+                    };
+                } else {
+                    return { 
+                        status: `${daysToExpiry} يوم`, 
+                        class: 'expiry-good', 
+                        message: `ينتهي خلال ${daysToExpiry} يوم` 
+                    };
+                }
             } else {
-                return { status: 'منتهية', class: 'expiry-expired', message: 'منتهية الصلاحية' };
+                // Regular documents logic: Orange before 1 month, Red before 1 week
+                if (daysToExpiry < 0) {
+                    return { 
+                        status: `منتهي منذ ${Math.abs(daysToExpiry)} يوم`, 
+                        class: 'expiry-expired', 
+                        message: 'منتهي الصلاحية' 
+                    };
+                } else if (daysToExpiry <= 7) { // Less than or equal to 1 week
+                    return { 
+                        status: `${daysToExpiry} يوم`, 
+                        class: 'expiry-expired', 
+                        message: `ينتهي خلال ${daysToExpiry} يوم` 
+                    };
+                } else if (daysToExpiry <= 30) { // Less than or equal to 1 month
+                    return { 
+                        status: `${daysToExpiry} يوم`, 
+                        class: 'expiry-warning', 
+                        message: `ينتهي خلال ${daysToExpiry} يوم` 
+                    };
+                } else {
+                    return { 
+                        status: `${daysToExpiry} يوم`, 
+                        class: 'expiry-good', 
+                        message: `ينتهي خلال ${daysToExpiry} يوم` 
+                    };
+                }
             }
         }
 
@@ -844,7 +894,7 @@
                 document.getElementById('carRegistrationExpiry').textContent = formatDateEnglish(assignedCar.registrationExpiry);
                 document.getElementById('insuranceExpiry').textContent = formatDateEnglish(assignedCar.registrationExpiry);
                 
-                const carRegStatus = getDocumentExpiryStatus(assignedCar.registrationExpiry);
+                const carRegStatus = getDocumentExpiryStatus(assignedCar.registrationExpiry, 'document');
                 document.getElementById('carRegistrationStatus').textContent = carRegStatus.status;
                 document.getElementById('carRegistrationStatus').className = `expiry-status ${carRegStatus.class}`;
                 document.getElementById('insuranceStatus').textContent = carRegStatus.status;
@@ -914,15 +964,15 @@
 
             // Documents
             const documents = [
-                { id: 'licenseExpiry', statusId: 'licenseStatus', data: driverData.licenseExpiry },
-                { id: 'permitExpiry', statusId: 'permitStatus', data: driverData.permitExpiry },
-                { id: 'residenceExpiry', statusId: 'residenceStatus', data: driverData.residencyExpiry },
-                { id: 'passportExpiry', statusId: 'passportStatus', data: driverData.passportExpiry }
+                { id: 'licenseExpiry', statusId: 'licenseStatus', data: driverData.licenseExpiry, type: 'document' },
+                { id: 'permitExpiry', statusId: 'permitStatus', data: driverData.permitExpiry, type: 'document' },
+                { id: 'residenceExpiry', statusId: 'residenceStatus', data: driverData.residencyExpiry, type: 'document' },
+                { id: 'passportExpiry', statusId: 'passportStatus', data: driverData.passportExpiry, type: 'passport' }
             ];
 
             documents.forEach(doc => {
                 document.getElementById(doc.id).textContent = formatDate(doc.data);
-                const status = getDocumentExpiryStatus(doc.data);
+                const status = getDocumentExpiryStatus(doc.data, doc.type);
                 document.getElementById(doc.statusId).textContent = status.status;
                 document.getElementById(doc.statusId).className = `expiry-status ${status.class}`;
             });
