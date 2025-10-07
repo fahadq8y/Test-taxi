@@ -1193,6 +1193,76 @@
             link.click();
         }
 
+        // الدالة الموحدة لحساب ديون السائقين
+        function calculateDriverDebt(driverId, payments) {
+            // البحث عن بيانات السائق
+            const driver = drivers.find(d => d.id === driverId);
+            if (!driver) return 0;
+            
+            let totalDebt = 0;
+            
+            // 1. حساب الأجرة اليومية المتأخرة
+            const today = new Date();
+            const contractStart = driver.contractStartDate ? 
+                (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) :
+                (driver.createdAt ? (driver.createdAt.toDate ? driver.createdAt.toDate() : new Date(driver.createdAt)) : today);
+            
+            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+            const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
+            const expectedTotal = daysSinceStart * dailyWage;
+            
+            // حساب إجمالي الأجرة اليومية المدفوعة
+            const dailyRentPayments = payments.filter(p => p.type === 'أجرة يومية');
+            const totalDailyRentPaid = dailyRentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+            
+            // الأجرة المتأخرة = المتوقع - المدفوع
+            const lateRent = Math.max(0, expectedTotal - totalDailyRentPaid);
+            totalDebt += lateRent;
+            
+            // 2. حساب الديون من المدفوعات الأخرى
+            payments.forEach(payment => {
+                const amount = parseFloat(payment.amount || 0);
+                
+                switch(payment.type) {
+                    // العمليات التي تزيد الدين (الشركة دفعت عن السائق)
+                    case 'دفع مخالفة':
+                    case 'دفع رسوم إقامة':
+                    case 'دفع رسوم رواتب':
+                        totalDebt += amount;
+                        break;
+                    
+                    // العمليات التي تنقص الدين (السائق دفع)
+                    case 'تحصيل مخالفة':
+                    case 'تحصيل رسوم إقامة':
+                    case 'تحصيل رسوم رواتب':
+                        totalDebt -= amount;
+                        break;
+                    
+                    // الديون القديمة (تنقص الدين عند التحصيل)
+                    case 'دين قديم':
+                        totalDebt -= amount;
+                        break;
+                    
+                    // الأجرة اليومية تم حسابها أعلاه
+                    case 'أجرة يومية':
+                        // لا نفعل شيء هنا لأنها محسوبة في lateRent
+                        break;
+                    
+                    // دفع الرواتب لا يؤثر على دين السائق
+                    case 'دفع رواتب':
+                        // لا يؤثر على دين السائق
+                        break;
+                }
+            });
+            
+            // 3. إضافة الديون القديمة المسجلة عند إضافة السائق
+            const oldDebts = parseFloat(driver.oldDebts || 0);
+            totalDebt += oldDebts;
+            
+            // الدين لا يمكن أن يكون سالب
+            return Math.max(0, totalDebt);
+        }
+
         // Show driver debts modal
         function showDriverDebts() {
             const modal = document.getElementById('debtsModal');
@@ -1208,7 +1278,8 @@
             let totalDebts = 0;
             
             drivers.forEach(driver => {
-                const debt = calculateDriverDebt(driver.id, driverPayments);
+                const payments = driverPayments.filter(p => p.driverId === driver.id);
+                const debt = calculateDriverDebt(driver.id, payments);
                 if (debt > 0) {
                     totalDebts += debt;
                     debtsHtml += `
