@@ -64,7 +64,7 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
     // حساب ديون السائقين حسب النظام الجديد
     if (drivers && drivers.length > 0) {
         drivers.forEach(driver => {
-            const driverDebts = calculateDriverDebt(driver.id, driverPayments);
+            const driverDebts = calculateDriverDebt(driver.id, driver, driverPayments);
             totalDriverDebts += driverDebts;
         });
     }
@@ -79,40 +79,77 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
 }
 
 // دالة موحدة لحساب ديون السائق حسب النظام المحاسبي الجديد
-function calculateDriverDebt(driverId, driverPayments) {
-    let debt = 0;
-    const payments = driverPayments.filter(payment => payment.driverId === driverId);
+function calculateDriverDebt(driverId, driver, driverPayments) {
+    let totalDebt = 0;
     
+    // الحصول على مدفوعات السائق
+    const payments = driverPayments ? driverPayments.filter(payment => payment.driverId === driverId) : [];
+    
+    // 1. حساب الأجرة اليومية المتأخرة
+    const today = new Date();
+    const contractStart = driver.contractStartDate ? 
+        (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) :
+        (driver.createdAt ? (driver.createdAt.toDate ? driver.createdAt.toDate() : new Date(driver.createdAt)) : today);
+    
+    const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+    const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
+    const expectedTotal = daysSinceStart * dailyWage;
+    
+    // حساب إجمالي الأجرة اليومية المدفوعة
+    const dailyRentPayments = payments.filter(p => p.type === 'أجرة يومية');
+    const totalDailyRentPaid = dailyRentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+    
+    // الأجرة المتأخرة = المتوقع - المدفوع
+    const lateRent = Math.max(0, expectedTotal - totalDailyRentPaid);
+    totalDebt += lateRent;
+    
+    // 2. حساب الديون من المدفوعات الأخرى
     payments.forEach(payment => {
-        const amount = parseFloat(payment.amount) || 0;
+        const amount = parseFloat(payment.amount || 0);
         
         switch(payment.type) {
-            // دفعات تنقص الدين على السائق
-            case 'أجرة يومية':
-            case 'تحصيل مخالفة':
-            case 'تحصيل رسوم إقامة':
-            case 'تحصيل رسوم رواتب':
-            case 'دين قديم':
-                debt -= amount;
-                break;
-            
-            // دفعات تزيد الدين على السائق
+            // العمليات التي تزيد الدين (الشركة دفعت عن السائق)
             case 'سداد مخالفة':
             case 'سداد رسوم إقامة':
-                debt += amount;
+            case 'سداد رسوم رواتب':
+                totalDebt += amount;
                 break;
             
-            // رسوم الرواتب لا تؤثر على الدين الشخصي للسائق
+            // العمليات التي تنقص الدين (السائق دفع)
+            case 'تحصيل مخالفة':
+            case 'تحصيل رسوم إقامة':
+                totalDebt -= amount;
+                break;
+            
+            // تحصيل رسوم الرواتب لا يؤثر على دين السائق
+            case 'تحصيل رسوم رواتب':
+            case 'تحصيل رسوم إيداعات الرواتب':
+                // لا يؤثر على الدين
+                break;
+            
+            // الديون القديمة (تنقص الدين عند التحصيل)
+            case 'دين قديم':
+                totalDebt -= amount;
+                break;
+            
+            // الأجرة اليومية تم حسابها أعلاه
+            case 'أجرة يومية':
+                // لا نفعل شيء هنا لأنها محسوبة في lateRent
+                break;
+            
+            // دفع الرواتب لا يؤثر على دين السائق
             case 'سداد رواتب':
-                // لا تؤثر على دين السائق
+                // لا يؤثر على دين السائق
                 break;
         }
     });
     
-    // إضافة رسوم الإقامة السنوية التلقائية (30 دينار لكل سائق)
-    // يمكن تطبيق هذا لاحقاً عند تفعيل النظام التلقائي
+    // 3. إضافة الديون القديمة المسجلة عند إضافة السائق
+    const oldDebts = parseFloat(driver.oldDebts || 0);
+    totalDebt += oldDebts;
     
-    return Math.max(0, debt);
+    // الدين لا يمكن أن يكون سالب
+    return Math.max(0, totalDebt);
 }
 
 // دالة موحدة لتحديث عرض الأرصدة
