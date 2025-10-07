@@ -653,16 +653,24 @@
             
             cars.forEach(car => {
                 // Check if car is already assigned to another driver
-                const isAssigned = allDrivers.some(driver => 
+                const assignedDriver = allDrivers.find(driver => 
                     driver.assignedCar === car.id && driver.id !== editingDriverId
                 );
                 
-                if (!isAssigned || car.status === 'available') {
-                    const option = document.createElement('option');
-                    option.value = car.id;
+                const option = document.createElement('option');
+                option.value = car.id;
+                
+                if (assignedDriver) {
+                    // Car is assigned to another driver - show with warning
+                    option.textContent = `⚠️ ${car.plateNumber} - ${car.model} (مخصصة لـ ${assignedDriver.name})`;
+                    option.style.color = '#dc3545';
+                    option.style.fontWeight = 'bold';
+                } else {
+                    // Car is available
                     option.textContent = `${car.plateNumber} - ${car.model}`;
-                    select.appendChild(option);
                 }
+                
+                select.appendChild(option);
             });
         }
 

@@ -1454,6 +1454,17 @@
         async function loadCarsForModal() {
             try {
                 const carsSnapshot = await db.collection('cars').get();
+                const driversSnapshot = await db.collection('drivers').get();
+                
+                // Create a map of assigned cars
+                const assignedCars = {};
+                driversSnapshot.forEach(doc => {
+                    const driver = doc.data();
+                    if (driver.assignedCar) {
+                        assignedCars[driver.assignedCar] = driver.name;
+                    }
+                });
+                
                 modalCars = [];
                 const select = document.getElementById('assignedCar');
                 
@@ -1468,7 +1479,16 @@
                     
                     const option = document.createElement('option');
                     option.value = car.id;
-                    option.textContent = `${car.plateNumber} - ${car.brand} ${car.model}`;
+                    
+                    // Check if car is assigned to another driver
+                    if (assignedCars[car.id]) {
+                        option.textContent = `⚠️ ${car.plateNumber} - ${car.brand} ${car.model} (مخصصة لـ ${assignedCars[car.id]})`;
+                        option.style.color = '#dc3545';
+                        option.style.fontWeight = 'bold';
+                    } else {
+                        option.textContent = `${car.plateNumber} - ${car.brand} ${car.model}`;
+                    }
+                    
                     select.appendChild(option);
                 });
             } catch (error) {

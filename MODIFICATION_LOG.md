@@ -199,3 +199,234 @@
 **المطور**: Manus AI Assistant  
 **التاريخ**: 7 أكتوبر 2025  
 **الحالة**: ✅ مكتمل - في انتظار الاختبار
+
+
+---
+
+## التعديل الثاني - 7 أكتوبر 2025
+
+---
+
+## التعديلات المطلوبة
+
+### 1️⃣ تحويل جميع التواريخ إلى ميلادي فقط
+إزالة أي تنسيق عربي (`ar-SA`) قد يعرض التاريخ الهجري، واستخدام التنسيق البريطاني (`en-GB`) للتاريخ الميلادي فقط.
+
+### 2️⃣ إضافة تحذير للسيارات المخصصة
+عند إضافة أو تعديل سائق واختيار سيارة، يجب عرض السيارات المخصصة لسائقين آخرين بلون أحمر مع علامة تحذير ⚠️ واسم السائق المخصصة له.
+
+---
+
+## الملفات المعدلة
+
+### 1. balance-display.html
+**السطر**: 351
+
+**التعديل**: تغيير تنسيق التاريخ من `ar-SA` إلى `en-GB`
+
+**قبل**:
+```javascript
+'آخر تحديث: ' + new Date().toLocaleString('ar-SA');
+```
+
+**بعد**:
+```javascript
+'آخر تحديث: ' + new Date().toLocaleString('en-GB');
+```
+
+---
+
+### 2. cars.html
+**السطور**: 624-625
+
+**التعديل**: تغيير تنسيق التاريخ من `ar-SA` إلى `en-GB`
+
+**قبل**:
+```javascript
+new Date(car.registrationExpiry.seconds * 1000).toLocaleDateString('ar-SA')
+new Date(car.registrationExpiry).toLocaleDateString('ar-SA')
+```
+
+**بعد**:
+```javascript
+new Date(car.registrationExpiry.seconds * 1000).toLocaleDateString('en-GB')
+new Date(car.registrationExpiry).toLocaleDateString('en-GB')
+```
+
+---
+
+### 3. drivers-overview.html
+**الوظيفة**: `loadCarsForModal()`
+**السطور**: 1454-1498
+
+**التعديل**: إضافة تحذير للسيارات المخصصة
+
+**الإضافات**:
+1. تحميل جميع السائقين من Firebase
+2. إنشاء خريطة (map) للسيارات المخصصة مع أسماء السائقين
+3. فحص كل سيارة إذا كانت مخصصة لسائق آخر
+4. عرض السيارات المخصصة بـ:
+   - علامة تحذير: ⚠️
+   - لون أحمر: `#dc3545`
+   - خط عريض: `font-weight: bold`
+   - نص: `(مخصصة لـ [اسم السائق])`
+
+**الكود المضاف**:
+```javascript
+const driversSnapshot = await db.collection('drivers').get();
+
+// Create a map of assigned cars
+const assignedCars = {};
+driversSnapshot.forEach(doc => {
+    const driver = doc.data();
+    if (driver.assignedCar) {
+        assignedCars[driver.assignedCar] = driver.name;
+    }
+});
+
+// Check if car is assigned to another driver
+if (assignedCars[car.id]) {
+    option.textContent = `⚠️ ${car.plateNumber} - ${car.brand} ${car.model} (مخصصة لـ ${assignedCars[car.id]})`;
+    option.style.color = '#dc3545';
+    option.style.fontWeight = 'bold';
+} else {
+    option.textContent = `${car.plateNumber} - ${car.brand} ${car.model}`;
+}
+```
+
+---
+
+### 4. drivers.html
+**الوظيفة**: `populateCarOptions()`
+**السطور**: 647-675
+
+**التعديل**: إضافة تحذير للسيارات المخصصة
+
+**التغييرات**:
+1. تغيير من إخفاء السيارات المخصصة إلى عرضها مع تحذير
+2. البحث عن السائق المخصصة له السيارة
+3. عرض جميع السيارات (المتاحة والمخصصة)
+4. تمييز السيارات المخصصة بنفس الأسلوب المستخدم في `drivers-overview.html`
+
+**قبل**:
+```javascript
+const isAssigned = allDrivers.some(driver => 
+    driver.assignedCar === car.id && driver.id !== editingDriverId
+);
+
+if (!isAssigned || car.status === 'available') {
+    const option = document.createElement('option');
+    option.value = car.id;
+    option.textContent = `${car.plateNumber} - ${car.model}`;
+    select.appendChild(option);
+}
+```
+
+**بعد**:
+```javascript
+const assignedDriver = allDrivers.find(driver => 
+    driver.assignedCar === car.id && driver.id !== editingDriverId
+);
+
+const option = document.createElement('option');
+option.value = car.id;
+
+if (assignedDriver) {
+    option.textContent = `⚠️ ${car.plateNumber} - ${car.model} (مخصصة لـ ${assignedDriver.name})`;
+    option.style.color = '#dc3545';
+    option.style.fontWeight = 'bold';
+} else {
+    option.textContent = `${car.plateNumber} - ${car.model}`;
+}
+
+select.appendChild(option);
+```
+
+---
+
+## ملخص التعديلات
+
+### التواريخ:
+- ✅ **3 مواضع** تم تحويلها من `ar-SA` إلى `en-GB`
+- ✅ جميع التواريخ الآن بالتنسيق الميلادي فقط
+
+### السيارات المخصصة:
+- ✅ **2 ملفات** تم تعديلها (`drivers-overview.html`, `drivers.html`)
+- ✅ **2 وظائف** تم تحديثها (`loadCarsForModal`, `populateCarOptions`)
+- ✅ عرض جميع السيارات مع تحذير واضح للمخصصة منها
+
+---
+
+## التصميم المرئي للتحذير
+
+### السيارة المتاحة:
+```
+رقم اللوحة - الماركة الموديل
+```
+
+### السيارة المخصصة:
+```
+⚠️ رقم اللوحة - الماركة الموديل (مخصصة لـ اسم السائق)
+```
+- **اللون**: أحمر (#dc3545)
+- **الخط**: عريض (bold)
+- **الأيقونة**: علامة تحذير (⚠️)
+
+---
+
+## الفوائد
+
+### 1️⃣ وضوح التواريخ
+- عدم وجود لبس بين التاريخ الهجري والميلادي
+- تنسيق موحد في جميع الصفحات
+- سهولة القراءة والفهم
+
+### 2️⃣ منع الأخطاء
+- تحذير واضح قبل اختيار سيارة مخصصة
+- معرفة السائق المخصصة له السيارة
+- تقليل احتمالية تعيين سيارة واحدة لأكثر من سائق
+
+### 3️⃣ تجربة مستخدم أفضل
+- معلومات كاملة عن حالة السيارات
+- قرارات مدروسة عند اختيار السيارة
+- شفافية في البيانات
+
+---
+
+## الاختبارات المطلوبة
+
+- [ ] التحقق من عرض التواريخ بالميلادي فقط في جميع الصفحات
+- [ ] فتح نموذج إضافة سائق والتحقق من ظهور التحذيرات
+- [ ] اختيار سيارة مخصصة والتأكد من ظهور اسم السائق
+- [ ] تعديل سائق موجود والتحقق من عدم ظهور سيارته كمخصصة له
+- [ ] التأكد من اللون الأحمر والخط العريض للسيارات المخصصة
+
+---
+
+## الملفات المتأثرة
+
+1. ✅ **balance-display.html** - تعديل التاريخ
+2. ✅ **cars.html** - تعديل التاريخ
+3. ✅ **drivers-overview.html** - تعديل التاريخ + تحذير السيارات
+4. ✅ **drivers.html** - تحذير السيارات
+
+**النسخ الاحتياطية**:
+- balance-display.html.backup
+- cars.html.backup
+- drivers-overview.html.backup2
+- drivers.html.backup
+
+---
+
+## ملاحظات مهمة
+
+1. ✅ **التوافق مع التعديل السابق**: التعديلات الجديدة لا تتعارض مع النموذج المنبثق المضاف سابقاً
+2. ✅ **الأداء**: تحميل السائقين مرة واحدة فقط عند فتح النموذج
+3. ✅ **الأمان**: لا يمنع اختيار السيارة المخصصة، فقط يحذر المستخدم
+4. ⚠️ **القرار النهائي**: المستخدم يمكنه اختيار سيارة مخصصة إذا أراد (قد يكون نقل سيارة من سائق لآخر)
+
+---
+
+**المطور**: Manus AI Assistant  
+**التاريخ**: 7 أكتوبر 2025  
+**الحالة**: ✅ مكتمل - جاهز للرفع على GitHub
