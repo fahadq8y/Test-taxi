@@ -17,7 +17,9 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
         totalExpenses = expenses.reduce((sum, expense) => {
             const amount = parseFloat(expense.amount || 0);
             if (expense.type === 'مصاريف إيداعات الرواتب') {
-                salaryBalance += amount;
+                // مصاريف إيداعات الرواتب تخصم من الرصيد البنكي ورصيد الرواتب
+                bankBalance -= amount;
+                salaryBalance -= amount;
             } else {
                 bankBalance -= amount;
             }
@@ -40,16 +42,19 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
                     break;
                 
                 // دفعات تنقص الرصيد البنكي (الشركة تدفع)
-                case 'دفع مخالفة':
-                case 'دفع رسوم إقامة':
+                case 'سداد مخالفة':
+                case 'سداد رسوم إقامة':
                     bankBalance -= amount;
                     break;
                 
                 // رسوم الرواتب (نظام منفصل)
                 case 'تحصيل رسوم رواتب':
+                case 'تحصيل رسوم إيداعات الرواتب':
+                    // تضاف للرصيد البنكي ورصيد الرواتب
+                    bankBalance += amount;
                     salaryBalance += amount;
                     break;
-                case 'دفع رواتب':
+                case 'سداد رواتب':
                     salaryBalance -= amount;
                     break;
             }
@@ -92,13 +97,13 @@ function calculateDriverDebt(driverId, driverPayments) {
                 break;
             
             // دفعات تزيد الدين على السائق
-            case 'دفع مخالفة':
-            case 'دفع رسوم إقامة':
+            case 'سداد مخالفة':
+            case 'سداد رسوم إقامة':
                 debt += amount;
                 break;
             
             // رسوم الرواتب لا تؤثر على الدين الشخصي للسائق
-            case 'دفع رواتب':
+            case 'سداد رواتب':
                 // لا تؤثر على دين السائق
                 break;
         }
@@ -196,7 +201,7 @@ async function applyAnnualResidencyRenewal(db, drivers) {
             // إضافة رسوم تجديد الإقامة التلقائية
             const renewalPayment = {
                 driverId: driver.id,
-                type: 'دفع رسوم إقامة',
+                type: 'سداد رسوم إقامة',
                 amount: 30.000,
                 date: `${currentYear}-01-01`,
                 description: `تجديد إقامة تلقائي - ${currentYear}`,
@@ -213,7 +218,7 @@ async function applyAnnualResidencyRenewal(db, drivers) {
 async function getLastResidencyRenewal(db, driverId, year) {
     const snapshot = await db.collection('driverPayments')
         .where('driverId', '==', driverId)
-        .where('type', '==', 'دفع رسوم إقامة')
+        .where('type', '==', 'سداد رسوم إقامة')
         .where('date', '>=', `${year}-01-01`)
         .where('date', '<=', `${year}-12-31`)
         .get();

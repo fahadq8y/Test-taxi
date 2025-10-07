@@ -380,9 +380,9 @@
             paymentsSnapshot.forEach(doc => {
                 const data = doc.data();
                 if (data.type === 'أجرة يومية' || data.type === 'تحصيل مخالفة' || 
-                    data.type === 'تحصيل رسوم إقامة' || data.type === 'دين قديم') {
+                    data.type === 'تحصيل رسوم إقامة' || data.type === 'تحصيل رسوم إيداعات الرواتب' || data.type === 'دين قديم') {
                     balance += parseFloat(data.amount) || 0;
-                } else if (data.type === 'دفع مخالفة' || data.type === 'دفع رسوم إقامة') {
+                } else if (data.type === 'سداد مخالفة' || data.type === 'سداد رسوم إقامة') {
                     balance -= parseFloat(data.amount) || 0;
                 }
             });
@@ -402,13 +402,22 @@
                 }
             });
 
-            // Add salary fees from driver payments
+            // Add salary fees from driver payments and subtract salary expenses
             const paymentsSnapshot = await db.collection('driverPayments').get();
             paymentsSnapshot.forEach(doc => {
                 const data = doc.data();
-                if (data.type === 'تحصيل رسوم رواتب') {
+                if (data.type === 'تحصيل رسوم رواتب' || data.type === 'تحصيل رسوم إيداعات الرواتب') {
                     balance += parseFloat(data.amount) || 0;
-                } else if (data.type === 'دفع رواتب') {
+                } else if (data.type === 'سداد رواتب') {
+                    balance -= parseFloat(data.amount) || 0;
+                }
+            });
+
+            // Subtract salary deposit expenses
+            const expensesSnapshot = await db.collection('expenses').get();
+            expensesSnapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.type === 'مصاريف إيداعات الرواتب') {
                     balance -= parseFloat(data.amount) || 0;
                 }
             });
@@ -444,9 +453,9 @@
                 
                 switch(payment.type) {
                     // العمليات التي تزيد الدين (الشركة دفعت عن السائق)
-                    case 'دفع مخالفة':
-                    case 'دفع رسوم إقامة':
-                    case 'دفع رسوم رواتب':
+                    case 'سداد مخالفة':
+                    case 'سداد رسوم إقامة':
+                    case 'سداد رسوم رواتب':
                         totalDebt += amount;
                         break;
                     
@@ -468,7 +477,7 @@
                         break;
                     
                     // دفع الرواتب لا يؤثر على دين السائق
-                    case 'دفع رواتب':
+                    case 'سداد رواتب':
                         // لا يؤثر على دين السائق
                         break;
                 }

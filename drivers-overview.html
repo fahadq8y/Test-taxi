@@ -696,9 +696,9 @@
                 
                 switch(payment.type) {
                     // العمليات التي تزيد الدين (الشركة دفعت عن السائق)
-                    case 'دفع مخالفة':
-                    case 'دفع رسوم إقامة':
-                    case 'دفع رسوم رواتب':
+                    case 'سداد مخالفة':
+                    case 'سداد رسوم إقامة':
+                    case 'سداد رسوم رواتب':
                         totalDebt += amount;
                         break;
                     
@@ -706,6 +706,7 @@
                     case 'تحصيل مخالفة':
                     case 'تحصيل رسوم إقامة':
                     case 'تحصيل رسوم رواتب':
+                    case 'تحصيل رسوم إيداعات الرواتب':
                         totalDebt -= amount;
                         break;
                     
@@ -720,7 +721,7 @@
                         break;
                     
                     // دفع الرواتب لا يؤثر على دين السائق
-                    case 'دفع رواتب':
+                    case 'سداد رواتب':
                         // لا يؤثر على دين السائق
                         break;
                 }
@@ -773,8 +774,8 @@
             const remainingToday = Math.max(0, todayExpected - todayPaid);
 
             // Calculate debt amounts using new system
-            const violations = calculateDebtByType(driver.id, ['دفع مخالفة', 'تحصيل مخالفة']);
-            const residencyFees = calculateDebtByType(driver.id, ['دفع رسوم إقامة', 'تحصيل رسوم إقامة']);
+            const violations = calculateDebtByType(driver.id, ['سداد مخالفة', 'تحصيل مخالفة']);
+            const residencyFees = calculateDebtByType(driver.id, ['سداد رسوم إقامة', 'تحصيل رسوم إقامة']);
             const oldDebts = calculateDebtByType(driver.id, ['دين قديم']);
             
             // Calculate driver balance using the new smart system first
@@ -1311,13 +1312,14 @@
                                 <select id="historyTypeFilter" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
                                     <option value="">جميع الأنواع</option>
                                     <option value="أجرة يومية">أجرة يومية</option>
-                                    <option value="دفع مخالفة">دفع مخالفة</option>
+                                    <option value="سداد مخالفة">سداد مخالفة</option>
                                     <option value="تحصيل مخالفة">تحصيل مخالفة</option>
-                                    <option value="دفع رسوم إقامة">دفع رسوم إقامة</option>
+                                    <option value="سداد رسوم إقامة">سداد رسوم إقامة</option>
                                     <option value="تحصيل رسوم إقامة">تحصيل رسوم إقامة</option>
+                                    <option value="تحصيل رسوم إيداعات الرواتب">تحصيل رسوم إيداعات الرواتب</option>
                                     <option value="دين قديم">دين قديم</option>
                                     <option value="تحصيل رسوم رواتب">تحصيل رسوم رواتب</option>
-                                    <option value="دفع رواتب">دفع رواتب</option>
+                                    <option value="سداد رواتب">سداد رواتب</option>
                                 </select>
                                 <button onclick="exportPaymentHistory()" style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
                                     📥 تصدير Excel
@@ -1377,11 +1379,11 @@
                                     </div>
                                     <div style="text-align: center;">
                                         <strong style="color: #666;">إجمالي المبالغ المدفوعة:</strong><br>
-                                        <span style="font-size: 18px; color: #dc3545;">-${payments.filter(p => ['دفع مخالفة', 'دفع رسوم إقامة', 'دفع رواتب'].includes(p.type)).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0).toFixed(3)} د.ك</span>
+                                        <span style="font-size: 18px; color: #dc3545;">-${payments.filter(p => ['سداد مخالفة', 'سداد رسوم إقامة', 'سداد رواتب'].includes(p.type)).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0).toFixed(3)} د.ك</span>
                                     </div>
                                     <div style="text-align: center;">
                                         <strong style="color: #666;">إجمالي المبالغ المحصلة:</strong><br>
-                                        <span style="font-size: 18px; color: #28a745;">+${payments.filter(p => ['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم', 'تحصيل رسوم رواتب'].includes(p.type)).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0).toFixed(3)} د.ك</span>
+                                        <span style="font-size: 18px; color: #28a745;">+${payments.filter(p => ['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'تحصيل رسوم رواتب'].includes(p.type)).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0).toFixed(3)} د.ك</span>
                                     </div>
                                 </div>
                             </div>
