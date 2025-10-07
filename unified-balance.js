@@ -1,5 +1,13 @@
 // دالة موحدة لحساب الأرصدة في جميع الصفحات حسب النظام المحاسبي الجديد
 function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
+    console.log('🔄 بدء حساب الأرصدة الموحدة...');
+    console.log('📊 البيانات:', {
+        revenues: revenues?.length || 0,
+        expenses: expenses?.length || 0,
+        driverPayments: driverPayments?.length || 0,
+        drivers: drivers?.length || 0
+    });
+    
     let bankBalance = 0;
     let salaryBalance = 0;
     let totalDriverDebts = 0;
@@ -64,11 +72,24 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
     // حساب ديون السائقين حسب النظام الجديد
     if (drivers && drivers.length > 0) {
         drivers.forEach(driver => {
-            const driverDebts = calculateDriverDebt(driver.id, driver, driverPayments);
-            totalDriverDebts += driverDebts;
+            try {
+                const driverDebts = calculateDriverDebt(driver.id, driver, driverPayments);
+                totalDriverDebts += driverDebts;
+            } catch (error) {
+                console.error('خطأ في حساب دين السائق:', driver.name || driver.id, error);
+                // نتجاهل هذا السائق ونكمل مع الباقي
+            }
         });
     }
 
+    console.log('✅ انتهى حساب الأرصدة:', {
+        bankBalance: bankBalance.toFixed(3),
+        salaryBalance: salaryBalance.toFixed(3),
+        totalDriverDebts: totalDriverDebts.toFixed(3),
+        totalRevenues: totalRevenues.toFixed(3),
+        totalExpenses: totalExpenses.toFixed(3)
+    });
+    
     return {
         bankBalance: bankBalance,
         salaryBalance: salaryBalance,
