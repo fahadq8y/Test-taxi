@@ -1219,7 +1219,7 @@
             
             drivers.forEach(driver => {
                 const payments = driverPayments.filter(p => p.driverId === driver.id);
-                const debt = calculateDriverDebt(driver.id, payments);
+                const debt = calculateDriverDebt(driver.id, driver, payments);
                 if (debt > 0) {
                     totalDebts += debt;
                     

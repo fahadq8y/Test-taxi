@@ -888,12 +888,12 @@
             let totalDebts = 0;
             
             drivers.forEach(driver => {
-                const debt = calculateDriverDebt(driver.id, driverPayments);
+                const driverPaymentsList = driverPayments.filter(p => p.driverId === driver.id);
+                const debt = calculateDriverDebt(driver.id, driver, driverPaymentsList);
                 if (debt > 0) {
                     totalDebts += debt;
                     
                     // Get last payment date
-                    const driverPaymentsList = driverPayments.filter(p => p.driverId === driver.id);
                     let lastPaymentDate = 'غير محدد';
                     if (driverPaymentsList.length > 0) {
                         const sortedPayments = driverPaymentsList.sort((a, b) => {
