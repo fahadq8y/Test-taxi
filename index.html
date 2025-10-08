@@ -12,33 +12,38 @@
 </head>
 <body>
     <div class="login-container">
-        <div class="logo">
-            <h1>🚕 نظام إدارة التاكسي</h1>
-            <p>إدارة شاملة لشركة التاكسي</p>
-        </div>
-
-        <div class="error-message" id="errorMessage"></div>
-
-        <form id="loginForm">
-            <div class="form-group">
-                <label for="email">البريد الإلكتروني</label>
-                <input type="email" id="email" required>
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-icon">🚕</div>
+                <h1>نظام إدارة التاكسي</h1>
+                <p>إدارة شاملة لشركة التاكسي</p>
             </div>
 
-            <div class="form-group">
-                <label for="password">كلمة المرور</label>
-                <input type="password" id="password" required>
+            <div class="error-message" id="errorMessage"></div>
+
+            <form id="loginForm" class="login-form">
+                <div class="input-group">
+                    <div class="input-icon">📧</div>
+                    <input type="email" id="email" placeholder="البريد الإلكتروني" required>
+                </div>
+
+                <div class="input-group">
+                    <div class="input-icon">🔒</div>
+                    <input type="password" id="password" placeholder="كلمة المرور" required>
+                </div>
+
+                <button type="submit" class="login-btn" id="loginBtn">
+                    <span>تسجيل الدخول</span>
+                    <span class="btn-arrow">→</span>
+                </button>
+            </form>
+
+            <div class="login-footer">
+                <a href="driver-login.html" class="driver-login-link">
+                    <span>🚗</span>
+                    <span>دخول السائقين</span>
+                </a>
             </div>
-
-            <button type="submit" class="login-btn" id="loginBtn">
-                تسجيل الدخول
-            </button>
-        </form>
-
-        <div style="text-align: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
-            <a href="driver-login.html" style="color: #6b7280; text-decoration: none; font-size: 0.9rem;">
-                🚗 دخول السائقين
-            </a>
         </div>
 
         <div class="loading" id="loading">
