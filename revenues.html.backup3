@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة الإيرادات - نظام إدارة التاكسي</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .balance-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .balance-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .balance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .balance-item {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .balance-item.clickable {
+            cursor: pointer;
+            border-color: #667eea;
+        }
+
+        .balance-item.clickable:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .balance-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .balance-amount {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .form-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .revenue-history {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .revenue-history h3 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .revenue-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .revenue-table th,
+        .revenue-table td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .revenue-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        .revenue-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .amount {
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
+
+        .type-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .type-badge.driver-payment {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #bbdefb;
+        }
+
+        .type-badge.direct-revenue {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+
+        .detailed-desc {
+            font-size: 13px;
+            color: #555;
+            max-width: 250px;
+            word-wrap: break-word;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        .filter-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .filter-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .filter-btn {
+            background: #e9ecef;
+            color: #333;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .filter-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            opacity: 0.7;
+        }
+
+        #debtsContent {
+            padding: 20px;
+        }
+
+        .debt-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #dc3545;
+        }
+
+        .debt-driver {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .debt-amount {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .balance-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .filter-buttons {
+                justify-content: center;
+            }
+            
+            .filter-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+
+        /* Pagination Styles */
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pagination-controls label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .pagination-controls select {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+        }
+
+        .pagination-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding: 10px 0;
+            border-top: 1px solid #eee;
+        }
+
+        .pagination-info {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .pagination-buttons {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pagination-buttons button {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .pagination-buttons button:hover:not(:disabled) {
+            background: #f8f9fa;
+            border-color: #007bff;
+        }
+
+        .pagination-buttons button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-number {
+            padding: 8px 12px;
+            margin: 0 2px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .page-number.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .page-number:hover:not(.active) {
+            background: #f8f9fa;
+            border-color: #007bff;
+        }
+
+        @media (max-width: 768px) {
+            .table-header {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+            
+            .pagination-footer {
+                flex-direction: column;
+                gap: 10px;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>💰 إدارة الإيرادات</h1>
+            <p>إدارة وتتبع جميع إيرادات الشركة</p>
+            <div class="nav-buttons">
+                <a href="index.html" class="nav-btn">🏠 الرئيسية</a>
+                <a href="drivers-overview.html" class="nav-btn">👥 السائقين</a>
+                <a href="expenses.html" class="nav-btn">💸 المصروفات</a>
+                <a href="balance-display.html" class="nav-btn">📊 الميزانية</a>
+            </div>
+        </div>
+
+        <!-- Balance Section -->
+        <div class="balance-section">
+            <h3>💰 الأرصدة الحالية</h3>
+            <div class="balance-grid">
+                <div class="balance-item">
+                    <div class="balance-label">رصيد الرواتب (د.ك)</div>
+                    <div class="balance-amount" id="salaryBalance">0.000 د.ك</div>
+                </div>
+                <div class="balance-item">
+                    <div class="balance-label">الرصيد البنكي (د.ك)</div>
+                    <div class="balance-amount" id="bankBalance">0.000 د.ك</div>
+                </div>
+                <div class="balance-item clickable" onclick="showDriverDebts()">
+                    <div class="balance-label">ديون على السائقين</div>
+                    <div class="balance-amount" id="driverDebts">0.000 د.ك</div>
+                </div>
+                <div class="balance-item">
+                    <div class="balance-label">إجمالي الإيرادات (د.ك)</div>
+                    <div class="balance-amount" id="totalRevenues">0.000 د.ك</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Revenue Form -->
+        <div class="form-section">
+            <h3>➕ إضافة إيراد جديد</h3>
+            <form id="revenueForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>📅 التاريخ</label>
+                        <input type="date" id="revenueDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>📋 نوع الإيراد</label>
+                        <select id="revenueType" required>
+                            <option value="">اختر نوع الإيراد</option>
+                            <option value="أخرى">أخرى</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>💰 المبلغ (د.ك)</label>
+                        <input type="number" id="revenueAmount" step="0.001" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>📝 الوصف</label>
+                        <textarea id="revenueDescription" rows="3" placeholder="وصف تفصيلي للإيراد..."></textarea>
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary">💾 حفظ الإيراد</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <h3>🔍 البحث والفلتر</h3>
+            
+            <div class="filter-buttons">
+                <button class="filter-btn active" onclick="filterByPeriod('all')">الكل</button>
+                <button class="filter-btn" onclick="filterByPeriod('today')">اليوم</button>
+                <button class="filter-btn" onclick="filterByPeriod('week')">هذا الأسبوع</button>
+                <button class="filter-btn" onclick="filterByPeriod('month')">هذا الشهر</button>
+            </div>
+
+            <div class="filter-grid">
+                <div class="form-group">
+                    <label>🔍 البحث النصي</label>
+                    <input type="text" id="searchText" placeholder="ابحث في الوصف..." oninput="applyFilters()">
+                </div>
+                <div class="form-group">
+                    <label>📋 نوع الإيراد</label>
+                    <select id="revenueTypeFilter" onchange="applyFilters()">
+                        <option value="">جميع الأنواع</option>
+                        <option value="أخرى">أخرى</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>📅 من تاريخ</label>
+                    <input type="date" id="fromDate" onchange="applyFilters()">
+                </div>
+                <div class="form-group">
+                    <label>📅 إلى تاريخ</label>
+                    <input type="date" id="toDate" onchange="applyFilters()">
+                </div>
+                <div class="form-group">
+                    <label>💰 الحد الأدنى للمبلغ</label>
+                    <input type="number" id="minAmount" step="0.001" min="0" placeholder="0.000" onchange="applyFilters()">
+                </div>
+                <div class="form-group">
+                    <label>💰 الحد الأقصى للمبلغ</label>
+                    <input type="number" id="maxAmount" step="0.001" min="0" placeholder="1000.000" onchange="applyFilters()">
+                </div>
+            </div>
+
+            <div class="filter-actions">
+                <button class="btn btn-secondary" onclick="clearFilters()">🗑️ مسح الفلاتر</button>
+                <button class="btn btn-success" onclick="exportResults()">📊 تصدير النتائج</button>
+            </div>
+        </div>
+
+        <!-- Revenue History -->
+        <div class="revenue-history">
+            <div class="table-header">
+                <h3>📋 تاريخ الإيرادات</h3>
+                <div class="pagination-controls">
+                    <label>عرض:</label>
+                    <select id="itemsPerPage" onchange="updatePagination()">
+                        <option value="10">10 عمليات</option>
+                        <option value="25" selected>25 عملية</option>
+                        <option value="50">50 عملية</option>
+                        <option value="100">100 عملية</option>
+                    </select>
+                </div>
+            </div>
+            <table class="revenue-table">
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>النوع</th>
+                        <th>المصدر</th>
+                        <th>المبلغ</th>
+                        <th>الوصف التفصيلي</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="revenueTableBody">
+                    <tr>
+                        <td colspan="6" class="no-data">جاري تحميل الإيرادات...</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="pagination-footer">
+                <div class="pagination-info">
+                    <span id="paginationInfo">عرض 0 من 0 عمليات</span>
+                </div>
+                <div class="pagination-buttons">
+                    <button id="prevPage" onclick="changePage(-1)" disabled>السابق</button>
+                    <span id="pageNumbers"></span>
+                    <button id="nextPage" onclick="changePage(1)" disabled>التالي</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Driver Debts Modal -->
+    <div id="debtsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">تفاصيل ديون السائقين</h2>
+                <span class="close" onclick="closeDebtsModal()">&times;</span>
+            </div>
+            <div id="debtsContent">
+                <div class="no-data">جاري تحميل تفاصيل الديون...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="unified-balance.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let revenues = [];
+        let expenses = [];
+        let driverPayments = [];
+        let drivers = [];
+        let filteredRevenues = [];
+        
+        // Pagination variables
+        let currentPage = 1;
+        let itemsPerPage = 25;
+        let totalPages = 1;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('revenueDate').value = new Date().toISOString().split('T')[0];
+            loadAllData();
+        });
+
+        // Load all data from Firebase
+        async function loadAllData() {
+            try {
+                // Load revenues
+                const revenuesSnapshot = await db.collection('revenues').orderBy('date', 'desc').get();
+                revenues = revenuesSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Load expenses
+                const expensesSnapshot = await db.collection('expenses').orderBy('date', 'desc').get();
+                expenses = expensesSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Load driver payments
+                const paymentsSnapshot = await db.collection('driverPayments').orderBy('date', 'desc').get();
+                driverPayments = paymentsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Load drivers
+                const driversSnapshot = await db.collection('drivers').get();
+                drivers = driversSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Calculate and display balances using unified system
+                const balances = calculateUnifiedBalances(revenues, expenses, driverPayments, drivers);
+                updateBalanceDisplay(balances);
+
+                // Display revenues including driver payments
+                displayRevenuesWithDriverPayments();
+
+            } catch (error) {
+                console.error('خطأ في تحميل البيانات:', error);
+                document.getElementById('revenueTableBody').innerHTML = 
+                    '<tr><td colspan="5" class="no-data">خطأ في تحميل البيانات</td></tr>';
+                // تحديث الإيرادات حتى في حالة الخطأ
+                updateTotalRevenues();
+            }
+        }
+
+        // Display revenues including relevant driver payments
+        function displayRevenuesWithDriverPayments() {
+            // Combine revenues with relevant driver payments
+            let allRevenueItems = [...revenues];
+
+            // Add driver payments that should appear in revenues
+            driverPayments.forEach(payment => {
+                if (['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم'].includes(payment.type)) {
+                    const driver = drivers.find(d => d.id === payment.driverId);
+                    allRevenueItems.push({
+                        id: payment.id,
+                        date: payment.date,
+                        type: payment.type,
+                        amount: payment.amount,
+                        description: `${payment.type} - ${driver ? driver.name : 'سائق غير محدد'}`,
+                        driverId: payment.driverId,
+                        driverName: driver ? driver.name : 'سائق غير محدد',
+                        source: 'driverPayment'
+                    });
+                }
+            });
+
+            // Sort by date (newest first)
+            allRevenueItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            filteredRevenues = allRevenueItems;
+            displayRevenues();
+            updateTotalRevenues(); // تحديث إجمالي الإيرادات
+        }
+
+        // Calculate and update total revenues
+        function updateTotalRevenues() {
+            console.log('💰 بدء حساب إجمالي الإيرادات...');
+            let totalRevenues = 0;
+            
+            // حساب إجمالي الإيرادات المباشرة
+            console.log('💰 الإيرادات المباشرة:', revenues.length);
+            revenues.forEach(revenue => {
+                totalRevenues += revenue.amount || 0;
+                console.log('💰 إيراد مباشر:', revenue.amount, 'الإجمالي الحالي:', totalRevenues);
+            });
+            
+            // حساب إجمالي دفعات السائقين التي تُعتبر إيرادات
+            console.log('💰 دفعات السائقين:', driverPayments.length);
+            driverPayments.forEach(payment => {
+                if (['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم'].includes(payment.type)) {
+                    totalRevenues += payment.amount || 0;
+                    console.log('💰 دفعة سائق:', payment.type, payment.amount, 'الإجمالي الحالي:', totalRevenues);
+                }
+            });
+            
+            console.log('💰 إجمالي الإيرادات النهائي:', totalRevenues);
+            
+            // تحديث العرض
+            document.getElementById('totalRevenues').textContent = `${totalRevenues.toFixed(3)} د.ك`;
+        }
+
+        // Add new revenue
+        document.getElementById('revenueForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const type = document.getElementById('revenueType').value;
+            const description = document.getElementById('revenueDescription').value;
+            
+            // التحقق من الملاحظة الإجبارية عند اختيار "أخرى"
+            if (type === 'أخرى' && (!description || description.trim() === '')) {
+                alert('يجب كتابة ملاحظة عند اختيار نوع "أخرى"');
+                document.getElementById('revenueDescription').focus();
+                return;
+            }
+            
+            const revenueData = {
+                date: document.getElementById('revenueDate').value,
+                type: type,
+                amount: parseFloat(document.getElementById('revenueAmount').value),
+                description: description,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                await db.collection('revenues').add(revenueData);
+                alert('تم إضافة الإيراد بنجاح!');
+                
+                // Reset form
+                document.getElementById('revenueForm').reset();
+                document.getElementById('revenueDate').value = new Date().toISOString().split('T')[0];
+                
+                // Reload data
+                loadAllData();
+            } catch (error) {
+                console.error('خطأ في إضافة الإيراد:', error);
+                alert('حدث خطأ في إضافة الإيراد');
+            }
+        });
+
+        // Delete revenue
+        async function deleteRevenue(id) {
+            if (confirm('هل أنت متأكد من حذف هذا الإيراد؟')) {
+                try {
+                    await db.collection('revenues').doc(id).delete();
+                    alert('تم حذف الإيراد بنجاح!');
+                    loadAllData();
+                } catch (error) {
+                    console.error('خطأ في حذف الإيراد:', error);
+                    alert('حدث خطأ في حذف الإيراد');
+                }
+            }
+        }
+
+        // Display revenues with pagination
+        function displayRevenues() {
+            const tbody = document.getElementById('revenueTableBody');
+            
+            if (filteredRevenues.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="no-data">لا توجد إيرادات مسجلة</td></tr>';
+                updatePaginationInfo(0, 0, 0);
+                return;
+            }
+            
+            // Calculate pagination
+            totalPages = Math.ceil(filteredRevenues.length / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const currentPageData = filteredRevenues.slice(startIndex, endIndex);
+            
+            tbody.innerHTML = '';
+            currentPageData.forEach(revenue => {
+                const row = document.createElement('tr');
+                
+                // تحديد المصدر والوصف التفصيلي
+                let source = '';
+                let detailedDescription = revenue.description || '-';
+                let deleteButton = '';
+                
+                if (revenue.source === 'driverPayment') {
+                    source = '👤 دفعة سائق';
+                    deleteButton = '<button class="delete-btn" onclick="deleteDriverPayment(\'' + revenue.id + '\')">حذف</button>';
+                } else {
+                    source = '🏢 إيراد مباشر';
+                    deleteButton = '<button class="delete-btn" onclick="deleteRevenue(\'' + revenue.id + '\')">حذف</button>';
+                }
+                
+                // تحسين الوصف التفصيلي
+                if (revenue.source === 'driverPayment') {
+                    const driver = drivers.find(d => d.id === revenue.driverId);
+                    const driverName = driver ? driver.name : 'سائق غير محدد';
+                    detailedDescription = `${revenue.type} من السائق: ${driverName}`;
+                    
+                    // إضافة تفاصيل إضافية حسب نوع الدفعة
+                    switch(revenue.type) {
+                        case 'أجرة يومية':
+                            detailedDescription += ' - سداد أجرة يومية';
+                            break;
+                        case 'تحصيل مخالفة':
+                            detailedDescription += ' - تحصيل قيمة مخالفة مرورية';
+                            break;
+                        case 'تحصيل رسوم إقامة':
+                            detailedDescription += ' - تحصيل رسوم تجديد الإقامة';
+                            break;
+                        case 'دين قديم':
+                            detailedDescription += ' - سداد دين مستحق سابق';
+                            break;
+                    }
+                }
+                
+                row.innerHTML = `
+                    <td>${formatDate(revenue.date)}</td>
+                    <td><span class="type-badge ${revenue.source === 'driverPayment' ? 'driver-payment' : 'direct-revenue'}">${revenue.type || 'غير محدد'}</span></td>
+                    <td>${source}</td>
+                    <td class="amount">${parseFloat(revenue.amount || 0).toFixed(3)} د.ك</td>
+                    <td class="detailed-desc">${detailedDescription}</td>
+                    <td>${deleteButton}</td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            // Update pagination info and controls
+            updatePaginationInfo(startIndex + 1, Math.min(endIndex, filteredRevenues.length), filteredRevenues.length);
+            updatePaginationControls();
+        }
+        
+        // Update pagination info
+        function updatePaginationInfo(start, end, total) {
+            document.getElementById('paginationInfo').textContent = `عرض ${start} إلى ${end} من ${total} عمليات`;
+        }
+        
+        // Update pagination controls
+        function updatePaginationControls() {
+            const prevBtn = document.getElementById('prevPage');
+            const nextBtn = document.getElementById('nextPage');
+            const pageNumbers = document.getElementById('pageNumbers');
+            
+            // Update buttons state
+            prevBtn.disabled = currentPage === 1;
+            nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+            
+            // Generate page numbers
+            let pagesHtml = '';
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                pagesHtml += `<span class="page-number ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</span>`;
+            }
+            
+            pageNumbers.innerHTML = pagesHtml;
+        }
+        
+        // Change page
+        function changePage(direction) {
+            const newPage = currentPage + direction;
+            if (newPage >= 1 && newPage <= totalPages) {
+                currentPage = newPage;
+                displayRevenues();
+            }
+        }
+        
+        // Go to specific page
+        function goToPage(page) {
+            if (page >= 1 && page <= totalPages) {
+                currentPage = page;
+                displayRevenues();
+            }
+        }
+        
+        // Update pagination when items per page changes
+        function updatePagination() {
+            itemsPerPage = parseInt(document.getElementById('itemsPerPage').value);
+            currentPage = 1; // Reset to first page
+            displayRevenues();
+        }
+
+        // Delete driver payment
+        async function deleteDriverPayment(paymentId) {
+            if (confirm('هل أنت متأكد من حذف هذه الدفعة؟ سيؤثر هذا على حساب السائق والأرصدة.')) {
+                try {
+                    await db.collection('driverPayments').doc(paymentId).delete();
+                    alert('تم حذف الدفعة بنجاح!');
+                    loadAllData();
+                } catch (error) {
+                    console.error('خطأ في حذف الدفعة:', error);
+                    alert('حدث خطأ في حذف الدفعة');
+                }
+            }
+        }
+
+        // Filter functions
+        function filterByPeriod(period) {
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const today = new Date();
+            let fromDate, toDate;
+            
+            switch(period) {
+                case 'today':
+                    fromDate = toDate = today.toISOString().split('T')[0];
+                    break;
+                case 'week':
+                    const weekStart = new Date(today);
+                    weekStart.setDate(today.getDate() - today.getDay());
+                    fromDate = weekStart.toISOString().split('T')[0];
+                    toDate = today.toISOString().split('T')[0];
+                    break;
+                case 'month':
+                    fromDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+                    toDate = today.toISOString().split('T')[0];
+                    break;
+                default:
+                    fromDate = toDate = '';
+            }
+            
+            document.getElementById('fromDate').value = fromDate;
+            document.getElementById('toDate').value = toDate;
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const searchText = document.getElementById('searchText').value.toLowerCase();
+            const typeFilter = document.getElementById('revenueTypeFilter').value;
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+            const minAmount = parseFloat(document.getElementById('minAmount').value) || 0;
+            const maxAmount = parseFloat(document.getElementById('maxAmount').value) || Infinity;
+            
+            // Get all revenue items (revenues + driver payments)
+            let allRevenueItems = [...revenues];
+            
+            driverPayments.forEach(payment => {
+                if (['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم'].includes(payment.type)) {
+                    const driver = drivers.find(d => d.id === payment.driverId);
+                    allRevenueItems.push({
+                        id: payment.id,
+                        date: payment.date,
+                        type: payment.type,
+                        amount: payment.amount,
+                        description: `${payment.type} - ${driver ? driver.name : 'سائق غير محدد'}`,
+                        source: 'driverPayment'
+                    });
+                }
+            });
+            
+            filteredRevenues = allRevenueItems.filter(revenue => {
+                const matchesSearch = !searchText || (revenue.description && revenue.description.toLowerCase().includes(searchText));
+                const matchesType = !typeFilter || revenue.type === typeFilter;
+                const matchesFromDate = !fromDate || revenue.date >= fromDate;
+                const matchesToDate = !toDate || revenue.date <= toDate;
+                const amount = parseFloat(revenue.amount) || 0;
+                const matchesAmount = amount >= minAmount && amount <= maxAmount;
+                
+                return matchesSearch && matchesType && matchesFromDate && matchesToDate && matchesAmount;
+            });
+            
+            // Sort by date (newest first)
+            filteredRevenues.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            displayRevenues();
+        }
+
+        function clearFilters() {
+            document.getElementById('searchText').value = '';
+            document.getElementById('revenueTypeFilter').value = '';
+            document.getElementById('fromDate').value = '';
+            document.getElementById('toDate').value = '';
+            document.getElementById('minAmount').value = '';
+            document.getElementById('maxAmount').value = '';
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('.filter-btn').classList.add('active');
+            
+            applyFilters();
+        }
+
+        function exportResults() {
+            if (filteredRevenues.length === 0) {
+                alert('لا توجد بيانات للتصدير');
+                return;
+            }
+            
+            let csv = 'التاريخ,النوع,المصدر,المبلغ,الوصف التفصيلي\n';
+            filteredRevenues.forEach(revenue => {
+                const source = revenue.source === 'driverPayment' ? 'دفعة سائق' : 'إيراد مباشر';
+                const detailedDesc = revenue.source === 'driverPayment' ? 
+                    `${revenue.type} من السائق` : 
+                    (revenue.description || '-');
+                csv += `${revenue.date},${revenue.type},${source},${revenue.amount},"${detailedDesc}"\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `revenues_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        // الدالة الموحدة لحساب ديون السائقين
+        function calculateDriverDebt(driverId, payments) {
+            // البحث عن بيانات السائق
+            const driver = drivers.find(d => d.id === driverId);
+            if (!driver) return 0;
+            
+            let totalDebt = 0;
+            
+            // 1. حساب الأجرة اليومية المتأخرة
+            const today = new Date();
+            const contractStart = driver.contractStartDate ? 
+                (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) :
+                (driver.createdAt ? (driver.createdAt.toDate ? driver.createdAt.toDate() : new Date(driver.createdAt)) : today);
+            
+            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+            const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
+            const expectedTotal = daysSinceStart * dailyWage;
+            
+            // حساب إجمالي الأجرة اليومية المدفوعة
+            const dailyRentPayments = payments.filter(p => p.type === 'أجرة يومية');
+            const totalDailyRentPaid = dailyRentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+            
+            // الأجرة المتأخرة = المتوقع - المدفوع
+            const lateRent = Math.max(0, expectedTotal - totalDailyRentPaid);
+            totalDebt += lateRent;
+            
+            // 2. حساب الديون من المدفوعات الأخرى
+            payments.forEach(payment => {
+                const amount = parseFloat(payment.amount || 0);
+                
+                switch(payment.type) {
+                    // العمليات التي تزيد الدين (الشركة دفعت عن السائق)
+                    case 'سداد مخالفة':
+                    case 'سداد رسوم إقامة':
+                    case 'سداد رسوم رواتب':
+                        totalDebt += amount;
+                        break;
+                    
+                    // العمليات التي تنقص الدين (السائق دفع)
+                    case 'تحصيل مخالفة':
+                    case 'تحصيل رسوم إقامة':
+                    case 'تحصيل رسوم رواتب':
+                        totalDebt -= amount;
+                        break;
+                    
+                    // الديون القديمة (تنقص الدين عند التحصيل)
+                    case 'دين قديم':
+                        totalDebt -= amount;
+                        break;
+                    
+                    // الأجرة اليومية تم حسابها أعلاه
+                    case 'أجرة يومية':
+                        // لا نفعل شيء هنا لأنها محسوبة في lateRent
+                        break;
+                    
+                    // دفع الرواتب لا يؤثر على دين السائق
+                    case 'سداد رواتب':
+                        // لا يؤثر على دين السائق
+                        break;
+                }
+            });
+            
+            // 3. إضافة الديون القديمة المسجلة عند إضافة السائق
+            const oldDebts = parseFloat(driver.oldDebts || 0);
+            totalDebt += oldDebts;
+            
+            // الدين لا يمكن أن يكون سالب
+            return Math.max(0, totalDebt);
+        }
+
+        // Show driver debts modal
+        function showDriverDebts() {
+            const modal = document.getElementById('debtsModal');
+            const content = document.getElementById('debtsContent');
+            
+            if (drivers.length === 0) {
+                content.innerHTML = '<div class="no-data">لا توجد بيانات سائقين</div>';
+                modal.style.display = 'block';
+                return;
+            }
+            
+            let debtsHtml = '';
+            let totalDebts = 0;
+            
+            drivers.forEach(driver => {
+                const payments = driverPayments.filter(p => p.driverId === driver.id);
+                const debt = calculateDriverDebt(driver.id, payments);
+                if (debt > 0) {
+                    totalDebts += debt;
+                    debtsHtml += `
+                        <div class="debt-item">
+                            <div class="debt-driver">${driver.name || 'غير محدد'}</div>
+                            <div class="debt-amount">${debt.toFixed(3)} د.ك</div>
+                        </div>
+                    `;
+                }
+            });
+            
+            if (debtsHtml === '') {
+                content.innerHTML = '<div class="no-data">لا توجد ديون على السائقين</div>';
+            } else {
+                content.innerHTML = `
+                    <div style="text-align: center; margin-bottom: 20px; font-weight: bold; color: #dc3545;">
+                        إجمالي الديون: ${totalDebts.toFixed(3)} د.ك
+                    </div>
+                    ${debtsHtml}
+                `;
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        // Close driver debts modal
+        function closeDebtsModal() {
+            document.getElementById('debtsModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('debtsModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-GB');
+        }
+    </script>
+</body>
+</html>
+

@@ -4,8 +4,469 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>المصروفات - نظام إدارة التاكسي</title>
-    <link rel="stylesheet" href="style.css">
-    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .balance-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .balance-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .balance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .balance-item {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .balance-item.clickable {
+            cursor: pointer;
+            border-color: #667eea;
+        }
+
+        .balance-item.clickable:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .balance-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .balance-amount {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .form-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .expense-history {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .expense-history h3 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .expense-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .expense-table th,
+        .expense-table td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .expense-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        .expense-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .amount {
+            font-weight: bold;
+            color: #dc3545;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            opacity: 0.7;
+        }
+
+        #debtsContent {
+            padding: 20px;
+        }
+
+        .debt-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #dc3545;
+        }
+
+        .debt-driver {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .debt-amount {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .balance-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+
+        /* نظام الصفحات */
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pagination-controls label {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .pagination-controls select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+            font-size: 14px;
+        }
+
+        .pagination-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding: 10px 0;
+            border-top: 1px solid #eee;
+        }
+
+        .pagination-info {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .pagination-buttons {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .pagination-buttons button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .pagination-buttons button:hover:not(:disabled) {
+            background: #f8f9fa;
+            border-color: #007bff;
+        }
+
+        .pagination-buttons button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-number {
+            padding: 8px 12px;
+            margin: 0 2px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: #333;
+            display: inline-block;
+        }
+
+        .page-number:hover {
+            background: #f8f9fa;
+            border-color: #007bff;
+        }
+
+        .page-number.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        @media (max-width: 768px) {
+            .table-header {
+                flex-direction: column;
+                gap: 10px;
+                align-items: stretch;
+            }
+
+            .pagination-footer {
+                flex-direction: column;
+                gap: 10px;
+                align-items: center;
+            }
+
+            .pagination-buttons {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -14,7 +475,7 @@
             <h1>💸 إدارة المصروفات</h1>
             <p>إدارة وتتبع جميع مصروفات الشركة</p>
             <div class="nav-buttons">
-                <a href="admin-dashboard.html" class="nav-btn">🏠 لوحة التحكم</a>
+                <a href="index.html" class="nav-btn">🏠 الرئيسية</a>
                 <a href="drivers-overview.html" class="nav-btn">👥 السائقين</a>
                 <a href="revenues.html" class="nav-btn">💰 الإيرادات</a>
                 <a href="balance-display.html" class="nav-btn">📊 الميزانية</a>
@@ -118,12 +579,6 @@
                     </tr>
                 </tbody>
             </table>
-            
-            <!-- Mobile Cards View -->
-            <div class="mobile-cards" id="mobileCardsContainer">
-                <div class="no-data">جاري تحميل المصروفات...</div>
-            </div>
-            
             <div class="pagination-footer">
                 <div class="pagination-info">
                     <span id="paginationInfo">عرض 0 من 0 عمليات</span>
@@ -321,53 +776,20 @@
             }
             
             tbody.innerHTML = '';
-            const mobileContainer = document.getElementById('mobileCardsContainer');
-            mobileContainer.innerHTML = '';
-            
             currentPageData.forEach(expense => {
-                // إنشاء صف الجدول
                 const row = document.createElement('tr');
+                // عرض زر الحذف لجميع العمليات بغض النظر عن المصدر
                 const deleteButton = `<button class="delete-btn" onclick="deleteExpense('${expense.id}')">حذف</button>`;
                 
                 row.innerHTML = `
                     <td>${formatDate(expense.date)}</td>
-                    <td><span class="type-badge ${expense.source === 'company' ? 'company-expense' : 'driver-expense'}">${expense.type || 'غير محدد'}</span></td>
+                    <td>${expense.type || 'غير محدد'}</td>
                     <td class="amount">${parseFloat(expense.amount || 0).toFixed(3)} د.ك</td>
                     <td>${expense.description || '-'}</td>
                     <td>${expense.note || '-'}</td>
                     <td>${deleteButton}</td>
                 `;
                 tbody.appendChild(row);
-                
-                // إنشاء بطاقة للهاتف
-                const card = document.createElement('div');
-                card.className = 'mobile-card expense';
-                card.innerHTML = `
-                    <div class="mobile-card-header">
-                        <div class="mobile-card-date">📅 ${formatDate(expense.date)}</div>
-                        <div class="mobile-card-amount">-${parseFloat(expense.amount || 0).toFixed(3)} د.ك</div>
-                    </div>
-                    <div class="mobile-card-body">
-                        <div class="mobile-card-row">
-                            <div class="mobile-card-label">🏷️ النوع</div>
-                            <div class="mobile-card-value">
-                                <span class="type-badge ${expense.source === 'company' ? 'company-expense' : 'driver-expense'}">${expense.type || 'غير محدد'}</span>
-                            </div>
-                        </div>
-                        <div class="mobile-card-row">
-                            <div class="mobile-card-label">📝 الوصف</div>
-                            <div class="mobile-card-value">${expense.description || '-'}</div>
-                        </div>
-                        <div class="mobile-card-row">
-                            <div class="mobile-card-label">💬 الملاحظة</div>
-                            <div class="mobile-card-value">${expense.note || '-'}</div>
-                        </div>
-                    </div>
-                    <div class="mobile-card-footer">
-                        <button class="btn btn-danger" onclick="deleteExpense('${expense.id}')">🗑️ حذف</button>
-                    </div>
-                `;
-                mobileContainer.appendChild(card);
             });
             
             // تحديث معلومات وأزرار الصفحات
@@ -459,41 +881,20 @@
             let totalDebts = 0;
             
             drivers.forEach(driver => {
-                const driverPaymentsList = driverPayments.filter(p => p.driverId === driver.id);
-                const debt = calculateDriverDebt(driver.id, driver, driverPaymentsList);
+                const debt = calculateDriverDebt(driver.id, driverPayments);
                 if (debt > 0) {
                     totalDebts += debt;
-                    
-                    // Get last payment date
-                    let lastPaymentDate = 'غير محدد';
-                    if (driverPaymentsList.length > 0) {
-                        const sortedPayments = driverPaymentsList.sort((a, b) => {
-                            const dateA = a.date ? (a.date.toDate ? a.date.toDate() : new Date(a.date)) : new Date(0);
-                            const dateB = b.date ? (b.date.toDate ? b.date.toDate() : new Date(b.date)) : new Date(0);
-                            return dateB - dateA;
-                        });
-                        const lastPayment = sortedPayments[0];
-                        if (lastPayment.date) {
-                            const paymentDate = lastPayment.date.toDate ? lastPayment.date.toDate() : new Date(lastPayment.date);
-                            lastPaymentDate = paymentDate.toLocaleDateString('en-GB');
-                        }
-                    }
-                    
                     debtsHtml += `
                         <div class="debt-item">
                             <div class="debt-driver">${driver.name || 'غير محدد'}</div>
                             <div class="debt-amount">${debt.toFixed(3)} د.ك</div>
-                            <div class="debt-details">
-                                الهاتف: ${driver.phone || 'غير محدد'}<br>
-                                آخر تحديث: ${lastPaymentDate}
-                            </div>
                         </div>
                     `;
                 }
             });
             
             if (debtsHtml === '') {
-                content.innerHTML = '<div class="no-data">🎉 لا توجد ديون على السائقين</div>';
+                content.innerHTML = '<div class="no-data">لا توجد ديون على السائقين</div>';
             } else {
                 content.innerHTML = `
                     <div style="text-align: center; margin-bottom: 20px; font-weight: bold; color: #dc3545;">

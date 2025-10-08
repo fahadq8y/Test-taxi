@@ -9,16 +9,258 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="stylesheet" href="style.css">
-    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            direction: rtl;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .regular { color: #28a745; }
+        .late { color: #ffc107; }
+        .very-late { color: #dc3545; }
+        .debt { color: #17a2b8; }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-input, .filter-select {
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .btn-refresh {
+            background: #667eea;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-refresh:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .table-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            overflow-x: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1200px;
+        }
+
+        .table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            font-weight: 600;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .table td {
+            padding: 1rem;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+            transition: background-color 0.3s ease;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(102, 126, 234, 0.1);
+        }
+
+        .driver-name {
+            color: #667eea;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: underline;
+            transition: color 0.3s ease;
+        }
+
+        .driver-name:hover {
+            color: #5a6fd8;
+        }
+
+        .amount {
+            font-weight: 600;
+        }
+
+        .positive { color: #28a745; }
+        .negative { color: #dc3545; }
+        .zero { color: #6c757d; }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 0.5rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-input {
+                min-width: auto;
+            }
+            
+            .table-container {
+                overflow-x: auto;
+            }
+            
+            .table {
+                min-width: 800px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="header">
         <h1>🚗 جدول السائقين</h1>
         <div class="header-buttons">
-            <button onclick="openAddDriverModal()" class="btn btn-primary">➕ إضافة سائق جديد</button>
+            <a href="add-driver.html" class="btn btn-primary">➕ إضافة سائق جديد</a>
             <a href="balance-display.html" class="btn btn-secondary">💰 عرض الأرصدة</a>
-            <a href="admin-dashboard.html" class="btn btn-secondary">🏠 لوحة التحكم</a>
+            <a href="index.html" class="btn btn-secondary">🏠 الرئيسية</a>
         </div>
     </div>
 
@@ -77,119 +319,6 @@
                     </tr>
                 </tbody>
             </table>
-        </div>
-    </div>
-
-    <!-- Modal for Adding Driver -->
-    <div id="driverModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>إضافة سائق جديد</h2>
-                <span class="close" onclick="closeModal()">&times;</span>
-            </div>
-            
-            <form id="driverForm" onsubmit="saveDriver(event)">
-                <!-- البيانات الشخصية -->
-                <div class="form-section">
-                    <h3 class="section-title">البيانات الشخصية</h3>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="driverName">اسم السائق *</label>
-                            <input type="text" id="driverName" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="driverPhone">رقم الهاتف *</label>
-                            <input type="tel" id="driverPhone" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="driverNationality">الجنسية</label>
-                            <input type="text" id="driverNationality">
-                        </div>
-                        <div class="form-group">
-                            <label for="driverAddress">العنوان</label>
-                            <input type="text" id="driverAddress">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- تفاصيل العقد -->
-                <div class="form-section">
-                    <h3 class="section-title">تفاصيل العقد</h3>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="assignedCar">السيارة المخصصة</label>
-                            <select id="assignedCar" onchange="updateCarRegistrationExpiry()">
-                                <option value="">اختر السيارة</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="dailyRent">الأجرة اليومية (د.ك) *</label>
-                            <input type="number" id="dailyRent" step="0.001" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="contractDuration">مدة العقد (بالأشهر)</label>
-                            <select id="contractDuration" onchange="calculateContractEndDate()">
-                                <option value="">اختر المدة</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="contractStartDate">تاريخ بداية العقد</label>
-                            <input type="date" id="contractStartDate" onchange="calculateContractEndDate()">
-                        </div>
-                        <div class="form-group">
-                            <label for="contractEndDate">تاريخ نهاية العقد</label>
-                            <input type="date" id="contractEndDate" readonly>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- تواريخ انتهاء الوثائق -->
-                <div class="form-section">
-                    <h3 class="section-title">تواريخ انتهاء الوثائق</h3>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="carRegistrationExpiry">انتهاء دفتر السيارة</label>
-                            <input type="date" id="carRegistrationExpiry" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label for="residencyExpiry">انتهاء الإقامة</label>
-                            <input type="date" id="residencyExpiry">
-                        </div>
-                        <div class="form-group">
-                            <label for="licenseExpiry">انتهاء الرخصة</label>
-                            <input type="date" id="licenseExpiry">
-                        </div>
-                        <div class="form-group">
-                            <label for="permitExpiry">انتهاء التصريح</label>
-                            <input type="date" id="permitExpiry">
-                        </div>
-                        <div class="form-group">
-                            <label for="passportExpiry">انتهاء جواز السفر</label>
-                            <input type="date" id="passportExpiry">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- الديون والملاحظات -->
-                <div class="form-section">
-                    <h3 class="section-title">الديون والملاحظات</h3>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="oldDebts">ديون قديمة (د.ك)</label>
-                            <input type="number" id="oldDebts" step="0.001" value="0">
-                        </div>
-                        <div class="form-group full-width">
-                            <label for="driverNotes">ملاحظة</label>
-                            <textarea id="driverNotes" rows="3" placeholder="ملاحظات إضافية..."></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="cancel-btn" onclick="closeModal()">إلغاء</button>
-                    <button type="submit" class="save-btn">حفظ السائق</button>
-                </div>
-            </form>
         </div>
     </div>
 
@@ -258,82 +387,33 @@
         }
 
         // Calculate driver debt using new accounting system
-        // الدالة الموحدة لحساب ديون السائقين
         function calculateDriverDebt(driverId) {
-            // البحث عن بيانات السائق
-            const driver = allDrivers.find(d => d.id === driverId);
-            if (!driver) return 0;
-            
-            // الحصول على جميع مدفوعات السائق
-            const payments = driverPayments.filter(payment => payment.driverId === driverId);
-            
             let totalDebt = 0;
-            
-            // 1. حساب الأجرة اليومية المتأخرة
-            const today = new Date();
-            const contractStart = driver.contractStartDate ? 
-                (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) :
-                (driver.createdAt ? (driver.createdAt.toDate ? driver.createdAt.toDate() : new Date(driver.createdAt)) : today);
-            
-            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
-            const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
-            const expectedTotal = daysSinceStart * dailyWage;
-            
-            // حساب إجمالي الأجرة اليومية المدفوعة
-            const dailyRentPayments = payments.filter(p => p.type === 'أجرة يومية');
-            const totalDailyRentPaid = dailyRentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-            
-            // الأجرة المتأخرة = المتوقع - المدفوع
-            const lateRent = Math.max(0, expectedTotal - totalDailyRentPaid);
-            totalDebt += lateRent;
-            
-            // 2. حساب الديون من المدفوعات الأخرى
+
+            // Get all payments for this driver
+            const payments = driverPayments.filter(payment => payment.driverId === driverId);
+
             payments.forEach(payment => {
-                const amount = parseFloat(payment.amount || 0);
-                
+                const amount = parseFloat(payment.amount) || 0;
+
+                // Apply new accounting rules
                 switch(payment.type) {
-                    // العمليات التي تزيد الدين (الشركة دفعت عن السائق)
-                    case 'سداد مخالفة':
-                    case 'سداد رسوم إقامة':
-                    case 'سداد رسوم رواتب':
-                        totalDebt += amount;
-                        break;
-                    
-                    // العمليات التي تنقص الدين (السائق دفع)
+                    case 'أجرة يومية':
                     case 'تحصيل مخالفة':
                     case 'تحصيل رسوم إقامة':
-                        totalDebt -= amount;
-                        break;
-                    
-                    // تحصيل رسوم الرواتب لا يؤثر على دين السائق
                     case 'تحصيل رسوم رواتب':
-                    case 'تحصيل رسوم إيداعات الرواتب':
-                        // لا يؤثر على الدين
-                        break;
-                    
-                    // الديون القديمة (تنقص الدين عند التحصيل)
                     case 'دين قديم':
-                        totalDebt -= amount;
+                        totalDebt -= amount; // Reduce debt
                         break;
-                    
-                    // الأجرة اليومية تم حسابها أعلاه
-                    case 'أجرة يومية':
-                        // لا نفعل شيء هنا لأنها محسوبة في lateRent
+                    case 'دفع مخالفة':
+                    case 'دفع رسوم إقامة':
+                        totalDebt += amount; // Increase debt
                         break;
-                    
-                    // دفع الرواتب لا يؤثر على دين السائق
-                    case 'سداد رواتب':
-                        // لا يؤثر على دين السائق
-                        break;
+                    // 'دفع رواتب' doesn't affect driver debt
                 }
             });
-            
-            // 3. إضافة الديون القديمة المسجلة عند إضافة السائق
-            const oldDebts = parseFloat(driver.oldDebts || 0);
-            totalDebt += oldDebts;
-            
-            // الدين لا يمكن أن يكون سالب
-            return Math.max(0, totalDebt);
+
+            return Math.max(0, totalDebt); // Debt cannot be negative
         }
 
         // Calculate driver statistics
@@ -375,8 +455,8 @@
             const remainingToday = Math.max(0, todayExpected - todayPaid);
 
             // Calculate debt amounts using new system
-            const violations = calculateDebtByType(driver.id, ['سداد مخالفة', 'تحصيل مخالفة']);
-            const residencyFees = calculateDebtByType(driver.id, ['سداد رسوم إقامة', 'تحصيل رسوم إقامة']);
+            const violations = calculateDebtByType(driver.id, ['دفع مخالفة', 'تحصيل مخالفة']);
+            const residencyFees = calculateDebtByType(driver.id, ['دفع رسوم إقامة', 'تحصيل رسوم إقامة']);
             const oldDebts = calculateDebtByType(driver.id, ['دين قديم']);
             
             // Calculate driver balance using the new smart system first
@@ -913,14 +993,13 @@
                                 <select id="historyTypeFilter" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
                                     <option value="">جميع الأنواع</option>
                                     <option value="أجرة يومية">أجرة يومية</option>
-                                    <option value="سداد مخالفة">سداد مخالفة</option>
+                                    <option value="دفع مخالفة">دفع مخالفة</option>
                                     <option value="تحصيل مخالفة">تحصيل مخالفة</option>
-                                    <option value="سداد رسوم إقامة">سداد رسوم إقامة</option>
+                                    <option value="دفع رسوم إقامة">دفع رسوم إقامة</option>
                                     <option value="تحصيل رسوم إقامة">تحصيل رسوم إقامة</option>
-                                    <option value="تحصيل رسوم إيداعات الرواتب">تحصيل رسوم إيداعات الرواتب</option>
                                     <option value="دين قديم">دين قديم</option>
                                     <option value="تحصيل رسوم رواتب">تحصيل رسوم رواتب</option>
-                                    <option value="سداد رواتب">سداد رواتب</option>
+                                    <option value="دفع رواتب">دفع رواتب</option>
                                 </select>
                                 <button onclick="exportPaymentHistory()" style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
                                     📥 تصدير Excel
@@ -980,11 +1059,11 @@
                                     </div>
                                     <div style="text-align: center;">
                                         <strong style="color: #666;">إجمالي المبالغ المدفوعة:</strong><br>
-                                        <span style="font-size: 18px; color: #dc3545;">-${payments.filter(p => ['سداد مخالفة', 'سداد رسوم إقامة', 'سداد رواتب'].includes(p.type)).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0).toFixed(3)} د.ك</span>
+                                        <span style="font-size: 18px; color: #dc3545;">-${payments.filter(p => ['دفع مخالفة', 'دفع رسوم إقامة', 'دفع رواتب'].includes(p.type)).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0).toFixed(3)} د.ك</span>
                                     </div>
                                     <div style="text-align: center;">
                                         <strong style="color: #666;">إجمالي المبالغ المحصلة:</strong><br>
-                                        <span style="font-size: 18px; color: #28a745;">+${payments.filter(p => ['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'تحصيل رسوم رواتب'].includes(p.type)).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0).toFixed(3)} د.ك</span>
+                                        <span style="font-size: 18px; color: #28a745;">+${payments.filter(p => ['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم', 'تحصيل رسوم رواتب'].includes(p.type)).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0).toFixed(3)} د.ك</span>
                                     </div>
                                 </div>
                             </div>
@@ -1071,177 +1150,6 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-        }
-
-        // Modal Functions
-        let modalCars = [];
-
-        // Open Add Driver Modal
-        function openAddDriverModal() {
-            document.getElementById('driverModal').style.display = 'block';
-            document.getElementById('driverForm').reset();
-            loadCarsForModal();
-            populateContractDurationOptions();
-        }
-
-        // Close Modal
-        function closeModal() {
-            document.getElementById('driverModal').style.display = 'none';
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('driverModal');
-            if (event.target == modal) {
-                closeModal();
-            }
-        }
-
-        // Load Cars for Modal
-        async function loadCarsForModal() {
-            try {
-                const carsSnapshot = await db.collection('cars').get();
-                const driversSnapshot = await db.collection('drivers').get();
-                
-                // Create a map of assigned cars
-                const assignedCars = {};
-                driversSnapshot.forEach(doc => {
-                    const driver = doc.data();
-                    if (driver.assignedCar) {
-                        assignedCars[driver.assignedCar] = driver.name;
-                    }
-                });
-                
-                modalCars = [];
-                const select = document.getElementById('assignedCar');
-                
-                // Clear existing options except first one
-                while (select.options.length > 1) {
-                    select.remove(1);
-                }
-                
-                carsSnapshot.forEach(doc => {
-                    const car = { id: doc.id, ...doc.data() };
-                    modalCars.push(car);
-                    
-                    const option = document.createElement('option');
-                    option.value = car.id;
-                    
-                    // Check if car is assigned to another driver
-                    if (assignedCars[car.id]) {
-                        option.textContent = `⚠️ ${car.plateNumber} - ${car.brand} ${car.model} (مخصصة لـ ${assignedCars[car.id]})`;
-                        option.style.color = '#dc3545';
-                        option.style.fontWeight = 'bold';
-                    } else {
-                        option.textContent = `${car.plateNumber} - ${car.brand} ${car.model}`;
-                    }
-                    
-                    select.appendChild(option);
-                });
-            } catch (error) {
-                console.error('Error loading cars:', error);
-                alert('حدث خطأ في تحميل السيارات');
-            }
-        }
-
-        // Populate Contract Duration Options (1-60 months)
-        function populateContractDurationOptions() {
-            const select = document.getElementById('contractDuration');
-            
-            // Clear existing options except first one
-            while (select.options.length > 1) {
-                select.remove(1);
-            }
-            
-            for (let i = 1; i <= 60; i++) {
-                const option = document.createElement('option');
-                option.value = i;
-                option.textContent = `${i} شهر`;
-                select.appendChild(option);
-            }
-        }
-
-        // Update Car Registration Expiry
-        function updateCarRegistrationExpiry() {
-            const carId = document.getElementById('assignedCar').value;
-            const car = modalCars.find(c => c.id === carId);
-            
-            if (car && car.registrationExpiry) {
-                const regDate = car.registrationExpiry.toDate ? 
-                    car.registrationExpiry.toDate() : 
-                    new Date(car.registrationExpiry);
-                document.getElementById('carRegistrationExpiry').value = regDate.toISOString().split('T')[0];
-            } else {
-                document.getElementById('carRegistrationExpiry').value = '';
-            }
-        }
-
-        // Calculate Contract End Date
-        function calculateContractEndDate() {
-            const startDate = document.getElementById('contractStartDate').value;
-            const duration = parseInt(document.getElementById('contractDuration').value);
-            
-            if (startDate && duration) {
-                const start = new Date(startDate);
-                const end = new Date(start);
-                end.setMonth(end.getMonth() + duration);
-                
-                document.getElementById('contractEndDate').value = end.toISOString().split('T')[0];
-            } else {
-                document.getElementById('contractEndDate').value = '';
-            }
-        }
-
-        // Save Driver
-        async function saveDriver(event) {
-            event.preventDefault();
-            
-            const saveBtn = event.target.querySelector('.save-btn');
-            saveBtn.disabled = true;
-            saveBtn.textContent = 'جاري الحفظ...';
-            
-            try {
-                const driverData = {
-                    name: document.getElementById('driverName').value.trim(),
-                    phone: document.getElementById('driverPhone').value.trim(),
-                    nationality: document.getElementById('driverNationality').value.trim() || '',
-                    address: document.getElementById('driverAddress').value.trim() || '',
-                    assignedCar: document.getElementById('assignedCar').value || '',
-                    dailyRent: parseFloat(document.getElementById('dailyRent').value) || 0,
-                    contractDuration: parseInt(document.getElementById('contractDuration').value) || 0,
-                    contractStartDate: document.getElementById('contractStartDate').value ? 
-                        firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('contractStartDate').value)) : null,
-                    contractEndDate: document.getElementById('contractEndDate').value ? 
-                        firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('contractEndDate').value)) : null,
-                    carRegistrationExpiry: document.getElementById('carRegistrationExpiry').value ? 
-                        firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('carRegistrationExpiry').value)) : null,
-                    residencyExpiry: document.getElementById('residencyExpiry').value ? 
-                        firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('residencyExpiry').value)) : null,
-                    licenseExpiry: document.getElementById('licenseExpiry').value ? 
-                        firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('licenseExpiry').value)) : null,
-                    permitExpiry: document.getElementById('permitExpiry').value ? 
-                        firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('permitExpiry').value)) : null,
-                    passportExpiry: document.getElementById('passportExpiry').value ? 
-                        firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('passportExpiry').value)) : null,
-                    oldDebts: parseFloat(document.getElementById('oldDebts').value) || 0,
-                    notes: document.getElementById('driverNotes').value.trim() || '',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-                
-                await db.collection('drivers').add(driverData);
-                
-                alert('✅ تم إضافة السائق بنجاح!');
-                closeModal();
-                loadData(); // Reload the table
-                
-            } catch (error) {
-                console.error('Error saving driver:', error);
-                alert('❌ حدث خطأ في حفظ البيانات: ' + error.message);
-            } finally {
-                saveBtn.disabled = false;
-                saveBtn.textContent = 'حفظ السائق';
-            }
         }
 
         // Search and filter functionality
