@@ -93,6 +93,9 @@ body {
     direction: rtl;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    max-width: 100vw;
+    position: relative;
 }
 
 /* ==================== الحاويات ==================== */
@@ -1908,20 +1911,22 @@ body {
     justify-content: center;
     position: relative;
     overflow: hidden;
+    max-width: 100vw;
 }
 
 /* تأثير الخلفية المتحركة */
 body::before {
     content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
     background-size: 50px 50px;
     animation: backgroundMove 20s linear infinite;
     z-index: 0;
+    pointer-events: none;
 }
 
 @keyframes backgroundMove {
@@ -2292,4 +2297,30 @@ body::before {
 .install-prompt button:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+
+/* ==================== منع السكرول الأفقي ==================== */
+html {
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+* {
+    max-width: 100%;
+}
+
+.container, .login-container, .login-card {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* التأكد من أن الجداول لا تسبب سكرول أفقي */
+.table-container {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+table {
+    max-width: 100%;
 }
