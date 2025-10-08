@@ -2751,3 +2751,96 @@ table {
         gap: 12px;
     }
 }
+
+
+
+/* ==================== أنماط جدول الدفعات ==================== */
+.payments-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 800px;
+    background: white;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.payments-table thead {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.payments-table th {
+    color: white;
+    padding: 16px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 15px;
+    border-bottom: none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.payments-table td {
+    padding: 14px;
+    text-align: center;
+    border-bottom: 1px solid #f0f0f0;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    color: #333;
+}
+
+.payments-table tbody tr {
+    transition: all 0.2s ease;
+}
+
+.payments-table tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+.payments-table tbody tr:hover {
+    background-color: #e8f0fe;
+    transform: scale(1.01);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+}
+
+.payments-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* تحسينات responsive لجدول الدفعات على الهواتف */
+@media (max-width: 768px) {
+    .payments-table {
+        min-width: 900px;
+        font-size: var(--font-size-xs);
+    }
+    
+    .payments-table th,
+    .payments-table td {
+        padding: 10px 8px;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+    
+    /* تثبيت عمود التاريخ */
+    .payments-table td:first-child,
+    .payments-table th:first-child {
+        position: sticky;
+        right: 0;
+        background: white;
+        z-index: 1;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        font-weight: 600;
+    }
+    
+    .payments-table thead th:first-child {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .payments-table tbody tr:nth-child(even) td:first-child {
+        background-color: #f8f9fa;
+    }
+    
+    .payments-table tbody tr:hover td:first-child {
+        background-color: #e8f0fe;
+    }
+}
+
