@@ -7,17 +7,144 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2563eb">
     <link rel="stylesheet" href="style.css">
-    
+    <style>
+        /* تخصيصات إضافية للوحة التحكم */
+        .dashboard-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px 32px;
+            border-radius: 20px;
+            margin-bottom: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); }
+            50% { transform: translateY(-20px) translateX(20px); }
+        }
+
+        .dashboard-header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .dashboard-header h1 {
+            font-size: 32px;
+            font-weight: 800;
+            margin: 0 0 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .dashboard-header p {
+            font-size: 16px;
+            opacity: 0.95;
+            margin: 0;
+        }
+
+        .dashboard-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .user-welcome {
+            font-size: 16px;
+            font-weight: 600;
+            opacity: 0.95;
+        }
+
+        .logout-btn-dashboard {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 15px;
+        }
+
+        .logout-btn-dashboard:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        /* تحسين شبكة الإجراءات السريعة */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        /* استجابة محسّنة */
+        @media (max-width: 1024px) {
+            .quick-actions {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-header {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+                padding: 20px;
+            }
+
+            .dashboard-header h1 {
+                font-size: 24px;
+                justify-content: center;
+            }
+
+            .dashboard-header-actions {
+                flex-direction: column;
+                gap: 12px;
+                width: 100%;
+            }
+
+            .logout-btn-dashboard {
+                width: 100%;
+            }
+
+            .quick-actions {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .quick-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🚕 لوحة تحكم المدير</h1>
-        <div class="user-info">
-            <span id="userName">مرحباً، المدير</span>
-            <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
-        </div>
-    </div>
-
     <div class="container">
         <div class="loading" id="loading">
             <div class="spinner"></div>
@@ -25,6 +152,18 @@
         </div>
 
         <div id="dashboard" style="display: none;">
+            <!-- الرأس الثابت -->
+            <div class="dashboard-header">
+                <div class="dashboard-header-content">
+                    <h1>🚕 لوحة تحكم المدير</h1>
+                    <p>مرحباً بك في نظام إدارة التاكسي</p>
+                </div>
+                <div class="dashboard-header-actions">
+                    <span class="user-welcome" id="userName">مرحباً، المدير</span>
+                    <button class="logout-btn-dashboard" onclick="logout()">تسجيل الخروج</button>
+                </div>
+            </div>
+
             <!-- إحصائيات سريعة -->
             <div class="stats-grid">
                 <div class="stat-card">
@@ -78,6 +217,14 @@
                 <a href="notifications.html" class="action-btn">
                     <div class="action-icon">🔔</div>
                     <span>الإشعارات</span>
+                </a>
+                <a href="driver-payments.html" class="action-btn">
+                    <div class="action-icon">💵</div>
+                    <span>دفعات السائقين</span>
+                </a>
+                <a href="accountant-dashboard.html" class="action-btn">
+                    <div class="action-icon">📋</div>
+                    <span>لوحة المحاسب</span>
                 </a>
             </div>
 
@@ -265,7 +412,7 @@
             alertsCount.textContent = `${alerts.length} تنبيه`;
 
             if (alerts.length === 0) {
-                alertsList.innerHTML = '<div class="alert-item alert-info"><div class="alert-icon">✅</div><div class="alert-content"><div class="alert-title">لا توجد تنبيهات</div><div class="alert-desc">جميع الأمور تسير بشكل طبيعي</div></div></div>';
+                alertsList.innerHTML = '<div class="alert-item alert-info"><div class="alert-icon">✅</div><div class="alert-content"><strong>لا توجد تنبيهات</strong><p>جميع الأمور تسير بشكل طبيعي</p></div></div>';
                 return;
             }
 
@@ -273,8 +420,8 @@
                 <div class="alert-item alert-${alert.type}">
                     <div class="alert-icon">${alert.icon}</div>
                     <div class="alert-content">
-                        <div class="alert-title">${alert.title}</div>
-                        <div class="alert-desc">${alert.desc}</div>
+                        <strong>${alert.title}</strong>
+                        <p>${alert.desc}</p>
                     </div>
                     <div class="alert-time">${alert.time}</div>
                 </div>
@@ -294,4 +441,3 @@
     </script>
 </body>
 </html>
-
