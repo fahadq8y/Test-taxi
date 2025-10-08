@@ -403,6 +403,41 @@ body {
     box-shadow: var(--shadow-lg);
     backdrop-filter: blur(10px);
     margin-bottom: var(--spacing-lg);
+    position: relative;
+    /* تحسين التمرير على الأجهزة المحمولة */
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* مؤشر التمرير الأفقي على الشاشات الصغيرة */
+.table-container::after {
+    content: '← اسحب لليسار لرؤية المزيد';
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(102, 126, 234, 0.9);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    white-space: nowrap;
+    z-index: 10;
+}
+
+@media (max-width: 768px) {
+    .table-container::after {
+        opacity: 1;
+        animation: fadeInOut 3s ease-in-out infinite;
+    }
+}
+
+@keyframes fadeInOut {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
 }
 
 .table {
@@ -712,14 +747,42 @@ body {
         width: 100%;
     }
     
+    /* تحسين عرض الجدول على الهواتف */
+    .table-container {
+        border-radius: var(--radius-md);
+        margin-bottom: var(--spacing-md);
+        /* إضافة padding للسماح برؤية المؤشر */
+        padding-bottom: 40px;
+    }
+    
     .table {
-        min-width: 600px;
+        min-width: 1200px; /* عرض أكبر للجداول الكبيرة */
+        font-size: var(--font-size-xs);
     }
     
     .table th,
     .table td {
-        padding: var(--spacing-sm);
-        font-size: var(--font-size-xs);
+        padding: 10px 8px;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+    
+    /* تحسين عرض الأسماء والنصوص الطويلة */
+    .table td:first-child {
+        position: sticky;
+        right: 0;
+        background: white;
+        z-index: 1;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        font-weight: 600;
+    }
+    
+    .table tbody tr:nth-child(even) td:first-child {
+        background-color: #f8f9fa;
+    }
+    
+    .table tbody tr:hover td:first-child {
+        background-color: #e8f0fe;
     }
     
     .stats-grid {
