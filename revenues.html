@@ -152,6 +152,11 @@
                     </tr>
                 </tbody>
             </table>
+            
+            <!-- Mobile Cards View -->
+            <div class="mobile-cards" id="mobileCardsContainer">
+                <div class="no-data">جاري تحميل الإيرادات...</div>
+            </div>
             <div class="pagination-footer">
                 <div class="pagination-info">
                     <span id="paginationInfo">عرض 0 من 0 عمليات</span>
@@ -386,6 +391,9 @@
             const currentPageData = filteredRevenues.slice(startIndex, endIndex);
             
             tbody.innerHTML = '';
+            const mobileContainer = document.getElementById('mobileCardsContainer');
+            mobileContainer.innerHTML = '';
+            
             currentPageData.forEach(revenue => {
                 const row = document.createElement('tr');
                 
@@ -393,13 +401,16 @@
                 let source = '';
                 let detailedDescription = revenue.description || '-';
                 let deleteButton = '';
+                let deleteFunction = '';
                 
                 if (revenue.source === 'driverPayment') {
                     source = '👤 دفعة سائق';
                     deleteButton = '<button class="delete-btn" onclick="deleteDriverPayment(\'' + revenue.id + '\')">حذف</button>';
+                    deleteFunction = 'deleteDriverPayment';
                 } else {
                     source = '🏢 إيراد مباشر';
                     deleteButton = '<button class="delete-btn" onclick="deleteRevenue(\'' + revenue.id + '\')">حذف</button>';
+                    deleteFunction = 'deleteRevenue';
                 }
                 
                 // تحسين الوصف التفصيلي
@@ -425,6 +436,7 @@
                     }
                 }
                 
+                // إنشاء صف الجدول
                 row.innerHTML = `
                     <td>${formatDate(revenue.date)}</td>
                     <td><span class="type-badge ${revenue.source === 'driverPayment' ? 'driver-payment' : 'direct-revenue'}">${revenue.type || 'غير محدد'}</span></td>
@@ -434,6 +446,36 @@
                     <td>${deleteButton}</td>
                 `;
                 tbody.appendChild(row);
+                
+                // إنشاء بطاقة للهاتف
+                const card = document.createElement('div');
+                card.className = 'mobile-card revenue';
+                card.innerHTML = `
+                    <div class="mobile-card-header">
+                        <div class="mobile-card-date">📅 ${formatDate(revenue.date)}</div>
+                        <div class="mobile-card-amount">+${parseFloat(revenue.amount || 0).toFixed(3)} د.ك</div>
+                    </div>
+                    <div class="mobile-card-body">
+                        <div class="mobile-card-row">
+                            <div class="mobile-card-label">🏷️ النوع</div>
+                            <div class="mobile-card-value">
+                                <span class="type-badge ${revenue.source === 'driverPayment' ? 'driver-payment' : 'direct-revenue'}">${revenue.type || 'غير محدد'}</span>
+                            </div>
+                        </div>
+                        <div class="mobile-card-row">
+                            <div class="mobile-card-label">📍 المصدر</div>
+                            <div class="mobile-card-value">${source}</div>
+                        </div>
+                        <div class="mobile-card-row">
+                            <div class="mobile-card-label">📝 الوصف</div>
+                            <div class="mobile-card-value">${detailedDescription}</div>
+                        </div>
+                    </div>
+                    <div class="mobile-card-footer">
+                        <button class="btn btn-danger" onclick="${deleteFunction}('${revenue.id}')">🗑️ حذف</button>
+                    </div>
+                `;
+                mobileContainer.appendChild(card);
             });
             
             // Update pagination info and controls

@@ -1141,3 +1141,152 @@ body {
         width: 100%;
     }
 }
+
+/* ==================== عرض البطاقات للجداول على الهاتف ==================== */
+
+/* إخفاء الجدول على الشاشات الصغيرة */
+@media (max-width: 768px) {
+    .table-container {
+        overflow-x: visible;
+    }
+    
+    /* إخفاء الجدول التقليدي */
+    .revenue-table,
+    .expense-table,
+    .table {
+        display: none;
+    }
+    
+    /* عرض البطاقات بدلاً من الجدول */
+    .mobile-cards {
+        display: block !important;
+    }
+}
+
+/* تصميم البطاقات للهاتف */
+.mobile-cards {
+    display: none; /* مخفي على الكمبيوتر */
+}
+
+.mobile-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-right: 4px solid var(--primary-color);
+}
+
+.mobile-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.mobile-card-date {
+    font-size: 14px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.mobile-card-amount {
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--success-color);
+}
+
+.mobile-card-body {
+    margin-bottom: 12px;
+}
+
+.mobile-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--bg-gray);
+}
+
+.mobile-card-row:last-child {
+    border-bottom: none;
+}
+
+.mobile-card-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.mobile-card-value {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+    text-align: left;
+    max-width: 60%;
+    word-wrap: break-word;
+}
+
+.mobile-card-footer {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.mobile-card-footer .btn,
+.mobile-card-footer .delete-btn {
+    padding: 8px 16px;
+    font-size: 13px;
+    flex: 1;
+    max-width: 120px;
+}
+
+/* ألوان خاصة للبطاقات */
+.mobile-card.revenue {
+    border-right-color: var(--success-color);
+}
+
+.mobile-card.expense {
+    border-right-color: var(--danger-color);
+}
+
+.mobile-card.expense .mobile-card-amount {
+    color: var(--danger-color);
+}
+
+/* تحسين عرض الشارات في البطاقات */
+.mobile-card .type-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+}
+
+/* رسالة "لا توجد بيانات" للبطاقات */
+.mobile-cards .no-data {
+    background: white;
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 16px;
+}
+
+/* تحسين pagination على الهاتف */
+@media (max-width: 768px) {
+    .pagination-buttons {
+        flex-wrap: wrap;
+    }
+    
+    .page-number {
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+}
