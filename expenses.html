@@ -898,7 +898,7 @@
                     if (driverPaymentsList.length > 0) {
                         const sortedPayments = driverPaymentsList.sort((a, b) => {
                             const dateA = a.date ? (a.date.toDate ? a.date.toDate() : new Date(a.date)) : new Date(0);
-                            const dateB = b.date ? (b.date.toDate ? b.date.toDate() : new Date(0));
+                            const dateB = b.date ? (b.date.toDate ? b.date.toDate() : new Date(b.date)) : new Date(0);
                             return dateB - dateA;
                         });
                         const lastPayment = sortedPayments[0];
