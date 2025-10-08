@@ -2844,3 +2844,150 @@ table {
     }
 }
 
+
+
+/* ==================== تحسينات صفحة جدول السائقين ==================== */
+
+/* أدوات الفلترة والبحث */
+.controls {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.search-input {
+    flex: 2;
+    min-width: 250px;
+    padding: 12px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    transition: var(--transition-base);
+    background: white;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.filter-select {
+    flex: 1;
+    min-width: 180px;
+    padding: 12px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    transition: var(--transition-base);
+    background: white;
+    cursor: pointer;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn-refresh {
+    padding: 12px 24px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-base);
+    white-space: nowrap;
+}
+
+.btn-refresh:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+/* تحسين البطاقات الإحصائية على الكمبيوتر */
+@media (min-width: 769px) {
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--spacing-md);
+    }
+    
+    .stat-card {
+        padding: var(--spacing-md);
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+    }
+    
+    .stat-label {
+        font-size: var(--font-size-sm);
+    }
+}
+
+/* تحسين البطاقات الإحصائية على الهاتف */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-sm);
+        margin-bottom: var(--spacing-md);
+    }
+    
+    .stat-card {
+        padding: var(--spacing-sm);
+    }
+    
+    .stat-number {
+        font-size: 1.5rem;
+    }
+    
+    .stat-label {
+        font-size: var(--font-size-xs);
+    }
+    
+    .controls {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+    
+    .search-input,
+    .filter-select {
+        width: 100%;
+        min-width: unset;
+    }
+    
+    .btn-refresh {
+        width: 100%;
+    }
+}
+
+/* تحسين الجدول على الكمبيوتر */
+@media (min-width: 769px) {
+    .table-container {
+        overflow-x: auto;
+        margin-bottom: var(--spacing-lg);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .table {
+        width: 100%;
+        min-width: 1200px;
+    }
+    
+    .table th {
+        font-size: var(--font-size-sm);
+        padding: 12px 10px;
+    }
+    
+    .table td {
+        font-size: var(--font-size-sm);
+        padding: 10px;
+    }
+}
+
