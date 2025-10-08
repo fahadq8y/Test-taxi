@@ -440,9 +440,16 @@
             margin-bottom: 5px;
         }
 
+        .debt-details {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+
         .debt-amount {
             color: #dc3545;
             font-weight: bold;
+            float: left;
         }
 
         @media (max-width: 768px) {
@@ -1215,17 +1222,38 @@
                 const debt = calculateDriverDebt(driver.id, payments);
                 if (debt > 0) {
                     totalDebts += debt;
+                    
+                    // Get last payment date
+                    const driverPaymentsList = payments.filter(p => p.driverId === driver.id);
+                    let lastPaymentDate = 'غير محدد';
+                    if (driverPaymentsList.length > 0) {
+                        const sortedPayments = driverPaymentsList.sort((a, b) => {
+                            const dateA = a.date ? (a.date.toDate ? a.date.toDate() : new Date(a.date)) : new Date(0);
+                            const dateB = b.date ? (b.date.toDate ? b.date.toDate() : new Date(0);
+                            return dateB - dateA;
+                        });
+                        const lastPayment = sortedPayments[0];
+                        if (lastPayment.date) {
+                            const paymentDate = lastPayment.date.toDate ? lastPayment.date.toDate() : new Date(lastPayment.date);
+                            lastPaymentDate = paymentDate.toLocaleDateString('en-GB');
+                        }
+                    }
+                    
                     debtsHtml += `
                         <div class="debt-item">
                             <div class="debt-driver">${driver.name || 'غير محدد'}</div>
                             <div class="debt-amount">${debt.toFixed(3)} د.ك</div>
+                            <div class="debt-details">
+                                الهاتف: ${driver.phone || 'غير محدد'}<br>
+                                آخر تحديث: ${lastPaymentDate}
+                            </div>
                         </div>
                     `;
                 }
             });
             
             if (debtsHtml === '') {
-                content.innerHTML = '<div class="no-data">لا توجد ديون على السائقين</div>';
+                content.innerHTML = '<div class="no-data">🎉 لا توجد ديون على السائقين</div>';
             } else {
                 content.innerHTML = `
                     <div style="text-align: center; margin-bottom: 20px; font-weight: bold; color: #dc3545;">
