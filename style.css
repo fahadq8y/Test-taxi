@@ -516,9 +516,11 @@ body {
 }
 
 .stat-number {
-    font-size: 2.5rem;
+    font-size: 2rem;
     font-weight: bold;
     margin-bottom: var(--spacing-sm);
+    word-break: break-word;
+    line-height: 1.2;
 }
 
 .stat-label {
@@ -2915,19 +2917,23 @@ table {
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: var(--spacing-lg);
-        max-width: 800px;
+        max-width: 900px;
     }
     
     .stat-card {
         padding: var(--spacing-lg);
+        min-height: 140px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
     
     .stat-number {
-        font-size: 2.5rem;
+        font-size: 1.8rem;
     }
     
     .stat-label {
-        font-size: var(--font-size-base);
+        font-size: var(--font-size-sm);
     }
 }
 
