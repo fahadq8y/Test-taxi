@@ -7,121 +7,231 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2563eb">
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* تخصيصات إضافية للوحة التحكم */
+        .dashboard-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px 32px;
+            border-radius: 20px;
+            margin-bottom: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); }
+            50% { transform: translateY(-20px) translateX(20px); }
+        }
+
+        .dashboard-header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .dashboard-header h1 {
+            font-size: 32px;
+            font-weight: 800;
+            margin: 0 0 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .dashboard-header p {
+            font-size: 16px;
+            opacity: 0.95;
+            margin: 0;
+        }
+
+        .dashboard-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .user-welcome {
+            font-size: 16px;
+            font-weight: 600;
+            opacity: 0.95;
+        }
+
+        .logout-btn-dashboard {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 15px;
+        }
+
+        .logout-btn-dashboard:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        /* تحسين شبكة الإجراءات السريعة */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        /* استجابة محسّنة */
+        @media (max-width: 1024px) {
+            .quick-actions {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-header {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+                padding: 20px;
+            }
+
+            .dashboard-header h1 {
+                font-size: 24px;
+                justify-content: center;
+            }
+
+            .dashboard-header-actions {
+                flex-direction: column;
+                gap: 12px;
+                width: 100%;
+            }
+
+            .logout-btn-dashboard {
+                width: 100%;
+            }
+
+            .quick-actions {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .quick-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>🚕 لوحة تحكم المدير</h1>
-            <p>مرحباً بك في نظام إدارة التاكسي</p>
-            <div class="nav-buttons">
-                <a href="drivers-overview.html" class="nav-btn">👥 السائقين</a>
-                <a href="revenues.html" class="nav-btn">💰 الإيرادات</a>
-                <a href="expenses.html" class="nav-btn">💸 المصروفات</a>
-                <a href="balance-display.html" class="nav-btn">📊 الميزانية</a>
-                <button class="nav-btn" onclick="logout()">تسجيل الخروج</button>
-            </div>
-        </div>
-
         <div class="loading" id="loading">
             <div class="spinner"></div>
             <p>جاري تحميل البيانات...</p>
         </div>
 
         <div id="dashboard" style="display: none;">
-            <!-- Balance Section -->
-            <div class="balance-section">
-                <h3>💰 الأرصدة والإحصائيات الحالية</h3>
-                <div class="balance-grid">
-                    <div class="balance-item">
-                        <div class="balance-label">رصيد الرواتب (د.ك)</div>
-                        <div class="balance-amount" id="salaryBalance">0.000 د.ك</div>
-                    </div>
-                    <div class="balance-item">
-                        <div class="balance-label">الرصيد البنكي (د.ك)</div>
-                        <div class="balance-amount" id="bankBalance">0.000 د.ك</div>
-                    </div>
-                    <div class="balance-item clickable" onclick="showDriverDebts()">
-                        <div class="balance-label">ديون على السائقين</div>
-                        <div class="balance-amount" id="driverDebts">0.000 د.ك</div>
-                    </div>
-                    <div class="balance-item">
-                        <div class="balance-label">إجمالي الإيرادات (د.ك)</div>
-                        <div class="balance-amount" id="totalRevenues">0.000 د.ك</div>
-                    </div>
+            <!-- الرأس الثابت -->
+            <div class="dashboard-header">
+                <div class="dashboard-header-content">
+                    <h1>🚕 لوحة تحكم المدير</h1>
+                    <p>مرحباً بك في نظام إدارة التاكسي</p>
+                </div>
+                <div class="dashboard-header-actions">
+                    <span class="user-welcome" id="userName">مرحباً، المدير</span>
+                    <button class="logout-btn-dashboard" onclick="logout()">تسجيل الخروج</button>
                 </div>
             </div>
 
             <!-- إحصائيات سريعة -->
-            <div class="balance-section">
-                <h3>📊 الإحصائيات السريعة</h3>
-                <div class="balance-grid">
-                    <div class="balance-item">
-                        <div class="balance-label">إجمالي السيارات</div>
-                        <div class="balance-amount" id="totalCars">0</div>
-                    </div>
-                    <div class="balance-item">
-                        <div class="balance-label">السائقين النشطين</div>
-                        <div class="balance-amount" id="activeDrivers">0</div>
-                    </div>
-                    <div class="balance-item">
-                        <div class="balance-label">إيرادات الشهر (د.ك)</div>
-                        <div class="balance-amount" id="monthlyRevenue">0.000</div>
-                    </div>
-                    <div class="balance-item">
-                        <div class="balance-label">مصروفات الشهر (د.ك)</div>
-                        <div class="balance-amount" id="monthlyExpenses">0.000</div>
-                    </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">🚗</div>
+                    <div class="stat-number" id="totalCars">0</div>
+                    <div class="stat-label">إجمالي السيارات</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">👨‍💼</div>
+                    <div class="stat-number" id="activeDrivers">0</div>
+                    <div class="stat-label">السائقين النشطين</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-number" id="monthlyRevenue">0</div>
+                    <div class="stat-label">إيرادات الشهر (د.ك)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-number" id="monthlyExpenses">0</div>
+                    <div class="stat-label">مصروفات الشهر (د.ك)</div>
                 </div>
             </div>
 
             <!-- الإجراءات السريعة -->
-            <div class="form-section">
-                <h3>⚡ الإجراءات السريعة</h3>
-                <div class="quick-actions">
-                    <a href="drivers.html" class="action-btn">
-                        <div class="action-icon">👨‍💼</div>
-                        <span>إدارة السائقين</span>
-                    </a>
-                    <a href="drivers-overview.html" class="action-btn">
-                        <div class="action-icon">📊</div>
-                        <span>جدول السائقين الشامل</span>
-                    </a>
-                    <a href="cars.html" class="action-btn">
-                        <div class="action-icon">🚗</div>
-                        <span>إدارة السيارات</span>
-                    </a>
-                    <a href="revenues.html" class="action-btn">
-                        <div class="action-icon">💰</div>
-                        <span>الإيرادات</span>
-                    </a>
-                    <a href="expenses.html" class="action-btn">
-                        <div class="action-icon">📊</div>
-                        <span>المصروفات</span>
-                    </a>
-                    <a href="reports.html" class="action-btn">
-                        <div class="action-icon">📈</div>
-                        <span>التقارير</span>
-                    </a>
-                    <a href="notifications.html" class="action-btn">
-                        <div class="action-icon">🔔</div>
-                        <span>الإشعارات</span>
-                    </a>
-                    <a href="driver-payments.html" class="action-btn">
-                        <div class="action-icon">💵</div>
-                        <span>دفعات السائقين</span>
-                    </a>
-                    <a href="accountant-dashboard.html" class="action-btn">
-                        <div class="action-icon">📋</div>
-                        <span>لوحة المحاسب</span>
-                    </a>
-                </div>
+            <div class="quick-actions">
+                <a href="drivers.html" class="action-btn">
+                    <div class="action-icon">👨‍💼</div>
+                    <span>إدارة السائقين</span>
+                </a>
+                <a href="drivers-overview.html" class="action-btn">
+                    <div class="action-icon">📊</div>
+                    <span>جدول السائقين الشامل</span>
+                </a>
+                <a href="cars.html" class="action-btn">
+                    <div class="action-icon">🚗</div>
+                    <span>إدارة السيارات</span>
+                </a>
+                <a href="revenues.html" class="action-btn">
+                    <div class="action-icon">💰</div>
+                    <span>الإيرادات</span>
+                </a>
+                <a href="expenses.html" class="action-btn">
+                    <div class="action-icon">📊</div>
+                    <span>المصروفات</span>
+                </a>
+                <a href="reports.html" class="action-btn">
+                    <div class="action-icon">📈</div>
+                    <span>التقارير</span>
+                </a>
+                <a href="notifications.html" class="action-btn">
+                    <div class="action-icon">🔔</div>
+                    <span>الإشعارات</span>
+                </a>
+                <a href="driver-payments.html" class="action-btn">
+                    <div class="action-icon">💵</div>
+                    <span>دفعات السائقين</span>
+                </a>
+                <a href="accountant-dashboard.html" class="action-btn">
+                    <div class="action-icon">📋</div>
+                    <span>لوحة المحاسب</span>
+                </a>
             </div>
 
             <!-- التنبيهات والتحذيرات -->
-            <div class="revenue-history">
-                <div class="table-header">
-                    <h3>🔔 التنبيهات والتحذيرات</h3>
+            <div class="alerts-section">
+                <div class="alerts-header">
+                    <h2>التنبيهات والتحذيرات</h2>
                     <span id="alertsCount">0 تنبيه</span>
                 </div>
                 <div id="alertsList">
@@ -131,24 +241,13 @@
         </div>
     </div>
 
-    <!-- Driver Debts Modal -->
-    <div id="debtsModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">تفاصيل ديون السائقين</h2>
-                <span class="close" onclick="closeDebtsModal()">&times;</span>
-            </div>
-            <div id="debtsContent">
-                <div class="no-data">جاري تحميل تفاصيل الديون...</div>
-            </div>
-        </div>
-    </div>
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, query, where, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="unified-balance.js"></script>
-    <script>
+        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
             authDomain: "taxi-management-system-d8210.firebaseapp.com",
@@ -159,47 +258,29 @@
             measurementId: "G-GY8820W410"
         };
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
-
-        let revenues = [];
-        let expenses = [];
-        let driverPayments = [];
-        let drivers = [];
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
         // Check authentication
         auth.onAuthStateChanged((user) => {
-            if (!user) {
+            if (!user || localStorage.getItem('userRole') !== 'admin') {
                 window.location.href = 'index.html';
                 return;
             }
             
-            const userRole = localStorage.getItem('userRole');
-            if (userRole !== 'admin') {
-                window.location.href = 'index.html';
-                return;
-            }
-            
+            document.getElementById('userName').textContent = `مرحباً، ${localStorage.getItem('userName') || 'المدير'}`;
             loadDashboardData();
         });
 
         // Load dashboard data
         async function loadDashboardData() {
             try {
-                // Load all data
+                // Load statistics
                 await Promise.all([
-                    loadRevenues(),
-                    loadExpenses(),
-                    loadDriverPayments(),
-                    loadDrivers(),
                     loadStats(),
                     loadAlerts()
                 ]);
-
-                // Calculate and display balances
-                const balances = calculateUnifiedBalances(revenues, expenses, driverPayments, drivers);
-                updateBalanceDisplay(balances);
 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
@@ -209,102 +290,41 @@
             }
         }
 
-        // Load revenues
-        async function loadRevenues() {
-            const revenuesSnapshot = await db.collection('revenues').get();
-            revenues = revenuesSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-        }
-
-        // Load expenses
-        async function loadExpenses() {
-            const expensesSnapshot = await db.collection('expenses').get();
-            expenses = expensesSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-        }
-
-        // Load driver payments
-        async function loadDriverPayments() {
-            const paymentsSnapshot = await db.collection('driverPayments').get();
-            driverPayments = paymentsSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-        }
-
-        // Load drivers
-        async function loadDrivers() {
-            const driversSnapshot = await db.collection('drivers').get();
-            drivers = driversSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-        }
-
-        // Update balance display
-        function updateBalanceDisplay(balances) {
-            document.getElementById('salaryBalance').textContent = `${balances.salaryBalance.toFixed(3)} د.ك`;
-            document.getElementById('bankBalance').textContent = `${balances.bankBalance.toFixed(3)} د.ك`;
-            document.getElementById('driverDebts').textContent = `${balances.driverDebts.toFixed(3)} د.ك`;
-            
-            // Calculate total revenues
-            let totalRevenues = 0;
-            revenues.forEach(revenue => {
-                totalRevenues += revenue.amount || 0;
-            });
-            driverPayments.forEach(payment => {
-                if (['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم'].includes(payment.type)) {
-                    totalRevenues += payment.amount || 0;
-                }
-            });
-            document.getElementById('totalRevenues').textContent = `${totalRevenues.toFixed(3)} د.ك`;
-        }
-
         // Load statistics
         async function loadStats() {
             try {
                 // Get total cars
-                const carsSnapshot = await db.collection('cars').get();
+                const carsSnapshot = await getDocs(collection(db, 'cars'));
                 document.getElementById('totalCars').textContent = carsSnapshot.size;
 
                 // Get active drivers
-                const activeDriversCount = drivers.filter(d => d.contractStatus === 'active').length;
-                document.getElementById('activeDrivers').textContent = activeDriversCount;
+                const driversQuery = query(collection(db, 'drivers'), where('contractStatus', '==', 'active'));
+                const driversSnapshot = await getDocs(driversQuery);
+                document.getElementById('activeDrivers').textContent = driversSnapshot.size;
 
                 // Get monthly revenue
                 const currentMonth = new Date();
                 currentMonth.setDate(1);
-                currentMonth.setHours(0, 0, 0, 0);
-                
+                const revenuesQuery = query(
+                    collection(db, 'revenues'),
+                    where('date', '>=', currentMonth)
+                );
+                const revenuesSnapshot = await getDocs(revenuesQuery);
                 let monthlyRevenue = 0;
-                revenues.forEach(revenue => {
-                    const revenueDate = revenue.date ? new Date(revenue.date) : null;
-                    if (revenueDate && revenueDate >= currentMonth) {
-                        monthlyRevenue += revenue.amount || 0;
-                    }
+                revenuesSnapshot.forEach(doc => {
+                    monthlyRevenue += doc.data().amount || 0;
                 });
-                
-                driverPayments.forEach(payment => {
-                    const paymentDate = payment.date ? new Date(payment.date) : null;
-                    if (paymentDate && paymentDate >= currentMonth && 
-                        ['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم'].includes(payment.type)) {
-                        monthlyRevenue += payment.amount || 0;
-                    }
-                });
-                
                 document.getElementById('monthlyRevenue').textContent = monthlyRevenue.toFixed(3);
 
                 // Get monthly expenses
+                const expensesQuery = query(
+                    collection(db, 'expenses'),
+                    where('date', '>=', currentMonth)
+                );
+                const expensesSnapshot = await getDocs(expensesQuery);
                 let monthlyExpenses = 0;
-                expenses.forEach(expense => {
-                    const expenseDate = expense.date ? new Date(expense.date) : null;
-                    if (expenseDate && expenseDate >= currentMonth) {
-                        monthlyExpenses += expense.amount || 0;
-                    }
+                expensesSnapshot.forEach(doc => {
+                    monthlyExpenses += doc.data().amount || 0;
                 });
                 document.getElementById('monthlyExpenses').textContent = monthlyExpenses.toFixed(3);
 
@@ -320,7 +340,9 @@
                 const today = new Date();
 
                 // Check document expiry alerts
-                drivers.forEach(driver => {
+                const driversSnapshot = await getDocs(collection(db, 'drivers'));
+                driversSnapshot.forEach(doc => {
+                    const driver = doc.data();
                     const driverName = driver.name;
 
                     // Check each document type
@@ -329,12 +351,12 @@
                         { field: 'residenceExpiry', name: 'الإقامة', warningDays: 30 },
                         { field: 'licenseExpiry', name: 'الرخصة', warningDays: 30 },
                         { field: 'permitExpiry', name: 'التصريح', warningDays: 30 },
-                        { field: 'passportExpiry', name: 'جواز السفر', warningDays: 425 }
+                        { field: 'passportExpiry', name: 'جواز السفر', warningDays: 425 } // سنة وشهرين
                     ];
 
                     documents.forEach(docType => {
                         if (driver[docType.field]) {
-                            const expiryDate = driver[docType.field].toDate ? driver[docType.field].toDate() : new Date(driver[docType.field]);
+                            const expiryDate = driver[docType.field].toDate();
                             const daysUntilExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
 
                             if (daysUntilExpiry <= docType.warningDays && daysUntilExpiry > 0) {
@@ -359,7 +381,7 @@
 
                     // Check oil change alerts
                     if (driver.lastOilChangeDate) {
-                        const lastOilChange = driver.lastOilChangeDate.toDate ? driver.lastOilChangeDate.toDate() : new Date(driver.lastOilChangeDate);
+                        const lastOilChange = driver.lastOilChangeDate.toDate();
                         const daysSinceOilChange = Math.ceil((today - lastOilChange) / (1000 * 60 * 60 * 24));
 
                         if (daysSinceOilChange >= 15) {
@@ -406,76 +428,16 @@
             `).join('');
         }
 
-        // Show driver debts modal
-        function showDriverDebts() {
-            const modal = document.getElementById('debtsModal');
-            const debtsContent = document.getElementById('debtsContent');
-            
-            // Calculate debts for each driver
-            const driversWithDebts = drivers.filter(driver => {
-                const totalDebt = calculateDriverTotalDebt(driver);
-                return totalDebt > 0;
-            }).map(driver => ({
-                name: driver.name,
-                debt: calculateDriverTotalDebt(driver)
-            })).sort((a, b) => b.debt - a.debt);
-
-            if (driversWithDebts.length === 0) {
-                debtsContent.innerHTML = '<div class="no-debts">لا توجد ديون على السائقين</div>';
-            } else {
-                debtsContent.innerHTML = `
-                    <table class="debts-table">
-                        <thead>
-                            <tr>
-                                <th>اسم السائق</th>
-                                <th>إجمالي الدين (د.ك)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${driversWithDebts.map(driver => `
-                                <tr>
-                                    <td>${driver.name}</td>
-                                    <td>${driver.debt.toFixed(3)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
-            }
-            
-            modal.style.display = 'block';
-        }
-
-        // Calculate driver total debt
-        function calculateDriverTotalDebt(driver) {
-            const violations = parseFloat(driver.violations) || 0;
-            const residenceExpenses = parseFloat(driver.residenceExpenses) || 0;
-            const oldDebts = parseFloat(driver.oldDebts) || 0;
-            return violations + residenceExpenses + oldDebts;
-        }
-
-        // Close debts modal
-        function closeDebtsModal() {
-            document.getElementById('debtsModal').style.display = 'none';
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('debtsModal');
-            if (event.target == modal) {
-                modal.style.display = 'none';
-            }
-        }
-
         // Logout function
-        function logout() {
-            auth.signOut().then(() => {
+        window.logout = async () => {
+            try {
+                await signOut(auth);
                 localStorage.clear();
                 window.location.href = 'index.html';
-            }).catch((error) => {
+            } catch (error) {
                 console.error('Logout error:', error);
-            });
-        }
+            }
+        };
     </script>
 </body>
 </html>
