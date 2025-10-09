@@ -2913,20 +2913,21 @@ table {
 /* تحسين البطاقات الإحصائية على الكمبيوتر */
 @media (min-width: 769px) {
     .stats-grid {
-        grid-template-columns: repeat(4, 1fr);
-        gap: var(--spacing-md);
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-lg);
+        max-width: 800px;
     }
     
     .stat-card {
-        padding: var(--spacing-md);
+        padding: var(--spacing-lg);
     }
     
     .stat-number {
-        font-size: 2rem;
+        font-size: 2.5rem;
     }
     
     .stat-label {
-        font-size: var(--font-size-sm);
+        font-size: var(--font-size-base);
     }
 }
 
@@ -2988,6 +2989,47 @@ table {
     .table td {
         font-size: var(--font-size-sm);
         padding: 10px;
+    }
+}
+
+
+
+/* تحسين الأزرار الجانبية على الكمبيوتر */
+@media (min-width: 769px) {
+    .action-btn {
+        padding: 16px 12px;
+        min-width: 120px;
+        max-width: 140px;
+    }
+    
+    .action-icon {
+        font-size: 32px;
+    }
+    
+    .action-btn span {
+        font-size: 13px;
+    }
+}
+
+/* تحسين عرض المحتوى الرئيسي على الكمبيوتر */
+@media (min-width: 769px) {
+    .main-content {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .content-wrapper {
+        display: flex;
+        gap: var(--spacing-lg);
+    }
+    
+    .primary-content {
+        flex: 1;
+    }
+    
+    .sidebar-actions {
+        flex-shrink: 0;
+        width: 160px;
     }
 }
 
