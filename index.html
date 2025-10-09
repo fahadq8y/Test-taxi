@@ -8,42 +8,193 @@
     <meta name="theme-color" content="#2563eb">
     <link rel="icon" type="image/png" href="icon-192.png">
     <link rel="stylesheet" href="style.css">
-    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            direction: rtl;
+        }
+
+        .login-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            margin: 1rem;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo h1 {
+            color: #2563eb;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .logo p {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #374151;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+            direction: rtl;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .login-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 0.75rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            text-align: center;
+            display: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #2563eb;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .install-prompt {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: #2563eb;
+            color: white;
+            padding: 1rem;
+            border-radius: 10px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+        }
+
+        .install-btn {
+            background: white;
+            color: #2563eb;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            margin-left: 1rem;
+        }
+    </style>
 </head>
 <body>
     <div class="login-container">
-        <div class="login-card">
-            <div class="login-header">
-                <div class="login-icon">🚕</div>
-                <h1>نظام إدارة التاكسي</h1>
-                <p>إدارة شاملة لشركة التاكسي</p>
+        <div class="logo">
+            <h1>🚕 نظام إدارة التاكسي</h1>
+            <p>إدارة شاملة لشركة التاكسي</p>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">البريد الإلكتروني</label>
+                <input type="email" id="email" required>
             </div>
 
-            <div class="error-message" id="errorMessage"></div>
-
-            <form id="loginForm" class="login-form">
-                <div class="input-group">
-                    <div class="input-icon">📧</div>
-                    <input type="email" id="email" placeholder="البريد الإلكتروني" required>
-                </div>
-
-                <div class="input-group">
-                    <div class="input-icon">🔒</div>
-                    <input type="password" id="password" placeholder="كلمة المرور" required>
-                </div>
-
-                <button type="submit" class="login-btn" id="loginBtn">
-                    <span>تسجيل الدخول</span>
-                    <span class="btn-arrow">→</span>
-                </button>
-            </form>
-
-            <div class="login-footer">
-                <a href="driver-login.html" class="driver-login-link">
-                    <span>🚗</span>
-                    <span>دخول السائقين</span>
-                </a>
+            <div class="form-group">
+                <label for="password">كلمة المرور</label>
+                <input type="password" id="password" required>
             </div>
+
+            <button type="submit" class="login-btn" id="loginBtn">
+                تسجيل الدخول
+            </button>
+        </form>
+
+        <div style="text-align: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+            <a href="driver-login.html" style="color: #6b7280; text-decoration: none; font-size: 0.9rem;">
+                🚗 دخول السائقين
+            </a>
         </div>
 
         <div class="loading" id="loading">

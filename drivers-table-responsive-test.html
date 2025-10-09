@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار Responsive - جدول السائقين</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .test-container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        .device-frame {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        .device-label {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .phone-view {
+            max-width: 375px;
+            margin: 0 auto;
+        }
+        
+        .tablet-view {
+            max-width: 768px;
+            margin: 0 auto;
+        }
+        
+        .desktop-view {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <!-- عرض الهاتف -->
+        <div class="device-frame phone-view">
+            <div class="device-label">📱 عرض الهاتف (375px)</div>
+            
+            <h2 style="text-align: center; color: #333; margin-bottom: 20px;">🚗 جدول السائقين</h2>
+            
+            <div class="stats-grid" style="margin-bottom: 20px;">
+                <div class="stat-card">
+                    <div class="stat-number regular">1</div>
+                    <div class="stat-label">سائقين منتظمين</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number late">0</div>
+                    <div class="stat-label">سائقين متأخرين</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number very-late">0</div>
+                    <div class="stat-label">سائقين متأخرين جداً</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number debt">499.000 د.ك</div>
+                    <div class="stat-label">إجمالي الديون</div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>اسم السائق</th>
+                            <th>الأجرة اليومية</th>
+                            <th>تاريخ بداية العقد</th>
+                            <th>تاريخ آخر سداد</th>
+                            <th>سداد حتى تاريخ</th>
+                            <th>عدد أيام التأخير</th>
+                            <th>قيمة التأخير</th>
+                            <th>رصيد السائق</th>
+                            <th>المخالفات</th>
+                            <th>مصاريف الإقامة</th>
+                            <th>ديون قديمة</th>
+                            <th>إجمالي الدين</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="driver-name">محمد محمد محمد</span></td>
+                            <td class="amount">7.000 د.ك</td>
+                            <td>01/10/2025</td>
+                            <td>01/10/2025</td>
+                            <td>01/10/2025</td>
+                            <td>7</td>
+                            <td class="amount negative">49.000 د.ك</td>
+                            <td class="amount zero">0.000 د.ك</td>
+                            <td class="amount zero">0.000 د.ك</td>
+                            <td class="amount zero">0.000 د.ك</td>
+                            <td class="amount zero">0.000 د.ك</td>
+                            <td class="amount negative">49.000 د.ك</td>
+                        </tr>
+                        <tr>
+                            <td><span class="driver-name">أحمد علي</span></td>
+                            <td class="amount">6.500 د.ك</td>
+                            <td>15/09/2025</td>
+                            <td>20/09/2025</td>
+                            <td>25/09/2025</td>
+                            <td>13</td>
+                            <td class="amount negative">84.500 د.ك</td>
+                            <td class="amount positive">10.000 د.ك</td>
+                            <td class="amount negative">5.000 د.ك</td>
+                            <td class="amount negative">15.000 د.ك</td>
+                            <td class="amount negative">20.000 د.ك</td>
+                            <td class="amount negative">114.500 د.ك</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- عرض الجهاز اللوحي -->
+        <div class="device-frame tablet-view">
+            <div class="device-label">📱 عرض الجهاز اللوحي (768px)</div>
+            
+            <h2 style="text-align: center; color: #333; margin-bottom: 20px;">🚗 جدول السائقين</h2>
+            
+            <div class="stats-grid" style="margin-bottom: 20px;">
+                <div class="stat-card">
+                    <div class="stat-number regular">1</div>
+                    <div class="stat-label">سائقين منتظمين</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number late">0</div>
+                    <div class="stat-label">سائقين متأخرين</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number very-late">0</div>
+                    <div class="stat-label">سائقين متأخرين جداً</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number debt">499.000 د.ك</div>
+                    <div class="stat-label">إجمالي الديون</div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>اسم السائق</th>
+                            <th>الأجرة اليومية</th>
+                            <th>تاريخ بداية العقد</th>
+                            <th>تاريخ آخر سداد</th>
+                            <th>سداد حتى تاريخ</th>
+                            <th>عدد أيام التأخير</th>
+                            <th>قيمة التأخير</th>
+                            <th>رصيد السائق</th>
+                            <th>المخالفات</th>
+                            <th>مصاريف الإقامة</th>
+                            <th>ديون قديمة</th>
+                            <th>إجمالي الدين</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="driver-name">محمد محمد محمد</span></td>
+                            <td class="amount">7.000 د.ك</td>
+                            <td>01/10/2025</td>
+                            <td>01/10/2025</td>
+                            <td>01/10/2025</td>
+                            <td>7</td>
+                            <td class="amount negative">49.000 د.ك</td>
+                            <td class="amount zero">0.000 د.ك</td>
+                            <td class="amount zero">0.000 د.ك</td>
+                            <td class="amount zero">0.000 د.ك</td>
+                            <td class="amount zero">0.000 د.ك</td>
+                            <td class="amount negative">49.000 د.ك</td>
+                        </tr>
+                        <tr>
+                            <td><span class="driver-name">أحمد علي</span></td>
+                            <td class="amount">6.500 د.ك</td>
+                            <td>15/09/2025</td>
+                            <td>20/09/2025</td>
+                            <td>25/09/2025</td>
+                            <td>13</td>
+                            <td class="amount negative">84.500 د.ك</td>
+                            <td class="amount positive">10.000 د.ك</td>
+                            <td class="amount negative">5.000 د.ك</td>
+                            <td class="amount negative">15.000 د.ك</td>
+                            <td class="amount negative">20.000 د.ك</td>
+                            <td class="amount negative">114.500 د.ك</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

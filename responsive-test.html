@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار التصميم المتجاوب</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .iframe-container {
+            margin-bottom: 40px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .iframe-container h2 {
+            margin-top: 0;
+            color: #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .size-label {
+            font-size: 14px;
+            color: #666;
+            font-weight: normal;
+        }
+        iframe {
+            width: 100%;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            display: block;
+        }
+        .desktop-view iframe {
+            height: 800px;
+        }
+        .tablet-view iframe {
+            height: 1000px;
+            max-width: 768px;
+            margin: 0 auto;
+        }
+        .mobile-view iframe {
+            height: 1200px;
+            max-width: 375px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🎨 اختبار التصميم المتجاوب - لوحة التحكم الإدارية</h1>
+        
+        <div class="iframe-container desktop-view">
+            <h2>
+                💻 عرض الكمبيوتر
+                <span class="size-label">(1200px × 800px)</span>
+            </h2>
+            <iframe src="admin-dashboard-preview.html"></iframe>
+        </div>
+        
+        <div class="iframe-container tablet-view">
+            <h2>
+                📱 عرض الجهاز اللوحي
+                <span class="size-label">(768px × 1000px)</span>
+            </h2>
+            <iframe src="admin-dashboard-preview.html"></iframe>
+        </div>
+        
+        <div class="iframe-container mobile-view">
+            <h2>
+                📱 عرض الهاتف
+                <span class="size-label">(375px × 1200px)</span>
+            </h2>
+            <iframe src="admin-dashboard-preview.html"></iframe>
+        </div>
+    </div>
+</body>
+</html>
