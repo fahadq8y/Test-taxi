@@ -107,18 +107,40 @@ body {
 
 /* ==================== الرأس ==================== */
 .header {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    border-radius: 20px;
+    padding: 32px;
+    margin-bottom: 32px;
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+    position: relative;
+    overflow: hidden;
     text-align: center;
     color: white;
 }
 
+.header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    animation: headerPulse 15s ease-in-out infinite;
+}
+
+@keyframes headerPulse {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(-30px, -30px); }
+}
+
 .header h1 {
-    font-size: var(--font-size-3xl);
-    margin-bottom: var(--spacing-sm);
+    position: relative;
+    z-index: 1;
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -126,8 +148,10 @@ body {
 }
 
 .header p {
-    font-size: var(--font-size-base);
-    opacity: 0.9;
+    position: relative;
+    z-index: 1;
+    font-size: 16px;
+    opacity: 0.95;
 }
 
 /* ==================== أزرار التنقل ==================== */
@@ -137,6 +161,8 @@ body {
     justify-content: center;
     margin-top: var(--spacing-md);
     flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
 }
 
 .nav-btn {
@@ -147,15 +173,18 @@ body {
     border-radius: var(--radius-md);
     text-decoration: none;
     font-weight: 500;
-    transition: var(--transition-base);
+    transition: all 0.3s ease;
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-xs);
+    cursor: pointer;
+    backdrop-filter: blur(10px);
 }
 
 .nav-btn:hover {
     background: rgba(255, 255, 255, 0.3);
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* ==================== البطاقات ==================== */
@@ -1831,62 +1860,7 @@ textarea:focus {
     justify-content: center;
 }
 
-/* تحسين أزرار التنقل */
-.nav-btn {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    transition: all 0.3s ease;
-}
-
-.nav-btn:hover {
-    background: rgba(255, 255, 255, 0.25);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* تحسين الرأس */
-.header {
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    border-radius: 20px;
-    padding: 32px;
-    margin-bottom: 32px;
-    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
-    position: relative;
-    overflow: hidden;
-}
-
-.header::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-    animation: headerPulse 15s ease-in-out infinite;
-}
-
-@keyframes headerPulse {
-    0%, 100% { transform: translate(0, 0); }
-    50% { transform: translate(-30px, -30px); }
-}
-
-.header h1 {
-    position: relative;
-    z-index: 1;
-    font-size: 32px;
-    font-weight: 700;
-    margin-bottom: 8px;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.header p {
-    position: relative;
-    z-index: 1;
-    font-size: 16px;
-    opacity: 0.95;
-}
+/* تنسيقات مكررة تم حذفها - الآن موحدة في الأعلى */
 
 /* تحسين الـ Container */
 .container {
@@ -2434,26 +2408,7 @@ table {
 /* ==================== لوحة التحكم - Dashboard ==================== */
 
 /* الرأس */
-.header {
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    color: white;
-    padding: 24px 32px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-}
-
-.header h1 {
-    font-size: 28px;
-    font-weight: 700;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+/* تنسيق header مكرر - تم حذفه لصالح التنسيق الموحد */
 }
 
 .user-info {
