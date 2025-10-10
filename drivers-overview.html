@@ -95,6 +95,94 @@
         }
 
         /* عرض responsive للموبايل */
+        /* Mobile Cards Styles */
+        .mobile-cards {
+            display: none;
+        }
+
+        .payment-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-right: 5px solid #667eea;
+        }
+
+        .payment-card.positive-border {
+            border-right-color: #28a745;
+        }
+
+        .payment-card.negative-border {
+            border-right-color: #dc3545;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .card-date {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .date-icon {
+            font-size: 1.2rem;
+        }
+
+        .card-amount {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .card-amount.positive {
+            color: #28a745;
+        }
+
+        .card-amount.negative {
+            color: #dc3545;
+        }
+
+        .card-body {
+            margin-bottom: 12px;
+        }
+
+        .card-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f8f9fa;
+        }
+
+        .card-label {
+            color: #666;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .card-value {
+            color: #333;
+            font-weight: 600;
+            text-align: left;
+        }
+
+        .type-badge {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+        }
+
         @media (max-width: 768px) {
             .table-container {
                 padding: 15px;
@@ -136,6 +224,15 @@
 
             .table tbody tr:hover td:first-child {
                 background-color: #e8f0fe;
+            }
+
+            /* Hide table, show cards in modal on mobile */
+            .modal .desktop-table {
+                display: none;
+            }
+
+            .modal .mobile-cards {
+                display: block;
             }
         }
 
@@ -368,7 +465,8 @@
                     </select>
                     <button class="btn-refresh" onclick="exportPaymentHistory()">📥 تصدير</button>
                 </div>
-                <div class="table-container">
+                <!-- Desktop Table View -->
+                <div class="table-container desktop-table">
                     <table class="table">
                         <thead>
                             <tr>
@@ -385,6 +483,11 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Mobile Cards View -->
+                <div class="mobile-cards" id="mobilePaymentHistoryContainer">
+                    <div class="no-data">جاري تحميل البيانات...</div>
                 </div>
             </div>
         </div>
@@ -968,6 +1071,7 @@
                         return dateB - dateA;
                     });
                 
+                // Desktop table view
                 let tableContent = '';
                 if (payments.length === 0) {
                     tableContent = '<tr><td colspan="5" class="no-data">لا توجد سجلات مدفوعات</td></tr>';
@@ -982,8 +1086,49 @@
                         </tr>
                     `).join('');
                 }
-                
                 document.getElementById('paymentHistoryTableBody').innerHTML = tableContent;
+
+                // Mobile cards view
+                const mobileContainer = document.getElementById('mobilePaymentHistoryContainer');
+                if (payments.length === 0) {
+                    mobileContainer.innerHTML = '<div class="no-data">لا توجد سجلات مدفوعات</div>';
+                } else {
+                    mobileContainer.innerHTML = payments.map(payment => {
+                        const isPositive = ['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم'].includes(payment.type);
+                        const amountClass = isPositive ? 'positive' : 'negative';
+                        const amountSign = isPositive ? '+' : '';
+                        const borderClass = isPositive ? 'positive-border' : 'negative-border';
+                        
+                        return `
+                            <div class="payment-card ${borderClass}">
+                                <div class="card-header">
+                                    <div class="card-date">
+                                        <span class="date-icon">📅</span>
+                                        <span>${formatDate(payment.date)}</span>
+                                    </div>
+                                    <div class="card-amount ${amountClass}">
+                                        ${amountSign}${parseFloat(payment.amount || 0).toFixed(3)} د.ك
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="card-row">
+                                        <span class="card-label">🏷️ النوع:</span>
+                                        <span class="card-value type-badge">${payment.type || 'غير محدد'}</span>
+                                    </div>
+                                    <div class="card-row">
+                                        <span class="card-label">📝 الوصف:</span>
+                                        <span class="card-value">${payment.description || '-'}</span>
+                                    </div>
+                                    <div class="card-row">
+                                        <span class="card-label">📌 الملاحظات:</span>
+                                        <span class="card-value">${payment.notes || '-'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+                
                 document.getElementById('paymentHistoryModal').style.display = 'flex';
                 
             } catch (error) {
