@@ -429,22 +429,26 @@
             // Calculate driver balance (positive balance means driver paid extra)
             const driverBalance = Math.max(0, totalPaid - expectedTotal);
             
-            // Calculate violations
+            // Calculate violations (positive = driver owes, negative = driver paid)
             const violationPayments = driverPayments.filter(p => 
                 p.driverId === driver.id && (p.type === 'سداد مخالفة' || p.type === 'تحصيل مخالفة')
             );
             const violations = violationPayments.reduce((sum, p) => {
                 const amount = parseFloat(p.amount || 0);
-                return p.type === 'سداد مخالفة' ? sum + amount : sum - amount;
+                // تحصيل مخالفة = السائق دفع (يقلل الدين)
+                // سداد مخالفة = الشركة دفعت عن السائق (يزيد الدين)
+                return p.type === 'تحصيل مخالفة' ? sum - amount : sum + amount;
             }, 0);
             
-            // Calculate residency fees
+            // Calculate residency fees (positive = driver owes, negative = driver paid)
             const residencyPayments = driverPayments.filter(p => 
                 p.driverId === driver.id && (p.type === 'سداد رسوم إقامة' || p.type === 'تحصيل رسوم إقامة')
             );
             const residencyFees = residencyPayments.reduce((sum, p) => {
                 const amount = parseFloat(p.amount || 0);
-                return p.type === 'سداد رسوم إقامة' ? sum + amount : sum - amount;
+                // تحصيل رسوم إقامة = السائق دفع (يقلل الدين)
+                // سداد رسوم إقامة = الشركة دفعت عن السائق (يزيد الدين)
+                return p.type === 'تحصيل رسوم إقامة' ? sum - amount : sum + amount;
             }, 0);
             
             // Old debts

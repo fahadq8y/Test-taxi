@@ -546,8 +546,26 @@ body {
 
 /* تحسين عرض المبالغ */
 .table td.amount {
-    font-weight: 500;
+    font-weight: 600;
     font-family: 'Courier New', monospace;
+    font-size: 15px;
+}
+
+/* ألوان المبالغ في الجدول */
+.table td.amount.positive {
+    color: #28a745;
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+.table td.amount.negative {
+    color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.1);
+    font-weight: 700;
+}
+
+.table td.amount.zero {
+    color: #6c757d;
+    opacity: 0.7;
 }
 
 /* ==================== الإحصائيات ==================== */
