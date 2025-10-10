@@ -589,7 +589,9 @@
             
             // Old debts (الديون المسجلة - المدفوعات)
             const oldDebtsInitial = parseFloat(driver.oldDebts || 0);
-            const oldDebtPayments = payments.filter(p => p.type === 'دين قديم');
+            const oldDebtPayments = driverPayments.filter(p => 
+                p.driverId === driver.id && p.type === 'دين قديم'
+            );
             const oldDebtsPaid = oldDebtPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
             const oldDebts = Math.max(0, oldDebtsInitial - oldDebtsPaid);
             
