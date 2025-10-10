@@ -622,9 +622,21 @@ body {
 /* ==================== الأرصدة ==================== */
 .balance-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: var(--spacing-md);
     margin-bottom: var(--spacing-lg);
+}
+
+@media (max-width: 1024px) {
+    .balance-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .balance-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .balance-card {
@@ -866,9 +878,6 @@ body {
         font-size: 0.75rem;
     }
     
-    .balance-grid {
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    }
 }
 
 /* الهواتف الصغيرة */
@@ -880,10 +889,6 @@ body {
     }
     
     .stats-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .balance-grid {
         grid-template-columns: 1fr;
     }
 }
@@ -2509,9 +2514,20 @@ table {
 /* الإجراءات السريعة */
 .quick-actions {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 20px;
-    margin-bottom: 40px;
+}
+
+@media (max-width: 1024px) {
+    .quick-actions {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .quick-actions {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* زر الإجراء */
@@ -2735,10 +2751,7 @@ table {
         font-size: 36px;
     }
     
-    .quick-actions {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-    }
+
     
     .action-btn {
         padding: 20px 16px;
