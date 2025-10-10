@@ -10,423 +10,23 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="style.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            direction: rtl;
-        }
-
-        .header {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .header h1 {
-            color: white;
-            font-size: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .header-buttons {
-            display: flex;
-            gap: 1rem;
-        }
-
-        .btn {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-primary {
-            background: #28a745;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #218838;
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 1.5rem;
-            border-radius: 15px;
-            text-align: center;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .stat-number {
-            font-size: 2.5rem;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-label {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        .regular { color: #28a745; }
-        .late { color: #ffc107; }
-        .very-late { color: #dc3545; }
-        .debt { color: #17a2b8; }
-
-        .controls {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 1.5rem;
-            border-radius: 15px;
-            margin-bottom: 2rem;
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-            flex-wrap: wrap;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        }
-
-        .search-input, .filter-select {
-            padding: 0.75rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
-        }
-
-        .search-input:focus, .filter-select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .search-input {
-            flex: 1;
-            min-width: 250px;
-        }
-
-        .btn-refresh {
-            background: #667eea;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-
-        .btn-refresh:hover {
-            background: #5a6fd8;
-            transform: translateY(-2px);
-        }
-
-        .table-container {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            overflow-x: auto;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-        }
-
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 1200px;
-        }
-
-        .table th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem;
-            text-align: center;
-            font-weight: 600;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .table td {
-            padding: 1rem;
-            text-align: center;
-            border-bottom: 1px solid #e0e0e0;
-            transition: background-color 0.3s ease;
-        }
-
-        .table tbody tr:hover {
-            background-color: rgba(102, 126, 234, 0.1);
-        }
-
-        .driver-name {
-            color: #667eea;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: underline;
-            transition: color 0.3s ease;
-        }
-
-        .driver-name:hover {
-            color: #5a6fd8;
-        }
-
-        .amount {
-            font-weight: 600;
-        }
-
-        .positive { color: #28a745; }
-        .negative { color: #dc3545; }
-        .zero { color: #6c757d; }
-
-        .loading {
-            text-align: center;
-            padding: 3rem;
-            color: #666;
-            font-size: 1.1rem;
-        }
-
-        .no-data {
-            text-align: center;
-            padding: 3rem;
-            color: #666;
-            font-size: 1.1rem;
-        }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-        }
-
-        .modal-content {
-            background-color: white;
-            margin: 2% auto;
-            padding: 1.5rem;
-            border-radius: 12px;
-            width: 95%;
-            max-width: 900px;
-            max-height: 85vh;
-            overflow-y: auto;
-            direction: rtl;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .modal-header h2 {
-            color: #1f2937;
-            font-size: 1.5rem;
-        }
-
-        .close {
-            color: #aaa;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: color 0.3s;
-        }
-
-        .close:hover {
-            color: #000;
-        }
-
-        .form-section {
-            margin-bottom: 2rem;
-            padding: 1.5rem;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            background: #f9fafb;
-        }
-
-        .section-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: #1f2937;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #667eea;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-
-        .form-group {
-            margin-bottom: 1rem;
-        }
-
-        .form-group.full-width {
-            grid-column: 1 / -1;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #374151;
-            font-weight: 500;
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 1rem;
-            direction: rtl;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .form-group input[readonly] {
-            background-color: #f3f4f6;
-            color: #6b7280;
-        }
-
-        .form-actions {
-            display: flex;
-            gap: 1rem;
-            justify-content: flex-end;
-            margin-top: 2rem;
-        }
-
-        .save-btn {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-
-        .save-btn:hover {
-            background: #218838;
-            transform: translateY(-2px);
-        }
-
-        .cancel-btn {
-            background: #6b7280;
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-
-        .cancel-btn:hover {
-            background: #4b5563;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 0 0.5rem;
-            }
-            
-            .controls {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            
-            .search-input {
-                min-width: auto;
-            }
-            
-            .table-container {
-                overflow-x: auto;
-            }
-            
-            .table {
-                min-width: 800px;
-            }
-
-            .modal-content {
-                width: 98%;
-                max-width: 95%;
-                margin: 5% auto;
-                padding: 1rem;
-            }
-
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🚗 جدول السائقين</h1>
-        <div class="header-buttons">
-            <button onclick="openAddDriverModal()" class="btn btn-primary">➕ إضافة سائق جديد</button>
-            <a href="balance-display.html" class="btn btn-secondary">💰 عرض الأرصدة</a>
-            <a href="admin-dashboard.html" class="btn btn-secondary">🏠 لوحة التحكم</a>
-        </div>
-    </div>
-
     <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚗 جدول السائقين</h1>
+            <p>عرض شامل لجميع السائقين وحالاتهم المالية</p>
+            <div class="nav-buttons">
+                <a href="admin-dashboard.html" class="nav-btn">🏠 لوحة التحكم</a>
+                <a href="drivers.html" class="nav-btn">👥 إدارة السائقين</a>
+                <a href="revenues.html" class="nav-btn">💰 الإيرادات</a>
+                <a href="expenses.html" class="nav-btn">💸 المصروفات</a>
+                <a href="balance-display.html" class="nav-btn">📊 الميزانية</a>
+            </div>
+        </div>
+
+        <!-- Statistics Section -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-number regular" id="regularCount">0</div>
@@ -446,7 +46,9 @@
             </div>
         </div>
 
+        <!-- Controls Section -->
         <div class="controls">
+            <button onclick="openAddDriverModal()" class="add-btn">➕ إضافة سائق جديد</button>
             <input type="text" class="search-input" id="searchInput" placeholder="البحث عن سائق...">
             <select class="filter-select" id="statusFilter">
                 <option value="">جميع الحالات</option>
@@ -457,6 +59,7 @@
             <button class="btn-refresh" onclick="loadData()">🔄 تحديث البيانات</button>
         </div>
 
+        <!-- Table Section -->
         <div class="table-container">
             <table class="table">
                 <thead>
@@ -597,6 +200,60 @@
         </div>
     </div>
 
+    <!-- Modal for Driver Details -->
+    <div id="driverDetailsModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>📋 معلومات السائق</h2>
+                <span class="close" onclick="closeDriverModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="driverDetailsContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Payment History -->
+    <div id="paymentHistoryModal" class="modal">
+        <div class="modal-content" style="max-width: 1000px;">
+            <div class="modal-header">
+                <h2>📊 تاريخ المدفوعات</h2>
+                <span class="close" onclick="closePaymentHistoryModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="controls" style="margin-bottom: 20px;">
+                    <input type="text" class="search-input" id="historySearchInput" placeholder="البحث في السجلات...">
+                    <select class="filter-select" id="historyTypeFilter">
+                        <option value="">جميع الأنواع</option>
+                        <option value="أجرة يومية">أجرة يومية</option>
+                        <option value="مخالفة">مخالفة</option>
+                        <option value="إقامة">إقامة</option>
+                        <option value="رواتب">رواتب</option>
+                    </select>
+                    <button class="btn-refresh" onclick="exportPaymentHistory()">📥 تصدير</button>
+                </div>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>نوع الدفعة</th>
+                                <th>المبلغ</th>
+                                <th>الوصف</th>
+                                <th>الملاحظات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentHistoryTableBody">
+                            <tr>
+                                <td colspan="5" class="loading">جاري تحميل البيانات...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -616,7 +273,8 @@
 
         let drivers = [];
         let driverPayments = [];
-        let cars = []; // إضافة متغير للسيارات
+        let cars = [];
+        let allDrivers = []; // For calculateDriverDebt function
 
         // Load data from Firebase
         async function loadData() {
@@ -629,6 +287,7 @@
                 driversSnapshot.forEach(doc => {
                     drivers.push({ id: doc.id, ...doc.data() });
                 });
+                allDrivers = drivers; // Update allDrivers
                 console.log('Drivers loaded:', drivers.length);
 
                 // Load cars
@@ -662,7 +321,6 @@
         }
 
         // Calculate driver debt using new accounting system
-        // الدالة الموحدة لحساب ديون السائقين
         function calculateDriverDebt(driverId) {
             // البحث عن بيانات السائق
             const driver = allDrivers.find(d => d.id === driverId);
@@ -755,40 +413,54 @@
             
             // Calculate total paid from driver payments
             const payments = driverPayments.filter(payment => 
-                payment.driverId === driver.id && 
-                payment.type === 'أجرة يومية'
+                payment.driverId === driver.id && payment.type === 'أجرة يومية'
             );
             const totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
             
-            // Calculate debt
-            const currentDebt = Math.max(0, expectedTotal - totalPaid);
+            // Calculate late amount and days
+            const lateAmount = Math.max(0, expectedTotal - totalPaid);
+            const daysLate = Math.floor(lateAmount / dailyWage);
             
-            // Calculate days late
-            const paidUntilDate = new Date(lastPayment.getTime() + (totalPaid / dailyWage) * 24 * 60 * 60 * 1000);
-            const daysLate = Math.max(0, Math.floor((today - paidUntilDate) / (1000 * 60 * 60 * 24)));
+            // Calculate paid until date
+            const paidDays = Math.floor(totalPaid / dailyWage);
+            const paidUntilDate = new Date(contractStart);
+            paidUntilDate.setDate(paidUntilDate.getDate() + paidDays);
             
-            // Calculate late amount
-            const lateAmount = daysLate * dailyWage;
+            // Calculate driver balance (positive balance means driver paid extra)
+            const driverBalance = Math.max(0, totalPaid - expectedTotal);
             
-            // Calculate remaining payment for current day
-            const dayProgress = (today.getHours() * 60 + today.getMinutes()) / (24 * 60);
-            const todayExpected = dailyWage * dayProgress;
-            const todayPaid = payments
-                .filter(payment => new Date(payment.date).toDateString() === today.toDateString())
-                .reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
-            const remainingToday = Math.max(0, todayExpected - todayPaid);
-
-            // Calculate debt amounts using new system
-            const violations = calculateDebtByType(driver.id, ['سداد مخالفة', 'تحصيل مخالفة']);
-            const residencyFees = calculateDebtByType(driver.id, ['سداد رسوم إقامة', 'تحصيل رسوم إقامة']);
-            const oldDebts = calculateDebtByType(driver.id, ['دين قديم']);
+            // Calculate violations
+            const violationPayments = driverPayments.filter(p => 
+                p.driverId === driver.id && (p.type === 'سداد مخالفة' || p.type === 'تحصيل مخالفة')
+            );
+            const violations = violationPayments.reduce((sum, p) => {
+                const amount = parseFloat(p.amount || 0);
+                return p.type === 'سداد مخالفة' ? sum + amount : sum - amount;
+            }, 0);
             
-            // Calculate driver balance using the new smart system first
-            const driverBalance = calculateDriverBalance(driver.id, dailyWage);
+            // Calculate residency fees
+            const residencyPayments = driverPayments.filter(p => 
+                p.driverId === driver.id && (p.type === 'سداد رسوم إقامة' || p.type === 'تحصيل رسوم إقامة')
+            );
+            const residencyFees = residencyPayments.reduce((sum, p) => {
+                const amount = parseFloat(p.amount || 0);
+                return p.type === 'سداد رسوم إقامة' ? sum + amount : sum - amount;
+            }, 0);
             
-            // Calculate total debt properly (including all components)
-            const totalDriverDebt = Math.max(0, lateAmount + violations + residencyFees + oldDebts - driverBalance);
-
+            // Old debts
+            const oldDebts = parseFloat(driver.oldDebts || 0);
+            
+            // Calculate total debt
+            const totalDebt = lateAmount + violations + residencyFees + oldDebts - driverBalance;
+            
+            // Determine status
+            let status = 'منتظم';
+            if (daysLate > 7) {
+                status = 'متأخر جداً';
+            } else if (daysLate > 3) {
+                status = 'متأخر';
+            }
+            
             return {
                 dailyWage,
                 contractStart,
@@ -800,116 +472,9 @@
                 violations,
                 residencyFees,
                 oldDebts,
-                totalDebt: totalDriverDebt,
-                status: daysLate > 7 ? 'متأخر جداً' : daysLate > 0 ? 'متأخر' : 'منتظم'
+                totalDebt: Math.max(0, totalDebt),
+                status
             };
-        }
-
-        // Calculate driver balance using the new smart system
-        function calculateDriverBalance(driverId, dailyWage) {
-            // Get all daily wage payments for this driver
-            const dailyWagePayments = driverPayments.filter(payment => 
-                payment.driverId === driverId && 
-                payment.type === 'أجرة يومية'
-            );
-
-            // Calculate total paid
-            const totalPaid = dailyWagePayments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
-            
-            // Calculate how many complete days this covers
-            const completeDays = Math.floor(totalPaid / dailyWage);
-            
-            // Calculate the remaining balance (what the driver has credit for)
-            const remainingBalance = totalPaid - (completeDays * dailyWage);
-            
-            return remainingBalance;
-        }
-
-        // Calculate debt by payment type
-        function calculateDebtByType(driverId, types) {
-            let debt = 0;
-            
-            // Get driver's initial old debts
-            const driver = drivers.find(d => d.id === driverId);
-            if (driver && types.includes('دين قديم') && driver.oldDebts) {
-                debt += parseFloat(driver.oldDebts) || 0;
-            }
-            
-            const payments = driverPayments.filter(payment => 
-                payment.driverId === driverId && 
-                types.includes(payment.type)
-            );
-
-            payments.forEach(payment => {
-                const amount = parseFloat(payment.amount) || 0;
-                if (payment.type === 'دين قديم') {
-                    debt -= amount; // Reduce old debt when paid
-                } else if (payment.type.startsWith('دفع')) {
-                    debt += amount; // Increase debt
-                } else if (payment.type.startsWith('تحصيل')) {
-                    debt -= amount; // Reduce debt
-                }
-            });
-
-            return Math.max(0, debt);
-        }
-
-        // Oil status functions for maintenance data (updated logic based on date)
-        function getOilStatusColor(driver) {
-            const lastOilChangeDate = parseDate(driver.lastOilChangeDate);
-            if (!lastOilChangeDate) {
-                return { bgColor: '#f8d7da', color: '#721c24' }; // Red if no date
-            }
-            
-            const today = new Date();
-            const daysSinceOilChange = Math.floor((today - lastOilChangeDate) / (1000 * 60 * 60 * 24));
-            
-            if (daysSinceOilChange < 15) { // Less than 15 days
-                return { bgColor: '#d4edda', color: '#155724' }; // Green
-            } else if (daysSinceOilChange <= 20) { // 15-20 days
-                return { bgColor: '#fff3cd', color: '#856404' }; // Yellow
-            } else {
-                return { bgColor: '#f8d7da', color: '#721c24' }; // Red
-            }
-        }
-        
-        function getOilStatusText(driver) {
-            const lastOilChangeDate = parseDate(driver.lastOilChangeDate);
-            if (!lastOilChangeDate) {
-                return 'غير محدد ❓';
-            }
-            
-            const today = new Date();
-            const daysSinceOilChange = Math.floor((today - lastOilChangeDate) / (1000 * 60 * 60 * 24));
-            
-            if (daysSinceOilChange < 15) {
-                return 'جيد ✅';
-            } else if (daysSinceOilChange <= 20) {
-                return 'تحذير ⚠️';
-            } else {
-                return 'خطر ❌';
-            }
-        }
-        
-        function getOilDistanceInfo(driver) {
-            const lastOilChangeDate = parseDate(driver.lastOilChangeDate);
-            if (!lastOilChangeDate) {
-                return 'لم يتم تحديد تاريخ آخر تغيير';
-            }
-            
-            const today = new Date();
-            const daysSinceOilChange = Math.floor((today - lastOilChangeDate) / (1000 * 60 * 60 * 24));
-            
-            if (daysSinceOilChange < 15) {
-                const remaining = 15 - daysSinceOilChange;
-                return `متبقي ${remaining} يوم للتحذير`;
-            } else if (daysSinceOilChange <= 20) {
-                const remaining = 20 - daysSinceOilChange;
-                return `متبقي ${remaining} يوم للخطر`;
-            } else {
-                const overdue = daysSinceOilChange - 20;
-                return `متأخر ${overdue} يوم`;
-            }
         }
 
         // Display drivers in table
@@ -1050,21 +615,18 @@
 
             const stats = calculateDriverStats(driver);
             
-            // Get car information with debugging
+            // Get car information
             console.log('🔍 البحث عن معلومات السيارة...');
             console.log('🔍 معرف السيارة المطلوب:', driver.assignedCar);
-            console.log('🔍 عدد السيارات المتاحة:', cars?.length || 0);
-            console.log('🔍 السيارات المتاحة:', cars);
             
             const car = cars?.find(c => c.id === driver.assignedCar);
             console.log('🔍 السيارة المعثور عليها:', car);
             
             const carInfo = car ? `${car.plateNumber} - ${car.model} (${car.year || 'غير محدد'})` : 'غير محدد';
-            console.log('🔍 معلومات السيارة النهائية:', carInfo);
             
-            // Function to get expiry status and color
+            // Function to get expiry status
             function getExpiryStatus(expiryDate, type = 'document') {
-                if (!expiryDate) return { status: 'غير محدد', color: '#6c757d', bgColor: '#f8f9fa' };
+                if (!expiryDate) return { status: 'غير محدد', className: 'status-unknown' };
                 
                 const expiry = parseDate(expiryDate);
                 const today = new Date();
@@ -1074,38 +636,32 @@
                 let thresholdOrange, thresholdRed;
                 
                 if (type === 'passport') {
-                    // Passport: Orange before 14 months, Red before 12 months
-                    thresholdOrange = 14 * 30; // 14 months in days
-                    thresholdRed = 12 * 30; // 12 months in days
+                    thresholdOrange = 14 * 30;
+                    thresholdRed = 12 * 30;
                 } else {
-                    // Documents: Orange before 1 month, Red before 1 week
-                    thresholdOrange = 30; // 1 month
-                    thresholdRed = 7; // 1 week
+                    thresholdOrange = 30;
+                    thresholdRed = 7;
                 }
                 
                 if (diffDays < 0) {
                     return { 
                         status: `منتهي منذ ${Math.abs(diffDays)} يوم`, 
-                        color: '#fff', 
-                        bgColor: '#dc3545' 
+                        className: 'status-expired' 
                     };
                 } else if (diffDays <= thresholdRed) {
                     return { 
                         status: `ينتهي خلال ${diffDays} يوم`, 
-                        color: '#fff', 
-                        bgColor: '#dc3545' 
+                        className: 'status-danger' 
                     };
                 } else if (diffDays <= thresholdOrange) {
                     return { 
                         status: `ينتهي خلال ${diffDays} يوم`, 
-                        color: '#fff', 
-                        bgColor: '#fd7e14' 
+                        className: 'status-warning' 
                     };
                 } else {
                     return { 
                         status: `ينتهي خلال ${diffDays} يوم`, 
-                        color: '#333', 
-                        bgColor: '#d4edda' 
+                        className: 'status-ok' 
                     };
                 }
             }
@@ -1118,295 +674,172 @@
             const passportStatus = getExpiryStatus(driver.passportExpiry, 'passport');
             
             const modalContent = `
-                <div id="driverModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="closeDriverModal()">
-                    <div style="background: white; padding: 30px; border-radius: 15px; max-width: 800px; width: 95%; max-height: 90vh; overflow-y: auto;" onclick="event.stopPropagation()">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px;">
-                            <h2 style="color: #333; margin: 0;">📋 معلومات السائق</h2>
-                            <button onclick="closeDriverModal()" style="background: #ff4757; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 18px;">&times;</button>
+                <div class="details-section">
+                    <h3 class="details-section-title">👤 البيانات الشخصية</h3>
+                    <div class="details-grid">
+                        <div class="detail-item">
+                            <strong>اسم السائق:</strong>
+                            <span>${driver.name || 'غير محدد'}</span>
                         </div>
-                        
-                        <!-- البيانات الشخصية -->
-                        <div style="margin-bottom: 25px;">
-                            <h3 style="color: #28a745; border-bottom: 2px solid #28a745; padding-bottom: 8px; margin-bottom: 15px;">👤 البيانات الشخصية</h3>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                    <strong style="color: #666;">اسم السائق:</strong><br>
-                                    <span style="font-size: 16px; color: #333;">${driver.name || 'غير محدد'}</span>
-                                </div>
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                    <strong style="color: #666;">رقم الهاتف:</strong><br>
-                                    <span style="font-size: 16px; color: #333;">${driver.phone || 'غير محدد'}</span>
-                                </div>
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                    <strong style="color: #666;">الجنسية:</strong><br>
-                                    <span style="font-size: 16px; color: #333;">${driver.nationality || 'غير محدد'}</span>
-                                </div>
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                    <strong style="color: #666;">العنوان:</strong><br>
-                                    <span style="font-size: 16px; color: #333;">${driver.address || 'غير محدد'}</span>
-                                </div>
-                            </div>
+                        <div class="detail-item">
+                            <strong>رقم الهاتف:</strong>
+                            <span>${driver.phone || 'غير محدد'}</span>
                         </div>
-                        
-                        <!-- تفاصيل العقد -->
-                        <div style="margin-bottom: 25px;">
-                            <h3 style="color: #007bff; border-bottom: 2px solid #007bff; padding-bottom: 8px; margin-bottom: 15px;">📄 تفاصيل العقد</h3>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                    <strong style="color: #666;">السيارة المخصصة:</strong><br>
-                                    <span style="font-size: 16px; color: #333;">${carInfo}</span>
-                                </div>
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                    <strong style="color: #666;">الأجرة اليومية:</strong><br>
-                                    <span style="font-size: 16px; color: #333;">${stats.dailyWage.toFixed(3)} د.ك</span>
-                                </div>
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                    <strong style="color: #666;">مدة العقد:</strong><br>
-                                    <span style="font-size: 16px; color: #333;">${driver.contractDuration || 'غير محدد'}</span>
-                                </div>
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                    <strong style="color: #666;">تاريخ بداية العقد:</strong><br>
-                                    <span style="font-size: 16px; color: #333;">${formatDate(stats.contractStart)}</span>
-                                </div>
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                    <strong style="color: #666;">تاريخ نهاية العقد:</strong><br>
-                                    <span style="font-size: 16px; color: #333;">${formatDate(driver.contractEnd) || 'غير محدد'}</span>
-                                </div>
-                            </div>
+                        <div class="detail-item">
+                            <strong>الجنسية:</strong>
+                            <span>${driver.nationality || 'غير محدد'}</span>
                         </div>
-                        
-                        <!-- تواريخ انتهاء الوثائق -->
-                        <div style="margin-bottom: 25px;">
-                            <h3 style="color: #fd7e14; border-bottom: 2px solid #fd7e14; padding-bottom: 8px; margin-bottom: 15px;">📅 تواريخ انتهاء الوثائق</h3>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
-                                <div style="background: ${carRegistrationStatus.bgColor}; color: ${carRegistrationStatus.color}; padding: 12px; border-radius: 8px; border-left: 4px solid #fd7e14;">
-                                    <strong>انتهاء دفتر السيارة:</strong><br>
-                                    <span style="font-size: 14px;">${formatDate(driver.carRegistrationExpiry) || 'غير محدد'}</span><br>
-                                    <small>${carRegistrationStatus.status}</small>
-                                </div>
-                                <div style="background: ${residencyStatus.bgColor}; color: ${residencyStatus.color}; padding: 12px; border-radius: 8px; border-left: 4px solid #fd7e14;">
-                                    <strong>انتهاء الإقامة:</strong><br>
-                                    <span style="font-size: 14px;">${formatDate(driver.residencyExpiry) || 'غير محدد'}</span><br>
-                                    <small>${residencyStatus.status}</small>
-                                </div>
-                                <div style="background: ${permitStatus.bgColor}; color: ${permitStatus.color}; padding: 12px; border-radius: 8px; border-left: 4px solid #fd7e14;">
-                                    <strong>انتهاء التصريح:</strong><br>
-                                    <span style="font-size: 14px;">${formatDate(driver.permitExpiry) || 'غير محدد'}</span><br>
-                                    <small>${permitStatus.status}</small>
-                                </div>
-                                <div style="background: ${licenseStatus.bgColor}; color: ${licenseStatus.color}; padding: 12px; border-radius: 8px; border-left: 4px solid #fd7e14;">
-                                    <strong>انتهاء الرخصة:</strong><br>
-                                    <span style="font-size: 14px;">${formatDate(driver.licenseExpiry) || 'غير محدد'}</span><br>
-                                    <small>${licenseStatus.status}</small>
-                                </div>
-                                <div style="background: ${passportStatus.bgColor}; color: ${passportStatus.color}; padding: 12px; border-radius: 8px; border-left: 4px solid #6f42c1;">
-                                    <strong>انتهاء جواز السفر:</strong><br>
-                                    <span style="font-size: 14px;">${formatDate(driver.passportExpiry) || 'غير محدد'}</span><br>
-                                    <small>${passportStatus.status}</small>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- بيانات الصيانة -->
-                        <div style="margin-bottom: 25px;">
-                            <h3 style="color: #17a2b8; border-bottom: 2px solid #17a2b8; padding-bottom: 8px; margin-bottom: 15px;">🔧 بيانات الصيانة</h3>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                    <strong style="color: #666;">تاريخ آخر تغيير زيت:</strong><br>
-                                    <span style="font-size: 16px; color: #333;">${formatDate(driver.lastOilChangeDate) || 'غير محدد'}</span>
-                                </div>
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                    <strong style="color: #666;">كيلومترات آخر تغيير:</strong><br>
-                                    <span style="font-size: 16px; color: #333;">${(driver.lastOilChangeKm || 0).toLocaleString()} كم</span>
-                                </div>
-                                <div style="background: ${getOilStatusColor(driver).bgColor}; color: ${getOilStatusColor(driver).color}; padding: 12px; border-radius: 8px; border-left: 4px solid #17a2b8;">
-                                    <strong>حالة الزيت:</strong><br>
-                                    <span style="font-size: 14px;">${getOilStatusText(driver)}</span><br>
-                                    <small>${getOilDistanceInfo(driver)}</small>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- الديون والملاحظات -->
-                        <div style="margin-bottom: 25px;">
-                            <h3 style="color: #dc3545; border-bottom: 2px solid #dc3545; padding-bottom: 8px; margin-bottom: 15px;">💰 الديون والملاحظات</h3>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                    <strong style="color: #666;">ديون قديمة:</strong><br>
-                                    <span style="font-size: 16px; color: ${stats.oldDebts > 0 ? '#dc3545' : '#28a745'};">${stats.oldDebts.toFixed(3)} د.ك</span>
-                                </div>
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                    <strong style="color: #666;">إجمالي الدين:</strong><br>
-                                    <span style="font-size: 16px; color: ${stats.totalDebt > 0 ? '#dc3545' : '#28a745'};">${stats.totalDebt.toFixed(3)} د.ك</span>
-                                </div>
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                    <strong style="color: #666;">آخر دفعة:</strong><br>
-                                    <span style="font-size: 16px; color: #333;">${formatDate(stats.lastPayment)}</span>
-                                </div>
-                            </div>
-                            ${driver.notes ? `
-                            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #ffc107;">
-                                <strong style="color: #856404;">📝 ملاحظات:</strong><br>
-                                <span style="color: #856404;">${driver.notes}</span>
-                            </div>
-                            ` : ''}
-                        </div>
-                        
-                        <div style="display: flex; gap: 10px; justify-content: center;">
-                            <button onclick="openDriverPayments('${driver.id}')" style="background: #28a745; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">
-                                💰 إدارة الدفعات
-                            </button>
-                            <button onclick="showDriverPaymentHistory('${driver.id}')" style="background: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">
-                                📊 تاريخ المدفوعات
-                            </button>
-                            <button onclick="closeDriverModal()" style="background: #6c757d; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">
-                                إغلاق
-                            </button>
+                        <div class="detail-item">
+                            <strong>العنوان:</strong>
+                            <span>${driver.address || 'غير محدد'}</span>
                         </div>
                     </div>
                 </div>
-            `;
-            
-            document.body.insertAdjacentHTML('beforeend', modalContent);
-        }
-
-        // Function to close driver modal
-        function closeDriverModal() {
-            const modal = document.getElementById('driverModal');
-            if (modal) {
-                modal.remove();
-            }
-        }
-
-        // Function to show driver payment history
-        async function showDriverPaymentHistory(driverId) {
-            try {
-                // Get driver info
-                const driver = drivers.find(d => d.id === driverId);
-                if (!driver) return;
-
-                // Load driver payments using Firebase compat syntax
-                const paymentsSnapshot = await db.collection('driverPayments')
-                    .where('driverId', '==', driverId)
-                    .get();
-                    
-                const payments = [];
-                paymentsSnapshot.forEach(doc => {
-                    payments.push({ id: doc.id, ...doc.data() });
-                });
-
-                // Sort payments by date (newest first)
-                payments.sort((a, b) => {
-                    const dateA = parseDate(a.date);
-                    const dateB = parseDate(b.date);
-                    return dateB.getTime() - dateA.getTime();
-                });
-
-                // Create payment history modal
-                const historyModalContent = `
-                    <div id="paymentHistoryModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1001; display: flex; align-items: center; justify-content: center;" onclick="closePaymentHistoryModal()">
-                        <div style="background: white; padding: 30px; border-radius: 15px; max-width: 1000px; width: 95%; max-height: 90vh; overflow-y: auto;" onclick="event.stopPropagation()">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px;">
-                                <h2 style="color: #333; margin: 0;">📊 تاريخ مدفوعات السائق: ${driver.name}</h2>
-                                <button onclick="closePaymentHistoryModal()" style="background: #ff4757; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 18px;">&times;</button>
-                            </div>
-                            
-                            <!-- Search and Filter -->
-                            <div style="margin-bottom: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                                <input type="text" id="historySearchInput" placeholder="البحث في المدفوعات..." style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; flex: 1; min-width: 200px;">
-                                <select id="historyTypeFilter" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-                                    <option value="">جميع الأنواع</option>
-                                    <option value="أجرة يومية">أجرة يومية</option>
-                                    <option value="سداد مخالفة">سداد مخالفة</option>
-                                    <option value="تحصيل مخالفة">تحصيل مخالفة</option>
-                                    <option value="سداد رسوم إقامة">سداد رسوم إقامة</option>
-                                    <option value="تحصيل رسوم إقامة">تحصيل رسوم إقامة</option>
-                                    <option value="تحصيل رسوم إيداعات الرواتب">تحصيل رسوم إيداعات الرواتب</option>
-                                    <option value="دين قديم">دين قديم</option>
-                                    <option value="تحصيل رسوم رواتب">تحصيل رسوم رواتب</option>
-                                    <option value="سداد رواتب">سداد رواتب</option>
-                                </select>
-                                <button onclick="exportPaymentHistory()" style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
-                                    📥 تصدير Excel
-                                </button>
-                            </div>
-                            
-                            <!-- Payments Table -->
-                            <div style="overflow-x: auto;">
-                                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-                                    <thead>
-                                        <tr style="background: #f8f9fa;">
-                                            <th style="padding: 12px; text-align: right; border: 1px solid #dee2e6;">التاريخ</th>
-                                            <th style="padding: 12px; text-align: right; border: 1px solid #dee2e6;">نوع الدفعة</th>
-                                            <th style="padding: 12px; text-align: right; border: 1px solid #dee2e6;">المبلغ</th>
-                                            <th style="padding: 12px; text-align: right; border: 1px solid #dee2e6;">الوصف</th>
-                                            <th style="padding: 12px; text-align: right; border: 1px solid #dee2e6;">الملاحظات</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="paymentHistoryTableBody">
-                                        ${payments.length === 0 ? 
-                                            '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #666;">لا توجد مدفوعات لهذا السائق</td></tr>' :
-                                            payments.map(payment => {
-                                                const paymentType = payment.type || 'غير محدد';
-                                                const amount = parseFloat(payment.amount) || 0;
-                                                const isPositive = ['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم', 'تحصيل رسوم رواتب'].includes(paymentType);
-                                                const amountColor = isPositive ? '#28a745' : '#dc3545';
-                                                const amountSign = isPositive ? '+' : '-';
-                                                
-                                                return `
-                                                    <tr style="border-bottom: 1px solid #dee2e6;">
-                                                        <td style="padding: 12px; border: 1px solid #dee2e6;">${formatDate(payment.date)}</td>
-                                                        <td style="padding: 12px; border: 1px solid #dee2e6;">
-                                                            <span style="background: ${isPositive ? '#d4edda' : '#f8d7da'}; color: ${amountColor}; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
-                                                                ${paymentType}
-                                                            </span>
-                                                        </td>
-                                                        <td style="padding: 12px; border: 1px solid #dee2e6; color: ${amountColor}; font-weight: bold;">
-                                                            ${amountSign}${Math.abs(amount).toFixed(3)} د.ك
-                                                        </td>
-                                                        <td style="padding: 12px; border: 1px solid #dee2e6;">${payment.description || 'لا يوجد وصف'}</td>
-                                                        <td style="padding: 12px; border: 1px solid #dee2e6;">${payment.notes || '-'}</td>
-                                                    </tr>
-                                                `;
-                                            }).join('')
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                            
-                            <!-- Summary -->
-                            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                                <h4 style="margin: 0 0 10px 0; color: #333;">📊 ملخص المدفوعات:</h4>
-                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                                    <div style="text-align: center;">
-                                        <strong style="color: #666;">إجمالي المدفوعات:</strong><br>
-                                        <span style="font-size: 18px; color: #333;">${payments.length}</span>
-                                    </div>
-                                    <div style="text-align: center;">
-                                        <strong style="color: #666;">إجمالي المبالغ المدفوعة:</strong><br>
-                                        <span style="font-size: 18px; color: #dc3545;">-${payments.filter(p => ['سداد مخالفة', 'سداد رسوم إقامة', 'سداد رواتب'].includes(p.type)).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0).toFixed(3)} د.ك</span>
-                                    </div>
-                                    <div style="text-align: center;">
-                                        <strong style="color: #666;">إجمالي المبالغ المحصلة:</strong><br>
-                                        <span style="font-size: 18px; color: #28a745;">+${payments.filter(p => ['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'تحصيل رسوم رواتب'].includes(p.type)).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0).toFixed(3)} د.ك</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-                                <button onclick="closePaymentHistoryModal()" style="background: #6c757d; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">
-                                    إغلاق
-                                </button>
-                            </div>
+                
+                <div class="details-section">
+                    <h3 class="details-section-title">📄 تفاصيل العقد</h3>
+                    <div class="details-grid">
+                        <div class="detail-item">
+                            <strong>السيارة المخصصة:</strong>
+                            <span>${carInfo}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>الأجرة اليومية:</strong>
+                            <span>${stats.dailyWage.toFixed(3)} د.ك</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>مدة العقد:</strong>
+                            <span>${driver.contractDuration || 'غير محدد'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>تاريخ بداية العقد:</strong>
+                            <span>${formatDate(stats.contractStart)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>تاريخ نهاية العقد:</strong>
+                            <span>${formatDate(driver.contractEnd) || 'غير محدد'}</span>
                         </div>
                     </div>
-                `;
+                </div>
                 
-                document.body.insertAdjacentHTML('beforeend', historyModalContent);
+                <div class="details-section">
+                    <h3 class="details-section-title">📅 تواريخ انتهاء الوثائق</h3>
+                    <div class="details-grid">
+                        <div class="detail-item ${carRegistrationStatus.className}">
+                            <strong>انتهاء دفتر السيارة:</strong>
+                            <span>${formatDate(driver.carRegistrationExpiry) || 'غير محدد'}</span>
+                            <small>${carRegistrationStatus.status}</small>
+                        </div>
+                        <div class="detail-item ${residencyStatus.className}">
+                            <strong>انتهاء الإقامة:</strong>
+                            <span>${formatDate(driver.residencyExpiry) || 'غير محدد'}</span>
+                            <small>${residencyStatus.status}</small>
+                        </div>
+                        <div class="detail-item ${permitStatus.className}">
+                            <strong>انتهاء التصريح:</strong>
+                            <span>${formatDate(driver.permitExpiry) || 'غير محدد'}</span>
+                            <small>${permitStatus.status}</small>
+                        </div>
+                        <div class="detail-item ${licenseStatus.className}">
+                            <strong>انتهاء الرخصة:</strong>
+                            <span>${formatDate(driver.licenseExpiry) || 'غير محدد'}</span>
+                            <small>${licenseStatus.status}</small>
+                        </div>
+                        <div class="detail-item ${passportStatus.className}">
+                            <strong>انتهاء جواز السفر:</strong>
+                            <span>${formatDate(driver.passportExpiry) || 'غير محدد'}</span>
+                            <small>${passportStatus.status}</small>
+                        </div>
+                    </div>
+                </div>
                 
-                // Add event listeners for search and filter
-                document.getElementById('historySearchInput').addEventListener('input', filterPaymentHistory);
-                document.getElementById('historyTypeFilter').addEventListener('change', filterPaymentHistory);
+                <div class="details-section">
+                    <h3 class="details-section-title">💰 الحالة المالية</h3>
+                    <div class="details-grid">
+                        <div class="detail-item">
+                            <strong>عدد أيام التأخير:</strong>
+                            <span>${stats.daysLate} يوم</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>قيمة التأخير:</strong>
+                            <span class="${stats.lateAmount > 0 ? 'negative' : 'zero'}">${stats.lateAmount.toFixed(3)} د.ك</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>رصيد السائق:</strong>
+                            <span class="${stats.driverBalance > 0 ? 'positive' : 'zero'}">${stats.driverBalance.toFixed(3)} د.ك</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>المخالفات:</strong>
+                            <span class="${stats.violations > 0 ? 'negative' : 'zero'}">${stats.violations.toFixed(3)} د.ك</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>مصاريف الإقامة:</strong>
+                            <span class="${stats.residencyFees > 0 ? 'negative' : 'zero'}">${stats.residencyFees.toFixed(3)} د.ك</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>ديون قديمة:</strong>
+                            <span class="${stats.oldDebts > 0 ? 'negative' : 'zero'}">${stats.oldDebts.toFixed(3)} د.ك</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>إجمالي الدين:</strong>
+                            <span class="${stats.totalDebt > 0 ? 'negative' : 'positive'}">${stats.totalDebt.toFixed(3)} د.ك</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="details-section">
+                    <h3 class="details-section-title">📝 الملاحظات</h3>
+                    <div class="detail-item full-width">
+                        <p>${driver.notes || 'لا توجد ملاحظات'}</p>
+                    </div>
+                </div>
+                
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" onclick="openDriverPayments('${driver.id}')">💰 إدارة المدفوعات</button>
+                    <button class="btn btn-secondary" onclick="showPaymentHistory('${driver.id}')">📊 تاريخ المدفوعات</button>
+                    <button class="btn btn-secondary" onclick="closeDriverModal()">إغلاق</button>
+                </div>
+            `;
+            
+            document.getElementById('driverDetailsContent').innerHTML = modalContent;
+            document.getElementById('driverDetailsModal').style.display = 'flex';
+        }
+
+        // Close driver details modal
+        function closeDriverModal() {
+            document.getElementById('driverDetailsModal').style.display = 'none';
+        }
+
+        // Show payment history
+        async function showPaymentHistory(driverId) {
+            try {
+                const driver = drivers.find(d => d.id === driverId);
+                if (!driver) return;
+                
+                const payments = driverPayments.filter(p => p.driverId === driverId)
+                    .sort((a, b) => {
+                        const dateA = parseDate(a.date);
+                        const dateB = parseDate(b.date);
+                        return dateB - dateA;
+                    });
+                
+                let tableContent = '';
+                if (payments.length === 0) {
+                    tableContent = '<tr><td colspan="5" class="no-data">لا توجد سجلات مدفوعات</td></tr>';
+                } else {
+                    tableContent = payments.map(payment => `
+                        <tr>
+                            <td>${formatDate(payment.date)}</td>
+                            <td>${payment.type || 'غير محدد'}</td>
+                            <td class="amount">${parseFloat(payment.amount || 0).toFixed(3)} د.ك</td>
+                            <td>${payment.description || '-'}</td>
+                            <td>${payment.notes || '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+                
+                document.getElementById('paymentHistoryTableBody').innerHTML = tableContent;
+                document.getElementById('paymentHistoryModal').style.display = 'flex';
                 
             } catch (error) {
                 console.error('Error loading payment history:', error);
@@ -1414,22 +847,19 @@
             }
         }
 
-        // Function to close payment history modal
+        // Close payment history modal
         function closePaymentHistoryModal() {
-            const modal = document.getElementById('paymentHistoryModal');
-            if (modal) {
-                modal.remove();
-            }
+            document.getElementById('paymentHistoryModal').style.display = 'none';
         }
 
-        // Function to filter payment history
+        // Filter payment history
         function filterPaymentHistory() {
             const searchTerm = document.getElementById('historySearchInput').value.toLowerCase();
             const typeFilter = document.getElementById('historyTypeFilter').value;
             const rows = document.querySelectorAll('#paymentHistoryTableBody tr');
             
             rows.forEach(row => {
-                if (row.cells.length === 1) return; // Skip "no data" row
+                if (row.cells.length === 1) return;
                 
                 const date = row.cells[0].textContent.toLowerCase();
                 const type = row.cells[1].textContent.toLowerCase();
@@ -1450,7 +880,7 @@
             });
         }
 
-        // Function to export payment history
+        // Export payment history
         function exportPaymentHistory() {
             const table = document.querySelector('#paymentHistoryModal table');
             const rows = Array.from(table.querySelectorAll('tr')).filter(row => 
@@ -1459,7 +889,7 @@
             
             let csv = 'التاريخ,نوع الدفعة,المبلغ,الوصف,الملاحظات\n';
             
-            rows.slice(1).forEach(row => { // Skip header
+            rows.slice(1).forEach(row => {
                 const cells = Array.from(row.cells).map(cell => 
                     '"' + cell.textContent.replace(/"/g, '""') + '"'
                 );
@@ -1482,7 +912,7 @@
 
         // Open Add Driver Modal
         function openAddDriverModal() {
-            document.getElementById('driverModal').style.display = 'block';
+            document.getElementById('driverModal').style.display = 'flex';
             document.getElementById('driverForm').reset();
             loadCarsForModal();
             populateContractDurationOptions();
@@ -1496,8 +926,17 @@
         // Close modal when clicking outside
         window.onclick = function(event) {
             const modal = document.getElementById('driverModal');
+            const detailsModal = document.getElementById('driverDetailsModal');
+            const historyModal = document.getElementById('paymentHistoryModal');
+            
             if (event.target == modal) {
                 closeModal();
+            }
+            if (event.target == detailsModal) {
+                closeDriverModal();
+            }
+            if (event.target == historyModal) {
+                closePaymentHistoryModal();
             }
         }
 
@@ -1507,7 +946,6 @@
                 const carsSnapshot = await db.collection('cars').get();
                 const driversSnapshot = await db.collection('drivers').get();
                 
-                // Create a map of assigned cars
                 const assignedCars = {};
                 driversSnapshot.forEach(doc => {
                     const driver = doc.data();
@@ -1519,7 +957,6 @@
                 modalCars = [];
                 const select = document.getElementById('assignedCar');
                 
-                // Clear existing options except first one
                 while (select.options.length > 1) {
                     select.remove(1);
                 }
@@ -1531,7 +968,6 @@
                     const option = document.createElement('option');
                     option.value = car.id;
                     
-                    // Check if car is assigned to another driver
                     if (assignedCars[car.id]) {
                         option.textContent = `⚠️ ${car.plateNumber} - ${car.brand} ${car.model} (مخصصة لـ ${assignedCars[car.id]})`;
                         option.style.color = '#dc3545';
@@ -1548,11 +984,10 @@
             }
         }
 
-        // Populate Contract Duration Options (1-60 months)
+        // Populate Contract Duration Options
         function populateContractDurationOptions() {
             const select = document.getElementById('contractDuration');
             
-            // Clear existing options except first one
             while (select.options.length > 1) {
                 select.remove(1);
             }
@@ -1637,7 +1072,7 @@
                 
                 alert('✅ تم إضافة السائق بنجاح!');
                 closeModal();
-                loadData(); // Reload the table
+                loadData();
                 
             } catch (error) {
                 console.error('Error saving driver:', error);
@@ -1651,6 +1086,8 @@
         // Search and filter functionality
         document.getElementById('searchInput').addEventListener('input', displayDrivers);
         document.getElementById('statusFilter').addEventListener('change', displayDrivers);
+        document.getElementById('historySearchInput')?.addEventListener('input', filterPaymentHistory);
+        document.getElementById('historyTypeFilter')?.addEventListener('change', filterPaymentHistory);
 
         // Load data on page load
         document.addEventListener('DOMContentLoaded', loadData);

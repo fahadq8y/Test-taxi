@@ -3267,3 +3267,143 @@ table {
     }
 }
 
+
+
+/* ==================== أنماط تفاصيل السائق ==================== */
+.details-section {
+    margin-bottom: 25px;
+    background: rgba(248, 249, 250, 0.5);
+    padding: 20px;
+    border-radius: 12px;
+}
+
+.details-section-title {
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.detail-item {
+    background: white;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.detail-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.detail-item strong {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.detail-item span {
+    display: block;
+    font-size: 16px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.detail-item small {
+    display: block;
+    font-size: 12px;
+    margin-top: 4px;
+    font-weight: 600;
+}
+
+.detail-item.full-width {
+    grid-column: 1 / -1;
+}
+
+/* حالات انتهاء الوثائق */
+.detail-item.status-ok {
+    background: var(--success-light);
+    border-color: var(--success-color);
+}
+
+.detail-item.status-ok small {
+    color: var(--success-color);
+}
+
+.detail-item.status-warning {
+    background: var(--warning-light);
+    border-color: var(--warning-color);
+}
+
+.detail-item.status-warning small {
+    color: #d97706;
+}
+
+.detail-item.status-danger {
+    background: var(--danger-light);
+    border-color: var(--danger-color);
+}
+
+.detail-item.status-danger small {
+    color: var(--danger-color);
+}
+
+.detail-item.status-expired {
+    background: #f8d7da;
+    border-color: #dc3545;
+}
+
+.detail-item.status-expired small {
+    color: #dc3545;
+    font-weight: 700;
+}
+
+.detail-item.status-unknown {
+    background: #f8f9fa;
+    border-color: #6c757d;
+}
+
+.detail-item.status-unknown small {
+    color: #6c757d;
+}
+
+/* الألوان للقيم المالية */
+.detail-item .positive {
+    color: var(--success-color);
+    font-weight: 700;
+}
+
+.detail-item .negative {
+    color: var(--danger-color);
+    font-weight: 700;
+}
+
+.detail-item .zero {
+    color: var(--text-secondary);
+}
+
+/* تحسين النوافذ المنبثقة على الشاشات الصغيرة */
+@media (max-width: 768px) {
+    .details-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .details-section {
+        padding: 15px;
+    }
+    
+    .details-section-title {
+        font-size: 16px;
+    }
+}
+
