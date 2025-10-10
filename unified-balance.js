@@ -9,6 +9,7 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
     });
     
     let bankBalance = 0;
+    let warbaBalance = 0;
     let salaryBalance = 0;
     let totalDriverDebts = 0;
     let totalRevenues = 0;
@@ -16,23 +17,43 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
 
     // حساب الإيرادات العادية
     if (revenues && revenues.length > 0) {
-        totalRevenues = revenues.reduce((sum, revenue) => sum + parseFloat(revenue.amount || 0), 0);
-        bankBalance += totalRevenues;
+        revenues.forEach(revenue => {
+            const amount = parseFloat(revenue.amount || 0);
+            totalRevenues += amount;
+            
+            if (revenue.type === 'تحويل من حساب رامي إلى بنك وربه') {
+                // تحويل من حساب رامي إلى بنك وربه
+                bankBalance -= amount;  // خصم من حساب رامي
+                warbaBalance += amount; // إضافة إلى بنك وربه
+            } else {
+                // إيرادات عادية تضاف إلى حساب رامي
+                bankBalance += amount;
+            }
+        });
     }
 
     // حساب المصروفات العادية
     if (expenses && expenses.length > 0) {
-        totalExpenses = expenses.reduce((sum, expense) => {
+        expenses.forEach(expense => {
             const amount = parseFloat(expense.amount || 0);
-            if (expense.type === 'مصاريف إيداعات الرواتب') {
+            totalExpenses += amount;
+            
+            if (expense.type === 'تحويل من بنك وربه إلى حساب رامي') {
+                // تحويل من بنك وربه إلى حساب رامي
+                warbaBalance -= amount; // خصم من بنك وربه
+                bankBalance += amount;  // إضافة إلى حساب رامي
+            } else if (expense.type === 'سحب فهد') {
+                // سحب فهد من بنك وربه فقط
+                warbaBalance -= amount;
+            } else if (expense.type === 'مصاريف إيداعات الرواتب') {
                 // مصاريف إيداعات الرواتب تخصم من الرصيد البنكي ورصيد الرواتب
                 bankBalance -= amount;
                 salaryBalance -= amount;
             } else {
+                // مصروفات عادية تخصم من حساب رامي
                 bankBalance -= amount;
             }
-            return sum + amount;
-        }, 0);
+        });
     }
 
     // حساب المصروفات من دفعات السائقين (سداد مخالفة، سداد رسوم إقامة)
@@ -96,6 +117,7 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
 
     console.log('✅ انتهى حساب الأرصدة:', {
         bankBalance: bankBalance.toFixed(3),
+        warbaBalance: warbaBalance.toFixed(3),
         salaryBalance: salaryBalance.toFixed(3),
         totalDriverDebts: totalDriverDebts.toFixed(3),
         totalRevenues: totalRevenues.toFixed(3),
@@ -104,6 +126,7 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
     
     return {
         bankBalance: bankBalance,
+        warbaBalance: warbaBalance,
         salaryBalance: salaryBalance,
         totalDriverDebts: totalDriverDebts,
         totalRevenues: totalRevenues,
@@ -175,7 +198,7 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
 
 // دالة موحدة لتحديث عرض الأرصدة
 function updateBalanceDisplay(balances) {
-    // تحديث الرصيد البنكي
+    // تحديث الرصيد البنكي (حساب رامي)
     const bankBalanceElement = document.getElementById('bankBalance');
     if (bankBalanceElement) {
         bankBalanceElement.textContent = balances.bankBalance.toFixed(3) + ' د.ك';
@@ -184,6 +207,18 @@ function updateBalanceDisplay(balances) {
             bankBalanceElement.style.color = '#dc3545'; // أحمر للرصيد السالب
         } else {
             bankBalanceElement.style.color = '#28a745'; // أخضر للرصيد الموجب
+        }
+    }
+
+    // تحديث رصيد بنك وربه
+    const warbaBalanceElement = document.getElementById('warbaBalance');
+    if (warbaBalanceElement) {
+        warbaBalanceElement.textContent = balances.warbaBalance.toFixed(3) + ' د.ك';
+        // تغيير اللون حسب الرصيد
+        if (balances.warbaBalance < 0) {
+            warbaBalanceElement.style.color = '#dc3545'; // أحمر للرصيد السالب
+        } else {
+            warbaBalanceElement.style.color = '#28a745'; // أخضر للرصيد الموجب
         }
     }
 
