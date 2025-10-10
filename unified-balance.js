@@ -19,14 +19,14 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
     if (revenues && revenues.length > 0) {
         revenues.forEach(revenue => {
             const amount = parseFloat(revenue.amount || 0);
-            totalRevenues += amount;
             
             if (revenue.type === 'تحويل من حساب رامي إلى بنك وربه') {
-                // تحويل من حساب رامي إلى بنك وربه
+                // تحويل من حساب رامي إلى بنك وربه (لا يحتسب في إجمالي الإيرادات)
                 bankBalance -= amount;  // خصم من حساب رامي
                 warbaBalance += amount; // إضافة إلى بنك وربه
             } else {
-                // إيرادات عادية تضاف إلى حساب رامي
+                // إيرادات عادية تضاف إلى حساب رامي وإجمالي الإيرادات
+                totalRevenues += amount;
                 bankBalance += amount;
             }
         });
@@ -36,21 +36,23 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
     if (expenses && expenses.length > 0) {
         expenses.forEach(expense => {
             const amount = parseFloat(expense.amount || 0);
-            totalExpenses += amount;
             
             if (expense.type === 'تحويل من بنك وربه إلى حساب رامي') {
-                // تحويل من بنك وربه إلى حساب رامي
+                // تحويل من بنك وربه إلى حساب رامي (لا يحتسب في إجمالي المصروفات)
                 warbaBalance -= amount; // خصم من بنك وربه
                 bankBalance += amount;  // إضافة إلى حساب رامي
             } else if (expense.type === 'سحب فهد') {
-                // سحب فهد من بنك وربه فقط
+                // سحب فهد من بنك وربه فقط (يحتسب في إجمالي المصروفات)
+                totalExpenses += amount;
                 warbaBalance -= amount;
             } else if (expense.type === 'مصاريف إيداعات الرواتب') {
                 // مصاريف إيداعات الرواتب تخصم من الرصيد البنكي ورصيد الرواتب
+                totalExpenses += amount;
                 bankBalance -= amount;
                 salaryBalance -= amount;
             } else {
-                // مصروفات عادية تخصم من حساب رامي
+                // مصروفات عادية تخصم من حساب رامي وتحتسب في إجمالي المصروفات
+                totalExpenses += amount;
                 bankBalance -= amount;
             }
         });
