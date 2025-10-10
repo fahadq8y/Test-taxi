@@ -41,14 +41,6 @@
                         <div class="balance-label">السائقين النشطين</div>
                         <div class="balance-amount" id="activeDrivers">0</div>
                     </div>
-                    <div class="balance-item clickable" onclick="window.location.href='revenues.html'">
-                        <div class="balance-label">إيرادات الشهر (د.ك)</div>
-                        <div class="balance-amount" id="monthlyRevenue">0.000</div>
-                    </div>
-                    <div class="balance-item clickable" onclick="window.location.href='expenses.html'">
-                        <div class="balance-label">مصروفات الشهر (د.ك)</div>
-                        <div class="balance-amount" id="monthlyExpenses">0.000</div>
-                    </div>
                 </div>
             </div>
 
@@ -168,47 +160,6 @@
                 const driversQuery = query(collection(db, 'drivers'), where('contractStatus', '==', 'active'));
                 const driversSnapshot = await getDocs(driversQuery);
                 document.getElementById('activeDrivers').textContent = driversSnapshot.size;
-
-                // Get monthly revenue
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = String(now.getMonth() + 1).padStart(2, '0');
-                const currentMonthStartStr = `${year}-${month}-01`;
-                
-                console.log('🔍 Current Month Start:', currentMonthStartStr);
-                
-                const revenuesQuery = query(
-                    collection(db, 'revenues'),
-                    where('date', '>=', currentMonthStartStr)
-                );
-                const revenuesSnapshot = await getDocs(revenuesQuery);
-                console.log('📊 Revenues Count:', revenuesSnapshot.size);
-                
-                let monthlyRevenue = 0;
-                revenuesSnapshot.forEach(doc => {
-                    const data = doc.data();
-                    console.log('💰 Revenue:', { date: data.date, amount: data.amount, type: data.type });
-                    monthlyRevenue += data.amount || 0;
-                });
-                console.log('✅ Total Monthly Revenue:', monthlyRevenue);
-                document.getElementById('monthlyRevenue').textContent = monthlyRevenue.toFixed(3);
-
-                // Get monthly expenses
-                const expensesQuery = query(
-                    collection(db, 'expenses'),
-                    where('date', '>=', currentMonthStartStr)
-                );
-                const expensesSnapshot = await getDocs(expensesQuery);
-                console.log('📊 Expenses Count:', expensesSnapshot.size);
-                
-                let monthlyExpenses = 0;
-                expensesSnapshot.forEach(doc => {
-                    const data = doc.data();
-                    console.log('💸 Expense:', { date: data.date, amount: data.amount, type: data.type });
-                    monthlyExpenses += data.amount || 0;
-                });
-                console.log('✅ Total Monthly Expenses:', monthlyExpenses);
-                document.getElementById('monthlyExpenses').textContent = monthlyExpenses.toFixed(3);
 
             } catch (error) {
                 console.error('Error loading stats:', error);
