@@ -262,6 +262,105 @@
             padding: 20px;
         }
 
+        /* Mobile Cards Styles */
+        .mobile-cards {
+            display: none;
+        }
+
+        .payment-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-right: 5px solid #667eea;
+        }
+
+        .payment-card.positive-border {
+            border-right-color: #28a745;
+        }
+
+        .payment-card.negative-border {
+            border-right-color: #dc3545;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .card-date {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .date-icon {
+            font-size: 1.2rem;
+        }
+
+        .card-amount {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .card-amount.positive {
+            color: #28a745;
+        }
+
+        .card-amount.negative {
+            color: #dc3545;
+        }
+
+        .card-body {
+            margin-bottom: 12px;
+        }
+
+        .card-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f8f9fa;
+        }
+
+        .card-label {
+            color: #666;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .card-value {
+            color: #333;
+            font-weight: 600;
+            text-align: left;
+        }
+
+        .type-badge {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: center;
+            padding-top: 10px;
+        }
+
+        .card-footer .delete-btn {
+            width: 100%;
+            max-width: 200px;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
@@ -278,6 +377,15 @@
             .nav-buttons {
                 flex-direction: column;
                 align-items: center;
+            }
+
+            /* Hide table, show cards on mobile */
+            .desktop-table {
+                display: none;
+            }
+
+            .mobile-cards {
+                display: block;
             }
         }
     </style>
@@ -369,7 +477,9 @@
         <!-- تاريخ الدفعات -->
         <div class="card">
             <h2 style="text-align: center; margin-bottom: 20px; color: #333;">تاريخ الدفعات</h2>
-            <table class="payments-table">
+            
+            <!-- Desktop Table View -->
+            <table class="payments-table desktop-table">
                 <thead>
                     <tr>
                         <th>التاريخ</th>
@@ -385,6 +495,11 @@
                     </tr>
                 </tbody>
             </table>
+
+            <!-- Mobile Cards View -->
+            <div class="mobile-cards" id="mobilePaymentsContainer">
+                <div class="no-data">جاري تحميل تاريخ الدفعات...</div>
+            </div>
         </div>
     </div>
 
@@ -515,12 +630,15 @@
         // Display payments in table
         function displayPayments() {
             const tbody = document.getElementById('paymentsTableBody');
+            const mobileContainer = document.getElementById('mobilePaymentsContainer');
             
             if (driverPayments.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" class="no-data">لا توجد دفعات مسجلة</td></tr>';
+                mobileContainer.innerHTML = '<div class="no-data">لا توجد دفعات مسجلة</div>';
                 return;
             }
             
+            // Desktop table view
             tbody.innerHTML = '';
             driverPayments.forEach(payment => {
                 const row = document.createElement('tr');
@@ -536,6 +654,43 @@
                     <td><button class="delete-btn" onclick="deletePayment('${payment.id}')">حذف</button></td>
                 `;
                 tbody.appendChild(row);
+            });
+
+            // Mobile cards view
+            mobileContainer.innerHTML = '';
+            driverPayments.forEach(payment => {
+                const isPositive = ['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم'].includes(payment.type);
+                const amountClass = isPositive ? 'positive' : 'negative';
+                const amountSign = isPositive ? '+' : '';
+                const borderClass = isPositive ? 'positive-border' : 'negative-border';
+                
+                const card = document.createElement('div');
+                card.className = `payment-card ${borderClass}`;
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-date">
+                            <span class="date-icon">📅</span>
+                            <span>${formatDate(payment.date)}</span>
+                        </div>
+                        <div class="card-amount ${amountClass}">
+                            ${amountSign}${parseFloat(payment.amount || 0).toFixed(3)} د.ك
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-row">
+                            <span class="card-label">🏷️ النوع:</span>
+                            <span class="card-value type-badge">${payment.type || 'غير محدد'}</span>
+                        </div>
+                        <div class="card-row">
+                            <span class="card-label">📝 الوصف:</span>
+                            <span class="card-value">${payment.description || '-'}</span>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="delete-btn" onclick="deletePayment('${payment.id}')">🗑️ حذف</button>
+                    </div>
+                `;
+                mobileContainer.appendChild(card);
             });
         }
 
