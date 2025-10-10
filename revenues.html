@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إدارة الإيرادات - نظام إدارة التاكسي</title>
     <link rel="stylesheet" href="style.css">
+    <script src="revenues-permissions.js"></script>
 </head>
 <body>
     <div class="container">
@@ -360,7 +361,8 @@
                 type: type,
                 amount: parseFloat(document.getElementById('revenueAmount').value),
                 description: description,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             try {
@@ -436,20 +438,20 @@
                 
                 // تحديد المصدر والوصف التفصيلي
                 let source = '';
-                let detailedDescription = revenue.description || '-';
+                let detailDescription = revenue.description || '-';
                 let deleteButton = '';
                 let deleteFunction = '';
                 
+                // إنشاء الزر بناءً على الصلاحيات
                 if (revenue.source === 'driverPayment') {
                     source = '👤 دفعة سائق';
-                    deleteButton = '<button class="delete-btn" onclick="deleteDriverPayment(\'' + revenue.id + '\')">حذف</button>';
+                    deleteButton = getRevenueDeleteButton(revenue.id, revenue.date, revenue.timestamp, 'deleteDriverPayment', 'delete-btn');
                     deleteFunction = 'deleteDriverPayment';
                 } else {
                     source = '🏢 إيراد مباشر';
-                    deleteButton = '<button class="delete-btn" onclick="deleteRevenue(\'' + revenue.id + '\')">حذف</button>';
+                    deleteButton = getRevenueDeleteButton(revenue.id, revenue.date, revenue.timestamp, 'deleteRevenue', 'delete-btn');
                     deleteFunction = 'deleteRevenue';
-                }
-                
+                }             
                 // تحسين الوصف التفصيلي
                 if (revenue.source === 'driverPayment') {
                     const driver = drivers.find(d => d.id === revenue.driverId);

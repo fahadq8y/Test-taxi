@@ -771,6 +771,8 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="unified-balance.js"></script>
+    <script src="user-permissions.js"></script>
+    <script src="expenses-permissions.js"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -1000,7 +1002,8 @@
                 amount: parseFloat(document.getElementById('expenseAmount').value),
                 description: description,
                 note: document.getElementById('expenseNote').value,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             try {
@@ -1025,6 +1028,12 @@
 
         // Delete expense
         async function deleteExpense(id) {
+            // التحقق من الصلاحيات قبل الحذف
+            const hasPermission = await verifyDeletePermission(id, 'expense');
+            if (!hasPermission) {
+                return;
+            }
+            
             if (confirm('هل أنت متأكد من حذف هذا المصروف؟')) {
                 try {
                     await db.collection('expenses').doc(id).delete();
@@ -1039,6 +1048,12 @@
 
         // Delete driver payment from expenses page
         async function deleteDriverPayment(id) {
+            // التحقق من الصلاحيات قبل الحذف
+            const hasPermission = await verifyDeletePermission(id, 'payment');
+            if (!hasPermission) {
+                return;
+            }
+            
             if (confirm('هل أنت متأكد من حذف دفعة السائق هذه؟')) {
                 try {
                     await db.collection('driverPayments').doc(id).delete();
@@ -1097,6 +1112,9 @@
             // تحديث معلومات وأزرار الصفحات
             updatePaginationInfo(startIndex + 1, Math.min(endIndex, filteredExpenses.length), filteredExpenses.length);
             updatePaginationControls();
+            
+            // تحديث أزرار الحذف بناءً على الصلاحيات
+            updateDeleteButtonsVisibility();
         }
 
         // تحديث معلومات الصفحة

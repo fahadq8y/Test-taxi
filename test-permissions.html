@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار نظام الصلاحيات</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .test-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .test-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .test-label {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .test-value {
+            color: #666;
+            font-family: monospace;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        select {
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            font-size: 14px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 اختبار نظام الصلاحيات</h1>
+
+        <div class="controls">
+            <label>اختر الدور للاختبار:</label>
+            <select id="roleSelect" onchange="changeRole()">
+                <option value="">-- اختر دور --</option>
+                <option value="admin">مدير (Admin)</option>
+                <option value="accountant">محاسب (Accountant)</option>
+                <option value="driver">سائق (Driver)</option>
+            </select>
+            <button onclick="runTests()">🧪 تشغيل الاختبارات</button>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 معلومات المستخدم الحالي</h2>
+            <div class="test-item">
+                <div class="test-label">الدور الحالي:</div>
+                <div class="test-value" id="currentRole">غير محدد</div>
+            </div>
+            <div class="test-item">
+                <div class="test-label">حالة تسجيل الدخول:</div>
+                <div class="test-value" id="loginStatus">غير مسجل</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 اختبارات الصلاحيات</h2>
+            <div id="testResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>⏰ اختبار قيود الوقت</h2>
+            <div id="timeTests"></div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="user-permissions.js"></script>
+    <script>
+        // تهيئة Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // تحديث معلومات المستخدم
+        function updateUserInfo() {
+            const role = getUserRoleSync();
+            document.getElementById('currentRole').textContent = role || 'غير محدد';
+            document.getElementById('loginStatus').textContent = role ? 'مسجل الدخول' : 'غير مسجل';
+        }
+
+        // تغيير الدور للاختبار
+        function changeRole() {
+            const role = document.getElementById('roleSelect').value;
+            if (role) {
+                localStorage.setItem('userRole', role);
+                updateUserInfo();
+            }
+        }
+
+        // تشغيل الاختبارات
+        function runTests() {
+            const role = getUserRoleSync();
+            if (!role) {
+                alert('يرجى اختيار دور أولاً');
+                return;
+            }
+
+            let results = '';
+
+            // اختبار 1: صلاحيات الحذف للعناصر الحديثة
+            const now = new Date();
+            const canDeleteRecent = canDelete(now);
+            results += createTestResult(
+                'حذف عنصر حديث (الآن)',
+                canDeleteRecent,
+                role === 'admin' || role === 'accountant',
+                `يمكن الحذف: ${canDeleteRecent ? 'نعم' : 'لا'}`
+            );
+
+            // اختبار 2: صلاحيات الحذف للعناصر القديمة (48 ساعة)
+            const twoDaysAgo = new Date(now - 48 * 60 * 60 * 1000);
+            const canDeleteOld = canDelete(twoDaysAgo);
+            results += createTestResult(
+                'حذف عنصر قديم (48 ساعة)',
+                canDeleteOld,
+                role === 'admin',
+                `يمكن الحذف: ${canDeleteOld ? 'نعم' : 'لا'}`
+            );
+
+            // اختبار 3: صلاحيات الحذف للعناصر في حدود 24 ساعة
+            const twentyHoursAgo = new Date(now - 20 * 60 * 60 * 1000);
+            const canDeleteWithin24 = canDelete(twentyHoursAgo);
+            results += createTestResult(
+                'حذف عنصر (20 ساعة)',
+                canDeleteWithin24,
+                role === 'admin' || role === 'accountant',
+                `يمكن الحذف: ${canDeleteWithin24 ? 'نعم' : 'لا'}`
+            );
+
+            document.getElementById('testResults').innerHTML = results;
+
+            // اختبارات الوقت
+            runTimeTests();
+        }
+
+        // اختبارات قيود الوقت
+        function runTimeTests() {
+            let timeResults = '';
+            const now = new Date();
+
+            const testTimes = [
+                { label: 'الآن', hours: 0 },
+                { label: '12 ساعة', hours: 12 },
+                { label: '23 ساعة', hours: 23 },
+                { label: '24 ساعة', hours: 24 },
+                { label: '25 ساعة', hours: 25 },
+                { label: '48 ساعة', hours: 48 }
+            ];
+
+            testTimes.forEach(test => {
+                const testDate = new Date(now - test.hours * 60 * 60 * 1000);
+                const canDeleteIt = canDeleteWithinTimeLimit(testDate);
+                const expected = test.hours <= 24;
+                
+                timeResults += createTestResult(
+                    `قيد الوقت: ${test.label}`,
+                    canDeleteIt === expected,
+                    true,
+                    `النتيجة: ${canDeleteIt ? 'ضمن 24 ساعة' : 'خارج 24 ساعة'}`
+                );
+            });
+
+            document.getElementById('timeTests').innerHTML = timeResults;
+        }
+
+        // إنشاء نتيجة اختبار
+        function createTestResult(name, passed, expected, details) {
+            const status = passed === expected ? 'success' : 'error';
+            const statusText = passed === expected ? '✓ نجح' : '✗ فشل';
+            
+            return `
+                <div class="test-item">
+                    <span class="status ${status}">${statusText}</span>
+                    <strong>${name}</strong>
+                    <div class="test-value">${details}</div>
+                </div>
+            `;
+        }
+
+        // تهيئة الصفحة
+        updateUserInfo();
+    </script>
+</body>
+</html>
+
