@@ -646,13 +646,21 @@
                 
                 await db.collection('driverPayments').add(paymentData);
                 
-                // إذا كانت الدفعة من نوع "أجرة يومية"، أضفها أيضاً للإيرادات
-                if (paymentType === 'أجرة يومية') {
+                // إضافة الدفعات التي تمثل إيرادات إلى جدول revenues
+                const revenueTypes = [
+                    'أجرة يومية',
+                    'دين قديم',
+                    'تحصيل مخالفة',
+                    'تحصيل رسوم إقامة',
+                    'تحصيل رسوم إيداعات الرواتب'
+                ];
+                
+                if (revenueTypes.includes(paymentType)) {
                     const revenueData = {
                         date: paymentDate,
-                        type: 'أجرة يومية',
+                        type: paymentType,
                         amount: amount,
-                        description: `أجرة يومية من السائق: ${currentDriver.name}`,
+                        description: `${paymentType} من السائق: ${currentDriver.name}${description ? ' - ' + description : ''}`,
                         driverId: currentDriverId,
                         driverName: currentDriver.name,
                         source: 'driverPayment',
@@ -660,7 +668,7 @@
                     };
                     
                     await db.collection('revenues').add(revenueData);
-                    console.log('✅ تم إضافة الأجرة اليومية للإيرادات');
+                    console.log(`✅ تم إضافة ${paymentType} للإيرادات`);
                 }
                 
                 // Check for automatic residence renewal
