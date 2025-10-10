@@ -148,8 +148,11 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
         return p.type === 'تحصيل رسوم إقامة' ? sum - amount : sum + amount;
     }, 0);
     
-    // 4. الديون القديمة
-    const oldDebts = parseFloat(driver.oldDebts || 0);
+    // 4. حساب الديون القديمة (الديون المسجلة - المدفوعات)
+    const oldDebtsInitial = parseFloat(driver.oldDebts || 0);
+    const oldDebtPayments = payments.filter(p => p.type === 'دين قديم');
+    const oldDebtsPaid = oldDebtPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+    const oldDebts = Math.max(0, oldDebtsInitial - oldDebtsPaid);
     
     // 5. حساب إجمالي الدين (نفس طريقة drivers-overview.html)
     totalDebt = lateAmount + violations + residencyFees + oldDebts - driverBalance;

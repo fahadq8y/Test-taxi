@@ -1,5 +1,39 @@
 # سجل التغييرات - نظام إدارة التاكسي
 
+## [2025-10-10] - إصلاح حساب الديون القديمة وطرح المدفوعات
+
+### المشكلة:
+عند إضافة دفعة "دين قديم" من السائق:
+- ✅ كانت تُضاف إلى جدول driverPayments
+- ✅ كانت تُضاف إلى جدول revenues (بعد الإصلاح السابق)
+- ❌ **لم تُخصم من "الديون القديمة" في جدول السائقين**
+- ❌ **لم تنقص من إجمالي الديون**
+
+### السبب:
+كانت دالة `calculateDriverDebt` في unified-balance.js و drivers-overview.html تأخذ قيمة `driver.oldDebts` مباشرة **بدون طرح** مدفوعات "دين قديم".
+
+### الحل:
+تم تحديث الدالتين لحساب الديون القديمة بالشكل الصحيح:
+```javascript
+const oldDebtsInitial = parseFloat(driver.oldDebts || 0);
+const oldDebtPayments = payments.filter(p => p.type === 'دين قديم');
+const oldDebtsPaid = oldDebtPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+const oldDebts = Math.max(0, oldDebtsInitial - oldDebtsPaid);
+```
+
+### النتيجة:
+✅ الآن عند دفع السائق "دين قديم":
+- تُخصم من عمود "ديون قديمة" في جدول السائقين
+- تنقص من إجمالي الديون بشكل صحيح
+- تُضاف إلى الإيرادات
+
+### الملفات المعدلة:
+1. **unified-balance.js** - إصلاح حساب الديون القديمة
+2. **drivers-overview.html** - إصلاح حساب الديون القديمة
+3. **CHANGELOG.md** - توثيق الإصلاح
+
+---
+
 ## [2025-10-10] - إصلاح إضافة دفعات السائقين إلى الإيرادات
 
 ### المشكلة:

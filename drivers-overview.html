@@ -451,8 +451,11 @@
                 return p.type === 'تحصيل رسوم إقامة' ? sum - amount : sum + amount;
             }, 0);
             
-            // Old debts
-            const oldDebts = parseFloat(driver.oldDebts || 0);
+            // Old debts (الديون المسجلة - المدفوعات)
+            const oldDebtsInitial = parseFloat(driver.oldDebts || 0);
+            const oldDebtPayments = payments.filter(p => p.type === 'دين قديم');
+            const oldDebtsPaid = oldDebtPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+            const oldDebts = Math.max(0, oldDebtsInitial - oldDebtsPaid);
             
             // Calculate total debt
             const totalDebt = lateAmount + violations + residencyFees + oldDebts - driverBalance;
