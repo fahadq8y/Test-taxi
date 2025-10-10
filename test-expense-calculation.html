@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار حساب المصروفات</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .test-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 8px;
+            border-right: 4px solid #667eea;
+        }
+
+        .result-label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        .result-value {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .success {
+            border-right-color: #28a745;
+        }
+
+        .error {
+            border-right-color: #dc3545;
+        }
+
+        .info {
+            border-right-color: #17a2b8;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .button-group {
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 اختبار حساب المصروفات</h1>
+        
+        <div class="button-group">
+            <button class="btn" onclick="runTest()">▶️ تشغيل الاختبار</button>
+            <button class="btn" onclick="location.href='expenses.html'">📊 صفحة المصروفات</button>
+            <button class="btn" onclick="location.href='admin-dashboard.html'">🏠 الرئيسية</button>
+        </div>
+
+        <div id="testResults" class="loading">
+            اضغط على "تشغيل الاختبار" لبدء الفحص...
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="unified-balance.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        async function runTest() {
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = '<div class="loading">جاري تحميل البيانات...</div>';
+
+            try {
+                // Load all data
+                const expensesSnapshot = await db.collection('expenses').get();
+                const expenses = expensesSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                const revenuesSnapshot = await db.collection('revenues').get();
+                const revenues = revenuesSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                const paymentsSnapshot = await db.collection('driverPayments').get();
+                const driverPayments = paymentsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                const driversSnapshot = await db.collection('drivers').get();
+                const drivers = driversSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Calculate balances
+                const balances = calculateUnifiedBalances(revenues, expenses, driverPayments, drivers);
+
+                // Calculate manual totals for verification
+                const manualExpensesTotal = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+                const driverPaymentExpenses = driverPayments.filter(p => 
+                    p.type === 'سداد مخالفة' || p.type === 'سداد رسوم إقامة'
+                );
+                const driverPaymentExpensesTotal = driverPaymentExpenses.reduce((sum, p) => 
+                    sum + parseFloat(p.amount || 0), 0
+                );
+                const expectedTotalExpenses = manualExpensesTotal + driverPaymentExpensesTotal;
+
+                // Display results
+                let html = '';
+
+                // Summary Section
+                html += '<div class="test-section">';
+                html += '<h2>📊 ملخص النتائج</h2>';
+                html += `<div class="result-item ${Math.abs(balances.totalExpenses - expectedTotalExpenses) < 0.01 ? 'success' : 'error'}">`;
+                html += '<span class="result-label">حالة الاختبار:</span>';
+                html += `<span class="result-value">${Math.abs(balances.totalExpenses - expectedTotalExpenses) < 0.01 ? '✅ نجح' : '❌ فشل'}</span>`;
+                html += '</div>';
+                html += '</div>';
+
+                // Detailed Results
+                html += '<div class="test-section">';
+                html += '<h2>📈 تفاصيل الحسابات</h2>';
+                
+                html += '<div class="result-item info">';
+                html += '<span class="result-label">عدد المصروفات العادية:</span>';
+                html += `<span class="result-value">${expenses.length} مصروف</span>`;
+                html += '</div>';
+
+                html += '<div class="result-item info">';
+                html += '<span class="result-label">إجمالي المصروفات العادية:</span>';
+                html += `<span class="result-value">${manualExpensesTotal.toFixed(3)} د.ك</span>`;
+                html += '</div>';
+
+                html += '<div class="result-item info">';
+                html += '<span class="result-label">عدد مصروفات دفعات السائقين:</span>';
+                html += `<span class="result-value">${driverPaymentExpenses.length} مصروف</span>`;
+                html += '</div>';
+
+                html += '<div class="result-item info">';
+                html += '<span class="result-label">إجمالي مصروفات دفعات السائقين:</span>';
+                html += `<span class="result-value">${driverPaymentExpensesTotal.toFixed(3)} د.ك</span>`;
+                html += '</div>';
+
+                html += '<div class="result-item success">';
+                html += '<span class="result-label">الإجمالي المتوقع:</span>';
+                html += `<span class="result-value">${expectedTotalExpenses.toFixed(3)} د.ك</span>`;
+                html += '</div>';
+
+                html += '<div class="result-item ' + (Math.abs(balances.totalExpenses - expectedTotalExpenses) < 0.01 ? 'success' : 'error') + '">';
+                html += '<span class="result-label">الإجمالي المحسوب (من unified-balance.js):</span>';
+                html += `<span class="result-value">${balances.totalExpenses.toFixed(3)} د.ك</span>`;
+                html += '</div>';
+
+                if (Math.abs(balances.totalExpenses - expectedTotalExpenses) >= 0.01) {
+                    html += '<div class="result-item error">';
+                    html += '<span class="result-label">الفرق:</span>';
+                    html += `<span class="result-value">${(balances.totalExpenses - expectedTotalExpenses).toFixed(3)} د.ك</span>`;
+                    html += '</div>';
+                }
+
+                html += '</div>';
+
+                // Driver Payment Expenses Table
+                if (driverPaymentExpenses.length > 0) {
+                    html += '<div class="test-section">';
+                    html += '<h2>📋 تفاصيل مصروفات دفعات السائقين</h2>';
+                    html += '<table>';
+                    html += '<thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>السائق</th><th>الملاحظات</th></tr></thead>';
+                    html += '<tbody>';
+                    
+                    driverPaymentExpenses.forEach(payment => {
+                        const driver = drivers.find(d => d.id === payment.driverId);
+                        html += '<tr>';
+                        html += `<td>${payment.date || 'غير محدد'}</td>`;
+                        html += `<td>${payment.type}</td>`;
+                        html += `<td>${parseFloat(payment.amount || 0).toFixed(3)} د.ك</td>`;
+                        html += `<td>${driver ? driver.name : 'غير محدد'}</td>`;
+                        html += `<td>${payment.notes || '-'}</td>`;
+                        html += '</tr>';
+                    });
+                    
+                    html += '</tbody></table>';
+                    html += '</div>';
+                }
+
+                // Other Balances
+                html += '<div class="test-section">';
+                html += '<h2>💰 الأرصدة الأخرى</h2>';
+                
+                html += '<div class="result-item info">';
+                html += '<span class="result-label">الرصيد البنكي:</span>';
+                html += `<span class="result-value">${balances.bankBalance.toFixed(3)} د.ك</span>`;
+                html += '</div>';
+
+                html += '<div class="result-item info">';
+                html += '<span class="result-label">رصيد الرواتب:</span>';
+                html += `<span class="result-value">${balances.salaryBalance.toFixed(3)} د.ك</span>`;
+                html += '</div>';
+
+                html += '<div class="result-item info">';
+                html += '<span class="result-label">إجمالي الديون:</span>';
+                html += `<span class="result-value">${balances.totalDriverDebts.toFixed(3)} د.ك</span>`;
+                html += '</div>';
+
+                html += '<div class="result-item info">';
+                html += '<span class="result-label">إجمالي الإيرادات:</span>';
+                html += `<span class="result-value">${balances.totalRevenues.toFixed(3)} د.ك</span>`;
+                html += '</div>';
+
+                html += '</div>';
+
+                resultsDiv.innerHTML = html;
+
+            } catch (error) {
+                console.error('خطأ في تشغيل الاختبار:', error);
+                resultsDiv.innerHTML = `
+                    <div class="test-section">
+                        <div class="result-item error">
+                            <span class="result-label">خطأ:</span>
+                            <span class="result-value">${error.message}</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
+

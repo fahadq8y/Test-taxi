@@ -35,6 +35,18 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
         }, 0);
     }
 
+    // حساب المصروفات من دفعات السائقين (سداد مخالفة، سداد رسوم إقامة)
+    if (driverPayments && driverPayments.length > 0) {
+        driverPayments.forEach(payment => {
+            const amount = parseFloat(payment.amount) || 0;
+            
+            // المصروفات التي يجب احتسابها في إجمالي المصروفات
+            if (payment.type === 'سداد مخالفة' || payment.type === 'سداد رسوم إقامة') {
+                totalExpenses += amount;
+            }
+        });
+    }
+
     // حساب دفعات السائقين حسب النظام المحاسبي الجديد
     if (driverPayments && driverPayments.length > 0) {
         driverPayments.forEach(payment => {

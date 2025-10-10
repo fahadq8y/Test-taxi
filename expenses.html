@@ -698,9 +698,9 @@
             // Combine expenses with relevant driver payments
             let allExpenseItems = [...expenses];
 
-            // Add driver payments that should appear in expenses (دفع مخالفة، دفع رسوم إقامة)
+            // Add driver payments that should appear in expenses (سداد مخالفة، سداد رسوم إقامة)
             driverPayments.forEach(payment => {
-                if (['دفع مخالفة', 'دفع رسوم إقامة'].includes(payment.type)) {
+                if (['سداد مخالفة', 'سداد رسوم إقامة'].includes(payment.type)) {
                     const driver = drivers.find(d => d.id === payment.driverId);
                     allExpenseItems.push({
                         id: payment.id,
