@@ -1,5 +1,39 @@
 # سجل التغييرات - نظام إدارة التاكسي
 
+## [2025-10-10] - إصلاح حساب إجمالي الديون في unified-balance.js
+
+### المشكلة:
+كانت صفحات revenues.html و expenses.html تعرض قيمة خاطئة لإجمالي الديون (933 د.ك) بينما drivers-overview.html تعرض القيمة الصحيحة (1017 د.ك).
+
+### السبب:
+كانت دالة `calculateDriverDebt` في unified-balance.js تستخدم منطق حساب مختلف عن drivers-overview.html:
+- كانت تطرح مدفوعات "دين قديم" من الدين (خطأ)
+- لم تكن تطرح `driverBalance` (رصيد السائق الزائد)
+
+### الحل:
+تم تحديث دالة `calculateDriverDebt` لتطابق تماماً منطق الحساب في drivers-overview.html:
+
+```javascript
+// الصيغة الموحدة الآن:
+totalDebt = lateAmount + violations + residencyFees + oldDebts - driverBalance;
+```
+
+حيث:
+- **lateAmount**: الأجرة اليومية المتأخرة
+- **violations**: صافي المخالفات (سداد - تحصيل)
+- **residencyFees**: صافي رسوم الإقامة (سداد - تحصيل)
+- **oldDebts**: الديون القديمة المسجلة
+- **driverBalance**: الرصيد الزائد للسائق (يُطرح من الدين)
+
+### النتيجة:
+✅ جميع الصفحات الآن تعرض نفس القيمة الصحيحة لإجمالي الديون (1017 د.ك)
+
+### الملفات المعدلة:
+1. **unified-balance.js** - إصلاح دالة calculateDriverDebt
+2. **CHANGELOG.md** - توثيق الإصلاح
+
+---
+
 ## [2025-10-10] - توحيد عرض "إجمالي الديون" في جميع الصفحات
 
 ### التغييرات:

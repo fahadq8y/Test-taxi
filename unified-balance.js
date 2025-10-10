@@ -121,53 +121,38 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
     const totalDailyRentPaid = dailyRentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
     
     // الأجرة المتأخرة = المتوقع - المدفوع
-    const lateRent = Math.max(0, expectedTotal - totalDailyRentPaid);
-    totalDebt += lateRent;
+    const lateAmount = Math.max(0, expectedTotal - totalDailyRentPaid);
     
-    // 2. حساب الديون من المدفوعات الأخرى
-    payments.forEach(payment => {
-        const amount = parseFloat(payment.amount || 0);
-        
-        switch(payment.type) {
-            // العمليات التي تزيد الدين (الشركة دفعت عن السائق)
-            case 'سداد مخالفة':
-            case 'سداد رسوم إقامة':
-            case 'سداد رسوم رواتب':
-                totalDebt += amount;
-                break;
-            
-            // العمليات التي تنقص الدين (السائق دفع)
-            case 'تحصيل مخالفة':
-            case 'تحصيل رسوم إقامة':
-                totalDebt -= amount;
-                break;
-            
-            // تحصيل رسوم الرواتب لا يؤثر على دين السائق
-            case 'تحصيل رسوم رواتب':
-            case 'تحصيل رسوم إيداعات الرواتب':
-                // لا يؤثر على الدين
-                break;
-            
-            // الديون القديمة (تنقص الدين عند التحصيل)
-            case 'دين قديم':
-                totalDebt -= amount;
-                break;
-            
-            // الأجرة اليومية تم حسابها أعلاه
-            case 'أجرة يومية':
-                // لا نفعل شيء هنا لأنها محسوبة في lateRent
-                break;
-            
-            // دفع الرواتب لا يؤثر على دين السائق
-            case 'سداد رواتب':
-                // لا يؤثر على دين السائق
-                break;
-        }
-    });
+    // حساب رصيد السائق (إذا دفع أكثر من المطلوب)
+    const driverBalance = Math.max(0, totalDailyRentPaid - expectedTotal);
     
-    // 3. إضافة الديون القديمة المسجلة عند إضافة السائق
+    // 2. حساب المخالفات (positive = driver owes, negative = driver paid)
+    const violationPayments = payments.filter(p => 
+        p.type === 'سداد مخالفة' || p.type === 'تحصيل مخالفة'
+    );
+    const violations = violationPayments.reduce((sum, p) => {
+        const amount = parseFloat(p.amount || 0);
+        // تحصيل مخالفة = السائق دفع (يقلل الدين)
+        // سداد مخالفة = الشركة دفعت عن السائق (يزيد الدين)
+        return p.type === 'تحصيل مخالفة' ? sum - amount : sum + amount;
+    }, 0);
+    
+    // 3. حساب رسوم الإقامة (positive = driver owes, negative = driver paid)
+    const residencyPayments = payments.filter(p => 
+        p.type === 'سداد رسوم إقامة' || p.type === 'تحصيل رسوم إقامة'
+    );
+    const residencyFees = residencyPayments.reduce((sum, p) => {
+        const amount = parseFloat(p.amount || 0);
+        // تحصيل رسوم إقامة = السائق دفع (يقلل الدين)
+        // سداد رسوم إقامة = الشركة دفعت عن السائق (يزيد الدين)
+        return p.type === 'تحصيل رسوم إقامة' ? sum - amount : sum + amount;
+    }, 0);
+    
+    // 4. الديون القديمة
     const oldDebts = parseFloat(driver.oldDebts || 0);
-    totalDebt += oldDebts;
+    
+    // 5. حساب إجمالي الدين (نفس طريقة drivers-overview.html)
+    totalDebt = lateAmount + violations + residencyFees + oldDebts - driverBalance;
     
     // الدين لا يمكن أن يكون سالب
     return Math.max(0, totalDebt);
