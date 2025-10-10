@@ -1001,6 +1001,20 @@
             }
         }
 
+        // Delete driver payment from expenses page
+        async function deleteDriverPayment(id) {
+            if (confirm('هل أنت متأكد من حذف دفعة السائق هذه؟')) {
+                try {
+                    await db.collection('driverPayments').doc(id).delete();
+                    alert('تم حذف دفعة السائق بنجاح!');
+                    loadAllData();
+                } catch (error) {
+                    console.error('خطأ في حذف دفعة السائق:', error);
+                    alert('حدث خطأ في حذف دفعة السائق');
+                }
+            }
+        }
+
         // Display expenses with pagination
         function displayExpenses(expenseItems) {
             // تحديث المصروفات المفلترة
@@ -1024,8 +1038,14 @@
             tbody.innerHTML = '';
             currentPageData.forEach(expense => {
                 const row = document.createElement('tr');
-                // عرض زر الحذف لجميع العمليات بغض النظر عن المصدر
-                const deleteButton = `<button class="delete-btn" onclick="deleteExpense('${expense.id}')">حذف</button>`;
+                
+                // تحديد زر الحذف المناسب حسب مصدر المصروف
+                let deleteButton;
+                if (expense.source === 'driverPayment') {
+                    deleteButton = `<button class="delete-btn" onclick="deleteDriverPayment('${expense.id}')">حذف</button>`;
+                } else {
+                    deleteButton = `<button class="delete-btn" onclick="deleteExpense('${expense.id}')">حذف</button>`;
+                }
                 
                 row.innerHTML = `
                     <td>${formatDate(expense.date)}</td>

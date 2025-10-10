@@ -374,6 +374,20 @@
             }
         }
 
+        // Delete driver payment from revenues page
+        async function deleteDriverPayment(id) {
+            if (confirm('هل أنت متأكد من حذف دفعة السائق هذه؟')) {
+                try {
+                    await db.collection('driverPayments').doc(id).delete();
+                    alert('تم حذف دفعة السائق بنجاح!');
+                    loadAllData();
+                } catch (error) {
+                    console.error('خطأ في حذف دفعة السائق:', error);
+                    alert('حدث خطأ في حذف دفعة السائق');
+                }
+            }
+        }
+
         // Display revenues with pagination
         function displayRevenues() {
             const tbody = document.getElementById('revenueTableBody');
