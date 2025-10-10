@@ -378,6 +378,7 @@ body {
     max-width: 600px;
     max-height: 85vh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     box-shadow: var(--shadow-xl);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -891,8 +892,9 @@ body {
 @media (max-width: 480px) {
     .modal-content {
         width: 100%;
-        max-height: 100vh;
+        max-height: 90vh;
         border-radius: 0;
+        -webkit-overflow-scrolling: touch;
     }
     
     .stats-grid {
@@ -1711,7 +1713,6 @@ body {
     border-radius: 20px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     border: none;
-    overflow: hidden;
     animation: modalSlideIn 0.3s ease;
 }
 
