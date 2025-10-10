@@ -199,7 +199,7 @@ function updateBalanceDisplay(balances) {
         }
     }
 
-    // تحديث ديون السائقين
+    // تحديث ديون السائقين (للتوافق مع الصفحات القديمة)
     const driverDebtsElement = document.getElementById('driverDebts');
     if (driverDebtsElement) {
         driverDebtsElement.textContent = balances.totalDriverDebts.toFixed(3) + ' د.ك';
@@ -208,6 +208,18 @@ function updateBalanceDisplay(balances) {
             driverDebtsElement.style.color = '#dc3545';
         } else {
             driverDebtsElement.style.color = '#28a745';
+        }
+    }
+
+    // تحديث إجمالي الديون (الاسم الجديد)
+    const totalDebtElement = document.getElementById('totalDebt');
+    if (totalDebtElement) {
+        totalDebtElement.textContent = balances.totalDriverDebts.toFixed(3) + ' د.ك';
+        // ديون السائقين دائماً باللون الأحمر إذا كانت أكبر من صفر
+        if (balances.totalDriverDebts > 0) {
+            totalDebtElement.style.color = '#dc3545';
+        } else {
+            totalDebtElement.style.color = '#28a745';
         }
     }
 
