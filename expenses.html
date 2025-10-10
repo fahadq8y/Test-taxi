@@ -970,11 +970,23 @@
             const originalText = submitBtn.textContent;
             submitBtn.textContent = 'جاري الحفظ...';
             
+            const type = document.getElementById('expenseType').value;
+            const description = document.getElementById('expenseDescription').value;
+            
+            // التحقق من الوصف الإجباري عند اختيار "أخرى"
+            if (type === 'أخرى' && (!description || description.trim() === '')) {
+                alert('يجب كتابة وصف عند اختيار نوع "أخرى"');
+                document.getElementById('expenseDescription').focus();
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+                return;
+            }
+            
             const expenseData = {
                 date: document.getElementById('expenseDate').value,
-                type: document.getElementById('expenseType').value,
+                type: type,
                 amount: parseFloat(document.getElementById('expenseAmount').value),
-                description: document.getElementById('expenseDescription').value,
+                description: description,
                 note: document.getElementById('expenseNote').value,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             };
