@@ -10,15 +10,18 @@
 
 </head>
 <body>
-    <div class="header">
-        <h1>👥 إدارة السائقين</h1>
-        <div class="nav-buttons">
-            <a href="admin-dashboard.html" class="nav-btn">لوحة التحكم</a>
-            <button class="nav-btn" onclick="logout()">تسجيل الخروج</button>
-        </div>
-    </div>
-
     <div class="container">
+        <div class="header">
+            <h1>👥 إدارة السائقين</h1>
+            <p>إدارة وتتبع جميع سائقي الشركة</p>
+            <div class="nav-buttons">
+                <a href="admin-dashboard.html" class="nav-btn">🏠 لوحة التحكم</a>
+                <a href="revenues.html" class="nav-btn">💰 الإيرادات</a>
+                <a href="expenses.html" class="nav-btn">💸 المصروفات</a>
+                <a href="balance-display.html" class="nav-btn">📊 الميزانية</a>
+            </div>
+        </div>
+
         <div class="controls">
             <input type="text" class="search-input" id="searchInput" placeholder="البحث عن سائق..." onkeyup="filterDrivers()">
             <button class="add-btn" onclick="openModal()">إضافة سائق جديد</button>
@@ -32,7 +35,6 @@
         <div class="drivers-grid" id="driversGrid" style="display: none;">
             <!-- سيتم ملء السائقين هنا -->
         </div>
-    </div>
 
     <!-- Modal إضافة/تعديل سائق -->
     <div id="driverModal" class="modal">
@@ -626,6 +628,7 @@
             }
         };
     </script>
+    </div>
 </body>
 </html>
 
