@@ -646,30 +646,8 @@
                 
                 await db.collection('driverPayments').add(paymentData);
                 
-                // إضافة الدفعات التي تمثل إيرادات إلى جدول revenues
-                const revenueTypes = [
-                    'أجرة يومية',
-                    'دين قديم',
-                    'تحصيل مخالفة',
-                    'تحصيل رسوم إقامة',
-                    'تحصيل رسوم إيداعات الرواتب'
-                ];
-                
-                if (revenueTypes.includes(paymentType)) {
-                    const revenueData = {
-                        date: paymentDate,
-                        type: paymentType,
-                        amount: amount,
-                        description: `${paymentType} من السائق: ${currentDriver.name}${description ? ' - ' + description : ''}`,
-                        driverId: currentDriverId,
-                        driverName: currentDriver.name,
-                        source: 'driverPayment',
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                    };
-                    
-                    await db.collection('revenues').add(revenueData);
-                    console.log(`✅ تم إضافة ${paymentType} للإيرادات`);
-                }
+                // ملاحظة: الإيرادات تُحسب تلقائياً من driverPayments
+                // لا حاجة لإضافتها إلى جدول revenues لتجنب التسجيل المضاعف
                 
                 // Check for automatic residence renewal
                 await checkResidenceRenewal();
