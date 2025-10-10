@@ -10,6 +10,141 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* تحسين عرض الجدول */
+        .table-container {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            overflow-x: auto;
+            margin-bottom: 30px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            min-width: 1200px;
+        }
+
+        .table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 12px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+            border-bottom: none;
+            white-space: nowrap;
+        }
+
+        .table td {
+            padding: 14px 12px;
+            text-align: center;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 14px;
+            color: #333;
+            vertical-align: middle;
+        }
+
+        .table tbody tr {
+            transition: all 0.25s ease;
+            background-color: white;
+        }
+
+        .table tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .table tbody tr:hover {
+            background-color: #e8f0fe;
+            cursor: pointer;
+        }
+
+        /* تحسين عرض الأسماء */
+        .table td:first-child {
+            font-weight: 600;
+            color: #667eea;
+            text-align: right;
+            padding-right: 20px;
+        }
+
+        /* تحسين عرض المبالغ */
+        .table td.amount {
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            font-size: 15px;
+        }
+
+        .table td.amount.positive {
+            color: #28a745;
+            background-color: rgba(40, 167, 69, 0.1);
+        }
+
+        .table td.amount.negative {
+            color: #dc3545;
+            background-color: rgba(220, 53, 69, 0.1);
+            font-weight: 700;
+        }
+
+        .table td.amount.zero {
+            color: #6c757d;
+            opacity: 0.7;
+        }
+
+        /* عرض responsive للموبايل */
+        @media (max-width: 768px) {
+            .table-container {
+                padding: 15px;
+                border-radius: 10px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .table {
+                min-width: 1400px;
+                font-size: 13px;
+                display: table !important;
+            }
+
+            .table th,
+            .table td {
+                padding: 12px 10px;
+                font-size: 13px;
+            }
+
+            /* تثبيت عمود الاسم على اليمين */
+            .table td:first-child,
+            .table th:first-child {
+                position: sticky;
+                right: 0;
+                background: white;
+                z-index: 5;
+                box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+            }
+
+            .table thead th:first-child {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                z-index: 15;
+            }
+
+            .table tbody tr:nth-child(even) td:first-child {
+                background-color: #f8f9fa;
+            }
+
+            .table tbody tr:hover td:first-child {
+                background-color: #e8f0fe;
+            }
+        }
+
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 40px 20px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
