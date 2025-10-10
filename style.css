@@ -2521,17 +2521,24 @@ table {
 /* الإجراءات السريعة */
 .quick-actions {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
     .quick-actions {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
     }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+    .quick-actions {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+}
+
+@media (max-width: 480px) {
     .quick-actions {
         grid-template-columns: 1fr;
     }
