@@ -7,417 +7,37 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2563eb">
     <link rel="stylesheet" href="style.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f8fafc;
-            direction: rtl;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .header h1 {
-            font-size: 1.5rem;
-        }
-
-        .nav-buttons {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .nav-btn {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: background 0.3s;
-        }
-
-        .nav-btn:hover {
-            background: rgba(255,255,255,0.3);
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-
-        .controls {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-
-        .search-input {
-            padding: 0.75rem;
-            border: 2px solid #e5e7eb;
-            border-radius: 10px;
-            font-size: 1rem;
-            width: 300px;
-            direction: rtl;
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: #2563eb;
-        }
-
-        .add-btn {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: transform 0.2s;
-        }
-
-        .add-btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .cars-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .car-card {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            overflow: hidden;
-            transition: transform 0.2s;
-        }
-
-        .car-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .car-header {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            padding: 1.5rem;
-            text-align: center;
-        }
-
-        .car-plate {
-            font-size: 1.5rem;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
-
-        .car-model {
-            opacity: 0.9;
-            font-size: 1.1rem;
-        }
-
-        .car-body {
-            padding: 1.5rem;
-        }
-
-        .car-info {
-            margin-bottom: 1rem;
-        }
-
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        .info-label {
-            color: #6b7280;
-        }
-
-        .info-value {
-            font-weight: 600;
-            color: #1f2937;
-        }
-
-        .alerts {
-            margin-bottom: 1rem;
-        }
-
-        .alert {
-            padding: 0.5rem;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            margin-bottom: 0.25rem;
-        }
-
-        .alert-urgent {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .alert-warning {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .car-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .action-btn {
-            flex: 1;
-            padding: 0.5rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-
-        .edit-btn {
-            background: #f59e0b;
-            color: white;
-        }
-
-        .edit-btn:hover {
-            background: #d97706;
-        }
-
-        .delete-btn {
-            background: #ef4444;
-            color: white;
-        }
-
-        .delete-btn:hover {
-            background: #dc2626;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-        }
-
-        .modal-content {
-            background-color: white;
-            margin: 5% auto;
-            padding: 1.5rem;
-            border-radius: 12px;
-            width: 95%;
-            max-width: 380px;
-            max-height: 80vh;
-            overflow-y: auto;
-            direction: rtl;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .close {
-            color: #aaa;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .close:hover {
-            color: #000;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .form-group {
-            margin-bottom: 1rem;
-        }
-
-        .form-group.full-width {
-            grid-column: 1 / -1;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #374151;
-            font-weight: 500;
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 1rem;
-            direction: rtl;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #2563eb;
-        }
-
-        .form-actions {
-            display: flex;
-            gap: 1rem;
-            justify-content: flex-end;
-            margin-top: 2rem;
-        }
-
-        .save-btn {
-            background: #10b981;
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-
-        .cancel-btn {
-            background: #6b7280;
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 2rem;
-        }
-
-        .spinner {
-            border: 3px solid #f3f4f6;
-            border-top: 3px solid #10b981;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1rem;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 3rem;
-            color: #6b7280;
-        }
-
-        .empty-state-icon {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-        }
-
-        @media (max-width: 768px) {
-            .header {
-                padding: 1rem;
-                flex-direction: column;
-                gap: 1rem;
-            }
-
-            .container {
-                margin: 1rem auto;
-                padding: 0 0.5rem;
-            }
-
-            .controls {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .search-input {
-                width: 100%;
-            }
-
-            .cars-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .modal-content {
-                width: 98%;
-                max-width: 340px;
-                margin: 3% auto;
-                padding: 0.8rem;
-            }
-        }
-    </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🚗 إدارة السيارات</h1>
-        <div class="nav-buttons">
-            <a href="admin-dashboard.html" class="nav-btn">لوحة التحكم</a>
-            <button class="nav-btn" onclick="logout()">تسجيل الخروج</button>
+    <!-- Banner -->
+    <div class="banner">
+        <div class="banner-content">
+            <h1 class="banner-title">🚗 إدارة السيارات</h1>
+            <p class="banner-subtitle">إدارة وتتبع جميع سيارات الشركة</p>
+        </div>
+        <div class="banner-nav">
+            <a href="admin-dashboard.html" class="banner-nav-btn">🏠 لوحة التحكم</a>
+            <a href="drivers-overview.html" class="banner-nav-btn">👥 السائقين</a>
+            <a href="revenues.html" class="banner-nav-btn">💰 الإيرادات</a>
+            <a href="expenses.html" class="banner-nav-btn">💸 المصروفات</a>
+            <a href="budget.html" class="banner-nav-btn">📊 الميزانية</a>
         </div>
     </div>
 
-    <div class="container">
-        <div class="controls">
+    <div class="page-container">
+        <!-- Controls -->
+        <div class="controls-container">
+            <button class="btn btn-success" onclick="openModal()">➕ إضافة سيارة جديدة</button>
             <input type="text" class="search-input" id="searchInput" placeholder="البحث عن سيارة..." onkeyup="filterCars()">
-            <button class="add-btn" onclick="openModal()">إضافة سيارة جديدة</button>
         </div>
 
-        <div class="loading" id="loading">
+        <!-- Loading -->
+        <div class="loading-container" id="loading">
             <div class="spinner"></div>
             <p>جاري تحميل السيارات...</p>
         </div>
 
+        <!-- Cars Grid -->
         <div class="cars-grid" id="carsGrid" style="display: none;">
             <!-- سيتم ملء السيارات هنا -->
         </div>
@@ -427,7 +47,7 @@
     <div id="carModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modalTitle">إضافة سيارة جديدة</h2>
+                <h2 id="modalTitle" class="modal-title">إضافة سيارة جديدة</h2>
                 <span class="close" onclick="closeModal()">&times;</span>
             </div>
             
@@ -461,8 +81,8 @@
                 </div>
 
                 <div class="form-actions">
-                    <button type="button" class="cancel-btn" onclick="closeModal()">إلغاء</button>
-                    <button type="submit" class="save-btn">حفظ السيارة</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">إلغاء</button>
+                    <button type="submit" class="btn btn-success">حفظ السيارة</button>
                 </div>
             </form>
         </div>
@@ -638,8 +258,8 @@
                             ` : ''}
                             
                             <div class="car-actions">
-                                <button class="action-btn edit-btn" onclick="editCar('${car.id}')">تعديل</button>
-                                <button class="action-btn delete-btn" onclick="deleteCar('${car.id}')">حذف</button>
+                                <button class="btn btn-warning btn-sm" onclick="editCar('${car.id}')">تعديل</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteCar('${car.id}')">حذف</button>
                             </div>
                         </div>
                     </div>

@@ -3407,3 +3407,164 @@ table {
     }
 }
 
+
+/* ==================== Cars Page Styles ==================== */
+
+.cars-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.car-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.car-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+
+.car-header {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.car-plate {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.car-model {
+    opacity: 0.9;
+    font-size: 1.1rem;
+}
+
+.car-body {
+    padding: 1.5rem;
+}
+
+.car-info {
+    margin-bottom: 1rem;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.info-label {
+    color: #6b7280;
+}
+
+.info-value {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.alerts {
+    margin-bottom: 1rem;
+}
+
+.alert {
+    padding: 0.5rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+}
+
+.alert-urgent {
+    background: #fee2e2;
+    color: #991b1b;
+    border-left: 4px solid #dc2626;
+}
+
+.alert-warning {
+    background: #fef3c7;
+    color: #92400e;
+    border-left: 4px solid #f59e0b;
+}
+
+.car-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #6b7280;
+    grid-column: 1 / -1;
+}
+
+.empty-state-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+.empty-state h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: #374151;
+}
+
+.empty-state p {
+    font-size: 1rem;
+}
+
+.loading-container {
+    text-align: center;
+    padding: 3rem;
+}
+
+.spinner {
+    border: 3px solid #f3f4f6;
+    border-top: 3px solid #10b981;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    .cars-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .car-card {
+        margin-bottom: 1rem;
+    }
+    
+    .car-header {
+        padding: 1rem;
+    }
+    
+    .car-plate {
+        font-size: 1.2rem;
+    }
+    
+    .car-model {
+        font-size: 1rem;
+    }
+    
+    .car-body {
+        padding: 1rem;
+    }
+}
