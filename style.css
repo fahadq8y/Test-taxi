@@ -2523,6 +2523,8 @@ table {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 24px;
+    justify-items: center;
+    align-items: stretch;
 }
 
 @media (max-width: 1200px) {
@@ -2561,6 +2563,8 @@ table {
     position: relative;
     overflow: hidden;
     min-height: 140px;
+    width: 100%;
+    max-width: 250px;
 }
 
 .action-btn::before {
