@@ -1,5 +1,30 @@
 # سجل التغييرات - نظام إدارة التاكسي
 
+## [2025-10-10] - توحيد صفحة عرض الأرصدة مع النظام الموحد
+
+### التغييرات:
+
+#### 1. تحديث balance-display.html
+- ✅ تغيير التسمية من "ديون على السائقين" إلى "إجمالي الديون"
+- ✅ تغيير ID من `driversDebtBalance` إلى `totalDebt`
+- ✅ إزالة onclick من البطاقة
+- ✅ إضافة استيراد `unified-balance.js`
+- ✅ تحديث دالة `loadBalances` لاستخدام `calculateUnifiedBalances` و `updateBalanceDisplay`
+- ✅ حذف الدوال القديمة (`calculateBankBalance`, `calculateSalaryBalance`, `calculateDriversDebtBalance`)
+
+#### 2. النتيجة
+جميع صفحات النظام الآن تستخدم نفس النظام الموحد لحساب الأرصدة:
+- ✅ revenues.html
+- ✅ expenses.html
+- ✅ drivers-overview.html
+- ✅ balance-display.html
+
+### الملفات المعدلة:
+1. **balance-display.html** - توحيد مع النظام الموحد
+2. **CHANGELOG.md** - توثيق التحديث
+
+---
+
 ## [2025-10-10] - إصلاح حساب إجمالي الديون في unified-balance.js
 
 ### المشكلة:

@@ -281,10 +281,10 @@
                 <div class="balance-currency">دينار كويتي</div>
             </div>
 
-            <div class="balance-card drivers-debt-balance" onclick="showDriversDebt()">
+            <div class="balance-card drivers-debt-balance">
                 <div class="balance-icon">📋</div>
-                <div class="balance-title">ديون على السائقين</div>
-                <div class="balance-amount" id="driversDebtBalance">0.000</div>
+                <div class="balance-title">إجمالي الديون</div>
+                <div class="balance-amount" id="totalDebt">0.000</div>
                 <div class="balance-currency">دينار كويتي</div>
             </div>
         </div>
@@ -314,6 +314,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="unified-balance.js"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -335,17 +336,34 @@
 
         async function loadBalances() {
             try {
-                // Calculate bank balance
-                const bankBalance = await calculateBankBalance();
-                document.getElementById('bankBalance').textContent = bankBalance.toFixed(3);
+                // Load all data
+                const revenuesSnapshot = await db.collection('revenues').orderBy('date', 'desc').get();
+                const revenues = revenuesSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
 
-                // Calculate salary balance
-                const salaryBalance = await calculateSalaryBalance();
-                document.getElementById('salaryBalance').textContent = salaryBalance.toFixed(3);
+                const expensesSnapshot = await db.collection('expenses').orderBy('date', 'desc').get();
+                const expenses = expensesSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
 
-                // Calculate drivers debt balance
-                const driversDebtBalance = await calculateDriversDebtBalance();
-                document.getElementById('driversDebtBalance').textContent = driversDebtBalance.toFixed(3);
+                const paymentsSnapshot = await db.collection('driverPayments').orderBy('date', 'desc').get();
+                const driverPayments = paymentsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                const driversSnapshot = await db.collection('drivers').get();
+                const drivers = driversSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Calculate using unified system
+                const balances = calculateUnifiedBalances(revenues, expenses, driverPayments, drivers);
+                updateBalanceDisplay(balances);
 
                 // Update last updated time
                 document.getElementById('lastUpdated').textContent = 
@@ -357,167 +375,7 @@
             }
         }
 
-        async function calculateBankBalance() {
-            let balance = 0;
-
-            // Add revenues (excluding salary deposits)
-            const revenuesSnapshot = await db.collection('revenues').get();
-            revenuesSnapshot.forEach(doc => {
-                const data = doc.data();
-                if (data.type !== 'رسوم إيداع رواتب') {
-                    balance += parseFloat(data.amount) || 0;
-                }
-            });
-
-            // Subtract expenses
-            const expensesSnapshot = await db.collection('expenses').get();
-            expensesSnapshot.forEach(doc => {
-                const data = doc.data();
-                balance -= parseFloat(data.amount) || 0;
-            });
-
-            // Add/subtract from driver payments (violations, residence fees, etc.)
-            const paymentsSnapshot = await db.collection('driverPayments').get();
-            paymentsSnapshot.forEach(doc => {
-                const data = doc.data();
-                if (data.type === 'أجرة يومية' || data.type === 'تحصيل مخالفة' || 
-                    data.type === 'تحصيل رسوم إقامة' || data.type === 'تحصيل رسوم إيداعات الرواتب' || data.type === 'دين قديم') {
-                    balance += parseFloat(data.amount) || 0;
-                } else if (data.type === 'سداد مخالفة' || data.type === 'سداد رسوم إقامة') {
-                    balance -= parseFloat(data.amount) || 0;
-                }
-            });
-
-            return balance;
-        }
-
-        async function calculateSalaryBalance() {
-            let balance = 0;
-
-            // Add salary deposits from revenues
-            const revenuesSnapshot = await db.collection('revenues').get();
-            revenuesSnapshot.forEach(doc => {
-                const data = doc.data();
-                if (data.type === 'رسوم إيداع رواتب') {
-                    balance += parseFloat(data.amount) || 0;
-                }
-            });
-
-            // Add salary fees from driver payments and subtract salary expenses
-            const paymentsSnapshot = await db.collection('driverPayments').get();
-            paymentsSnapshot.forEach(doc => {
-                const data = doc.data();
-                if (data.type === 'تحصيل رسوم رواتب' || data.type === 'تحصيل رسوم إيداعات الرواتب') {
-                    balance += parseFloat(data.amount) || 0;
-                } else if (data.type === 'سداد رواتب') {
-                    balance -= parseFloat(data.amount) || 0;
-                }
-            });
-
-            // Subtract salary deposit expenses
-            const expensesSnapshot = await db.collection('expenses').get();
-            expensesSnapshot.forEach(doc => {
-                const data = doc.data();
-                if (data.type === 'مصاريف إيداعات الرواتب') {
-                    balance -= parseFloat(data.amount) || 0;
-                }
-            });
-
-            return balance;
-        }
-
-        // الدالة الموحدة لحساب ديون السائقين
-        function calculateDriverDebt(driverId, driver, payments) {
-            let totalDebt = 0;
-            
-            // 1. حساب الأجرة اليومية المتأخرة
-            const today = new Date();
-            const contractStart = driver.contractStartDate ? 
-                (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) :
-                (driver.createdAt ? (driver.createdAt.toDate ? driver.createdAt.toDate() : new Date(driver.createdAt)) : today);
-            
-            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
-            const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
-            const expectedTotal = daysSinceStart * dailyWage;
-            
-            // حساب إجمالي الأجرة اليومية المدفوعة
-            const dailyRentPayments = payments.filter(p => p.type === 'أجرة يومية');
-            const totalDailyRentPaid = dailyRentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-            
-            // الأجرة المتأخرة = المتوقع - المدفوع
-            const lateRent = Math.max(0, expectedTotal - totalDailyRentPaid);
-            totalDebt += lateRent;
-            
-            // 2. حساب الديون من المدفوعات الأخرى
-            payments.forEach(payment => {
-                const amount = parseFloat(payment.amount || 0);
-                
-                switch(payment.type) {
-                    // العمليات التي تزيد الدين (الشركة دفعت عن السائق)
-                    case 'سداد مخالفة':
-                    case 'سداد رسوم إقامة':
-                    case 'سداد رسوم رواتب':
-                        totalDebt += amount;
-                        break;
-                    
-                    // العمليات التي تنقص الدين (السائق دفع)
-                    case 'تحصيل مخالفة':
-                    case 'تحصيل رسوم إقامة':
-                        totalDebt -= amount;
-                        break;
-                    
-                    // تحصيل رسوم الرواتب لا يؤثر على دين السائق
-                    case 'تحصيل رسوم رواتب':
-                    case 'تحصيل رسوم إيداعات الرواتب':
-                        // لا يؤثر على الدين
-                        break;
-                    
-                    // الديون القديمة (تنقص الدين عند التحصيل)
-                    case 'دين قديم':
-                        totalDebt -= amount;
-                        break;
-                    
-                    // الأجرة اليومية تم حسابها أعلاه
-                    case 'أجرة يومية':
-                        // لا نفعل شيء هنا لأنها محسوبة في lateRent
-                        break;
-                    
-                    // دفع الرواتب لا يؤثر على دين السائق
-                    case 'سداد رواتب':
-                        // لا يؤثر على دين السائق
-                        break;
-                }
-            });
-            
-            // 3. إضافة الديون القديمة المسجلة عند إضافة السائق
-            const oldDebts = parseFloat(driver.oldDebts || 0);
-            totalDebt += oldDebts;
-            
-            // الدين لا يمكن أن يكون سالب
-            return Math.max(0, totalDebt);
-        }
-
-        async function calculateDriversDebtBalance() {
-            let totalDebt = 0;
-
-            // Get all drivers and payments
-            const driversSnapshot = await db.collection('drivers').get();
-            const paymentsSnapshot = await db.collection('driverPayments').get();
-            
-            const allPayments = [];
-            paymentsSnapshot.forEach(doc => {
-                allPayments.push({ id: doc.id, ...doc.data() });
-            });
-
-            driversSnapshot.forEach(doc => {
-                const driver = { id: doc.id, ...doc.data() };
-                const driverPayments = allPayments.filter(p => p.driverId === driver.id);
-                const debt = calculateDriverDebt(driver.id, driver, driverPayments);
-                totalDebt += debt;
-            });
-
-            return totalDebt;
-        }
+        // تم نقل جميع الدوال إلى unified-balance.js
 
         async function showDriversDebt() {
             const modal = document.getElementById('driversDebtModal');
