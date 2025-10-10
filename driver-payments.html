@@ -783,6 +783,14 @@
         document.getElementById('paymentForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            // حماية من الضغط المزدوج
+            const submitBtn = e.target.querySelector('.submit-btn');
+            if (submitBtn.disabled) return;
+            
+            submitBtn.disabled = true;
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'جاري الإضافة...';
+            
             const paymentType = document.getElementById('paymentType').value;
             const amount = parseFloat(document.getElementById('amount').value);
             const paymentDate = document.getElementById('paymentDate').value;
@@ -817,6 +825,10 @@
             } catch (error) {
                 console.error('Error adding payment:', error);
                 alert('حدث خطأ أثناء إضافة الدفعة');
+            } finally {
+                // إعادة تفعيل الزر
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
             }
         });
 

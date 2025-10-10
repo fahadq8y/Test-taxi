@@ -962,6 +962,14 @@
         document.getElementById('expenseForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
+            // حماية من الضغط المزدوج
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            if (submitBtn.disabled) return;
+            
+            submitBtn.disabled = true;
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'جاري الحفظ...';
+            
             const expenseData = {
                 date: document.getElementById('expenseDate').value,
                 type: document.getElementById('expenseType').value,
@@ -984,6 +992,10 @@
             } catch (error) {
                 console.error('خطأ في إضافة المصروف:', error);
                 alert('حدث خطأ في إضافة المصروف');
+            } finally {
+                // إعادة تفعيل الزر
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
             }
         });
 
