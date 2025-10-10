@@ -9,22 +9,21 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Banner -->
-    <div class="banner">
-        <div class="banner-content">
-            <h1 class="banner-title">🚗 إدارة السيارات</h1>
-            <p class="banner-subtitle">إدارة وتتبع جميع سيارات الشركة</p>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚗 إدارة السيارات</h1>
+            <p>إدارة وتتبع جميع سيارات الشركة</p>
+            <div class="nav-buttons">
+                <a href="admin-dashboard.html" class="nav-btn">🏠 لوحة التحكم</a>
+                <a href="drivers-overview.html" class="nav-btn">👥 السائقين</a>
+                <a href="revenues.html" class="nav-btn">💰 الإيرادات</a>
+                <a href="expenses.html" class="nav-btn">💸 المصروفات</a>
+                <a href="budget.html" class="nav-btn">📊 الميزانية</a>
+            </div>
         </div>
-        <div class="banner-nav">
-            <a href="admin-dashboard.html" class="banner-nav-btn">🏠 لوحة التحكم</a>
-            <a href="drivers-overview.html" class="banner-nav-btn">👥 السائقين</a>
-            <a href="revenues.html" class="banner-nav-btn">💰 الإيرادات</a>
-            <a href="expenses.html" class="banner-nav-btn">💸 المصروفات</a>
-            <a href="budget.html" class="banner-nav-btn">📊 الميزانية</a>
-        </div>
-    </div>
 
-    <div class="page-container">
+        <div class="page-container">
         <!-- Controls -->
         <div class="controls-container">
             <button class="btn btn-success" onclick="openModal()">➕ إضافة سيارة جديدة</button>
@@ -391,6 +390,7 @@
             }
         };
     </script>
+    </div>
 </body>
 </html>
 
