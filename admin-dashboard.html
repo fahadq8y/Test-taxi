@@ -171,8 +171,9 @@
 
                 // Get monthly revenue
                 const now = new Date();
-                const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-                const currentMonthStartStr = currentMonthStart.toISOString().split('T')[0];
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const currentMonthStartStr = `${year}-${month}-01`;
                 
                 console.log('🔍 Current Month Start:', currentMonthStartStr);
                 
