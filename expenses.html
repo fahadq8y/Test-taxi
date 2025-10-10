@@ -456,6 +456,83 @@
             border-color: #007bff;
         }
 
+        /* Filter Section Styles */
+        .filter-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .filter-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .filter-btn:hover {
+            background: #f0f3ff;
+        }
+
+        .filter-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4);
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
         @media (max-width: 768px) {
             .table-header {
                 flex-direction: column;
@@ -472,6 +549,14 @@
             .pagination-buttons {
                 flex-wrap: wrap;
                 justify-content: center;
+            }
+
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-buttons {
+                flex-direction: column;
             }
         }
     </style>
@@ -554,6 +639,63 @@
                     <button type="submit" class="btn btn-primary">💾 حفظ المصروف</button>
                 </div>
             </form>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <h3>🔍 البحث والفلتر</h3>
+            
+            <div class="filter-buttons">
+                <button class="filter-btn active" onclick="filterByPeriod(event, 'all')">الكل</button>
+                <button class="filter-btn" onclick="filterByPeriod(event, 'today')">اليوم</button>
+                <button class="filter-btn" onclick="filterByPeriod(event, 'week')">هذا الأسبوع</button>
+                <button class="filter-btn" onclick="filterByPeriod(event, 'month')">هذا الشهر</button>
+            </div>
+
+            <div class="filter-grid">
+                <div class="form-group">
+                    <label>🔍 البحث النصي</label>
+                    <input type="text" id="searchText" placeholder="ابحث في الوصف أو الملاحظة..." oninput="applyFilters()">
+                </div>
+                <div class="form-group">
+                    <label>📋 نوع المصروف</label>
+                    <select id="expenseTypeFilter" onchange="applyFilters()">
+                        <option value="">جميع الأنواع</option>
+                        <option value="وقود">وقود</option>
+                        <option value="صيانة">صيانة</option>
+                        <option value="تأمين">تأمين</option>
+                        <option value="رواتب">رواتب</option>
+                        <option value="مصاريف إيداعات الرواتب">مصاريف إيداعات الرواتب</option>
+                        <option value="إيجار">إيجار</option>
+                        <option value="كهرباء وماء">كهرباء وماء</option>
+                        <option value="اتصالات">اتصالات</option>
+                        <option value="سداد مخالفة">سداد مخالفة</option>
+                        <option value="سداد رسوم إقامة">سداد رسوم إقامة</option>
+                        <option value="أخرى">أخرى</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>📅 من تاريخ</label>
+                    <input type="date" id="fromDate" onchange="applyFilters()">
+                </div>
+                <div class="form-group">
+                    <label>📅 إلى تاريخ</label>
+                    <input type="date" id="toDate" onchange="applyFilters()">
+                </div>
+                <div class="form-group">
+                    <label>💰 الحد الأدنى للمبلغ</label>
+                    <input type="number" id="minAmount" step="0.001" min="0" placeholder="0.000" onchange="applyFilters()">
+                </div>
+                <div class="form-group">
+                    <label>💰 الحد الأقصى للمبلغ</label>
+                    <input type="number" id="maxAmount" step="0.001" min="0" placeholder="1000.000" onchange="applyFilters()">
+                </div>
+            </div>
+
+            <div class="filter-actions">
+                <button class="btn btn-secondary" onclick="clearFilters()">🗑️ مسح الفلاتر</button>
+                <button class="btn btn-success" onclick="exportResults()">📊 تصدير النتائج</button>
+            </div>
         </div>
 
         <!-- Expense History -->
@@ -693,12 +835,50 @@
             }
         }
 
-        // Display expenses including relevant driver payments
-        function displayExpensesWithDriverPayments() {
-            // Combine expenses with relevant driver payments
-            let allExpenseItems = [...expenses];
+        // Filter by period (today, week, month, all)
+        function filterByPeriod(event, period) {
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const today = new Date();
+            let fromDate, toDate;
+            
+            switch(period) {
+                case 'today':
+                    fromDate = toDate = today.toISOString().split('T')[0];
+                    break;
+                case 'week':
+                    const weekStart = new Date(today);
+                    weekStart.setDate(today.getDate() - today.getDay());
+                    fromDate = weekStart.toISOString().split('T')[0];
+                    toDate = today.toISOString().split('T')[0];
+                    break;
+                case 'month':
+                    fromDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+                    toDate = today.toISOString().split('T')[0];
+                    break;
+                default:
+                    fromDate = toDate = '';
+            }
+            
+            document.getElementById('fromDate').value = fromDate;
+            document.getElementById('toDate').value = toDate;
+            applyFilters();
+        }
 
-            // Add driver payments that should appear in expenses (سداد مخالفة، سداد رسوم إقامة)
+        // Apply all filters
+        function applyFilters() {
+            const searchText = document.getElementById('searchText').value.toLowerCase();
+            const typeFilter = document.getElementById('expenseTypeFilter').value;
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+            const minAmount = parseFloat(document.getElementById('minAmount').value) || 0;
+            const maxAmount = parseFloat(document.getElementById('maxAmount').value) || Infinity;
+            
+            // Get all expense items (expenses + driver payments)
+            let allExpenseItems = [...expenses];
+            
             driverPayments.forEach(payment => {
                 if (['سداد مخالفة', 'سداد رسوم إقامة'].includes(payment.type)) {
                     const driver = drivers.find(d => d.id === payment.driverId);
@@ -713,11 +893,69 @@
                     });
                 }
             });
-
+            
+            // Apply filters
+            let filtered = allExpenseItems.filter(expense => {
+                const matchesSearch = !searchText || 
+                    (expense.description && expense.description.toLowerCase().includes(searchText)) ||
+                    (expense.note && expense.note.toLowerCase().includes(searchText));
+                const matchesType = !typeFilter || expense.type === typeFilter;
+                const matchesFromDate = !fromDate || expense.date >= fromDate;
+                const matchesToDate = !toDate || expense.date <= toDate;
+                const amount = parseFloat(expense.amount) || 0;
+                const matchesAmount = amount >= minAmount && amount <= maxAmount;
+                
+                return matchesSearch && matchesType && matchesFromDate && matchesToDate && matchesAmount;
+            });
+            
             // Sort by date (newest first)
-            allExpenseItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // Reset to first page
+            currentPage = 1;
+            displayExpenses(filtered);
+        }
 
-            displayExpenses(allExpenseItems);
+        // Clear all filters
+        function clearFilters() {
+            document.getElementById('searchText').value = '';
+            document.getElementById('expenseTypeFilter').value = '';
+            document.getElementById('fromDate').value = '';
+            document.getElementById('toDate').value = '';
+            document.getElementById('minAmount').value = '';
+            document.getElementById('maxAmount').value = '';
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('.filter-btn').classList.add('active');
+            
+            applyFilters();
+        }
+
+        // Export filtered results to CSV
+        function exportResults() {
+            if (filteredExpenses.length === 0) {
+                alert('لا توجد بيانات للتصدير');
+                return;
+            }
+            
+            let csv = 'التاريخ,النوع,المبلغ,الوصف,الملاحظة,المصدر\n';
+            filteredExpenses.forEach(expense => {
+                const source = expense.source === 'driverPayment' ? 'دفعة سائق' : 'مصروف مباشر';
+                const description = (expense.description || '-').replace(/"/g, '""');
+                const note = (expense.note || '-').replace(/"/g, '""');
+                csv += `${expense.date},${expense.type},${expense.amount},"${description}","${note}",${source}\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        // Display expenses including relevant driver payments (initial load)
+        function displayExpensesWithDriverPayments() {
+            applyFilters();
         }
 
         // Add new expense
