@@ -453,21 +453,21 @@
                 
                 // تحديد المصدر والوصف التفصيلي
                 let source = '';
-                let detailDescription = revenue.description || '-';
+                let detailedDescription = revenue.description || '-';
                 let deleteButton = '';
                 let deleteFunction = '';
                 
                 // إنشاء الزر بناءً على الصلاحيات
                 if (revenue.source === 'driverPayment') {
                     source = '👤 دفعة سائق';
-                    deleteButton = getRevenueDeleteButton(revenue.id, revenue.date, revenue.timestamp, 'deleteDriverPayment', 'delete-btn');
+                    deleteButton = getRevenueDeleteButton(revenue.id, revenue.date, revenue.createdAt, 'deleteDriverPayment', 'delete-btn');
                     deleteFunction = 'deleteDriverPayment';
                 } else {
                     source = '🏢 إيراد مباشر';
-                    deleteButton = getRevenueDeleteButton(revenue.id, revenue.date, revenue.timestamp, 'deleteRevenue', 'delete-btn');
+                    deleteButton = getRevenueDeleteButton(revenue.id, revenue.date, revenue.createdAt, 'deleteRevenue', 'delete-btn');
                     deleteFunction = 'deleteRevenue';
                 }             
-                // تحسين الوصف التفصيلي
+                // تحسين الوصف التفصيلي للدفعات من السائقين فقط
                 if (revenue.source === 'driverPayment') {
                     const driver = drivers.find(d => d.id === revenue.driverId);
                     const driverName = driver ? driver.name : 'سائق غير محدد';
@@ -489,6 +489,8 @@
                             break;
                     }
                 }
+                // للإيرادات المباشرة، استخدم الوصف المدخل من المستخدم
+                // (تم تعيينه بالفعل في السطر 456)
                 
                 // إنشاء صف الجدول
                 row.innerHTML = `
