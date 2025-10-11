@@ -601,11 +601,26 @@
 
             try {
                 if (editingDriverId) {
-                    await updateDoc(doc(db, 'drivers', editingDriverId), driverData);
+                    await updateDoc(doc(db, 'drivers', editingDrivers.id'), driverData);
                     alert('تم تحديث السائق بنجاح');
                 } else {
-                    await addDoc(collection(db, 'drivers'), driverData);
-                    alert('تم إضافة السائق بنجاح');
+                    // إضافة السائق في مجموعة drivers
+                    const driverDoc = await addDoc(collection(db, 'drivers'), driverData);
+                    
+                    // إنشاء حساب تلقائي في users
+                    const userId = `driver_${driverData.name.replace(/\s/g, '_')}_${Date.now()}`;
+                    await setDoc(doc(db, 'users', userId), {
+                        name: driverData.name,
+                        email: null,
+                        password: '123456',
+                        role: 'driver',
+                        isActive: true,
+                        driverId: driverDoc.id,
+                        createdAt: new Date(),
+                        createdBy: currentUser.name || currentUser.email
+                    });
+                    
+                    alert('تم إضافة السائق بنجاح وإنشاء حساب له في النظام');
                 }
                 
                 closeModal();
