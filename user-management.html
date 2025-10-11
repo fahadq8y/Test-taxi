@@ -316,17 +316,24 @@
             margin-top: 20px;
         }
 
+        /* إخفاء البطاقات على الكمبيوتر */
+        .mobile-cards {
+            display: none;
+        }
+
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
             }
 
-            table {
-                font-size: 12px;
+            /* إخفاء الجدول على الموبايل */
+            .desktop-table {
+                display: none;
             }
 
-            th, td {
-                padding: 8px;
+            /* إظهار البطاقات على الموبايل */
+            .mobile-cards {
+                display: block;
             }
 
             .action-buttons {
@@ -387,7 +394,9 @@
         <!-- Users Table -->
         <div class="users-table">
             <h3>📋 قائمة المستخدمين</h3>
-            <table>
+            
+            <!-- Desktop Table -->
+            <table class="desktop-table">
                 <thead>
                     <tr>
                         <th>الاسم</th>
@@ -403,6 +412,11 @@
                     </tr>
                 </tbody>
             </table>
+            
+            <!-- Mobile Cards -->
+            <div class="mobile-cards" id="mobileCardsContainer">
+                <div class="loading">جاري تحميل المستخدمين...</div>
+            </div>
         </div>
     </div>
 
@@ -524,21 +538,25 @@
         // Display users
         function displayUsers() {
             const tbody = document.getElementById('usersTableBody');
+            const mobileContainer = document.getElementById('mobileCardsContainer');
             
             if (users.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" class="no-data">لا يوجد مستخدمون</td></tr>';
+                mobileContainer.innerHTML = '<div class="no-data">لا يوجد مستخدمون</div>';
                 return;
             }
 
             tbody.innerHTML = '';
+            mobileContainer.innerHTML = '';
+            
             users.forEach(user => {
-                const row = document.createElement('tr');
-                
                 const roleName = getRoleName(user.role);
                 const roleClass = `role-${user.role}`;
                 const statusName = user.isActive !== false ? 'نشط' : 'معطل';
                 const statusClass = user.isActive !== false ? 'status-active' : 'status-inactive';
                 
+                // Desktop Table Row
+                const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${user.name || '-'}</td>
                     <td>${user.email || 'لا يوجد'}</td>
@@ -557,6 +575,40 @@
                     </td>
                 `;
                 tbody.appendChild(row);
+                
+                // Mobile Card
+                const card = document.createElement('div');
+                card.className = 'mobile-card';
+                card.innerHTML = `
+                    <div class="mobile-card-header">
+                        <span class="role-badge ${roleClass}">${roleName}</span>
+                        <span class="status-badge ${statusClass}">${statusName}</span>
+                    </div>
+                    <div class="mobile-card-body">
+                        <div class="mobile-card-row">
+                            <span class="mobile-card-label">👤 الاسم</span>
+                            <span class="mobile-card-value">${user.name || '-'}</span>
+                        </div>
+                        <div class="mobile-card-row">
+                            <span class="mobile-card-label">📧 البريد الإلكتروني</span>
+                            <span class="mobile-card-value">${user.email || 'لا يوجد'}</span>
+                        </div>
+                        <div class="mobile-card-row">
+                            <span class="mobile-card-label">🔑 الدور</span>
+                            <span class="mobile-card-value">${roleName}</span>
+                        </div>
+                    </div>
+                    <div class="mobile-card-footer">
+                        <button class="btn btn-warning" onclick="openEditModal('${user.id}')">✏️ تعديل</button>
+                        <button class="btn btn-primary" onclick="openPasswordModal('${user.id}', '${user.name}', '${user.role}')">🔑 تغيير كلمة المرور</button>
+                        ${user.isActive !== false ?
+                            `<button class="btn btn-danger" onclick="toggleUserStatus('${user.id}', false)">🚫 تعطيل</button>` :
+                            `<button class="btn btn-success" onclick="toggleUserStatus('${user.id}', true)">✅ تفعيل</button>`
+                        }
+                        <button class="btn btn-danger" onclick="deleteUser('${user.id}')">🗑️ حذف</button>
+                    </div>
+                `;
+                mobileContainer.appendChild(card);
             });
         }
 
