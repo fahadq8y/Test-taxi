@@ -3587,3 +3587,111 @@ table {
         padding: 1rem;
     }
 }
+
+
+
+/* ====================================
+   تنسيقات صفحة إدارة المستخدمين
+   ==================================== */
+
+/* جدول المستخدمين */
+.users-table {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.users-table h3 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+}
+
+/* الجدول للكمبيوتر */
+.desktop-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.desktop-table th,
+.desktop-table td {
+    padding: 12px;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.desktop-table th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+}
+
+.desktop-table tr:hover {
+    background: var(--bg-gray);
+}
+
+/* شارات الأدوار */
+.role-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.role-admin {
+    background: var(--danger-color);
+    color: white;
+}
+
+.role-accountant {
+    background: var(--primary-color);
+    color: white;
+}
+
+.role-driver {
+    background: #6c757d;
+    color: white;
+}
+
+/* شارات الحالة */
+.status-active {
+    background: var(--success-color);
+    color: white;
+}
+
+.status-inactive {
+    background: #6c757d;
+    color: white;
+}
+
+/* أزرار الإجراءات */
+.action-buttons {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* وضع الموبايل */
+@media (max-width: 768px) {
+    /* إخفاء الجدول على الموبايل */
+    .desktop-table {
+        display: none !important;
+    }
+    
+    /* إظهار البطاقات على الموبايل */
+    .mobile-cards {
+        display: block !important;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .users-table {
+        padding: 15px;
+    }
+}
+
