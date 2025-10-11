@@ -29,21 +29,25 @@
             border-radius: 15px;
             padding: 20px;
             margin-bottom: 30px;
-            text-align: center;
             color: white;
         }
 
         .header h1 {
+            text-align: center;
             font-size: 28px;
             margin-bottom: 10px;
+        }
+
+        .header p {
+            text-align: center;
         }
 
         .nav-buttons {
             display: flex;
             gap: 10px;
             justify-content: center;
-            margin-top: 15px;
             flex-wrap: wrap;
+            margin-top: 15px;
         }
 
         .nav-btn {
@@ -53,9 +57,9 @@
             padding: 10px 20px;
             border-radius: 25px;
             cursor: pointer;
-            transition: all 0.3s ease;
             text-decoration: none;
             font-size: 14px;
+            transition: all 0.3s ease;
         }
 
         .nav-btn:hover {
@@ -202,7 +206,7 @@
         }
 
         tr:hover {
-            background-color: #f8f9fa;
+            background: #f8f9fa;
         }
 
         .role-badge {
@@ -262,11 +266,11 @@
 
         .loading {
             text-align: center;
-            padding: 20px;
             color: #666;
+            padding: 20px;
         }
 
-        /* Modal Styles */
+        /* Modal */
         .modal {
             display: none;
             position: fixed;
@@ -275,11 +279,11 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.5);
         }
 
         .modal-content {
-            background-color: white;
+            background: white;
             margin: 10% auto;
             padding: 30px;
             border-radius: 15px;
@@ -292,15 +296,8 @@
         }
 
         .modal-header h3 {
-            color: #333;
             text-align: center;
-        }
-
-        .modal-footer {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 20px;
+            color: #333;
         }
 
         .close {
@@ -313,6 +310,13 @@
 
         .close:hover {
             color: #000;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
         }
 
         @media (max-width: 768px) {
@@ -336,12 +340,11 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
             <h1>👥 إدارة المستخدمين</h1>
             <p>إضافة وتعديل وإدارة مستخدمي النظام</p>
             <div class="nav-buttons">
-                <a href="admin-dashboard.html" class="nav-btn">🏠 لوحة التحكم</a>
+                <a href="admin-dashboard.html" class="nav-btn">🏀 لوحة التحكم</a>
                 <a href="drivers-overview.html" class="nav-btn">👥 السائقين</a>
                 <a href="revenues.html" class="nav-btn">💰 الإيرادات</a>
                 <a href="expenses.html" class="nav-btn">💸 المصروفات</a>
@@ -350,7 +353,6 @@
             </div>
         </div>
 
-        <!-- Message -->
         <div id="message" class="message"></div>
 
         <!-- Add User Form -->
@@ -363,8 +365,8 @@
                         <input type="text" id="userName" required placeholder="اسم المستخدم">
                     </div>
                     <div class="form-group">
-                        <label>البريد الإلكتروني</label>
-                        <input type="email" id="userEmail" required placeholder="example@example.com">
+                        <label>البريد الإلكتروني (اختياري للسائقين والمحاسبين)</label>
+                        <input type="email" id="userEmail" placeholder="example@example.com">
                     </div>
                     <div class="form-group">
                         <label>كلمة المرور</label>
@@ -408,7 +410,7 @@
         </div>
     </div>
 
-    <!-- Edit User Modal -->
+    <!-- Edit Modal -->
     <div id="editModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -440,15 +442,15 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
     <script>
         const firebaseConfig = {
-            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
-            authDomain: "taxi-management-system-d8210.firebaseapp.com",
-            projectId: "taxi-management-system-d8210",
-            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
-            messagingSenderId: "720874424166",
-            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
-            measurementId: "G-GY8820W410"
+            apiKey: "AIzaSyDKnKGBmKQe-WXl-c5PqRsKfMm4fkLkxbw",
+            authDomain: "taxi-system-d8d4c.firebaseapp.com",
+            projectId: "taxi-system-d8d4c",
+            storageBucket: "taxi-system-d8d4c.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
         };
 
         firebase.initializeApp(firebaseConfig);
@@ -457,7 +459,7 @@
 
         let users = [];
 
-        // Check if user is admin
+        // Check auth
         auth.onAuthStateChanged(async (user) => {
             if (!user) {
                 window.location.href = 'index.html';
@@ -482,7 +484,6 @@
                     id: doc.id,
                     ...doc.data()
                 }));
-
                 displayUsers();
             } catch (error) {
                 console.error('Error loading users:', error);
@@ -493,7 +494,7 @@
         // Display users
         function displayUsers() {
             const tbody = document.getElementById('usersTableBody');
-
+            
             if (users.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" class="no-data">لا يوجد مستخدمون</td></tr>';
                 return;
@@ -510,7 +511,7 @@
                 
                 row.innerHTML = `
                     <td>${user.name || '-'}</td>
-                    <td>${user.email}</td>
+                    <td>${user.email || 'لا يوجد'}</td>
                     <td><span class="role-badge ${roleClass}">${roleName}</span></td>
                     <td><span class="status-badge ${statusClass}">${statusName}</span></td>
                     <td>
@@ -528,7 +529,6 @@
             });
         }
 
-        // Get role name in Arabic
         function getRoleName(role) {
             const roles = {
                 'admin': 'مدير',
@@ -543,7 +543,7 @@
             e.preventDefault();
 
             const name = document.getElementById('userName').value;
-            const email = document.getElementById('userEmail').value;
+            const email = document.getElementById('userEmail').value.trim();
             const password = document.getElementById('userPassword').value;
             const role = document.getElementById('userRole').value;
 
@@ -553,14 +553,23 @@
             }
 
             try {
-                // Create user with email and password
-                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-                const user = userCredential.user;
+                let userId;
+                
+                // إذا كان البريد الإلكتروني موجود (للمدير)
+                if (email) {
+                    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                    userId = userCredential.user.uid;
+                } else {
+                    // للسائقين والمحاسبين - إنشاء حساب بدون بريد إلكتروني
+                    // نستخدم اسم المستخدم كمعرف فريد
+                    userId = `${role}_${name.replace(/\s/g, '_').toLowerCase()}_${Date.now()}`;
+                }
 
-                // Save user data in Firestore
-                await db.collection('users').doc(user.uid).set({
+                // حفظ البيانات في Firestore
+                await db.collection('users').doc(userId).set({
                     name: name,
-                    email: email,
+                    email: email || null,
+                    password: password, // للسائقين والمحاسبين
                     role: role,
                     isActive: true,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -568,17 +577,14 @@
 
                 showMessage('تم إضافة المستخدم بنجاح! ✅', 'success');
                 document.getElementById('addUserForm').reset();
-                
-                // Sign out the newly created user and sign back in as admin
-                await auth.signOut();
-                // The page will reload and redirect to login
+                loadUsers();
                 
             } catch (error) {
                 console.error('Error adding user:', error);
                 let errorMsg = 'حدث خطأ في إضافة المستخدم';
                 
                 if (error.code === 'auth/email-already-in-use') {
-                    errorMsg = 'البريد الإلكتروني مستخدم بالفعل';
+                    errorMsg = 'البريد الإلكتروني مستخدم من قبل';
                 } else if (error.code === 'auth/invalid-email') {
                     errorMsg = 'البريد الإلكتروني غير صحيح';
                 } else if (error.code === 'auth/weak-password') {
@@ -658,7 +664,6 @@
 
             try {
                 await db.collection('users').doc(userId).delete();
-                
                 showMessage('تم حذف المستخدم بنجاح! ✅', 'success');
                 loadUsers();
                 
@@ -680,14 +685,13 @@
             }, 5000);
         }
 
-        // Close modal when clicking outside
+        // Close modal on outside click
         window.onclick = function(event) {
             const modal = document.getElementById('editModal');
-            if (event.target == modal) {
+            if (event.target === modal) {
                 closeEditModal();
             }
         }
     </script>
 </body>
 </html>
-

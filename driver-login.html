@@ -157,21 +157,21 @@
 <body>
     <div class="login-container">
         <div class="logo">
-            <h1>🚕 دخول السائقين</h1>
-            <p>أدخل بياناتك للاطلاع على معلوماتك</p>
+            <h1>🚕 دخول السائقين والمحاسبين</h1>
+            <p>أدخل اسم المستخدم وكلمة المرور</p>
         </div>
 
         <div class="error-message" id="errorMessage"></div>
 
         <form id="driverLoginForm">
             <div class="form-group">
-                <label for="driverName">الاسم الثلاثي</label>
-                <input type="text" id="driverName" placeholder="مثال: أحمد محمد علي" required>
+                <label for="userName">اسم المستخدم</label>
+                <input type="text" id="userName" placeholder="أدخل اسم المستخدم" required>
             </div>
 
             <div class="form-group">
-                <label for="driverPhone">رقم الهاتف</label>
-                <input type="text" id="driverPhone" placeholder="مثال: 12345678" required>
+                <label for="userPassword">كلمة المرور</label>
+                <input type="password" id="userPassword" placeholder="أدخل كلمة المرور" required>
             </div>
 
             <button type="submit" class="login-btn" id="loginBtn">
@@ -189,12 +189,11 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-
-        // Firebase configuration
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <script>
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
             authDomain: "taxi-management-system-d8210.firebaseapp.com",
@@ -205,18 +204,19 @@
             measurementId: "G-GY8820W410"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
         // Elements
         const form = document.getElementById('driverLoginForm');
-        const nameInput = document.getElementById('driverName');
-        const phoneInput = document.getElementById('driverPhone');
+        const userNameInput = document.getElementById('userName');
+        const passwordInput = document.getElementById('userPassword');
         const loginBtn = document.getElementById('loginBtn');
         const errorMessage = document.getElementById('errorMessage');
         const loading = document.getElementById('loading');
 
-        // Show error message
+        // Show error
         function showError(message) {
             errorMessage.textContent = message;
             errorMessage.style.display = 'block';
@@ -239,34 +239,65 @@
         }
 
         // Login function
-        async function loginDriver(name, phone) {
+        async function loginUser(username, password) {
             try {
                 showLoading(true);
 
-                // Search for driver in Firebase
-                const q = query(
-                    collection(db, 'drivers'),
-                    where('name', '==', name.trim()),
-                    where('phone', '==', phone.trim())
-                );
+                // البحث عن المستخدم في Firestore
+                const usersSnapshot = await db.collection('users')
+                    .where('name', '==', username.trim())
+                    .get();
 
-                const querySnapshot = await getDocs(q);
-
-                if (querySnapshot.empty) {
-                    throw new Error('البيانات غير صحيحة. تأكد من الاسم ورقم الهاتف.');
+                if (usersSnapshot.empty) {
+                    throw new Error('اسم المستخدم أو كلمة المرور غير صحيحة');
                 }
 
-                // Driver found
-                const driverDoc = querySnapshot.docs[0];
-                const driverData = driverDoc.data();
-                const driverId = driverDoc.id;
+                let userFound = null;
+                let userId = null;
 
-                // Save driver data to sessionStorage
-                sessionStorage.setItem('driverId', driverId);
-                sessionStorage.setItem('driverData', JSON.stringify(driverData));
+                // التحقق من كلمة المرور
+                usersSnapshot.forEach(doc => {
+                    const userData = doc.data();
+                    if (userData.password === password) {
+                        userFound = userData;
+                        userId = doc.id;
+                    }
+                });
 
-                // Redirect to driver view page
-                window.location.href = 'driver-view.html';
+                if (!userFound) {
+                    throw new Error('اسم المستخدم أو كلمة المرور غير صحيحة');
+                }
+
+                // التحقق من حالة المستخدم
+                if (userFound.isActive === false) {
+                    throw new Error('حسابك معطل. يرجى التواصل مع المدير');
+                }
+
+                // حفظ بيانات المستخدم
+                localStorage.setItem('userId', userId);
+                localStorage.setItem('userName', userFound.name);
+                localStorage.setItem('userRole', userFound.role);
+                localStorage.setItem('userEmail', userFound.email || '');
+
+                // التوجيه حسب الدور
+                if (userFound.role === 'driver') {
+                    // البحث عن بيانات السائق في مجموعة drivers
+                    const driversSnapshot = await db.collection('drivers')
+                        .where('name', '==', username.trim())
+                        .get();
+                    
+                    if (!driversSnapshot.empty) {
+                        const driverDoc = driversSnapshot.docs[0];
+                        sessionStorage.setItem('driverId', driverDoc.id);
+                        sessionStorage.setItem('driverData', JSON.stringify(driverDoc.data()));
+                    }
+                    
+                    window.location.href = 'driver-view.html';
+                } else if (userFound.role === 'accountant') {
+                    window.location.href = 'accountant-dashboard.html';
+                } else {
+                    throw new Error('دور المستخدم غير صحيح');
+                }
 
             } catch (error) {
                 console.error('Login error:', error);
@@ -275,23 +306,23 @@
             }
         }
 
-        // Form submit event
+        // Form submit
         form.addEventListener('submit', (e) => {
             e.preventDefault();
             
-            const name = nameInput.value.trim();
-            const phone = phoneInput.value.trim();
+            const username = userNameInput.value.trim();
+            const password = passwordInput.value;
 
-            if (!name || !phone) {
-                showError('يرجى إدخال الاسم ورقم الهاتف');
+            if (!username || !password) {
+                showError('يرجى إدخال اسم المستخدم وكلمة المرور');
                 return;
             }
 
-            loginDriver(name, phone);
+            loginUser(username, password);
         });
 
         // Clear error on input
-        [nameInput, phoneInput].forEach(input => {
+        [userNameInput, passwordInput].forEach(input => {
             input.addEventListener('input', () => {
                 errorMessage.style.display = 'none';
             });
