@@ -601,7 +601,7 @@
 
             try {
                 if (editingDriverId) {
-                    await updateDoc(doc(db, 'drivers', editingDrivers.id'), driverData);
+                    await updateDoc(doc(db, 'drivers', editingDriverId), driverData);
                     alert('تم تحديث السائق بنجاح');
                 } else {
                     // إضافة السائق في مجموعة drivers
