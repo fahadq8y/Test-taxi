@@ -302,12 +302,12 @@
             try {
                 let userId;
                 
-                // إذا كان البريد الإلكتروني موجود والدور مدير
-                if (email && role === 'admin') {
+                // إذا كان البريد الإلكتروني موجود والدور مدير أو محاسب
+                if (email && (role === 'admin' || role === 'accountant')) {
                     const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                     userId = userCredential.user.uid;
                 } else {
-                    // للسائقين والمحاسب - إنشاء معرف فريد
+                    // للسائقين فقط - إنشاء معرف فريد
                     userId = `${role}_${name.replace(/\s/g, '_').toLowerCase()}_${Date.now()}`;
                 }
 
