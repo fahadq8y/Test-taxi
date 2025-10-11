@@ -3,186 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ربط السائقين بحسابات Firebase</title>
+    <title>ربط السائقين - نظام التاكسي</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
             padding: 20px;
         }
-
         .container {
-            max-width: 1000px;
+            max-width: 900px;
             margin: 0 auto;
-        }
-
-        .header {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 30px;
-            text-align: center;
-            color: white;
-        }
-
-        .header h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
-
-        .content {
             background: white;
             border-radius: 15px;
             padding: 30px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
         }
-
         .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 30px;
+            background: #667eea;
             color: white;
             border: none;
-            padding: 15px 30px;
             border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
+            font-size: 18px;
             cursor: pointer;
-            transition: all 0.3s ease;
             width: 100%;
-            margin-bottom: 20px;
         }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .message {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .message.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
         .log {
             background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
             padding: 15px;
+            border-radius: 8px;
             max-height: 400px;
             overflow-y: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-        }
-
-        .log-entry {
-            margin-bottom: 5px;
-            padding: 5px;
-        }
-
-        .log-entry.success {
-            color: #28a745;
-        }
-
-        .log-entry.error {
-            color: #dc3545;
-        }
-
-        .log-entry.info {
-            color: #17a2b8;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .stat-card {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .stat-number {
-            font-size: 32px;
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .stat-label {
-            color: #6c757d;
-            font-size: 14px;
-            margin-top: 5px;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🔗 ربط السائقين بحسابات Firebase</h1>
-            <p>هذه الأداة تقوم بإنشاء حسابات Firebase لجميع السائقين الموجودين</p>
-        </div>
-
-        <div class="content">
-            <div id="message" class="message" style="display: none;"></div>
-
-            <div class="stats">
-                <div class="stat-card">
-                    <div class="stat-number" id="totalDrivers">0</div>
-                    <div class="stat-label">إجمالي السائقين</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="linkedDrivers">0</div>
-                    <div class="stat-label">السائقين المربوطين</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="failedDrivers">0</div>
-                    <div class="stat-label">فشل الربط</div>
-                </div>
-            </div>
-
-            <button id="linkBtn" class="btn">🚀 بدء عملية الربط</button>
-
-            <div class="log" id="log"></div>
-        </div>
+        <h1>🔗 ربط السائقين بـ Firebase</h1>
+        <button class="btn" onclick="startLinking()">🚀 بدء الربط</button>
+        <div class="log" id="log"></div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     
     <script>
@@ -192,141 +54,43 @@
             projectId: "taxi-management-system-d8210",
             storageBucket: "taxi-management-system-d8210.firebasestorage.app",
             messagingSenderId: "720874424166",
-            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
-            measurementId: "G-GY8820W410"
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7"
         };
 
         firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
         const db = firebase.firestore();
 
-        let totalDrivers = 0;
-        let linkedDrivers = 0;
-        let failedDrivers = 0;
-
-        // Update stats
-        function updateStats() {
-            document.getElementById('totalDrivers').textContent = totalDrivers;
-            document.getElementById('linkedDrivers').textContent = linkedDrivers;
-            document.getElementById('failedDrivers').textContent = failedDrivers;
+        function addLog(msg) {
+            document.getElementById('log').innerHTML += msg + '<br>';
         }
 
-        // Add log entry
-        function addLog(message, type = 'info') {
-            const log = document.getElementById('log');
-            const entry = document.createElement('div');
-            entry.className = `log-entry ${type}`;
-            entry.textContent = `[${new Date().toLocaleTimeString('ar-SA')}] ${message}`;
-            log.appendChild(entry);
-            log.scrollTop = log.scrollHeight;
+        async function startLinking() {
+            addLog('🚀 بدء العملية...');
+            
+            const driversSnapshot = await db.collection('drivers').get();
+            addLog(`✅ تم جلب ${driversSnapshot.size} سائق`);
+
+            for (const doc of driversSnapshot.docs) {
+                const driver = doc.data();
+                const name = driver.name || driver.driverName;
+                
+                if (!name) continue;
+
+                const userId = `driver_${name.replace(/\s/g, '_')}_${Date.now()}`;
+                
+                await db.collection('users').doc(userId).set({
+                    name: name,
+                    password: '123456',
+                    role: 'driver',
+                    isActive: true,
+                    driverId: doc.id
+                });
+
+                addLog(`✅ ${name}`);
+            }
+
+            addLog('🎉 اكتملت العملية!');
         }
-
-        // Show message
-        function showMessage(message, type) {
-            const messageDiv = document.getElementById('message');
-            messageDiv.textContent = message;
-            messageDiv.className = `message ${type}`;
-            messageDiv.style.display = 'block';
-        }
-
-        // Link drivers to Firebase
-        async function linkDriversToFirebase() {
-            const linkBtn = document.getElementById('linkBtn');
-            linkBtn.disabled = true;
-            linkBtn.textContent = 'جاري الربط...';
-
-            try {
-                addLog('بدء عملية الربط...', 'info');
-
-                // جلب جميع السائقين من Firestore
-                const driversSnapshot = await db.collection('drivers').get();
-                totalDrivers = driversSnapshot.size;
-                updateStats();
-
-                addLog(`تم العثور على ${totalDrivers} سائق`, 'info');
-
-                // معالجة كل سائق
-                for (const driverDoc of driversSnapshot.docs) {
-                    const driverData = driverDoc.data();
-                    const driverName = driverData.name;
-
-                    try {
-                        // التحقق من وجود حساب للسائق
-                        const userQuery = await db.collection('users')
-                            .where('name', '==', driverName)
-                            .where('role', '==', 'driver')
-                            .get();
-
-                        if (!userQuery.empty) {
-                            addLog(`السائق "${driverName}" لديه حساب بالفعل`, 'info');
-                            linkedDrivers++;
-                            updateStats();
-                            continue;
-                        }
-
-                        // إنشاء حساب جديد للسائق
-                        const userId = `driver_${driverName.replace(/\s/g, '_').toLowerCase()}_${Date.now()}`;
-                        const defaultPassword = '123456'; // كلمة مرور افتراضية
-
-                        await db.collection('users').doc(userId).set({
-                            name: driverName,
-                            email: null,
-                            password: defaultPassword,
-                            role: 'driver',
-                            isActive: true,
-                            linkedDriverId: driverDoc.id,
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-
-                        addLog(`✅ تم ربط السائق "${driverName}" بنجاح (كلمة المرور: ${defaultPassword})`, 'success');
-                        linkedDrivers++;
-                        updateStats();
-
-                    } catch (error) {
-                        addLog(`❌ فشل ربط السائق "${driverName}": ${error.message}`, 'error');
-                        failedDrivers++;
-                        updateStats();
-                    }
-
-                    // تأخير صغير لتجنب الضغط على Firebase
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
-
-                addLog('اكتملت عملية الربط!', 'success');
-                showMessage(`تم ربط ${linkedDrivers} سائق بنجاح! (فشل: ${failedDrivers})`, 'success');
-
-            } catch (error) {
-                console.error('Error linking drivers:', error);
-                addLog(`❌ خطأ: ${error.message}`, 'error');
-                showMessage('حدث خطأ أثناء عملية الربط', 'error');
-            }
-
-            linkBtn.disabled = false;
-            linkBtn.textContent = '🔄 إعادة المحاولة';
-        }
-
-        // Button click event
-        document.getElementById('linkBtn').addEventListener('click', () => {
-            if (confirm('هل أنت متأكد من بدء عملية الربط؟\n\nسيتم إنشاء حسابات Firebase لجميع السائقين الموجودين بكلمة مرور افتراضية (123456)')) {
-                linkDriversToFirebase();
-            }
-        });
-
-        // Check auth
-        auth.onAuthStateChanged((user) => {
-            if (!user) {
-                alert('يجب تسجيل الدخول أولاً');
-                window.location.href = 'index.html';
-                return;
-            }
-
-            const userRole = localStorage.getItem('userRole');
-            if (userRole !== 'admin') {
-                alert('هذه الصفحة متاحة للمدير فقط');
-                window.location.href = 'admin-dashboard.html';
-            }
-        });
     </script>
 </body>
 </html>
-
