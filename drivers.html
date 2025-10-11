@@ -601,20 +601,20 @@
 
             try {
                 if (editingDriverId) {
+                    // تحديث السائق الموجود
                     await updateDoc(doc(db, 'drivers', editingDriverId), driverData);
                     alert('تم تحديث السائق بنجاح');
                 } else {
-                    // إضافة السائق في مجموعة drivers
+                    // إضافة سائق جديد
                     const driverDoc = await addDoc(collection(db, 'drivers'), driverData);
                     console.log('✅ تم إضافة السائق في drivers:', driverDoc.id);
                     
-                    // إنشاء حساب تلقائي في users
+                    // إنشاء حساب تلقائي في مجموعة users
                     try {
-                        const userId = `driver_${driverData.name.replace(/\s/g, '_')}_${Date.now()}`;
                         const userData = {
                             name: driverData.name,
-                            email: null,
-                            password: '123456',
+                            email: '',
+                            password: '123',
                             role: 'driver',
                             isActive: true,
                             driverId: driverDoc.id,
@@ -622,8 +622,9 @@
                             createdBy: currentUser.name || currentUser.email
                         };
                         
-                        await setDoc(doc(db, 'users', userId), userData);
-                        console.log('✅ تم إنشاء حساب في users:', userId);
+                        // استخدام addDoc لإنشاء مستند جديد بمعرف تلقائي
+                        const userDoc = await addDoc(collection(db, 'users'), userData);
+                        console.log('✅ تم إنشاء حساب في users:', userDoc.id);
                         alert('تم إضافة السائق بنجاح وإنشاء حساب له في النظام');
                     } catch (userError) {
                         console.error('❌ خطأ في إنشاء حساب المستخدم:', userError);
