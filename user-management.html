@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إدارة المستخدمين - نظام التاكسي</title>
+    <link rel="stylesheet" href="css/style.css">
     <style>
         * {
             margin: 0;
@@ -50,19 +51,18 @@
             margin-top: 15px;
         }
 
-        .nav-btn {
+        .nav-button {
             background: rgba(255, 255, 255, 0.2);
             color: white;
             border: none;
             padding: 10px 20px;
             border-radius: 25px;
-            cursor: pointer;
             text-decoration: none;
             font-size: 14px;
             transition: all 0.3s ease;
         }
 
-        .nav-btn:hover {
+        .nav-button:hover {
             background: rgba(255, 255, 255, 0.3);
             transform: translateY(-2px);
         }
@@ -77,8 +77,8 @@
 
         .form-section h3 {
             color: #333;
-            margin-bottom: 20px;
             text-align: center;
+            margin-bottom: 20px;
         }
 
         .form-grid {
@@ -105,7 +105,6 @@
             border: 2px solid #e9ecef;
             border-radius: 8px;
             font-size: 14px;
-            transition: border-color 0.3s ease;
         }
 
         .form-group input:focus,
@@ -141,16 +140,16 @@
             font-size: 14px;
         }
 
-        .btn-danger {
-            background: #dc3545;
-            color: white;
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
             padding: 8px 15px;
             font-size: 14px;
         }
 
-        .btn-warning {
-            background: #ffc107;
-            color: #333;
+        .btn-danger {
+            background: #dc3545;
+            color: white;
             padding: 8px 15px;
             font-size: 14px;
         }
@@ -166,7 +165,7 @@
         .message.success {
             background: #d4edda;
             color: #155724;
-            border: 1px solid #c3e6cb;
+            border: 1px solid #c3e8a6;
         }
 
         .message.error {
@@ -183,9 +182,8 @@
         }
 
         .users-table h3 {
-            color: #333;
-            margin-bottom: 20px;
             text-align: center;
+            margin-bottom: 20px;
         }
 
         table {
@@ -287,7 +285,6 @@
             margin: 10% auto;
             padding: 30px;
             border-radius: 15px;
-            width: 90%;
             max-width: 500px;
         }
 
@@ -342,14 +339,12 @@
     <div class="container">
         <div class="header">
             <h1>👥 إدارة المستخدمين</h1>
-            <p>إضافة وتعديل وإدارة مستخدمي النظام</p>
+            <p>إضافة وتعديل وإدارة المستخدمين</p>
             <div class="nav-buttons">
-                <a href="admin-dashboard.html" class="nav-btn">🏀 لوحة التحكم</a>
-                <a href="drivers-overview.html" class="nav-btn">👥 السائقين</a>
-                <a href="revenues.html" class="nav-btn">💰 الإيرادات</a>
-                <a href="expenses.html" class="nav-btn">💸 المصروفات</a>
-                <a href="driver-payments.html" class="nav-btn">💳 دفعات السائقين</a>
-                <a href="balance-display.html" class="nav-btn">📊 الميزانية</a>
+                <a href="admin-dashboard.html" class="nav-button">🏠 لوحة التحكم</a>
+                <a href="cars.html" class="nav-button">🚗 السيارات</a>
+                <a href="revenues.html" class="nav-button">💰 الإيرادات</a>
+                <a href="expenses.html" class="nav-button">💸 المصروفات</a>
             </div>
         </div>
 
@@ -445,19 +440,18 @@
     
     <script>
         const firebaseConfig = {
-            apiKey: "AIzaSyDKnKGBmKQe-WXl-c5PqRsKfMm4fkLkxbw",
-            authDomain: "taxi-system-d8d4c.firebaseapp.com",
-            projectId: "taxi-system-d8d4c",
-            storageBucket: "taxi-system-d8d4c.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abcdef123456"
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
         };
 
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
-
-        let users = [];
 
         // Check auth
         auth.onAuthStateChanged(async (user) => {
@@ -473,17 +467,22 @@
                 return;
             }
 
-            loadUsers();
+            await loadUsers();
         });
+
+        let users = [];
 
         // Load users
         async function loadUsers() {
             try {
                 const snapshot = await db.collection('users').get();
-                users = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
+                users = [];
+                snapshot.forEach(doc => {
+                    users.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
                 displayUsers();
             } catch (error) {
                 console.error('Error loading users:', error);
@@ -517,7 +516,7 @@
                     <td>
                         <div class="action-buttons">
                             <button class="btn btn-warning" onclick="openEditModal('${user.id}')">✏️ تعديل</button>
-                            ${user.isActive !== false ? 
+                            ${user.isActive !== false ?
                                 `<button class="btn btn-danger" onclick="toggleUserStatus('${user.id}', false)">🚫 تعطيل</button>` :
                                 `<button class="btn btn-success" onclick="toggleUserStatus('${user.id}', true)">✅ تفعيل</button>`
                             }
@@ -541,7 +540,7 @@
         // Add user form
         document.getElementById('addUserForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-
+            
             const name = document.getElementById('userName').value;
             const email = document.getElementById('userEmail').value.trim();
             const password = document.getElementById('userPassword').value;
@@ -560,8 +559,7 @@
                     const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                     userId = userCredential.user.uid;
                 } else {
-                    // للسائقين والمحاسبين - إنشاء حساب بدون بريد إلكتروني
-                    // نستخدم اسم المستخدم كمعرف فريد
+                    // للسائقين والمحاسب - إنشاء معرف فريد
                     userId = `${role}_${name.replace(/\s/g, '_').toLowerCase()}_${Date.now()}`;
                 }
 
@@ -569,7 +567,7 @@
                 await db.collection('users').doc(userId).set({
                     name: name,
                     email: email || null,
-                    password: password, // للسائقين والمحاسبين
+                    password: password,
                     role: role,
                     isActive: true,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -577,7 +575,7 @@
 
                 showMessage('تم إضافة المستخدم بنجاح! ✅', 'success');
                 document.getElementById('addUserForm').reset();
-                loadUsers();
+                await loadUsers();
                 
             } catch (error) {
                 console.error('Error adding user:', error);
@@ -595,7 +593,7 @@
             }
         });
 
-        // Open edit modal
+        // Edit modal functions
         function openEditModal(userId) {
             const user = users.find(u => u.id === userId);
             if (!user) return;
@@ -607,7 +605,6 @@
             document.getElementById('editModal').style.display = 'block';
         }
 
-        // Close edit modal
         function closeEditModal() {
             document.getElementById('editModal').style.display = 'none';
         }
@@ -615,7 +612,7 @@
         // Edit user form
         document.getElementById('editUserForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-
+            
             const userId = document.getElementById('editUserId').value;
             const name = document.getElementById('editUserName').value;
             const role = document.getElementById('editUserRole').value;
@@ -629,7 +626,7 @@
 
                 showMessage('تم تحديث المستخدم بنجاح! ✅', 'success');
                 closeEditModal();
-                loadUsers();
+                await loadUsers();
                 
             } catch (error) {
                 console.error('Error updating user:', error);
@@ -650,7 +647,7 @@
                 });
 
                 showMessage(`تم ${action} المستخدم بنجاح! ✅`, 'success');
-                loadUsers();
+                await loadUsers();
                 
             } catch (error) {
                 console.error('Error toggling user status:', error);
@@ -665,7 +662,7 @@
             try {
                 await db.collection('users').doc(userId).delete();
                 showMessage('تم حذف المستخدم بنجاح! ✅', 'success');
-                loadUsers();
+                await loadUsers();
                 
             } catch (error) {
                 console.error('Error deleting user:', error);
@@ -679,7 +676,7 @@
             messageDiv.textContent = message;
             messageDiv.className = `message ${type}`;
             messageDiv.style.display = 'block';
-
+            
             setTimeout(() => {
                 messageDiv.style.display = 'none';
             }, 5000);
@@ -695,3 +692,4 @@
     </script>
 </body>
 </html>
+
