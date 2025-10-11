@@ -302,8 +302,8 @@
             try {
                 let userId;
                 
-                // إذا كان البريد الإلكتروني موجود (للمدير)
-                if (email) {
+                // إذا كان البريد الإلكتروني موجود والدور مدير
+                if (email && role === 'admin') {
                     const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                     userId = userCredential.user.uid;
                 } else {
