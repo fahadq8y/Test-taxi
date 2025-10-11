@@ -227,44 +227,59 @@
 
         // Load all data from Firebase
         async function loadAllData() {
+            console.log('🔄 بدء تحميل البيانات في revenues.html...');
             try {
                 // Load revenues
+                console.log('📊 تحميل revenues...');
                 const revenuesSnapshot = await db.collection('revenues').orderBy('date', 'desc').get();
+                console.log('✅ revenues:', revenuesSnapshot.size);
                 revenues = revenuesSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
                 }));
 
                 // Load expenses
+                console.log('📊 تحميل expenses...');
                 const expensesSnapshot = await db.collection('expenses').orderBy('date', 'desc').get();
+                console.log('✅ expenses:', expensesSnapshot.size);
                 expenses = expensesSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
                 }));
 
                 // Load driver payments
+                console.log('📊 تحميل driverPayments...');
                 const paymentsSnapshot = await db.collection('driverPayments').orderBy('date', 'desc').get();
+                console.log('✅ driverPayments:', paymentsSnapshot.size);
                 driverPayments = paymentsSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
                 }));
 
                 // Load drivers
+                console.log('📊 تحميل drivers...');
                 const driversSnapshot = await db.collection('drivers').get();
+                console.log('✅ drivers:', driversSnapshot.size);
                 drivers = driversSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
                 }));
 
+                console.log('📊 حساب الأرصدة...');
                 // Calculate and display balances using unified system
                 const balances = calculateUnifiedBalances(revenues, expenses, driverPayments, drivers);
                 updateBalanceDisplay(balances);
 
+                console.log('📊 عرض الإيرادات...');
                 // Display revenues including driver payments
                 displayRevenuesWithDriverPayments();
+                
+                console.log('✅ تم تحميل جميع البيانات بنجاح!');
 
             } catch (error) {
-                console.error('خطأ في تحميل البيانات:', error);
+                console.error('❌ خطأ في تحميل البيانات:', error);
+                console.error('❌ تفاصيل الخطأ:', error.message);
+                console.error('❌ Stack:', error.stack);
                 document.getElementById('revenueTableBody').innerHTML = 
                     '<tr><td colspan="5" class="no-data">خطأ في تحميل البيانات</td></tr>';
                 // تحديث الإيرادات حتى في حالة الخطأ
