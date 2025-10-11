@@ -377,8 +377,9 @@
                         </select>
                     </div>
                 </div>
-                <div style="text-align: center;">
+                <div style="text-align: center; display: flex; gap: 10px; justify-content: center;">
                     <button type="submit" class="btn btn-primary">💾 إضافة مستخدم</button>
+                    <button type="button" class="btn btn-secondary" onclick="syncDriversToUsers()" style="background: #28a745;">🔄 مزامنة السائقين</button>
                 </div>
             </form>
         </div>
@@ -769,6 +770,102 @@
                 showMessage('حدث خطأ في تغيير كلمة المرور', 'error');
             }
         });
+
+        // Sync drivers to users
+        async function syncDriversToUsers() {
+            if (!confirm('هل تريد مزامنة جميع السائقين وإنشاء حسابات للسائقين الذين ليس لديهم حساب؟')) {
+                return;
+            }
+
+            try {
+                showMessage('جاري المزامنة...', 'info');
+                
+                // قراءة جميع السائقين
+                const driversSnapshot = await db.collection('drivers').get();
+                const drivers = [];
+                driversSnapshot.forEach(doc => {
+                    drivers.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                if (drivers.length === 0) {
+                    showMessage('لا يوجد سائقين في النظام', 'error');
+                    return;
+                }
+
+                // قراءة جميع المستخدمين
+                const usersSnapshot = await db.collection('users').get();
+                const existingUsers = [];
+                usersSnapshot.forEach(doc => {
+                    existingUsers.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                // البحث عن السائقين الذين ليس لديهم حساب
+                let createdCount = 0;
+                let skippedCount = 0;
+                const errors = [];
+
+                for (const driver of drivers) {
+                    // التحقق من وجود حساب بنفس الاسم
+                    const userExists = existingUsers.some(user => 
+                        user.name === driver.name && user.role === 'driver'
+                    );
+
+                    if (userExists) {
+                        skippedCount++;
+                        console.log(`تم تخطي ${driver.name} - لديه حساب بالفعل`);
+                        continue;
+                    }
+
+                    // إنشاء حساب جديد
+                    try {
+                        const userData = {
+                            name: driver.name,
+                            email: '',
+                            password: '123',
+                            role: 'driver',
+                            isActive: true,
+                            driverId: driver.id,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            createdBy: localStorage.getItem('userName') || 'admin',
+                            syncedFromDrivers: true
+                        };
+
+                        await db.collection('users').add(userData);
+                        createdCount++;
+                        console.log(`✅ تم إنشاء حساب لـ ${driver.name}`);
+                    } catch (error) {
+                        console.error(`❌ خطأ في إنشاء حساب لـ ${driver.name}:`, error);
+                        errors.push(driver.name);
+                    }
+                }
+
+                // عرض النتائج
+                let message = `تمت المزامنة بنجاح!\n\n`;
+                message += `✅ تم إنشاء ${createdCount} حساب جديد\n`;
+                message += `⏭️ تم تخطي ${skippedCount} سائق (لديهم حسابات بالفعل)\n`;
+                message += `📊 إجمالي السائقين: ${drivers.length}`;
+
+                if (errors.length > 0) {
+                    message += `\n\n❌ فشل إنشاء حسابات لـ: ${errors.join(', ')}`;
+                }
+
+                alert(message);
+                showMessage(`تم إنشاء ${createdCount} حساب جديد بنجاح! ✅`, 'success');
+                
+                // إعادة تحميل المستخدمين
+                await loadUsers();
+
+            } catch (error) {
+                console.error('Error syncing drivers:', error);
+                showMessage('حدث خطأ في المزامنة: ' + error.message, 'error');
+            }
+        }
 
         // Close modal on outside click
         window.onclick = function(event) {
