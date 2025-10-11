@@ -606,21 +606,29 @@
                 } else {
                     // إضافة السائق في مجموعة drivers
                     const driverDoc = await addDoc(collection(db, 'drivers'), driverData);
+                    console.log('✅ تم إضافة السائق في drivers:', driverDoc.id);
                     
                     // إنشاء حساب تلقائي في users
-                    const userId = `driver_${driverData.name.replace(/\s/g, '_')}_${Date.now()}`;
-                    await setDoc(doc(db, 'users', userId), {
-                        name: driverData.name,
-                        email: null,
-                        password: '123456',
-                        role: 'driver',
-                        isActive: true,
-                        driverId: driverDoc.id,
-                        createdAt: new Date(),
-                        createdBy: currentUser.name || currentUser.email
-                    });
-                    
-                    alert('تم إضافة السائق بنجاح وإنشاء حساب له في النظام');
+                    try {
+                        const userId = `driver_${driverData.name.replace(/\s/g, '_')}_${Date.now()}`;
+                        const userData = {
+                            name: driverData.name,
+                            email: null,
+                            password: '123456',
+                            role: 'driver',
+                            isActive: true,
+                            driverId: driverDoc.id,
+                            createdAt: new Date(),
+                            createdBy: currentUser.name || currentUser.email
+                        };
+                        
+                        await setDoc(doc(db, 'users', userId), userData);
+                        console.log('✅ تم إنشاء حساب في users:', userId);
+                        alert('تم إضافة السائق بنجاح وإنشاء حساب له في النظام');
+                    } catch (userError) {
+                        console.error('❌ خطأ في إنشاء حساب المستخدم:', userError);
+                        alert('تم إضافة السائق لكن حدث خطأ في إنشاء حساب له. الخطأ: ' + userError.message);
+                    }
                 }
                 
                 closeModal();
