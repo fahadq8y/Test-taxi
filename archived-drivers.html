@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أرشيف السائقين - نظام إدارة التاكسي</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .archive-notice {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a6f);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .archive-notice h3 {
+            margin-bottom: 10px;
+            font-size: 1.3rem;
+        }
+
+        .restore-btn {
+            background: linear-gradient(45deg, #4caf50, #45a049);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .restore-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+        }
+
+        .delete-permanent-btn {
+            background: linear-gradient(45deg, #dc3545, #c82333);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .delete-permanent-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+        }
+
+        .archive-info {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
+        .archive-info strong {
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 أرشيف السائقين</h1>
+            <p>عرض واستعادة السائقين المؤرشفين</p>
+            <div class="nav-buttons">
+                <a href="drivers.html" class="nav-btn">👥 إدارة السائقين</a>
+                <a href="admin-dashboard.html" class="nav-btn">🏠 لوحة التحكم</a>
+            </div>
+        </div>
+
+        <div class="archive-notice">
+            <h3>⚠️ ملاحظة هامة</h3>
+            <p>هذا الأرشيف يحتوي على السائقين الذين تم أرشفتهم بسبب تغيير نوع العقد</p>
+            <p>يمكنك استعادة أي سائق أو حذفه نهائياً من النظام</p>
+        </div>
+
+        <div class="controls">
+            <input type="text" class="search-input" id="searchInput" placeholder="البحث في الأرشيف..." onkeyup="filterArchivedDrivers()">
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>جاري تحميل الأرشيف...</p>
+        </div>
+
+        <div class="drivers-grid" id="archivedGrid" style="display: none;">
+            <!-- سيتم ملء السائقين المؤرشفين هنا -->
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, doc, getDoc, deleteDoc, addDoc, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let archivedDrivers = [];
+        let currentUser = null;
+
+        // Check authentication
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            try {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (!userDoc.exists()) {
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                const userData = userDoc.data();
+                if (!['admin', 'accountant'].includes(userData.role)) {
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                currentUser = { uid: user.uid, ...userData };
+                
+                await loadArchivedDrivers();
+                displayArchivedDrivers(archivedDrivers);
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('archivedGrid').style.display = 'grid';
+            } catch (error) {
+                console.error('Error checking user role:', error);
+                window.location.href = 'index.html';
+            }
+        });
+
+        // Load archived drivers
+        async function loadArchivedDrivers() {
+            try {
+                const archivedSnapshot = await getDocs(collection(db, 'archivedDrivers'));
+                archivedDrivers = [];
+                archivedSnapshot.forEach(doc => {
+                    archivedDrivers.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Sort by archived date (newest first)
+                archivedDrivers.sort((a, b) => {
+                    const dateA = a.archivedAt?.seconds ? new Date(a.archivedAt.seconds * 1000) : new Date(a.archivedAt || 0);
+                    const dateB = b.archivedAt?.seconds ? new Date(b.archivedAt.seconds * 1000) : new Date(b.archivedAt || 0);
+                    return dateB - dateA;
+                });
+            } catch (error) {
+                console.error('Error loading archived drivers:', error);
+            }
+        }
+
+        // Display archived drivers
+        function displayArchivedDrivers(driversToShow) {
+            const grid = document.getElementById('archivedGrid');
+            
+            if (driversToShow.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📦</div>
+                        <h3>لا يوجد سائقين مؤرشفين</h3>
+                        <p>الأرشيف فارغ حالياً</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = driversToShow.map(driver => {
+                const archivedDate = driver.archivedAt?.seconds ? 
+                    new Date(driver.archivedAt.seconds * 1000).toLocaleDateString('ar-EG', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }) : 'غير محدد';
+
+                return `
+                    <div class="driver-card" style="border: 3px solid #ff6b6b;">
+                        <div class="driver-header">
+                            <div class="driver-name">📦 ${driver.name}</div>
+                            <div class="driver-phone">${driver.phone}</div>
+                        </div>
+                        <div class="driver-body">
+                            <div class="archive-info">
+                                <strong>تاريخ الأرشفة:</strong> ${archivedDate}<br>
+                                <strong>بواسطة:</strong> ${driver.archivedBy || 'غير محدد'}<br>
+                                <strong>السبب:</strong> ${driver.archiveReason || 'غير محدد'}
+                            </div>
+                            
+                            <div class="driver-info" style="margin-top: 15px;">
+                                <div class="info-row">
+                                    <span class="info-label">نوع العقد السابق:</span>
+                                    <span class="info-value">${driver.contractType === 'daily' ? '📅 يومي' : driver.contractType === 'monthly' ? '📆 شهري' : 'غير محدد'}</span>
+                                </div>
+                                ${driver.contractType === 'daily' ? `
+                                    <div class="info-row">
+                                        <span class="info-label">الأجرة اليومية:</span>
+                                        <span class="info-value">${driver.dailyRent || 0} د.ك</span>
+                                    </div>
+                                ` : ''}
+                                ${driver.contractType === 'monthly' ? `
+                                    <div class="info-row">
+                                        <span class="info-label">المبلغ الشهري:</span>
+                                        <span class="info-value">${driver.monthlyPayment || 0} د.ك</span>
+                                    </div>
+                                ` : ''}
+                                ${driver.assignedCar ? `
+                                    <div class="info-row">
+                                        <span class="info-label">السيارة:</span>
+                                        <span class="info-value">${driver.assignedCar}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="driver-actions">
+                            <button class="restore-btn" onclick="restoreDriver('${driver.id}')">
+                                ♻️ استعادة السائق
+                            </button>
+                            <button class="delete-permanent-btn" onclick="deletePermanently('${driver.id}')">
+                                🗑️ حذف نهائي
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Restore driver
+        window.restoreDriver = async (archiveId) => {
+            if (!confirm('هل أنت متأكد من استعادة هذا السائق؟\nسيتم نقله من الأرشيف إلى قائمة السائقين النشطين.')) {
+                return;
+            }
+
+            try {
+                const archivedDriver = archivedDrivers.find(d => d.id === archiveId);
+                if (!archivedDriver) {
+                    alert('لم يتم العثور على السائق');
+                    return;
+                }
+
+                // Check if driver already exists in active drivers
+                const activeDriversSnapshot = await getDocs(
+                    query(collection(db, 'drivers'), where('phone', '==', archivedDriver.phone))
+                );
+                
+                if (!activeDriversSnapshot.empty) {
+                    alert('⚠️ تنبيه: يوجد سائق نشط بنفس رقم الهاتف!\nلا يمكن استعادة السائق.');
+                    return;
+                }
+
+                // Create a copy in drivers collection (without archive fields)
+                const restoreData = { ...archivedDriver };
+                delete restoreData.id;
+                delete restoreData.isArchived;
+                delete restoreData.archivedAt;
+                delete restoreData.archivedBy;
+                delete restoreData.archiveReason;
+                
+                restoreData.restoredAt = new Date();
+                restoreData.restoredBy = currentUser.name || currentUser.email;
+                restoreData.updatedAt = new Date();
+                restoreData.updatedBy = currentUser.name || currentUser.email;
+
+                await addDoc(collection(db, 'drivers'), restoreData);
+                
+                // Delete from archived collection
+                await deleteDoc(doc(db, 'archivedDrivers', archiveId));
+                
+                alert('✅ تم استعادة السائق بنجاح');
+                await loadArchivedDrivers();
+                displayArchivedDrivers(archivedDrivers);
+            } catch (error) {
+                console.error('Error restoring driver:', error);
+                alert('حدث خطأ في استعادة السائق');
+            }
+        };
+
+        // Delete permanently
+        window.deletePermanently = async (archiveId) => {
+            if (!confirm('⚠️ تحذير: هل أنت متأكد من الحذف النهائي؟\nلن تتمكن من استعادة هذا السائق بعد الحذف!')) {
+                return;
+            }
+
+            if (!confirm('تأكيد نهائي: سيتم حذف جميع بيانات السائق نهائياً. هل تريد المتابعة؟')) {
+                return;
+            }
+
+            try {
+                await deleteDoc(doc(db, 'archivedDrivers', archiveId));
+                alert('تم الحذف النهائي بنجاح');
+                await loadArchivedDrivers();
+                displayArchivedDrivers(archivedDrivers);
+            } catch (error) {
+                console.error('Error deleting permanently:', error);
+                alert('حدث خطأ في الحذف');
+            }
+        };
+
+        // Filter archived drivers
+        window.filterArchivedDrivers = () => {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = archivedDrivers.filter(driver => 
+                driver.name.toLowerCase().includes(searchTerm) ||
+                driver.phone.includes(searchTerm) ||
+                (driver.archiveReason && driver.archiveReason.toLowerCase().includes(searchTerm))
+            );
+            displayArchivedDrivers(filtered);
+        };
+    </script>
+</body>
+</html>
+

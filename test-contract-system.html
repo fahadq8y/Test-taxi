@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار نظام العقود - نظام إدارة التاكسي</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 5px solid #667eea;
+        }
+
+        .test-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .test-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .test-item h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .test-status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .status-pass {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .code-block {
+            background: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding: 8px 0;
+            padding-right: 25px;
+            position: relative;
+        }
+
+        .feature-list li:before {
+            content: "✓";
+            position: absolute;
+            right: 0;
+            color: #4caf50;
+            font-weight: bold;
+        }
+
+        .back-btn {
+            display: inline-block;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 اختبار نظام أنواع العقود والأرشفة</h1>
+
+        <div class="test-section">
+            <h2>1️⃣ نظام أنواع العقود</h2>
+            
+            <div class="test-item">
+                <h3>
+                    إضافة حقل نوع العقد
+                    <span class="test-status status-pass">✓ مكتمل</span>
+                </h3>
+                <p>تم إضافة حقل "نوع العقد" في نموذج إضافة/تعديل السائق مع خيارين:</p>
+                <ul class="feature-list">
+                    <li>عقد يومي (daily)</li>
+                    <li>عقد شهري (monthly)</li>
+                </ul>
+            </div>
+
+            <div class="test-item">
+                <h3>
+                    إظهار/إخفاء الحقول حسب نوع العقد
+                    <span class="test-status status-pass">✓ مكتمل</span>
+                </h3>
+                <p>عند اختيار نوع العقد:</p>
+                <ul class="feature-list">
+                    <li><strong>عقد يومي:</strong> يظهر حقل "الأجرة اليومية"</li>
+                    <li><strong>عقد شهري:</strong> يظهر حقل "المبلغ الشهري"</li>
+                </ul>
+                <div class="code-block">
+                    function toggleContractFields() {<br>
+                    &nbsp;&nbsp;// يتم إظهار/إخفاء الحقول تلقائياً<br>
+                    }
+                </div>
+            </div>
+
+            <div class="test-item">
+                <h3>
+                    عرض نوع العقد في قائمة السائقين
+                    <span class="test-status status-pass">✓ مكتمل</span>
+                </h3>
+                <p>يتم عرض نوع العقد مع الأيقونة المناسبة:</p>
+                <ul class="feature-list">
+                    <li>📅 يومي - للعقود اليومية</li>
+                    <li>📆 شهري - للعقود الشهرية</li>
+                </ul>
+            </div>
+
+            <div class="test-item">
+                <h3>
+                    حفظ البيانات في Firebase
+                    <span class="test-status status-pass">✓ مكتمل</span>
+                </h3>
+                <p>يتم حفظ الحقول التالية:</p>
+                <ul class="feature-list">
+                    <li>contractType: نوع العقد (daily/monthly)</li>
+                    <li>dailyRent: الأجرة اليومية (للعقود اليومية)</li>
+                    <li>monthlyPayment: المبلغ الشهري (للعقود الشهرية)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>2️⃣ نظام الأرشفة</h2>
+            
+            <div class="test-item">
+                <h3>
+                    الأرشفة التلقائية عند تغيير نوع العقد
+                    <span class="test-status status-pass">✓ مكتمل</span>
+                </h3>
+                <p>عند تغيير نوع العقد من يومي إلى شهري أو العكس:</p>
+                <ul class="feature-list">
+                    <li>يتم حفظ نسخة من بيانات السائق القديمة في مجموعة archivedDrivers</li>
+                    <li>يتم تسجيل تاريخ الأرشفة والمستخدم الذي قام بالتعديل</li>
+                    <li>يتم تسجيل سبب الأرشفة (تغيير نوع العقد)</li>
+                </ul>
+            </div>
+
+            <div class="test-item">
+                <h3>
+                    صفحة أرشيف السائقين
+                    <span class="test-status status-pass">✓ مكتمل</span>
+                </h3>
+                <p>تم إنشاء صفحة archived-drivers.html تحتوي على:</p>
+                <ul class="feature-list">
+                    <li>عرض جميع السائقين المؤرشفين</li>
+                    <li>إظهار تاريخ وسبب الأرشفة</li>
+                    <li>زر استعادة السائق</li>
+                    <li>زر الحذف النهائي</li>
+                    <li>خاصية البحث في الأرشيف</li>
+                </ul>
+            </div>
+
+            <div class="test-item">
+                <h3>
+                    زر الوصول للأرشيف
+                    <span class="test-status status-pass">✓ مكتمل</span>
+                </h3>
+                <p>تم إضافة زر "📦 الأرشيف" في صفحة إدارة السائقين للوصول السريع</p>
+            </div>
+
+            <div class="test-item">
+                <h3>
+                    استعادة السائق من الأرشيف
+                    <span class="test-status status-pass">✓ مكتمل</span>
+                </h3>
+                <p>عند استعادة السائق:</p>
+                <ul class="feature-list">
+                    <li>يتم التحقق من عدم وجود سائق نشط بنفس رقم الهاتف</li>
+                    <li>يتم نقل البيانات من archivedDrivers إلى drivers</li>
+                    <li>يتم حذف السائق من الأرشيف</li>
+                    <li>يتم تسجيل تاريخ الاستعادة</li>
+                </ul>
+            </div>
+
+            <div class="test-item">
+                <h3>
+                    الحفاظ على السجلات المالية
+                    <span class="test-status status-pass">✓ مكتمل</span>
+                </h3>
+                <p>جميع البيانات المالية والسجلات تبقى محفوظة في الأرشيف</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>3️⃣ الحقول المضافة في قاعدة البيانات</h2>
+            
+            <div class="test-item">
+                <h3>حقول السائق (drivers collection)</h3>
+                <div class="code-block">
+                    contractType: "daily" | "monthly"<br>
+                    dailyRent: number (للعقود اليومية)<br>
+                    monthlyPayment: number (للعقود الشهرية)<br>
+                    isArchived: boolean<br>
+                    previousContractType: string (عند التغيير)
+                </div>
+            </div>
+
+            <div class="test-item">
+                <h3>حقول الأرشيف (archivedDrivers collection)</h3>
+                <div class="code-block">
+                    [جميع حقول السائق] +<br>
+                    isArchived: true<br>
+                    archivedAt: timestamp<br>
+                    archivedBy: string<br>
+                    archiveReason: string
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>4️⃣ خطوات الاختبار اليدوي</h2>
+            
+            <div class="test-item">
+                <h3>
+                    اختبار إضافة سائق بعقد يومي
+                    <span class="test-status status-pending">⏳ يدوي</span>
+                </h3>
+                <ol style="padding-right: 20px;">
+                    <li>افتح صفحة إدارة السائقين</li>
+                    <li>انقر على "إضافة سائق جديد"</li>
+                    <li>اختر "عقد يومي" من قائمة نوع العقد</li>
+                    <li>تأكد من ظهور حقل "الأجرة اليومية"</li>
+                    <li>أدخل البيانات واحفظ</li>
+                    <li>تحقق من عرض نوع العقد في البطاقة</li>
+                </ol>
+            </div>
+
+            <div class="test-item">
+                <h3>
+                    اختبار إضافة سائق بعقد شهري
+                    <span class="test-status status-pending">⏳ يدوي</span>
+                </h3>
+                <ol style="padding-right: 20px;">
+                    <li>افتح صفحة إدارة السائقين</li>
+                    <li>انقر على "إضافة سائق جديد"</li>
+                    <li>اختر "عقد شهري" من قائمة نوع العقد</li>
+                    <li>تأكد من ظهور حقل "المبلغ الشهري"</li>
+                    <li>أدخل البيانات واحفظ</li>
+                    <li>تحقق من عرض نوع العقد في البطاقة</li>
+                </ol>
+            </div>
+
+            <div class="test-item">
+                <h3>
+                    اختبار تغيير نوع العقد والأرشفة
+                    <span class="test-status status-pending">⏳ يدوي</span>
+                </h3>
+                <ol style="padding-right: 20px;">
+                    <li>افتح سائق موجود للتعديل</li>
+                    <li>غير نوع العقد من يومي إلى شهري (أو العكس)</li>
+                    <li>احفظ التغييرات</li>
+                    <li>تحقق من ظهور رسالة الأرشفة</li>
+                    <li>افتح صفحة الأرشيف</li>
+                    <li>تحقق من وجود السائق في الأرشيف مع السبب</li>
+                </ol>
+            </div>
+
+            <div class="test-item">
+                <h3>
+                    اختبار استعادة السائق
+                    <span class="test-status status-pending">⏳ يدوي</span>
+                </h3>
+                <ol style="padding-right: 20px;">
+                    <li>افتح صفحة الأرشيف</li>
+                    <li>اختر سائق مؤرشف</li>
+                    <li>انقر على "استعادة السائق"</li>
+                    <li>تأكد من ظهور رسالة التأكيد</li>
+                    <li>ارجع لصفحة السائقين النشطين</li>
+                    <li>تحقق من وجود السائق في القائمة</li>
+                </ol>
+            </div>
+
+            <div class="test-item">
+                <h3>
+                    اختبار الحذف النهائي
+                    <span class="test-status status-pending">⏳ يدوي</span>
+                </h3>
+                <ol style="padding-right: 20px;">
+                    <li>افتح صفحة الأرشيف</li>
+                    <li>اختر سائق مؤرشف</li>
+                    <li>انقر على "حذف نهائي"</li>
+                    <li>تأكد من ظهور رسالتي تأكيد</li>
+                    <li>تحقق من حذف السائق من الأرشيف</li>
+                </ol>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="drivers.html" class="back-btn">← العودة لإدارة السائقين</a>
+            <a href="archived-drivers.html" class="back-btn" style="background: linear-gradient(45deg, #ff6b6b, #ee5a6f);">📦 فتح الأرشيف</a>
+        </div>
+    </div>
+</body>
+</html>
+

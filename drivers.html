@@ -25,6 +25,7 @@
         <div class="controls">
             <input type="text" class="search-input" id="searchInput" placeholder="البحث عن سائق..." onkeyup="filterDrivers()">
             <button class="add-btn" onclick="openModal()">إضافة سائق جديد</button>
+            <a href="archived-drivers.html" class="nav-btn" style="background: linear-gradient(45deg, #ff6b6b, #ee5a6f); text-decoration: none; padding: 12px 24px; border-radius: 8px; color: white; font-weight: bold;">📦 الأرشيف</a>
         </div>
 
         <div class="loading" id="loading">
@@ -73,14 +74,26 @@
                     <h3 class="section-title">تفاصيل العقد</h3>
                     <div class="form-grid">
                         <div class="form-group">
+                            <label for="contractType">نوع العقد</label>
+                            <select id="contractType" onchange="toggleContractFields()" required>
+                                <option value="">اختر نوع العقد</option>
+                                <option value="daily">عقد يومي</option>
+                                <option value="monthly">عقد شهري</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label for="assignedCar">السيارة المخصصة</label>
                             <select id="assignedCar" onchange="updateCarRegistrationExpiry()">
                                 <option value="">اختر السيارة</option>
                             </select>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" id="dailyRentGroup">
                             <label for="dailyRent">الأجرة اليومية (د.ك)</label>
-                            <input type="number" id="dailyRent" step="0.001" required>
+                            <input type="number" id="dailyRent" step="0.001">
+                        </div>
+                        <div class="form-group" id="monthlyPaymentGroup" style="display: none;">
+                            <label for="monthlyPayment">المبلغ الشهري (د.ك)</label>
+                            <input type="number" id="monthlyPayment" step="0.001">
                         </div>
                         <div class="form-group">
                             <label for="contractDuration">مدة العقد (بالأشهر)</label>
@@ -282,6 +295,34 @@
             }
         };
 
+        // Toggle contract fields based on contract type
+        window.toggleContractFields = () => {
+            const contractType = document.getElementById('contractType').value;
+            const dailyRentGroup = document.getElementById('dailyRentGroup');
+            const monthlyPaymentGroup = document.getElementById('monthlyPaymentGroup');
+            const dailyRentInput = document.getElementById('dailyRent');
+            const monthlyPaymentInput = document.getElementById('monthlyPayment');
+            
+            if (contractType === 'daily') {
+                dailyRentGroup.style.display = 'flex';
+                monthlyPaymentGroup.style.display = 'none';
+                dailyRentInput.required = true;
+                monthlyPaymentInput.required = false;
+                monthlyPaymentInput.value = '';
+            } else if (contractType === 'monthly') {
+                dailyRentGroup.style.display = 'none';
+                monthlyPaymentGroup.style.display = 'flex';
+                dailyRentInput.required = false;
+                monthlyPaymentInput.required = true;
+                dailyRentInput.value = '';
+            } else {
+                dailyRentGroup.style.display = 'flex';
+                monthlyPaymentGroup.style.display = 'none';
+                dailyRentInput.required = false;
+                monthlyPaymentInput.required = false;
+            }
+        };
+
         // Calculate contract end date
         window.calculateContractEndDate = () => {
             const startDate = document.getElementById('contractStartDate').value;
@@ -388,9 +429,21 @@
                                     <span class="info-value">${carInfo}</span>
                                 </div>
                                 <div class="info-row">
-                                    <span class="info-label">الأجرة اليومية:</span>
-                                    <span class="info-value">${driver.dailyRent || 0} د.ك</span>
+                                    <span class="info-label">نوع العقد:</span>
+                                    <span class="info-value">${driver.contractType === 'daily' ? '📅 يومي' : driver.contractType === 'monthly' ? '📆 شهري' : 'غير محدد'}</span>
                                 </div>
+                                ${driver.contractType === 'daily' ? `
+                                    <div class="info-row">
+                                        <span class="info-label">الأجرة اليومية:</span>
+                                        <span class="info-value">${driver.dailyRent || 0} د.ك</span>
+                                    </div>
+                                ` : ''}
+                                ${driver.contractType === 'monthly' ? `
+                                    <div class="info-row">
+                                        <span class="info-label">المبلغ الشهري:</span>
+                                        <span class="info-value">${driver.monthlyPayment || 0} د.ك</span>
+                                    </div>
+                                ` : ''}
                                 <div class="info-row">
                                     <span class="info-label">الكيلومترات:</span>
                                     <span class="info-value">${(driver.currentKilometers || 0).toLocaleString()} كم</span>
@@ -488,19 +541,23 @@
             editingDriverId = driverId;
             document.getElementById('modalTitle').textContent = 'تعديل السائق';
             
-            // Fill form fields
+            // Fill form            // Set basic info
             document.getElementById('driverName').value = driver.name || '';
             document.getElementById('driverPhone').value = driver.phone || '';
             document.getElementById('driverNationality').value = driver.nationality || '';
             document.getElementById('driverAddress').value = driver.address || '';
-            document.getElementById('dailyRent').value = driver.dailyRent || '';
             document.getElementById('oldDebts').value = driver.oldDebts || 0;
             document.getElementById('driverNotes').value = driver.notes || '';
             
-            // Populate car options and set selected car
-            populateCarOptions();
-            document.getElementById('assignedCar').value = driver.assignedCar || '';
+            // Set contract type and related fields
+            document.getElementById('contractType').value = driver.contractType || '';
+            document.getElementById('dailyRent').value = driver.dailyRent || '';
+            document.getElementById('monthlyPayment').value = driver.monthlyPayment || '';
+            toggleContractFields();
             
+            // Populate and set car
+            populateCarOptions();
+            document.getElementById('assignedCar').value = driver.assignedCar || '';            
             // Set contract duration and dates
             document.getElementById('contractDuration').value = driver.contractDuration || '';
             
@@ -566,13 +623,16 @@
         document.getElementById('driverForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            const contractType = document.getElementById('contractType').value;
             const driverData = {
                 name: document.getElementById('driverName').value,
                 phone: document.getElementById('driverPhone').value,
                 nationality: document.getElementById('driverNationality').value,
                 address: document.getElementById('driverAddress').value,
                 assignedCar: document.getElementById('assignedCar').value,
-                dailyRent: parseFloat(document.getElementById('dailyRent').value) || 0,
+                contractType: contractType,
+                dailyRent: contractType === 'daily' ? (parseFloat(document.getElementById('dailyRent').value) || 0) : 0,
+                monthlyPayment: contractType === 'monthly' ? (parseFloat(document.getElementById('monthlyPayment').value) || 0) : 0,
                 contractDuration: parseInt(document.getElementById('contractDuration').value) || null,
                 contractStartDate: document.getElementById('contractStartDate').value ? 
                     new Date(document.getElementById('contractStartDate').value) : null,
@@ -597,13 +657,31 @@
             if (!editingDriverId) {
                 driverData.createdAt = new Date();
                 driverData.createdBy = currentUser.name || currentUser.email;
+                driverData.isArchived = false;
             }
 
             try {
                 if (editingDriverId) {
+                    // Check if contract type changed - if yes, archive the driver
+                    const oldDriver = allDrivers.find(d => d.id === editingDriverId);
+                    if (oldDriver && oldDriver.contractType && oldDriver.contractType !== contractType) {
+                        // Archive the old driver
+                        const archiveData = {
+                            ...oldDriver,
+                            isArchived: true,
+                            archivedAt: new Date(),
+                            archivedBy: currentUser.name || currentUser.email,
+                            archiveReason: `تغيير نوع العقد من ${oldDriver.contractType === 'daily' ? 'يومي' : 'شهري'} إلى ${contractType === 'daily' ? 'يومي' : 'شهري'}`
+                        };
+                        await addDoc(collection(db, 'archivedDrivers'), archiveData);
+                        
+                        // Update the current driver with new contract type
+                        driverData.previousContractType = oldDriver.contractType;
+                    }
+                    
                     // تحديث السائق الموجود
                     await updateDoc(doc(db, 'drivers', editingDriverId), driverData);
-                    alert('تم تحديث السائق بنجاح');
+                    alert('تم تحديث السائق بنجاح' + (oldDriver && oldDriver.contractType && oldDriver.contractType !== contractType ? ' وتم أرشفة البيانات القديمة' : ''));
                 } else {
                     // إضافة سائق جديد
                     const driverDoc = await addDoc(collection(db, 'drivers'), driverData);
