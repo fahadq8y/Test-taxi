@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>المصروفات - نظام إدارة التاكسي</title>
     <link rel="stylesheet" href="style.css">
+    <script src="expenses-permissions-simple.js"></script>
     <style>
         * {
             margin: 0;
@@ -1090,12 +1091,12 @@
             currentPageData.forEach(expense => {
                 const row = document.createElement('tr');
                 
-                // تحديد زر الحذف المناسب حسب مصدر المصروف
+                // تحديد زر الحذف المناسب حسب مصدر المصروف وصلاحيات المستخدم
                 let deleteButton;
                 if (expense.source === 'driverPayment') {
-                    deleteButton = `<button class="delete-btn" onclick="deleteDriverPayment('${expense.id}')">حذف</button>`;
+                    deleteButton = getExpenseDeleteButton(expense.id, expense.date, expense.createdAt, 'deleteDriverPayment', 'delete-btn');
                 } else {
-                    deleteButton = `<button class="delete-btn" onclick="deleteExpense('${expense.id}')">حذف</button>`;
+                    deleteButton = getExpenseDeleteButton(expense.id, expense.date, expense.createdAt, 'deleteExpense', 'delete-btn');
                 }
                 
                 row.innerHTML = `
