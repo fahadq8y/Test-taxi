@@ -250,3 +250,38 @@ const oldDebts = Math.max(0, oldDebtsInitial - oldDebtsPaid);
 **الإصدار:** 2.2 - إصلاح إنشاء حسابات المستخدمين
 **المطور:** Manus AI Agent
 
+
+
+
+---
+
+## [2025-10-13] - حذف صفحة لوحة المحاسب وتوجيه المحاسب إلى لوحة التحكم
+
+### الهدف:
+- حذف صفحة لوحة المحاسب (accountant-dashboard.html) لعدم الحاجة إليها
+- توجيه المحاسب بعد تسجيل الدخول إلى لوحة التحكم (admin-dashboard.html) بدلاً من لوحة المحاسب
+- التأكد من أن تسجيل الخروج يعمل في جميع الصفحات
+
+### التعديلات المطلوبة:
+
+#### 1. index.html
+- تغيير توجيه المحاسب من `accountant-dashboard.html` إلى `admin-dashboard.html`
+
+#### 2. admin-dashboard.html
+- حذف رابط "لوحة المحاسب" من الإجراءات السريعة (إذا وجد)
+- السماح للمحاسب بالدخول إلى لوحة التحكم (تم بالفعل)
+
+#### 3. accountant-dashboard.html
+- سيتم الاحتفاظ بالملف لكن لن يتم استخدامه (يمكن حذفه لاحقاً)
+
+### المشاكل السابقة التي تم حلها:
+1. ✅ مشكلة Firebase config في accountant-dashboard.html - كانت تحتوي على placeholders
+2. ✅ مشكلة تسجيل الخروج في driver-view.html - لم يكن يسجل خروج من Firebase
+3. ✅ مشكلة حلقة إعادة التوجيه في index.html - كان onAuthStateChanged يعمل بشكل متكرر
+4. ✅ مشكلة localStorage الفاسد - تم إضافة مسح تلقائي عند الأخطاء
+
+### ملاحظات مهمة:
+- جميع صفحات النظام تستخدم Firebase للمصادقة
+- localStorage يستخدم لتخزين userRole, userName, userId
+- يجب التأكد من مسح localStorage عند تسجيل الخروج
+
