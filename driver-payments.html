@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>دفعات السائق - نظام إدارة التاكسي</title>
     <link rel="stylesheet" href="style.css">
+    <script src="driver-payments-permissions-simple.js"></script>
     <style>
         * {
             margin: 0;
@@ -650,12 +651,15 @@
                 const amountClass = isPositive ? 'positive' : 'negative';
                 const amountSign = isPositive ? '+' : '-';
                 
+                // إنشاء زر الحذف بناءً على الصلاحيات
+                const deleteButton = getPaymentDeleteButton(payment.id, payment.date, payment.createdAt, 'deletePayment', 'delete-btn');
+                
                 row.innerHTML = `
                     <td>${formatDate(payment.date)}</td>
                     <td>${payment.type || 'غير محدد'}</td>
                     <td class="amount ${amountClass}">${amountSign}${parseFloat(payment.amount || 0).toFixed(3)} د.ك</td>
                     <td>${payment.description || '-'}</td>
-                    <td><button class="delete-btn" onclick="deletePayment('${payment.id}')">حذف</button></td>
+                    <td>${deleteButton}</td>
                 `;
                 tbody.appendChild(row);
             });
