@@ -154,8 +154,8 @@
                 }
             }
             
-            // Check if user has admin role
-            if (userRole !== 'admin') {
+            // Check if user has admin or accountant role
+            if (userRole !== 'admin' && userRole !== 'accountant') {
                 localStorage.clear();
                 window.location.href = 'index.html';
                 return;
