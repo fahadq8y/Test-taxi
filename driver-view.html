@@ -529,6 +529,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
         import { getFirestore, doc, getDoc, updateDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+        import { getAuth, signOut } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -542,14 +543,17 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
 
         // Make Firebase functions globally available
         window.db = db;
+        window.auth = auth;
         window.doc = doc;
         window.getDoc = getDoc;
         window.updateDoc = updateDoc;
         window.getDocs = getDocs;
         window.collection = collection;
+        window.signOut = signOut;
 
         let driverId = null;
         let driverData = {};
@@ -1051,10 +1055,19 @@
         };
 
         // Logout function
-        window.logout = function() {
-            sessionStorage.removeItem('driverId');
-            sessionStorage.removeItem('driverData');
-            window.location.href = 'driver-login.html';
+        window.logout = async function() {
+            try {
+                await signOut(auth);
+                sessionStorage.clear();
+                localStorage.clear();
+                window.location.href = 'driver-login.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+                // Even if signOut fails, clear storage and redirect
+                sessionStorage.clear();
+                localStorage.clear();
+                window.location.href = 'driver-login.html';
+            }
         };
 
         // Initialize page

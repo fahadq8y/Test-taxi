@@ -295,6 +295,10 @@
 
             } catch (error) {
                 console.error('Login error:', error);
+                
+                // Clear localStorage on login error to prevent data conflicts
+                localStorage.clear();
+                
                 let errorMsg = 'حدث خطأ في تسجيل الدخول';
                 
                 if (error.code === 'auth/user-not-found') {
@@ -359,11 +363,40 @@
             installPrompt.style.display = 'none';
         });
 
-        // Check if user is already logged in
-        auth.onAuthStateChanged((user) => {
+        // Check if user is already logged in (only redirect once on page load)
+        let hasRedirected = false;
+        auth.onAuthStateChanged(async (user) => {
+            // Prevent multiple redirects
+            if (hasRedirected) return;
+            
             if (user) {
-                const userRole = localStorage.getItem('userRole');
+                let userRole = localStorage.getItem('userRole');
+                
+                // If userRole is not in localStorage, fetch it from Firestore
+                if (!userRole) {
+                    try {
+                        const userDoc = await getDoc(doc(db, 'users', user.uid));
+                        if (userDoc.exists()) {
+                            const userData = userDoc.data();
+                            userRole = userData.role;
+                            // Store in localStorage for future use
+                            localStorage.setItem('userRole', userData.role);
+                            localStorage.setItem('userName', userData.name);
+                            localStorage.setItem('userId', user.uid);
+                        } else {
+                            // User data not found, clear localStorage and stay on login page
+                            localStorage.clear();
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('Error fetching user data:', error);
+                        localStorage.clear();
+                        return;
+                    }
+                }
+                
                 if (userRole) {
+                    hasRedirected = true;
                     switch (userRole) {
                         case 'admin':
                             window.location.href = 'admin-dashboard.html';

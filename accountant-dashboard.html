@@ -389,12 +389,13 @@
 
         // Firebase configuration
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -402,8 +403,41 @@
         const db = getFirestore(app);
 
         // Check authentication
-        auth.onAuthStateChanged((user) => {
-            if (!user || localStorage.getItem('userRole') !== 'accountant') {
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) {
+                localStorage.clear();
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            let userRole = localStorage.getItem('userRole');
+            
+            // If userRole is not in localStorage, fetch it from Firestore
+            if (!userRole) {
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        userRole = userData.role;
+                        localStorage.setItem('userRole', userData.role);
+                        localStorage.setItem('userName', userData.name);
+                        localStorage.setItem('userId', user.uid);
+                    } else {
+                        localStorage.clear();
+                        window.location.href = 'index.html';
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Error fetching user data:', error);
+                    localStorage.clear();
+                    window.location.href = 'index.html';
+                    return;
+                }
+            }
+            
+            // Check if user has accountant or admin role
+            if (userRole !== 'accountant' && userRole !== 'admin') {
+                localStorage.clear();
                 window.location.href = 'index.html';
                 return;
             }
