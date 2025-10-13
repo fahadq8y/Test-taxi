@@ -602,15 +602,33 @@
             editingDriverId = null;
         };
 
-        // Delete driver
+        // Delete driver (with archiving)
         window.deleteDriver = async (driverId) => {
-            if (!confirm('هل أنت متأكد من حذف هذا السائق؟')) {
+            if (!confirm('هل أنت متأكد من حذف هذا السائق؟\nسيتم أرشفة بياناته قبل الحذف.')) {
                 return;
             }
 
             try {
+                // Get driver data before deleting
+                const driverToDelete = allDrivers.find(d => d.id === driverId);
+                
+                if (driverToDelete) {
+                    // Archive the driver before deleting
+                    const archiveData = {
+                        ...driverToDelete,
+                        isArchived: true,
+                        archivedAt: new Date(),
+                        archivedBy: currentUser.name || currentUser.email,
+                        archiveReason: 'حذف السائق من النظام'
+                    };
+                    
+                    await addDoc(collection(db, 'archivedDrivers'), archiveData);
+                    console.log('✅ تم أرشفة السائق قبل الحذف');
+                }
+                
+                // Delete from drivers collection
                 await deleteDoc(doc(db, 'drivers', driverId));
-                alert('تم حذف السائق بنجاح');
+                alert('تم حذف السائق بنجاح وأرشفة بياناته');
                 await loadDrivers();
                 displayDrivers(allDrivers);
             } catch (error) {
