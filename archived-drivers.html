@@ -216,6 +216,13 @@
                                 <strong>تاريخ الأرشفة:</strong> ${archivedDate}<br>
                                 <strong>بواسطة:</strong> ${driver.archivedBy || 'غير محدد'}<br>
                                 <strong>السبب:</strong> ${driver.archiveReason || 'غير محدد'}
+                                ${driver.totalPayments !== undefined ? `<br><br><strong>📊 الإحصائيات المالية:</strong><br>
+                                • عدد الدفعات: ${driver.totalPayments}<br>
+                                • عدد المصروفات: ${driver.totalExpenses}<br>
+                                • عدد الإيرادات: ${driver.totalRevenues}<br>
+                                • مجموع الدفعات: ${(driver.totalPaymentsAmount || 0).toFixed(3)} د.ك<br>
+                                • مجموع المصروفات: ${(driver.totalExpensesAmount || 0).toFixed(3)} د.ك<br>
+                                • مجموع الإيرادات: ${(driver.totalRevenuesAmount || 0).toFixed(3)} د.ك` : ''}
                             </div>
                             
                             <div class="driver-info" style="margin-top: 15px;">

@@ -602,9 +602,9 @@
             editingDriverId = null;
         };
 
-        // Delete driver (with archiving)
+        // Delete driver (with complete archiving)
         window.deleteDriver = async (driverId) => {
-            if (!confirm('هل أنت متأكد من حذف هذا السائق؟\nسيتم أرشفة بياناته قبل الحذف.')) {
+            if (!confirm('هل أنت متأكد من حذف هذا السائق؟\nسيتم أرشفة جميع بياناته (المدفوعات، المصروفات، المخالفات) قبل الحذف.')) {
                 return;
             }
 
@@ -613,27 +613,79 @@
                 const driverToDelete = allDrivers.find(d => d.id === driverId);
                 
                 if (driverToDelete) {
-                    // Archive the driver before deleting
+                    console.log('📦 بدء عملية الأرشفة الشاملة...');
+                    
+                    // 1. Get all driver payments
+                    const paymentsQuery = query(collection(db, 'driverPayments'), where('driverId', '==', driverId));
+                    const paymentsSnapshot = await getDocs(paymentsQuery);
+                    const driverPayments = [];
+                    paymentsSnapshot.forEach(doc => {
+                        driverPayments.push({ id: doc.id, ...doc.data() });
+                    });
+                    console.log(`✅ تم جمع ${driverPayments.length} دفعة`);
+                    
+                    // 2. Get all expenses related to this driver
+                    const expensesQuery = query(collection(db, 'expenses'), where('driverId', '==', driverId));
+                    const expensesSnapshot = await getDocs(expensesQuery);
+                    const driverExpenses = [];
+                    expensesSnapshot.forEach(doc => {
+                        driverExpenses.push({ id: doc.id, ...doc.data() });
+                    });
+                    console.log(`✅ تم جمع ${driverExpenses.length} مصروف`);
+                    
+                    // 3. Get all revenues related to this driver (if any)
+                    const revenuesQuery = query(collection(db, 'revenues'), where('driverId', '==', driverId));
+                    const revenuesSnapshot = await getDocs(revenuesQuery);
+                    const driverRevenues = [];
+                    revenuesSnapshot.forEach(doc => {
+                        driverRevenues.push({ id: doc.id, ...doc.data() });
+                    });
+                    console.log(`✅ تم جمع ${driverRevenues.length} إيراد`);
+                    
+                    // 4. Create comprehensive archive data
                     const archiveData = {
+                        // Driver basic data
                         ...driverToDelete,
+                        
+                        // Archive metadata
                         isArchived: true,
                         archivedAt: new Date(),
                         archivedBy: currentUser.name || currentUser.email,
-                        archiveReason: 'حذف السائق من النظام'
+                        archiveReason: 'حذف السائق من النظام',
+                        
+                        // Related data
+                        payments: driverPayments,
+                        expenses: driverExpenses,
+                        revenues: driverRevenues,
+                        
+                        // Statistics
+                        totalPayments: driverPayments.length,
+                        totalExpenses: driverExpenses.length,
+                        totalRevenues: driverRevenues.length,
+                        
+                        // Financial summary
+                        totalPaymentsAmount: driverPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0),
+                        totalExpensesAmount: driverExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0),
+                        totalRevenuesAmount: driverRevenues.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
                     };
                     
+                    // 5. Save to archive
                     await addDoc(collection(db, 'archivedDrivers'), archiveData);
-                    console.log('✅ تم أرشفة السائق قبل الحذف');
+                    console.log('✅ تم حفظ الأرشيف الشامل');
                 }
                 
                 // Delete from drivers collection
                 await deleteDoc(doc(db, 'drivers', driverId));
-                alert('تم حذف السائق بنجاح وأرشفة بياناته');
+                alert('تم حذف السائق بنجاح وأرشفة جميع بياناته\n\n' + 
+                      `📊 تم أرشفة:\n` +
+                      `• ${driverPayments?.length || 0} دفعة\n` +
+                      `• ${driverExpenses?.length || 0} مصروف\n` +
+                      `• ${driverRevenues?.length || 0} إيراد`);
                 await loadDrivers();
                 displayDrivers(allDrivers);
             } catch (error) {
                 console.error('Error deleting driver:', error);
-                alert('حدث خطأ في حذف السائق');
+                alert('حدث خطأ في حذف السائق: ' + error.message);
             }
         };
 
@@ -680,18 +732,58 @@
 
             try {
                 if (editingDriverId) {
-                    // Check if contract type changed - if yes, archive the driver
+                    // Check if contract type changed - if yes, archive the driver with all data
                     const oldDriver = allDrivers.find(d => d.id === editingDriverId);
                     if (oldDriver && oldDriver.contractType && oldDriver.contractType !== contractType) {
-                        // Archive the old driver
+                        console.log('📦 تغيير نوع العقد - بدء الأرشفة الشاملة...');
+                        
+                        // Get all related data
+                        const paymentsQuery = query(collection(db, 'driverPayments'), where('driverId', '==', editingDriverId));
+                        const paymentsSnapshot = await getDocs(paymentsQuery);
+                        const driverPayments = [];
+                        paymentsSnapshot.forEach(doc => {
+                            driverPayments.push({ id: doc.id, ...doc.data() });
+                        });
+                        
+                        const expensesQuery = query(collection(db, 'expenses'), where('driverId', '==', editingDriverId));
+                        const expensesSnapshot = await getDocs(expensesQuery);
+                        const driverExpenses = [];
+                        expensesSnapshot.forEach(doc => {
+                            driverExpenses.push({ id: doc.id, ...doc.data() });
+                        });
+                        
+                        const revenuesQuery = query(collection(db, 'revenues'), where('driverId', '==', editingDriverId));
+                        const revenuesSnapshot = await getDocs(revenuesQuery);
+                        const driverRevenues = [];
+                        revenuesSnapshot.forEach(doc => {
+                            driverRevenues.push({ id: doc.id, ...doc.data() });
+                        });
+                        
+                        // Archive the old driver with all data
                         const archiveData = {
                             ...oldDriver,
                             isArchived: true,
                             archivedAt: new Date(),
                             archivedBy: currentUser.name || currentUser.email,
-                            archiveReason: `تغيير نوع العقد من ${oldDriver.contractType === 'daily' ? 'يومي' : 'شهري'} إلى ${contractType === 'daily' ? 'يومي' : 'شهري'}`
+                            archiveReason: `تغيير نوع العقد من ${oldDriver.contractType === 'daily' ? 'يومي' : 'شهري'} إلى ${contractType === 'daily' ? 'يومي' : 'شهري'}`,
+                            
+                            // Related data
+                            payments: driverPayments,
+                            expenses: driverExpenses,
+                            revenues: driverRevenues,
+                            
+                            // Statistics
+                            totalPayments: driverPayments.length,
+                            totalExpenses: driverExpenses.length,
+                            totalRevenues: driverRevenues.length,
+                            
+                            // Financial summary
+                            totalPaymentsAmount: driverPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0),
+                            totalExpensesAmount: driverExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0),
+                            totalRevenuesAmount: driverRevenues.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
                         };
                         await addDoc(collection(db, 'archivedDrivers'), archiveData);
+                        console.log('✅ تم حفظ الأرشيف الشامل');
                         
                         // Update the current driver with new contract type
                         driverData.previousContractType = oldDriver.contractType;
