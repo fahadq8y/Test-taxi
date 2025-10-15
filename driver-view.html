@@ -440,7 +440,7 @@
                 <div class="maintenance-item">
                     <div class="icon">🚗</div>
                     <div class="label">كيلومترات آخر تغيير</div>
-                    <div class="value" id="lastOilChangeKm">0 كم</div>
+                    <div class="value" id="currentKilometers">0 كم</div>
                 </div>
                 <div class="maintenance-item">
                     <div class="icon">🛢️</div>
@@ -956,8 +956,8 @@
             }
 
             // Maintenance info
-            const lastOilChangeKm = driverData.lastOilChangeKm || 0;
-            document.getElementById('lastOilChangeKm').textContent = `${lastOilChangeKm.toLocaleString()} كم`;
+            const currentKilometers = driverData.currentKilometers || 0;
+            document.getElementById('currentKilometers').textContent = `${currentKilometers.toLocaleString()} كم`;
             document.getElementById('lastOilChange').textContent = formatDate(driverData.lastOilChangeDate);
 
             // Oil status
@@ -983,7 +983,7 @@
             });
 
             // Set current values in form
-            document.getElementById('newKilometers').value = lastOilChangeKm;
+            document.getElementById('newKilometers').value = currentKilometers;
             if (driverData.lastOilChangeDate) {
                 const oilDate = parseDate(driverData.lastOilChangeDate);
                 document.getElementById('oilChangeDate').value = oilDate.toISOString().split('T')[0];
@@ -1028,14 +1028,30 @@
 
                 const updateData = {};
                 if (newKm) {
-                    updateData.lastOilChangeKm = newKm;
+                    updateData.currentKilometers = newKm;
                     updateData.lastKilometersUpdate = new Date().toISOString();
                 }
                 if (oilChangeDate) {
                     updateData.lastOilChangeDate = oilChangeDate;
                 }
 
+                // Update driver data
                 await updateDoc(doc(db, 'drivers', driverId), updateData);
+
+                // Update car kilometers if driver has assigned car
+                if (driverData.assignedCar && newKm) {
+                    try {
+                        await updateDoc(doc(db, 'cars', driverData.assignedCar), {
+                            currentKilometers: newKm,
+                            lastKilometersUpdate: new Date().toISOString(),
+                            lastUpdatedBy: driverData.name
+                        });
+                        console.log('✅ تم تحديث كيلومترات السيارة');
+                    } catch (carError) {
+                        console.error('خطأ في تحديث السيارة:', carError);
+                        // Continue even if car update fails
+                    }
+                }
 
                 // Update local data
                 Object.assign(driverData, updateData);
@@ -1043,7 +1059,7 @@
 
                 // Reload display
                 loadDriverData();
-                showMessage('تم تحديث البيانات بنجاح');
+                showMessage('تم تحديث البيانات بنجاح (السائق والسيارة)');
 
             } catch (error) {
                 console.error('Update error:', error);
