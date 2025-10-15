@@ -55,6 +55,10 @@
                             <input type="text" id="driverName" required>
                         </div>
                         <div class="form-group">
+                            <label for="employeeNumber">الرقم الوظيفي</label>
+                            <input type="text" id="employeeNumber" readonly style="background: #f0f0f0; cursor: not-allowed;" placeholder="سيتم إنشاؤه تلقائياً">
+                        </div>
+                        <div class="form-group">
                             <label for="driverPhone">رقم الهاتف</label>
                             <input type="tel" id="driverPhone" required>
                         </div>
@@ -338,6 +342,31 @@
                 document.getElementById('contractEndDate').value = '';
             }
         };
+
+
+        // Generate next employee number
+        async function generateEmployeeNumber() {
+            try {
+                const snapshot = await getDocs(collection(db, 'drivers'));
+                let maxNumber = 0;
+                
+                snapshot.forEach(doc => {
+                    const empNum = doc.data().employeeNumber;
+                    if (empNum && empNum.startsWith('DRV')) {
+                        const num = parseInt(empNum.replace('DRV', ''));
+                        if (num > maxNumber) {
+                            maxNumber = num;
+                        }
+                    }
+                });
+                
+                const nextNumber = maxNumber + 1;
+                return 'DRV' + String(nextNumber).padStart(3, '0');
+            } catch (error) {
+                console.error('Error generating employee number:', error);
+                return 'DRV001';
+            }
+        }
 
         // Load drivers
         async function loadDrivers() {
@@ -697,6 +726,7 @@
             const driverData = {
                 name: document.getElementById('driverName').value,
                 phone: document.getElementById('driverPhone').value,
+                employeeNumber: document.getElementById('employeeNumber').value,
                 nationality: document.getElementById('driverNationality').value,
                 address: document.getElementById('driverAddress').value,
                 assignedCar: document.getElementById('assignedCar').value,

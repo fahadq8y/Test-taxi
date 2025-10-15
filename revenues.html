@@ -304,6 +304,7 @@
                         description: `${payment.type} - ${driver ? driver.name : 'سائق غير محدد'}`,
                         driverId: payment.driverId,
                         driverName: driver ? driver.name : 'سائق غير محدد',
+                        employeeNumber: driver ? driver.employeeNumber : null,
                         source: 'driverPayment'
                     });
                 }
@@ -470,8 +471,10 @@
                 // تحسين الوصف التفصيلي للدفعات من السائقين فقط
                 if (revenue.source === 'driverPayment') {
                     const driver = drivers.find(d => d.id === revenue.driverId);
-                    const driverName = driver ? driver.name : 'سائق غير محدد';
-                    detailedDescription = `${revenue.type} من السائق: ${driverName}`;
+                    const driverName = driver ? driver.name : (revenue.driverName || 'سائق غير محدد');
+                    const empNum = driver ? driver.employeeNumber : (revenue.employeeNumber || '');
+                    const driverInfo = empNum ? `${driverName} (${empNum})` : driverName;
+                    detailedDescription = `${revenue.type} من السائق: ${driverInfo}`;
                     
                     // إضافة تفاصيل إضافية حسب نوع الدفعة
                     switch(revenue.type) {
