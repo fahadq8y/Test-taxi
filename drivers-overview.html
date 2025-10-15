@@ -609,7 +609,11 @@
                       'تحصيل رسوم إقامة', 'سداد رسوم رواتب', 'تحصيل رسوم رواتب',
                       'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'سداد رواتب'].includes(p.type)
                 );
-                totalRentPaid = rentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                const totalPaid = rentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                
+                // Calculate only COMPLETE months
+                const completedMonths = monthlyPayment > 0 ? Math.floor(totalPaid / monthlyPayment) : 0;
+                totalRentPaid = completedMonths * monthlyPayment;
             } else {
                 // For daily contracts
                 const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
@@ -617,7 +621,11 @@
                 
                 // حساب إجمالي الأجرة اليومية المدفوعة
                 const dailyRentPayments = payments.filter(p => p.type === 'أجرة يومية');
-                totalRentPaid = dailyRentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                const totalPaid = dailyRentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                
+                // Calculate only COMPLETE days
+                const completedDays = dailyWage > 0 ? Math.floor(totalPaid / dailyWage) : 0;
+                totalRentPaid = completedDays * dailyWage;
             }
             
             // الأجرة المتأخرة = المتوقع - المدفوع
@@ -701,13 +709,16 @@
                 );
                 totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
                 
-                lateAmount = Math.max(0, expectedTotal - totalPaid);
+                // Calculate COMPLETE months only (not partial balance)
+                const completedMonths = monthlyPayment > 0 ? Math.floor(totalPaid / monthlyPayment) : 0;
+                const paidForCompletedMonths = completedMonths * monthlyPayment;
+                
+                lateAmount = Math.max(0, expectedTotal - paidForCompletedMonths);
                 daysLate = monthlyPayment > 0 ? Math.floor((lateAmount / monthlyPayment) * 30) : 0;
                 
-                // Calculate paid until date for monthly
-                const paidMonths = monthlyPayment > 0 ? Math.floor(totalPaid / monthlyPayment) : 0;
+                // Calculate paid until date for monthly (only complete months)
                 paidUntilDate = new Date(contractStart);
-                paidUntilDate.setMonth(paidUntilDate.getMonth() + paidMonths);
+                paidUntilDate.setMonth(paidUntilDate.getMonth() + completedMonths);
             } else {
                 // For daily contracts (original logic)
                 const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
@@ -718,12 +729,16 @@
                 );
                 totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
                 
-                lateAmount = Math.max(0, expectedTotal - totalPaid);
+                // Calculate COMPLETE days only (not partial balance)
+                const completedDays = dailyWage > 0 ? Math.floor(totalPaid / dailyWage) : 0;
+                const paidForCompletedDays = completedDays * dailyWage;
+                
+                lateAmount = Math.max(0, expectedTotal - paidForCompletedDays);
                 daysLate = dailyWage > 0 ? Math.floor(lateAmount / dailyWage) : 0;
                 
-                const paidDays = dailyWage > 0 ? Math.floor(totalPaid / dailyWage) : 0;
+                // Calculate paid until date (only complete days)
                 paidUntilDate = new Date(contractStart);
-                paidUntilDate.setDate(paidUntilDate.getDate() + paidDays);
+                paidUntilDate.setDate(paidUntilDate.getDate() + completedDays);
             }
             
             // Calculate driver balance (positive balance means driver paid extra)
