@@ -163,9 +163,12 @@
         // Load archived drivers
         async function loadArchivedDrivers() {
             try {
+                console.log('🔄 بدء تحميل السائقين المؤرشفين...');
                 const archivedSnapshot = await getDocs(collection(db, 'archivedDrivers'));
+                console.log('📊 عدد السائقين المؤرشفين في قاعدة البيانات:', archivedSnapshot.size);
                 archivedDrivers = [];
                 archivedSnapshot.forEach(doc => {
+                    console.log('📦 سائق مؤرشف:', doc.id, doc.data().name || doc.data().driverData?.name);
                     archivedDrivers.push({ id: doc.id, ...doc.data() });
                 });
                 
@@ -175,13 +178,16 @@
                     const dateB = b.archivedAt?.seconds ? new Date(b.archivedAt.seconds * 1000) : new Date(b.archivedAt || 0);
                     return dateB - dateA;
                 });
+                console.log('✅ تم تحميل', archivedDrivers.length, 'سائق مؤرشف بنجاح');
             } catch (error) {
-                console.error('Error loading archived drivers:', error);
+                console.error('❌ خطأ في تحميل السائقين المؤرشفين:', error);
+                alert('حدث خطأ في تحميل الأرشيف: ' + error.message);
             }
         }
 
         // Display archived drivers
         function displayArchivedDrivers(driversToShow) {
+            console.log('🖥️ عرض', driversToShow.length, 'سائق مؤرشف');
             const grid = document.getElementById('archivedGrid');
             
             if (driversToShow.length === 0) {
