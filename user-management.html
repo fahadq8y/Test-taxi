@@ -163,16 +163,21 @@
         const db = firebase.firestore();
 
         // Check auth
+        let currentUserRole = '';
+        let currentUserId = '';
+        
         auth.onAuthStateChanged(async (user) => {
             if (!user) {
                 window.location.href = 'index.html';
                 return;
             }
 
-            const userRole = localStorage.getItem('userRole');
-            if (userRole !== 'admin') {
-                alert('هذه الصفحة متاحة للمدير فقط');
-                window.location.href = 'admin-dashboard.html';
+            currentUserRole = localStorage.getItem('userRole');
+            currentUserId = user.uid;
+            
+            if (currentUserRole !== 'admin' && currentUserRole !== 'accountant') {
+                alert('هذه الصفحة متاحة للمدير والمحاسب فقط');
+                window.location.href = 'index.html';
                 return;
             }
 
@@ -180,6 +185,21 @@
         });
 
         let users = [];
+        
+        // Check if current user can modify target user
+        function canModifyUser(targetUserRole) {
+            // Admin can modify anyone
+            if (currentUserRole === 'admin') {
+                return true;
+            }
+            
+            // Accountant can only modify drivers
+            if (currentUserRole === 'accountant') {
+                return targetUserRole === 'driver';
+            }
+            
+            return false;
+        }
 
         // Load users
         async function loadUsers() {
@@ -346,6 +366,12 @@
             const user = users.find(u => u.id === userId);
             if (!user) return;
 
+            // Check permissions
+            if (!canModifyUser(user.role)) {
+                showMessage('ليس لديك صلاحية لتعديل هذا المستخدم', 'error');
+                return;
+            }
+
             document.getElementById('editUserId').value = user.id;
             document.getElementById('editUserName').value = user.name || '';
             document.getElementById('editUserRole').value = user.role;
@@ -384,6 +410,15 @@
 
         // Toggle user status
         async function toggleUserStatus(userId, isActive) {
+            const user = users.find(u => u.id === userId);
+            if (!user) return;
+            
+            // Check permissions
+            if (!canModifyUser(user.role)) {
+                showMessage('ليس لديك صلاحية لتعطيل/تفعيل هذا المستخدم', 'error');
+                return;
+            }
+            
             const action = isActive ? 'تفعيل' : 'تعطيل';
             
             if (!confirm(`هل أنت متأكد من ${action} هذا المستخدم؟`)) return;
@@ -405,6 +440,15 @@
 
         // Delete user
         async function deleteUser(userId) {
+            const user = users.find(u => u.id === userId);
+            if (!user) return;
+            
+            // Check permissions
+            if (!canModifyUser(user.role)) {
+                showMessage('ليس لديك صلاحية لحذف هذا المستخدم', 'error');
+                return;
+            }
+            
             if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟ هذا الإجراء لا يمكن التراجع عنه!')) return;
 
             try {
