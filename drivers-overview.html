@@ -298,6 +298,7 @@
                 <thead>
                     <tr>
                         <th>اسم السائق</th>
+                        <th>الرقم الوظيفي</th>
                         <th>الأجرة اليومية</th>
                         <th>تاريخ بداية العقد</th>
                         <th>تاريخ آخر سداد</th>
@@ -313,7 +314,7 @@
                 </thead>
                 <tbody id="driversTableBody">
                     <tr>
-                        <td colspan="12" class="loading">جاري تحميل البيانات...</td>
+                        <td colspan="13" class="loading">جاري تحميل البيانات...</td>
                     </tr>
                 </tbody>
             </table>
@@ -571,7 +572,7 @@
             } catch (error) {
                 console.error('Error loading data:', error);
                 document.getElementById('driversTableBody').innerHTML = 
-                    '<tr><td colspan="12" class="no-data">خطأ في تحميل البيانات</td></tr>';
+                    '<tr><td colspan="13" class="no-data">خطأ في تحميل البيانات</td></tr>';
             }
         }
 
@@ -790,14 +791,14 @@
             const tbody = document.getElementById('driversTableBody');
             
             if (drivers.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="12" class="no-data">لا توجد بيانات سائقين</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="no-data">لا توجد بيانات سائقين</td></tr>';
                 return;
             }
 
             const filteredDrivers = filterDrivers();
             
             if (filteredDrivers.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="12" class="no-data">لا توجد نتائج للبحث</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="no-data">لا توجد نتائج للبحث</td></tr>';
                 return;
             }
 
@@ -807,6 +808,7 @@
                 return `
                     <tr>
                         <td><span class="driver-name" onclick="showDriverDetails('${driver.id}')">${driver.name || 'غير محدد'}</span></td>
+                        <td><span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 12px; border-radius: 15px; font-weight: 600; font-size: 12px;">${driver.employeeNumber || 'غير محدد'}</span></td>
                         <td class="amount">${stats.dailyWage.toFixed(3)} د.ك</td>
                         <td>${formatDate(stats.contractStart)}</td>
                         <td>${formatDate(stats.lastPayment)}</td>
@@ -988,6 +990,10 @@
                         <div class="detail-item">
                             <strong>اسم السائق:</strong>
                             <span>${driver.name || 'غير محدد'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>الرقم الوظيفي:</strong>
+                            <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 14px; display: inline-block;">${driver.employeeNumber || 'غير محدد'}</span>
                         </div>
                         <div class="detail-item">
                             <strong>رقم الهاتف:</strong>
