@@ -602,8 +602,13 @@
                 const monthsSinceStart = Math.floor(daysSinceStart / 30);
                 expectedTotal = monthsSinceStart * monthlyPayment;
                 
-                // Get all payments (not just daily rent)
-                totalRentPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                // Get only rent-related payments for monthly contracts
+                const rentPayments = payments.filter(p => 
+                    !['سداد مخالفة', 'تحصيل مخالفة', 'سداد رسوم إقامة', 
+                      'تحصيل رسوم إقامة', 'سداد رسوم رواتب', 'تحصيل رسوم رواتب',
+                      'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'سداد رواتب'].includes(p.type)
+                );
+                totalRentPaid = rentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
             } else {
                 // For daily contracts
                 const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
@@ -686,9 +691,12 @@
                 const monthsSinceStart = Math.floor(daysSinceStart / 30);
                 expectedTotal = monthsSinceStart * monthlyPayment;
                 
-                // Get all payments for monthly contracts
+                // Get only rent-related payments for monthly contracts (exclude violations, fees, etc.)
                 const payments = driverPayments.filter(payment => 
-                    payment.driverId === driver.id
+                    payment.driverId === driver.id &&
+                    !['سداد مخالفة', 'تحصيل مخالفة', 'سداد رسوم إقامة', 
+                      'تحصيل رسوم إقامة', 'سداد رسوم رواتب', 'تحصيل رسوم رواتب',
+                      'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'سداد رواتب'].includes(payment.type)
                 );
                 totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
                 
@@ -762,7 +770,7 @@
             }
             
             return {
-                dailyWage,
+                dailyWage: contractType === 'monthly' ? parseFloat(driver.monthlyPayment || 0) : parseFloat(driver.dailyWage || driver.dailyRent || 0),
                 contractStart,
                 lastPayment,
                 paidUntilDate,
