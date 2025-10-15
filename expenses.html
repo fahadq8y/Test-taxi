@@ -835,6 +835,42 @@
                     id: doc.id,
                     ...doc.data()
                 }));
+                
+                // Load archived drivers
+                const archivedSnapshot = await db.collection('archivedDrivers').get();
+                const archivedDrivers = archivedSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                // Create helper function to get driver info (from active or archived)
+                window.getDriverInfo = function(driverId) {
+                    // First check active drivers
+                    let driver = drivers.find(d => d.id === driverId);
+                    if (driver) {
+                        return {
+                            name: driver.name,
+                            employeeNumber: driver.employeeNumber,
+                            isArchived: false
+                        };
+                    }
+                    
+                    // Then check archived drivers
+                    driver = archivedDrivers.find(d => d.id === driverId);
+                    if (driver) {
+                        return {
+                            name: driver.name,
+                            employeeNumber: driver.employeeNumber,
+                            isArchived: true
+                        };
+                    }
+                    
+                    return {
+                        name: 'سائق غير محدد',
+                        employeeNumber: null,
+                        isArchived: false
+                    };
+                };
 
                 // Calculate and display balances using unified system
                 const balances = calculateUnifiedBalances(revenues, expenses, driverPayments, drivers);

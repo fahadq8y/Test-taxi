@@ -264,7 +264,45 @@
                     id: doc.id,
                     ...doc.data()
                 }));
+                
+                // Load archived drivers
+                console.log('📦 تحميل archivedDrivers...');
+                const archivedSnapshot = await db.collection('archivedDrivers').get();
+                console.log('✅ archivedDrivers:', archivedSnapshot.size);
+                const archivedDrivers = archivedSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
 
+                // Create helper function to get driver info (from active or archived)
+                window.getDriverInfo = function(driverId) {
+                    // First check active drivers
+                    let driver = drivers.find(d => d.id === driverId);
+                    if (driver) {
+                        return {
+                            name: driver.name,
+                            employeeNumber: driver.employeeNumber,
+                            isArchived: false
+                        };
+                    }
+                    
+                    // Then check archived drivers
+                    driver = archivedDrivers.find(d => d.id === driverId);
+                    if (driver) {
+                        return {
+                            name: driver.name,
+                            employeeNumber: driver.employeeNumber,
+                            isArchived: true
+                        };
+                    }
+                    
+                    return {
+                        name: 'سائق غير محدد',
+                        employeeNumber: null,
+                        isArchived: false
+                    };
+                };
+                
                 console.log('📊 حساب الأرصدة...');
                 // Calculate and display balances using unified system
                 const balances = calculateUnifiedBalances(revenues, expenses, driverPayments, drivers);
@@ -470,11 +508,12 @@
                 }             
                 // تحسين الوصف التفصيلي للدفعات من السائقين فقط
                 if (revenue.source === 'driverPayment') {
-                    const driver = drivers.find(d => d.id === revenue.driverId);
-                    const driverName = driver ? driver.name : (revenue.driverName || 'سائق غير محدد');
-                    const empNum = driver ? driver.employeeNumber : (revenue.employeeNumber || '');
-                    const driverInfo = empNum ? `${driverName} (${empNum})` : driverName;
-                    detailedDescription = `${revenue.type} من السائق: ${driverInfo}`;
+                    const driverInfo = getDriverInfo(revenue.driverId);
+                    const driverDisplay = driverInfo.employeeNumber ? 
+                        `${driverInfo.name} (${driverInfo.employeeNumber})` : 
+                        driverInfo.name;
+                    const archivedBadge = driverInfo.isArchived ? ' 📦' : '';
+                    detailedDescription = `${revenue.type} من السائق: ${driverDisplay}${archivedBadge}`;
                     
                     // إضافة تفاصيل إضافية حسب نوع الدفعة
                     switch(revenue.type) {
