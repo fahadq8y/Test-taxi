@@ -375,13 +375,21 @@
             }
 
             try {
+                console.log('🗑️ بدء الحذف النهائي للسائق:', archiveId);
                 await deleteDoc(doc(db, 'archivedDrivers', archiveId));
+                console.log('✅ تم حذف السائق من Firebase بنجاح');
+                
                 alert('تم الحذف النهائي بنجاح');
+                
+                console.log('🔄 تحديث قائمة الأرشيف...');
                 await loadArchivedDrivers();
                 displayArchivedDrivers(archivedDrivers);
+                console.log('✅ تم تحديث العرض');
             } catch (error) {
-                console.error('Error deleting permanently:', error);
-                alert('حدث خطأ في الحذف');
+                console.error('❌ خطأ في الحذف النهائي:', error);
+                console.error('❌ كود الخطأ:', error.code);
+                console.error('❌ رسالة الخطأ:', error.message);
+                alert('حدث خطأ في الحذف: ' + error.message);
             }
         };
 
