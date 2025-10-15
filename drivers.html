@@ -555,10 +555,15 @@
         };
 
         // Open modal
-        window.openModal = () => {
+        window.openModal = async () => {
             editingDriverId = null;
             document.getElementById('modalTitle').textContent = 'إضافة سائق جديد';
             document.getElementById('driverForm').reset();
+            
+            // Generate employee number for new driver
+            const empNum = await generateEmployeeNumber();
+            document.getElementById('employeeNumber').value = empNum;
+            
             populateCarOptions();
             document.getElementById('driverModal').style.display = 'block';
         };
