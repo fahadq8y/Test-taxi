@@ -661,13 +661,18 @@
                 // Get driver data before deleting
                 const driverToDelete = allDrivers.find(d => d.id === driverId);
                 
+                // تعريف المتغيرات خارج الـ if block لتجنب مشكلة scope
+                let driverPayments = [];
+                let driverExpenses = [];
+                let driverRevenues = [];
+                
                 if (driverToDelete) {
                     console.log('📦 بدء عملية الأرشفة الشاملة...');
                     
                     // 1. Get all driver payments
                     const paymentsQuery = query(collection(db, 'driverPayments'), where('driverId', '==', driverId));
                     const paymentsSnapshot = await getDocs(paymentsQuery);
-                    const driverPayments = [];
+                    driverPayments = [];
                     paymentsSnapshot.forEach(doc => {
                         driverPayments.push({ id: doc.id, ...doc.data() });
                     });
@@ -676,7 +681,7 @@
                     // 2. Get all expenses related to this driver
                     const expensesQuery = query(collection(db, 'expenses'), where('driverId', '==', driverId));
                     const expensesSnapshot = await getDocs(expensesQuery);
-                    const driverExpenses = [];
+                    driverExpenses = [];
                     expensesSnapshot.forEach(doc => {
                         driverExpenses.push({ id: doc.id, ...doc.data() });
                     });
@@ -685,7 +690,7 @@
                     // 3. Get all revenues related to this driver (if any)
                     const revenuesQuery = query(collection(db, 'revenues'), where('driverId', '==', driverId));
                     const revenuesSnapshot = await getDocs(revenuesQuery);
-                    const driverRevenues = [];
+                    driverRevenues = [];
                     revenuesSnapshot.forEach(doc => {
                         driverRevenues.push({ id: doc.id, ...doc.data() });
                     });
@@ -797,14 +802,14 @@
                         
                         const expensesQuery = query(collection(db, 'expenses'), where('driverId', '==', editingDriverId));
                         const expensesSnapshot = await getDocs(expensesQuery);
-                        const driverExpenses = [];
+                        driverExpenses = [];
                         expensesSnapshot.forEach(doc => {
                             driverExpenses.push({ id: doc.id, ...doc.data() });
                         });
                         
                         const revenuesQuery = query(collection(db, 'revenues'), where('driverId', '==', editingDriverId));
                         const revenuesSnapshot = await getDocs(revenuesQuery);
-                        const driverRevenues = [];
+                        driverRevenues = [];
                         revenuesSnapshot.forEach(doc => {
                             driverRevenues.push({ id: doc.id, ...doc.data() });
                         });
