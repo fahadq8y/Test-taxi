@@ -1041,26 +1041,53 @@
                 updateBtn.textContent = 'جاري التحديث...';
 
                 const updateData = {};
+                let shouldRecordOilChange = false;
+                
                 if (newKm) {
                     updateData.currentKilometers = newKm;
                     updateData.lastKilometersUpdate = new Date().toISOString();
                 }
                 if (oilChangeDate) {
                     updateData.lastOilChangeDate = oilChangeDate;
+                    updateData.lastOilChangeKm = newKm || driverData.currentKilometers || 0;
+                    shouldRecordOilChange = true;
                 }
 
                 // Update driver data
                 await updateDoc(doc(db, 'drivers', driverId), updateData);
 
-                // Update car kilometers if driver has assigned car
-                if (driverData.assignedCar && newKm) {
+                // Update car data if driver has assigned car
+                if (driverData.assignedCar) {
                     try {
-                        await updateDoc(doc(db, 'cars', driverData.assignedCar), {
-                            currentKilometers: newKm,
-                            lastKilometersUpdate: new Date().toISOString(),
-                            lastUpdatedBy: driverData.name
-                        });
-                        console.log('✅ تم تحديث كيلومترات السيارة');
+                        const carUpdateData = {};
+                        if (newKm) {
+                            carUpdateData.currentKilometers = newKm;
+                            carUpdateData.lastKilometersUpdate = new Date().toISOString();
+                            carUpdateData.lastUpdatedBy = driverData.name;
+                        }
+                        if (oilChangeDate) {
+                            carUpdateData.lastOilChangeDate = oilChangeDate;
+                            carUpdateData.lastOilChangeKm = newKm || driverData.currentKilometers || 0;
+                        }
+                        
+                        await updateDoc(doc(db, 'cars', driverData.assignedCar), carUpdateData);
+                        console.log('✅ تم تحديث بيانات السيارة');
+                        
+                        // Record oil change in history if oil was changed
+                        if (shouldRecordOilChange) {
+                            const { addDoc, collection } = await import('https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js');
+                            await addDoc(collection(db, 'oilChangeHistory'), {
+                                carId: driverData.assignedCar,
+                                driverId: driverId,
+                                driverName: driverData.name,
+                                changeDate: oilChangeDate,
+                                kilometers: newKm || driverData.currentKilometers || 0,
+                                notes: 'تم التحديث من قبل السائق',
+                                createdAt: new Date(),
+                                createdBy: driverData.name
+                            });
+                            console.log('✅ تم تسجيل تغيير الزيت في السجل');
+                        }
                     } catch (carError) {
                         console.error('خطأ في تحديث السيارة:', carError);
                         // Continue even if car update fails
@@ -1073,7 +1100,7 @@
 
                 // Reload display
                 loadDriverData();
-                showMessage('تم تحديث البيانات بنجاح (السائق والسيارة)');
+                showMessage('تم تحديث البيانات بنجاح (السائق والسيارة والسجل)');
 
             } catch (error) {
                 console.error('Update error:', error);
@@ -1084,18 +1111,29 @@
             }
         };
 
-        // Logout function
+        // Logout function - Fixed to work properly
         window.logout = async function() {
+            console.log('🔴 Logout button clicked');
+            
+            if (!confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                return;
+            }
+            
             try {
-                await signOut(auth);
+                console.log('Attempting to sign out...');
+                // Clear storage first
                 sessionStorage.clear();
                 localStorage.clear();
+                
+                // Then sign out from Firebase
+                await signOut(auth);
+                console.log('✅ Sign out successful');
+                
+                // Redirect to login page
                 window.location.href = 'driver-login.html';
             } catch (error) {
-                console.error('Logout error:', error);
-                // Even if signOut fails, clear storage and redirect
-                sessionStorage.clear();
-                localStorage.clear();
+                console.error('❌ Logout error:', error);
+                // Even if signOut fails, redirect anyway since storage is cleared
                 window.location.href = 'driver-login.html';
             }
         };

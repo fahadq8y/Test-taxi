@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار التعديلات - نظام إدارة التاكسي</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .test-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+        }
+        .test-section {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .test-section h3 {
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+        .test-item {
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border-right: 4px solid #667eea;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .status-ok {
+            border-right-color: #28a745;
+        }
+        .status-pending {
+            border-right-color: #ffc107;
+        }
+        .btn-test {
+            background: #667eea;
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0.25rem;
+        }
+        .btn-test:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 اختبار التعديلات</h1>
+            <p>صفحة اختبار للتحقق من التعديلات الجديدة</p>
+        </div>
+
+        <div class="test-container">
+            <div class="test-section">
+                <h3>✅ التعديلات المنفذة</h3>
+                
+                <div class="test-item status-ok">
+                    <strong>1. إصلاح زر تسجيل الخروج</strong>
+                    <p>تم تحسين دالة logout في driver-view.html</p>
+                    <button class="btn-test" onclick="window.location.href='driver-view.html'">
+                        اختبار صفحة السائق
+                    </button>
+                </div>
+
+                <div class="test-item status-ok">
+                    <strong>2. نظام سجل تغيير الزيت</strong>
+                    <p>تم إضافة نافذة منبثقة لعرض سجل تغيير الزيت الكامل</p>
+                    <button class="btn-test" onclick="window.location.href='cars.html'">
+                        اختبار صفحة السيارات
+                    </button>
+                </div>
+
+                <div class="test-item status-ok">
+                    <strong>3. تسجيل تلقائي للتغييرات</strong>
+                    <p>عند تحديث بيانات الصيانة، يتم تسجيل التغيير في قاعدة البيانات</p>
+                </div>
+            </div>
+
+            <div class="test-section">
+                <h3>📋 خطوات الاختبار</h3>
+                
+                <div class="test-item status-pending">
+                    <strong>اختبار 1: تسجيل الخروج</strong>
+                    <ol style="margin: 0.5rem 0; padding-right: 1.5rem;">
+                        <li>افتح صفحة السائق</li>
+                        <li>اضغط على زر "تسجيل الخروج"</li>
+                        <li>تأكد من ظهور رسالة التأكيد</li>
+                        <li>تأكد من إعادة التوجيه إلى صفحة تسجيل الدخول</li>
+                    </ol>
+                </div>
+
+                <div class="test-item status-pending">
+                    <strong>اختبار 2: سجل تغيير الزيت</strong>
+                    <ol style="margin: 0.5rem 0; padding-right: 1.5rem;">
+                        <li>افتح صفحة السيارات</li>
+                        <li>اضغط على زر "📜 سجل الزيت" لأي سيارة</li>
+                        <li>تأكد من فتح النافذة المنبثقة</li>
+                        <li>تحقق من عرض السجل بشكل صحيح</li>
+                        <li>اختبر إغلاق النافذة</li>
+                    </ol>
+                </div>
+
+                <div class="test-item status-pending">
+                    <strong>اختبار 3: تسجيل تغيير جديد</strong>
+                    <ol style="margin: 0.5rem 0; padding-right: 1.5rem;">
+                        <li>سجل الدخول كسائق</li>
+                        <li>حدث بيانات الصيانة (كيلومترات + تاريخ)</li>
+                        <li>تحقق من رسالة النجاح</li>
+                        <li>افتح صفحة السيارات وتحقق من السجل</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="test-section">
+                <h3>🔗 روابط سريعة</h3>
+                <button class="btn-test" onclick="window.location.href='admin-dashboard.html'">
+                    لوحة التحكم
+                </button>
+                <button class="btn-test" onclick="window.location.href='driver-login.html'">
+                    تسجيل دخول السائق
+                </button>
+                <button class="btn-test" onclick="window.location.href='cars.html'">
+                    إدارة السيارات
+                </button>
+                <button class="btn-test" onclick="window.location.href='drivers-overview.html'">
+                    نظرة عامة على السائقين
+                </button>
+            </div>
+
+            <div class="test-section">
+                <h3>📄 الملفات المعدلة</h3>
+                <ul style="list-style: none; padding: 0;">
+                    <li>✅ driver-view.html - إصلاح logout وتسجيل التغييرات</li>
+                    <li>✅ cars.html - إضافة نظام سجل الزيت</li>
+                    <li>✅ النسخ الاحتياطية متوفرة (.backup)</li>
+                </ul>
+            </div>
+
+            <div class="test-section" style="background: #e8f5e9; border: 2px solid #4caf50;">
+                <h3 style="color: #2e7d32;">✅ الحالة العامة</h3>
+                <p style="margin: 0; font-size: 1.1rem;">
+                    <strong>جميع التعديلات تم تطبيقها بنجاح!</strong><br>
+                    النظام جاهز للاختبار والاستخدام.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

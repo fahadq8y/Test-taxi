@@ -212,6 +212,27 @@
                 const assignedDriver = drivers.find(driver => driver.assignedCar === car.id);
                 const driverInfo = assignedDriver ? `مؤجرة لـ ${assignedDriver.name}` : 'متاحة';
 
+                // Oil status calculation
+                let oilStatus = { text: 'غير محدد', class: 'status-unknown' };
+                let nextOilChange = '-';
+                
+                if (car.currentKilometers && car.lastOilChangeKm) {
+                    const kmSinceChange = car.currentKilometers - car.lastOilChangeKm;
+                    const oilChangeInterval = 5000; // كل 5000 كم
+                    
+                    if (kmSinceChange < oilChangeInterval - 500) {
+                        oilStatus = { text: '✅ جيد', class: 'status-good' };
+                    } else if (kmSinceChange < oilChangeInterval) {
+                        oilStatus = { text: '⚠️ قريب من التغيير', class: 'status-warning' };
+                    } else {
+                        oilStatus = { text: '❌ يحتاج تغيير', class: 'status-urgent' };
+                    }
+                    
+                    const nextChangeKm = car.lastOilChangeKm + oilChangeInterval;
+                    nextOilChange = `${nextChangeKm.toLocaleString()} كم`;
+                }
+
+
                 return `
                     <div class="car-card">
                         <div class="car-header">
@@ -262,6 +283,16 @@
                                         }</span>
                                     </div>
                                 ` : ''}
+                                ${car.currentKilometers && car.lastOilChangeKm ? `
+                                    <div class="info-row">
+                                        <span class="info-label">🛢️ حالة الزيت:</span>
+                                        <span class="info-value ${oilStatus.class}">${oilStatus.text}</span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label">📅 التغيير القادم:</span>
+                                        <span class="info-value">${nextOilChange}</span>
+                                    </div>
+                                ` : ''}
                             </div>
                             
                             ${alerts.length > 0 ? `
@@ -274,6 +305,7 @@
                             
                             <div class="car-actions">
                                 <button class="btn btn-warning btn-sm" onclick="editCar('${car.id}')">تعديل</button>
+                                <button class="btn btn-info btn-sm" onclick="showOilHistory('${car.id}')">📜 سجل الزيت</button>
                                 <button class="btn btn-danger btn-sm" onclick="deleteCar('${car.id}')">حذف</button>
                             </div>
                         </div>
@@ -395,6 +427,110 @@
             }
         });
 
+
+        // Show oil change history modal
+        window.showOilHistory = async (carId) => {
+            const car = allCars.find(c => c.id === carId);
+            if (!car) return;
+
+            const modal = document.getElementById('oilHistoryModal');
+            const content = document.getElementById('oilHistoryContent');
+            
+            modal.style.display = 'block';
+            content.innerHTML = `
+                <div class="loading-container">
+                    <div class="spinner"></div>
+                    <p>جاري تحميل السجل...</p>
+                </div>
+            `;
+
+            try {
+                // Load oil change history from oilChangeHistory collection
+                const historySnapshot = await getDocs(collection(db, 'oilChangeHistory'));
+                const history = [];
+                historySnapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.carId === carId) {
+                        history.push({ id: doc.id, ...data });
+                    }
+                });
+
+                // Sort by date (newest first)
+                history.sort((a, b) => {
+                    const dateA = a.changeDate?.seconds ? new Date(a.changeDate.seconds * 1000) : new Date(a.changeDate);
+                    const dateB = b.changeDate?.seconds ? new Date(b.changeDate.seconds * 1000) : new Date(b.changeDate);
+                    return dateB - dateA;
+                });
+
+                // Display history
+                if (history.length === 0) {
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📋</div>
+                            <h3>لا يوجد سجل</h3>
+                            <p>لم يتم تسجيل أي تغيير زيت لهذه السيارة بعد</p>
+                        </div>
+                    `;
+                } else {
+                    let tableHTML = `
+                        <div class="car-info-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
+                            <h3 style="margin: 0;">🚗 ${car.plateNumber} - ${car.model}</h3>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>التاريخ</th>
+                                        <th>اسم السائق</th>
+                                        <th>الكيلومترات</th>
+                                        <th>ملاحظات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+
+                    history.forEach(record => {
+                        const changeDate = record.changeDate?.seconds ? 
+                            new Date(record.changeDate.seconds * 1000) : 
+                            new Date(record.changeDate);
+                        
+                        tableHTML += `
+                            <tr>
+                                <td data-label="التاريخ">${changeDate.toLocaleDateString('en-GB')}</td>
+                                <td data-label="اسم السائق">${record.driverName || '-'}</td>
+                                <td data-label="الكيلومترات">${record.kilometers ? record.kilometers.toLocaleString() + ' كم' : '-'}</td>
+                                <td data-label="ملاحظات">${record.notes || '-'}</td>
+                            </tr>
+                        `;
+                    });
+
+                    tableHTML += `
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top: 1rem; padding: 1rem; background: #f0f9ff; border-radius: 8px; border-right: 4px solid #3b82f6;">
+                            <strong>📊 إحصائيات:</strong><br>
+                            عدد مرات تغيير الزيت: ${history.length} مرة
+                        </div>
+                    `;
+
+                    content.innerHTML = tableHTML;
+                }
+            } catch (error) {
+                console.error('Error loading oil history:', error);
+                content.innerHTML = `
+                    <div class="alert alert-urgent">
+                        حدث خطأ في تحميل السجل: ${error.message}
+                    </div>
+                `;
+            }
+        };
+
+        // Close oil history modal
+        window.closeOilHistoryModal = () => {
+            document.getElementById('oilHistoryModal').style.display = 'none';
+        };
+
         // Logout function
         window.logout = async () => {
             try {
@@ -407,6 +543,25 @@
         };
     </script>
     </div>
+
+    <!-- Modal سجل تغيير الزيت -->
+    <div id="oilHistoryModal" class="modal" onclick="if(event.target === this) closeOilHistoryModal()">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2 class="modal-title">📜 سجل تغيير زيت المحرك</h2>
+                <span class="close" onclick="closeOilHistoryModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="oilHistoryContent">
+                    <div class="loading-container">
+                        <div class="spinner"></div>
+                        <p>جاري تحميل السجل...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
 
