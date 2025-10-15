@@ -1434,10 +1434,24 @@
         // Generate next employee number
         async function generateEmployeeNumber() {
             try {
-                const snapshot = await db.collection('drivers').get();
+                // Get active drivers
+                const driversSnapshot = await db.collection('drivers').get();
                 let maxNumber = 0;
                 
-                snapshot.forEach(doc => {
+                driversSnapshot.forEach(doc => {
+                    const empNum = doc.data().employeeNumber;
+                    if (empNum && empNum.startsWith('DRV')) {
+                        const num = parseInt(empNum.replace('DRV', ''));
+                        if (num > maxNumber) {
+                            maxNumber = num;
+                        }
+                    }
+                });
+                
+                // Get archived drivers to avoid duplicate numbers
+                const archivedSnapshot = await db.collection('archivedDrivers').get();
+                
+                archivedSnapshot.forEach(doc => {
                     const empNum = doc.data().employeeNumber;
                     if (empNum && empNum.startsWith('DRV')) {
                         const num = parseInt(empNum.replace('DRV', ''));
