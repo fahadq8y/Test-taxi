@@ -340,9 +340,8 @@
                 displayArchivedDrivers(archivedDrivers);
                 console.log('✅ تم تحديث العرض');
                 
-                alert('✅ تم استعادة السائق بنجاح
-
-تم نقله من الأرشيف إلى قائمة السائقين النشطين.');
+                alert('✅ تم استعادة السائق بنجاح\n\n' +
+                      'تم نقله من الأرشيف إلى قائمة السائقين النشطين.');
             } catch (error) {
                 console.error('❌ خطأ في استعادة السائق:', error);
                 console.error('❌ نوع الخطأ:', error.name);
