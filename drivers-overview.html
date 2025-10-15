@@ -586,22 +586,36 @@
             
             let totalDebt = 0;
             
-            // 1. حساب الأجرة اليومية المتأخرة
+            // 1. حساب الأجرة المتأخرة (يومي أو شهري)
             const today = new Date();
             const contractStart = driver.contractStartDate ? 
                 (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) :
                 (driver.createdAt ? (driver.createdAt.toDate ? driver.createdAt.toDate() : new Date(driver.createdAt)) : today);
             
             const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
-            const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
-            const expectedTotal = daysSinceStart * dailyWage;
+            const contractType = driver.contractType || 'daily';
+            let expectedTotal, totalRentPaid;
             
-            // حساب إجمالي الأجرة اليومية المدفوعة
-            const dailyRentPayments = payments.filter(p => p.type === 'أجرة يومية');
-            const totalDailyRentPaid = dailyRentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+            if (contractType === 'monthly') {
+                // For monthly contracts
+                const monthlyPayment = parseFloat(driver.monthlyPayment || 0);
+                const monthsSinceStart = Math.floor(daysSinceStart / 30);
+                expectedTotal = monthsSinceStart * monthlyPayment;
+                
+                // Get all payments (not just daily rent)
+                totalRentPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+            } else {
+                // For daily contracts
+                const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
+                expectedTotal = daysSinceStart * dailyWage;
+                
+                // حساب إجمالي الأجرة اليومية المدفوعة
+                const dailyRentPayments = payments.filter(p => p.type === 'أجرة يومية');
+                totalRentPaid = dailyRentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+            }
             
             // الأجرة المتأخرة = المتوقع - المدفوع
-            const lateRent = Math.max(0, expectedTotal - totalDailyRentPaid);
+            const lateRent = Math.max(0, expectedTotal - totalRentPaid);
             totalDebt += lateRent;
             
             // 2. حساب الديون من المدفوعات الأخرى
