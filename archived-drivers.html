@@ -300,17 +300,65 @@
                 restoreData.updatedAt = new Date();
                 restoreData.updatedBy = currentUser.name || currentUser.email;
 
-                await addDoc(collection(db, 'drivers'), restoreData);
+                // Step 1: Add to drivers collection
+                console.log('📝 الخطوة 1: إضافة السائق إلى drivers collection...');
+                try {
+                    await addDoc(collection(db, 'drivers'), restoreData);
+                    console.log('✅ تم إضافة السائق بنجاح');
+                } catch (addError) {
+                    console.error('❌ فشل في إضافة السائق:', addError);
+                    throw new Error('فشل في إضافة السائق إلى القائمة النشطة: ' + addError.message);
+                }
                 
-                // Delete from archived collection
-                await deleteDoc(doc(db, 'archivedDrivers', archiveId));
+                // Step 2: Delete from archived collection
+                console.log('🗑️ الخطوة 2: حذف السائق من archivedDrivers collection...');
+                try {
+                    await deleteDoc(doc(db, 'archivedDrivers', archiveId));
+                    console.log('✅ تم حذف السائق من الأرشيف بنجاح');
+                } catch (deleteError) {
+                    console.error('❌ فشل في حذف السائق من الأرشيف:', deleteError);
+                    console.error('❌ كود الخطأ:', deleteError.code);
+                    console.error('❌ رسالة الخطأ:', deleteError.message);
+                    
+                    // حتى لو فشل الحذف، نبلغ المستخدم
+                    alert('⚠️ تنبيه: تم إضافة السائق إلى القائمة النشطة
+لكن فشل حذفه من الأرشيف!
+
+الخطأ: ' + deleteError.message + '
+
+قد تحتاج إلى حذفه يدوياً من الأرشيف.');
+                    throw deleteError;
+                }
                 
-                alert('✅ تم استعادة السائق بنجاح');
+                // Reload archived drivers to update the display
+                console.log('🔄 تحديث قائمة الأرشيف...');
                 await loadArchivedDrivers();
                 displayArchivedDrivers(archivedDrivers);
+                console.log('✅ تم تحديث العرض');
+                
+                alert('✅ تم استعادة السائق بنجاح
+
+تم نقله من الأرشيف إلى قائمة السائقين النشطين.');
             } catch (error) {
-                console.error('Error restoring driver:', error);
-                alert('حدث خطأ في استعادة السائق');
+                console.error('❌ خطأ في استعادة السائق:', error);
+                console.error('❌ نوع الخطأ:', error.name);
+                console.error('❌ رسالة الخطأ:', error.message);
+                console.error('❌ Stack:', error.stack);
+                
+                let errorMessage = 'حدث خطأ في استعادة السائق';
+                
+                // تحديد نوع الخطأ
+                if (error.code === 'permission-denied') {
+                    errorMessage = '❌ خطأ في الصلاحيات: ليس لديك صلاحية لحذف من الأرشيف';
+                } else if (error.message.includes('not found')) {
+                    errorMessage = '❌ السائق غير موجود في الأرشيف';
+                } else {
+                    errorMessage = `❌ حدث خطأ: ${error.message}`;
+                }
+                
+                alert(errorMessage + '
+
+تفاصيل الخطأ في Console (اضغط F12)');
             }
         };
 
