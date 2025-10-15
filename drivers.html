@@ -723,9 +723,19 @@
                         totalRevenuesAmount: driverRevenues.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
                     };
                     
-                    // 5. Save to archive
-                    await addDoc(collection(db, 'archivedDrivers'), archiveData);
-                    console.log('✅ تم حفظ الأرشيف الشامل');
+                    // 5. Check if already archived (prevent duplicates)
+                    const existingArchive = await getDocs(
+                        query(collection(db, 'archivedDrivers'), 
+                              where('driverData.phone', '==', driverToDelete.phone))
+                    );
+                    
+                    if (existingArchive.empty) {
+                        // Save to archive only if not already archived
+                        await addDoc(collection(db, 'archivedDrivers'), archiveData);
+                        console.log('✅ تم حفظ الأرشيف الشامل');
+                    } else {
+                        console.log('⚠️ السائق موجود بالفعل في الأرشيف - لن يتم التكرار');
+                    }
                 }
                 
                 // Delete from drivers collection
@@ -837,8 +847,19 @@
                             totalExpensesAmount: driverExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0),
                             totalRevenuesAmount: driverRevenues.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
                         };
-                        await addDoc(collection(db, 'archivedDrivers'), archiveData);
-                        console.log('✅ تم حفظ الأرشيف الشامل');
+                        
+                        // Check if already archived (prevent duplicates)
+                        const existingArchive = await getDocs(
+                            query(collection(db, 'archivedDrivers'), 
+                                  where('driverData.phone', '==', oldDriver.phone))
+                        );
+                        
+                        if (existingArchive.empty) {
+                            await addDoc(collection(db, 'archivedDrivers'), archiveData);
+                            console.log('✅ تم حفظ الأرشيف الشامل');
+                        } else {
+                            console.log('⚠️ السائق موجود بالفعل في الأرشيف - لن يتم التكرار');
+                        }
                         
                         // Update the current driver with new contract type
                         driverData.previousContractType = oldDriver.contractType;
