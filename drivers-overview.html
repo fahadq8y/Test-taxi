@@ -338,6 +338,10 @@
                             <input type="text" id="driverName" required>
                         </div>
                         <div class="form-group">
+                            <label for="employeeNumber">الرقم الوظيفي</label>
+                            <input type="text" id="employeeNumber" readonly style="background: #f0f0f0; cursor: not-allowed;" placeholder="سيتم إنشاؤه تلقائياً">
+                        </div>
+                        <div class="form-group">
                             <label for="driverPhone">رقم الهاتف *</label>
                             <input type="tel" id="driverPhone" required>
                         </div>
@@ -357,14 +361,26 @@
                     <h3 class="section-title">تفاصيل العقد</h3>
                     <div class="form-grid">
                         <div class="form-group">
+                            <label for="contractType">نوع العقد *</label>
+                            <select id="contractType" onchange="toggleContractFields()" required>
+                                <option value="">اختر نوع العقد</option>
+                                <option value="daily">عقد يومي</option>
+                                <option value="monthly">عقد شهري</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label for="assignedCar">السيارة المخصصة</label>
                             <select id="assignedCar" onchange="updateCarRegistrationExpiry()">
                                 <option value="">اختر السيارة</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label for="dailyRent">الأجرة اليومية (د.ك) *</label>
-                            <input type="number" id="dailyRent" step="0.001" required>
+                        <div class="form-group" id="dailyRentGroup">
+                            <label for="dailyRent">الأجرة اليومية (د.ك)</label>
+                            <input type="number" id="dailyRent" step="0.001">
+                        </div>
+                        <div class="form-group" id="monthlyPaymentGroup" style="display: none;">
+                            <label for="monthlyPayment">المبلغ الشهري (د.ك)</label>
+                            <input type="number" id="monthlyPayment" step="0.001">
                         </div>
                         <div class="form-group">
                             <label for="contractDuration">مدة العقد (بالأشهر)</label>
@@ -646,24 +662,46 @@
             // Calculate days since contract start
             const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
             
-            // Calculate expected payment (daily wage * days)
-            const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
-            const expectedTotal = daysSinceStart * dailyWage;
+            // Check contract type
+            const contractType = driver.contractType || 'daily';
+            let expectedTotal, totalPaid, lateAmount, daysLate, paidUntilDate;
             
-            // Calculate total paid from driver payments
-            const payments = driverPayments.filter(payment => 
-                payment.driverId === driver.id && payment.type === 'أجرة يومية'
-            );
-            const totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
-            
-            // Calculate late amount and days
-            const lateAmount = Math.max(0, expectedTotal - totalPaid);
-            const daysLate = Math.floor(lateAmount / dailyWage);
-            
-            // Calculate paid until date
-            const paidDays = Math.floor(totalPaid / dailyWage);
-            const paidUntilDate = new Date(contractStart);
-            paidUntilDate.setDate(paidUntilDate.getDate() + paidDays);
+            if (contractType === 'monthly') {
+                // For monthly contracts, calculate based on monthly payment
+                const monthlyPayment = parseFloat(driver.monthlyPayment || 0);
+                const monthsSinceStart = Math.floor(daysSinceStart / 30);
+                expectedTotal = monthsSinceStart * monthlyPayment;
+                
+                // Get all payments for monthly contracts
+                const payments = driverPayments.filter(payment => 
+                    payment.driverId === driver.id
+                );
+                totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
+                
+                lateAmount = Math.max(0, expectedTotal - totalPaid);
+                daysLate = monthlyPayment > 0 ? Math.floor((lateAmount / monthlyPayment) * 30) : 0;
+                
+                // Calculate paid until date for monthly
+                const paidMonths = monthlyPayment > 0 ? Math.floor(totalPaid / monthlyPayment) : 0;
+                paidUntilDate = new Date(contractStart);
+                paidUntilDate.setMonth(paidUntilDate.getMonth() + paidMonths);
+            } else {
+                // For daily contracts (original logic)
+                const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
+                expectedTotal = daysSinceStart * dailyWage;
+                
+                const payments = driverPayments.filter(payment => 
+                    payment.driverId === driver.id && payment.type === 'أجرة يومية'
+                );
+                totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
+                
+                lateAmount = Math.max(0, expectedTotal - totalPaid);
+                daysLate = dailyWage > 0 ? Math.floor(lateAmount / dailyWage) : 0;
+                
+                const paidDays = dailyWage > 0 ? Math.floor(totalPaid / dailyWage) : 0;
+                paidUntilDate = new Date(contractStart);
+                paidUntilDate.setDate(paidUntilDate.getDate() + paidDays);
+            }
             
             // Calculate driver balance (positive balance means driver paid extra)
             const driverBalance = Math.max(0, totalPaid - expectedTotal);
@@ -1201,9 +1239,14 @@
         let modalCars = [];
 
         // Open Add Driver Modal
-        function openAddDriverModal() {
+        async function openAddDriverModal() {
             document.getElementById('driverModal').style.display = 'flex';
             document.getElementById('driverForm').reset();
+            
+            // Generate employee number for new driver
+            const empNum = await generateEmployeeNumber();
+            document.getElementById('employeeNumber').value = empNum;
+            
             loadCarsForModal();
             populateContractDurationOptions();
         }
@@ -1322,6 +1365,53 @@
         }
 
         // Save Driver
+
+        // Toggle contract fields based on type
+        function toggleContractFields() {
+            const contractType = document.getElementById('contractType').value;
+            const dailyRentGroup = document.getElementById('dailyRentGroup');
+            const monthlyPaymentGroup = document.getElementById('monthlyPaymentGroup');
+            
+            if (contractType === 'daily') {
+                dailyRentGroup.style.display = 'block';
+                monthlyPaymentGroup.style.display = 'none';
+                document.getElementById('dailyRent').required = true;
+                document.getElementById('monthlyPayment').required = false;
+            } else if (contractType === 'monthly') {
+                dailyRentGroup.style.display = 'none';
+                monthlyPaymentGroup.style.display = 'block';
+                document.getElementById('dailyRent').required = false;
+                document.getElementById('monthlyPayment').required = true;
+            } else {
+                dailyRentGroup.style.display = 'block';
+                monthlyPaymentGroup.style.display = 'none';
+            }
+        }
+
+        // Generate next employee number
+        async function generateEmployeeNumber() {
+            try {
+                const snapshot = await db.collection('drivers').get();
+                let maxNumber = 0;
+                
+                snapshot.forEach(doc => {
+                    const empNum = doc.data().employeeNumber;
+                    if (empNum && empNum.startsWith('DRV')) {
+                        const num = parseInt(empNum.replace('DRV', ''));
+                        if (num > maxNumber) {
+                            maxNumber = num;
+                        }
+                    }
+                });
+                
+                const nextNumber = maxNumber + 1;
+                return 'DRV' + String(nextNumber).padStart(3, '0');
+            } catch (error) {
+                console.error('Error generating employee number:', error);
+                return 'DRV001';
+            }
+        }
+
         async function saveDriver(event) {
             event.preventDefault();
             
@@ -1330,13 +1420,20 @@
             saveBtn.textContent = 'جاري الحفظ...';
             
             try {
+                // Generate employee number for new drivers
+                const employeeNumber = document.getElementById('employeeNumber').value || await generateEmployeeNumber();
+                
+                const contractType = document.getElementById('contractType').value;
                 const driverData = {
                     name: document.getElementById('driverName').value.trim(),
                     phone: document.getElementById('driverPhone').value.trim(),
+                    employeeNumber: employeeNumber,
                     nationality: document.getElementById('driverNationality').value.trim() || '',
                     address: document.getElementById('driverAddress').value.trim() || '',
                     assignedCar: document.getElementById('assignedCar').value || '',
-                    dailyRent: parseFloat(document.getElementById('dailyRent').value) || 0,
+                    contractType: contractType,
+                    dailyRent: contractType === 'daily' ? (parseFloat(document.getElementById('dailyRent').value) || 0) : 0,
+                    monthlyPayment: contractType === 'monthly' ? (parseFloat(document.getElementById('monthlyPayment').value) || 0) : 0,
                     contractDuration: parseInt(document.getElementById('contractDuration').value) || 0,
                     contractStartDate: document.getElementById('contractStartDate').value ? 
                         firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('contractStartDate').value)) : null,
