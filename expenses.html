@@ -932,13 +932,19 @@
             
             driverPayments.forEach(payment => {
                 if (['سداد مخالفة', 'سداد رسوم إقامة'].includes(payment.type)) {
-                    const driver = drivers.find(d => d.id === payment.driverId);
+                    // استخدام getDriverInfo للبحث في السائقين النشطين والمؤرشفين
+                    const driverInfo = getDriverInfo(payment.driverId);
+                    const driverDisplay = driverInfo.employeeNumber ? 
+                        `${driverInfo.name} (${driverInfo.employeeNumber})` : 
+                        driverInfo.name;
+                    const archivedBadge = driverInfo.isArchived ? ' 📦' : '';
+                    
                     allExpenseItems.push({
                         id: payment.id,
                         date: payment.date,
                         type: payment.type,
                         amount: payment.amount,
-                        description: `${payment.type} - ${driver ? driver.name : 'سائق غير محدد'}`,
+                        description: `${payment.type} - ${driverDisplay}${archivedBadge}`,
                         note: payment.notes || '-',
                         source: 'driverPayment'
                     });
