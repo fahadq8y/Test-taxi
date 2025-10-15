@@ -246,6 +246,22 @@
                                         }</span>
                                     </div>
                                 ` : ''}
+                                ${car.currentKilometers ? `
+                                    <div class="info-row">
+                                        <span class="info-label">🚗 الكيلومترات:</span>
+                                        <span class="info-value">${car.currentKilometers.toLocaleString()} كم</span>
+                                    </div>
+                                ` : ''}
+                                ${car.lastOilChangeDate ? `
+                                    <div class="info-row">
+                                        <span class="info-label">🛢️ آخر تغيير زيت:</span>
+                                        <span class="info-value">${
+                                            car.lastOilChangeDate.seconds ? 
+                                            new Date(car.lastOilChangeDate.seconds * 1000).toLocaleDateString('en-GB') :
+                                            new Date(car.lastOilChangeDate).toLocaleDateString('en-GB')
+                                        }</span>
+                                    </div>
+                                ` : ''}
                             </div>
                             
                             ${alerts.length > 0 ? `

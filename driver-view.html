@@ -345,6 +345,10 @@
                     <div class="value" id="driverPhone">-</div>
                 </div>
                 <div class="info-item">
+                    <label>الرقم الوظيفي</label>
+                    <div class="value" id="employeeNumber" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 16px; border-radius: 20px; display: inline-block; font-weight: bold;">-</div>
+                </div>
+                <div class="info-item">
                     <label>الجنسية</label>
                     <div class="value" id="driverNationality">-</div>
                 </div>
@@ -362,6 +366,10 @@
                 <div class="info-item">
                     <label>السيارة المخصصة</label>
                     <div class="value" id="assignedCar">-</div>
+                </div>
+                <div class="info-item">
+                    <label>نوع العقد</label>
+                    <div class="value" id="contractType">-</div>
                 </div>
                 <div class="info-item">
                     <label>الأجرة اليومية</label>
@@ -888,6 +896,12 @@
             document.getElementById('welcomeMessage').textContent = `مرحباً ${driverData.name}`;
             document.getElementById('driverName').textContent = driverData.name || '-';
             document.getElementById('driverPhone').textContent = driverData.phone || '-';
+            document.getElementById('employeeNumber').textContent = driverData.employeeNumber || 'غير محدد';
+            
+            // Contract type
+            const contractType = driverData.contractType || 'daily';
+            const contractTypeText = contractType === 'monthly' ? '📆 عقد شهري' : '📅 عقد يومي';
+            document.getElementById('contractType').textContent = contractTypeText;
             document.getElementById('driverNationality').textContent = driverData.nationality || '-';
             document.getElementById('driverAddress').textContent = driverData.address || '-';
 
