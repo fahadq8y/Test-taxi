@@ -780,7 +780,8 @@
             const oldDebts = Math.max(0, oldDebtsInitial - oldDebtsPaid);
             
             // Calculate total debt
-            const totalDebt = lateAmount + violations + residencyFees + oldDebts - driverBalance;
+            // Note: driverBalance is NOT subtracted - it's a separate credit, not a debt reduction
+            const totalDebt = lateAmount + violations + residencyFees + oldDebts;
             
             // Determine status
             let status = 'منتظم';
