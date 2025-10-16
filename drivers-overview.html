@@ -747,7 +747,7 @@
             // This represents the amount paid towards the next incomplete day
             const driverBalance = totalPaid > expectedTotal ? 
                 (totalPaid - expectedTotal) : // If overpaid, show the extra amount
-                (totalPaid - paidForCompletedDays); // Otherwise, show partial day payment
+                (paidForCompletedDays !== undefined ? (totalPaid - paidForCompletedDays) : 0); // Otherwise, show partial day payment
             
             // Calculate violations (positive = driver owes, negative = driver paid)
             const violationPayments = driverPayments.filter(p => 
