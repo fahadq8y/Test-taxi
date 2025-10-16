@@ -732,7 +732,7 @@
                 
                 // Calculate COMPLETE days only
                 const completedDays = dailyWage > 0 ? Math.floor(totalPaid / dailyWage) : 0;
-                const paidForCompletedDays = completedDays * dailyWage;
+                paidForCompletedDays = completedDays * dailyWage;
                 
                 // Calculate late amount (actual debt remaining)
                 lateAmount = Math.max(0, expectedTotal - totalPaid);
