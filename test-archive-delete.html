@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار حذف الأرشيف</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2563eb;
+            text-align: center;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        .delete-btn {
+            background: #dc3545;
+        }
+        .delete-btn:hover {
+            background: #c82333;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .record {
+            padding: 10px;
+            margin: 10px 0;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 اختبار عملية الحذف من archivedDrivers</h1>
+        
+        <div class="test-section">
+            <h3>الخطوة 1: تحميل السجلات المؤرشفة</h3>
+            <button onclick="loadArchivedDrivers()">📥 تحميل السجلات</button>
+            <div id="records"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>الخطوة 2: اختبار الحذف</h3>
+            <p>سيتم اختبار حذف سجل واحد من الأرشيف</p>
+            <button class="delete-btn" onclick="testDelete()">🗑️ اختبار الحذف</button>
+        </div>
+
+        <div class="test-section">
+            <h3>نتائج الاختبار:</h3>
+            <div id="output">جاري الانتظار...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, doc, getDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let archivedDrivers = [];
+        let currentUser = null;
+
+        function log(message) {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString('ar-EG');
+            output.textContent += `[${timestamp}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+            console.log(message);
+        }
+
+        // Check authentication
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                log('❌ غير مسجل الدخول - يرجى تسجيل الدخول أولاً');
+                return;
+            }
+            
+            try {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (!userDoc.exists()) {
+                    log('❌ المستخدم غير موجود في قاعدة البيانات');
+                    return;
+                }
+                
+                const userData = userDoc.data();
+                currentUser = { uid: user.uid, ...userData };
+                log(`✅ تم تسجيل الدخول بنجاح: ${userData.name || userData.email}`);
+                log(`📋 الصلاحية: ${userData.role}`);
+            } catch (error) {
+                log(`❌ خطأ في التحقق من المستخدم: ${error.message}`);
+            }
+        });
+
+        window.loadArchivedDrivers = async function() {
+            try {
+                log('🔄 بدء تحميل السجلات المؤرشفة...');
+                const archivedSnapshot = await getDocs(collection(db, 'archivedDrivers'));
+                log(`📊 عدد السجلات: ${archivedSnapshot.size}`);
+                
+                archivedDrivers = [];
+                const recordsDiv = document.getElementById('records');
+                recordsDiv.innerHTML = '';
+                
+                archivedSnapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    archivedDrivers.push({ id: docSnap.id, ...data });
+                    
+                    const recordDiv = document.createElement('div');
+                    recordDiv.className = 'record';
+                    recordDiv.innerHTML = `
+                        <strong>ID:</strong> ${docSnap.id}<br>
+                        <strong>الاسم:</strong> ${data.name}<br>
+                        <strong>الهاتف:</strong> ${data.phone}<br>
+                        ${data.restoredAt ? `<strong style="color: red;">⚠️ تم استعادته مسبقاً في:</strong> ${new Date(data.restoredAt.seconds * 1000).toLocaleString('ar-EG')}<br>` : ''}
+                        ${data.restoredBy ? `<strong>بواسطة:</strong> ${data.restoredBy}<br>` : ''}
+                    `;
+                    recordsDiv.appendChild(recordDiv);
+                    
+                    log(`📦 ${docSnap.id}: ${data.name} (${data.phone})`);
+                    if (data.restoredAt) {
+                        log(`   ⚠️ هذا السجل تم استعادته مسبقاً!`);
+                    }
+                });
+                
+                log('✅ تم تحميل السجلات بنجاح');
+            } catch (error) {
+                log(`❌ خطأ في تحميل السجلات: ${error.message}`);
+                log(`   كود الخطأ: ${error.code}`);
+            }
+        };
+
+        window.testDelete = async function() {
+            if (archivedDrivers.length === 0) {
+                log('❌ لا توجد سجلات محملة. يرجى تحميل السجلات أولاً');
+                return;
+            }
+
+            // اختر أول سجل تم استعادته مسبقاً (يحتوي على restoredAt)
+            const testRecord = archivedDrivers.find(d => d.restoredAt) || archivedDrivers[0];
+            
+            log('\n🧪 ========== بدء اختبار الحذف ==========');
+            log(`📌 السجل المختار للاختبار:`);
+            log(`   ID: ${testRecord.id}`);
+            log(`   الاسم: ${testRecord.name}`);
+            log(`   الهاتف: ${testRecord.phone}`);
+            
+            if (!confirm(`هل تريد حذف السجل:\n${testRecord.name} (${testRecord.phone})\n\nهذا اختبار فقط!`)) {
+                log('❌ تم إلغاء الاختبار');
+                return;
+            }
+
+            try {
+                log('\n🗑️ الخطوة 1: محاولة حذف السجل...');
+                const docRef = doc(db, 'archivedDrivers', testRecord.id);
+                
+                log(`   📍 المسار: archivedDrivers/${testRecord.id}`);
+                
+                await deleteDoc(docRef);
+                log('✅ تم تنفيذ أمر الحذف بنجاح!');
+
+                // التحقق من الحذف
+                log('\n🔍 الخطوة 2: التحقق من الحذف...');
+                const verifyDoc = await getDoc(docRef);
+                
+                if (verifyDoc.exists()) {
+                    log('❌ فشل الحذف: السجل ما زال موجوداً!');
+                    log(`   البيانات الموجودة: ${JSON.stringify(verifyDoc.data(), null, 2)}`);
+                } else {
+                    log('✅ تم التحقق: السجل تم حذفه بنجاح من قاعدة البيانات!');
+                }
+
+                log('\n✅ ========== انتهى الاختبار بنجاح ==========');
+                
+                // إعادة تحميل السجلات
+                setTimeout(() => {
+                    log('\n🔄 إعادة تحميل السجلات...');
+                    loadArchivedDrivers();
+                }, 1000);
+
+            } catch (error) {
+                log(`\n❌ ========== فشل الاختبار ==========`);
+                log(`❌ نوع الخطأ: ${error.name}`);
+                log(`❌ كود الخطأ: ${error.code}`);
+                log(`❌ رسالة الخطأ: ${error.message}`);
+                log(`❌ Stack: ${error.stack}`);
+                
+                if (error.code === 'permission-denied') {
+                    log('\n⚠️ المشكلة: ليس لديك صلاحية الحذف من archivedDrivers');
+                    log('   الحل: يجب تعديل قواعد الأمان في Firebase');
+                }
+            }
+        };
+
+        // Make functions available globally
+        window.db = db;
+        window.auth = auth;
+    </script>
+</body>
+</html>
+
