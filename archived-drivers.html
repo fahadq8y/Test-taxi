@@ -107,7 +107,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, getDocs, doc, getDoc, deleteDoc, addDoc, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, doc, getDoc, deleteDoc, updateDoc, addDoc, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -168,8 +168,14 @@
                 console.log('📊 عدد السائقين المؤرشفين في قاعدة البيانات:', archivedSnapshot.size);
                 archivedDrivers = [];
                 archivedSnapshot.forEach(doc => {
-                    console.log('📦 سائق مؤرشف:', doc.id, doc.data().name || doc.data().driverData?.name);
-                    archivedDrivers.push({ id: doc.id, ...doc.data() });
+                    const data = doc.data();
+                    // تجاهل السجلات التي تم استعادتها
+                    if (!data.isRestored) {
+                        console.log('📦 سائق مؤرشف:', doc.id, data.name || data.driverData?.name);
+                        archivedDrivers.push({ id: doc.id, ...data });
+                    } else {
+                        console.log('⏭️ تخطي سجل مستعاد:', doc.id);
+                    }
                 });
                 
                 // Sort by archived date (newest first)
@@ -317,25 +323,30 @@
                     throw new Error('فشل في إضافة السائق إلى القائمة النشطة: ' + addError.message);
                 }
 
-                // Step 2: Delete from archived collection
-                console.log('🗑️ الخطوة 2: حذف السائق من archivedDrivers collection...');
+                // Step 2: Mark as restored in archived collection (instead of deleting)
+                console.log('✏️ الخطوة 2: وضع علامة على السائق كمستعاد في archivedDrivers...');
                 try {
-                    await deleteDoc(doc(db, 'archivedDrivers', archiveId));
-                    console.log('✅ تم حذف السائق من الأرشيف بنجاح');
+                    await updateDoc(doc(db, 'archivedDrivers', archiveId), {
+                        isRestored: true,
+                        restoredAt: new Date(),
+                        restoredBy: currentUser.name || currentUser.email,
+                        restoredDriverId: newDriverRef.id
+                    });
+                    console.log('✅ تم وضع علامة الاستعادة بنجاح');
 
-                    // Verify deletion
-                    console.log('🔍 التحقق من الحذف...');
+                    // Verify update
+                    console.log('🔍 التحقق من التحديث...');
                     const verifyDoc = await getDoc(doc(db, 'archivedDrivers', archiveId));
-                    if (verifyDoc.exists()) {
-                        console.error('❌ فشل التحقق: السجل ما زال موجوداً!');
-                        throw new Error('فشل حذف السائق من الأرشيف - السجل ما زال موجوداً');
+                    if (!verifyDoc.exists() || !verifyDoc.data().isRestored) {
+                        console.error('❌ فشل التحقق: لم يتم وضع العلامة!');
+                        throw new Error('فشل وضع علامة الاستعادة على السجل');
                     }
-                    console.log('✅ تم التحقق: السجل تم حذفه بنجاح');
+                    console.log('✅ تم التحقق: السجل تم تحديثه بنجاح');
 
-                } catch (deleteError) {
-                    console.error('❌ فشل في حذف السائق من الأرشيف:', deleteError);
-                    console.error('❌ كود الخطأ:', deleteError.code);
-                    console.error('❌ رسالة الخطأ:', deleteError.message);
+                } catch (updateError) {
+                    console.error('❌ فشل في تحديث السائق في الأرشيف:', updateError);
+                    console.error('❌ كود الخطأ:', updateError.code);
+                    console.error('❌ رسالة الخطأ:', updateError.message);
 
                     // Rollback: Delete the driver we just added
                     console.log('🔄 تنفيذ Rollback: حذف السائق من drivers...');
@@ -344,19 +355,18 @@
                         console.log('✅ تم التراجع بنجاح');
                     } catch (rollbackError) {
                         console.error('❌ فشل التراجع:', rollbackError);
-                        alert('⚠️ خطأ خطير: تم إضافة السائق لكن فشل حذفه من الأرشيف وفشل التراجع!\n' +
+                        alert('⚠️ خطأ خطير: تم إضافة السائق لكن فشل تحديثه في الأرشيف وفشل التراجع!\n' +
                               'السائق موجود الآن في المكانين!\n\n' +
                               'يرجى حذف السجل يدوياً من Firebase Console:\n' +
-                              'drivers/' + newDriverRef.id + '\n' +
-                              'archivedDrivers/' + archiveId);
+                              'drivers/' + newDriverRef.id);
                         throw rollbackError;
                     }
 
                     // Show error to user
                     alert('❌ فشلت عملية الاستعادة\n\n' +
-                          'السبب: ' + deleteError.message + '\n\n' +
+                          'السبب: ' + updateError.message + '\n\n' +
                           'تم التراجع عن العملية.');
-                    throw deleteError;
+                    throw updateError;
                 }
 
                 // Reload archived drivers to update the display
