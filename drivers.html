@@ -730,9 +730,9 @@
                     );
                     
                     if (existingArchive.empty) {
-                        // Save to archive only if not already archived
-                        await addDoc(collection(db, 'archivedDrivers'), archiveData);
-                        console.log('✅ تم حفظ الأرشيف الشامل');
+                        // Save to archive using employeeNumber as Document ID
+                        await setDoc(doc(db, 'archivedDrivers', driverToDelete.employeeNumber), archiveData);
+                        console.log('✅ تم حفظ الأرشيف الشامل بالرقم الوظيفي:', driverToDelete.employeeNumber);
                     } else {
                         console.log('⚠️ السائق موجود بالفعل في الأرشيف - لن يتم التكرار');
                     }
@@ -869,9 +869,10 @@
                     await updateDoc(doc(db, 'drivers', editingDriverId), driverData);
                     alert('تم تحديث السائق بنجاح' + (oldDriver && oldDriver.contractType && oldDriver.contractType !== contractType ? ' وتم أرشفة البيانات القديمة' : ''));
                 } else {
-                    // إضافة سائق جديد
-                    const driverDoc = await addDoc(collection(db, 'drivers'), driverData);
-                    console.log('✅ تم إضافة السائق في drivers:', driverDoc.id);
+                    // إضافة سائق جديد - استخدام employeeNumber كـ Document ID
+                    const employeeNum = driverData.employeeNumber;
+                    await setDoc(doc(db, 'drivers', employeeNum), driverData);
+                    console.log('✅ تم إضافة السائق في drivers بالرقم الوظيفي:', employeeNum);
                     
                     // إنشاء حساب تلقائي في مجموعة users
                     try {
@@ -881,7 +882,7 @@
                             password: '123',
                             role: 'driver',
                             isActive: true,
-                            driverId: driverDoc.id,
+                            driverId: employeeNum,
                             createdAt: new Date(),
                             createdBy: currentUser.name || currentUser.email
                         };

@@ -264,10 +264,10 @@
                             </div>
                         </div>
                         <div class="driver-actions">
-                            <button class="restore-btn" onclick="restoreDriver('${driver.id}')">
+                            <button class="restore-btn" onclick="restoreDriver('${driver.employeeNumber}')">
                                 ♻️ استعادة السائق
                             </button>
-                            <button class="delete-permanent-btn" onclick="deletePermanently('${driver.id}')">
+                            <button class="delete-permanent-btn" onclick="deletePermanently('${driver.employeeNumber}')">
                                 🗑️ حذف نهائي
                             </button>
                         </div>
@@ -276,14 +276,14 @@
             }).join('');
         }
 
-        // Restore driver
-        window.restoreDriver = async (archiveId) => {
+        // Restore driver using employeeNumber
+        window.restoreDriver = async (employeeNumber) => {
             if (!confirm('هل أنت متأكد من استعادة هذا السائق?\nسيتم نقله من الأرشيف إلى قائمة السائقين النشطين.')) {
                 return;
             }
 
             try {
-                const archivedDriver = archivedDrivers.find(d => d.id === archiveId);
+                const archivedDriver = archivedDrivers.find(d => d.employeeNumber === employeeNumber);
                 if (!archivedDriver) {
                     alert('لم يتم العثور على السائق');
                     return;
@@ -312,75 +312,46 @@
                 restoreData.updatedAt = new Date();
                 restoreData.updatedBy = currentUser.name || currentUser.email;
 
-                // Step 1: Add to drivers collection
-                console.log('📝 الخطوة 1: إضافة السائق إلى drivers collection...');
-                let newDriverRef;
+                // Step 1: Restore to drivers collection using employeeNumber as ID
+                console.log('📝 الخطوة 1: استعادة السائق إلى drivers collection...');
                 try {
-                    newDriverRef = await addDoc(collection(db, 'drivers'), restoreData);
-                    console.log('✅ تم إضافة السائق بنجاح - ID:', newDriverRef.id);
+                    await setDoc(doc(db, 'drivers', employeeNumber), restoreData);
+                    console.log('✅ تم استعادة السائق بنجاح - الرقم الوظيفي:', employeeNumber);
                 } catch (addError) {
-                    console.error('❌ فشل في إضافة السائق:', addError);
-                    throw new Error('فشل في إضافة السائق إلى القائمة النشطة: ' + addError.message);
+                    console.error('❌ فشل في استعادة السائق:', addError);
+                    throw new Error('فشل في استعادة السائق إلى القائمة النشطة: ' + addError.message);
                 }
 
-                // Step 2: Mark as restored in archived collection (instead of deleting)
-                console.log('✏️ الخطوة 2: وضع علامة على السائق كمستعاد في archivedDrivers...');
-                console.log('🔍 التحقق من وجود السجل:', archiveId);
+                // Step 2: Delete from archived collection
+                console.log('🗑️ الخطوة 2: حذف السائق من archivedDrivers...');
                 try {
-                    // First, check if the document exists
-                    const archiveDocRef = doc(db, 'archivedDrivers', archiveId);
-                    const archiveDocSnap = await getDoc(archiveDocRef);
-                    
-                    if (!archiveDocSnap.exists()) {
-                        console.error('❌ السجل غير موجود في archivedDrivers:', archiveId);
-                        console.log('⚠️ تخطي التحديث - السجل قد يكون محذوف مسبقاً');
-                        // Don't throw error - the driver is already restored to active list
-                        // Just log a warning and continue
-                        console.log('✅ السائق تم استعادته بنجاح (السجل في الأرشيف غير موجود)');
-                    } else {
-                        // Document exists, update it
-                        await updateDoc(archiveDocRef, {
-                            isRestored: true,
-                            restoredAt: new Date(),
-                            restoredBy: currentUser.name || currentUser.email,
-                            restoredDriverId: newDriverRef.id
-                        });
-                        console.log('✅ تم وضع علامة الاستعادة بنجاح');
+                    await deleteDoc(doc(db, 'archivedDrivers', employeeNumber));
+                    console.log('✅ تم حذف السائق من الأرشيف بنجاح');
 
-                        // Verify update
-                        console.log('🔍 التحقق من التحديث...');
-                        const verifyDoc = await getDoc(archiveDocRef);
-                        if (!verifyDoc.exists() || !verifyDoc.data().isRestored) {
-                            console.error('❌ فشل التحقق: لم يتم وضع العلامة!');
-                            throw new Error('فشل وضع علامة الاستعادة على السجل');
-                        }
-                        console.log('✅ تم التحقق: السجل تم تحديثه بنجاح');
-                    }
+                } catch (deleteError) {
+                    console.error('❌ فشل في حذف السائق من الأرشيف:', deleteError);
+                    console.error('❌ كود الخطأ:', deleteError.code);
+                    console.error('❌ رسالة الخطأ:', deleteError.message);
 
-                } catch (updateError) {
-                    console.error('❌ فشل في تحديث السائق في الأرشيف:', updateError);
-                    console.error('❌ كود الخطأ:', updateError.code);
-                    console.error('❌ رسالة الخطأ:', updateError.message);
-
-                    // Rollback: Delete the driver we just added
+                    // Rollback: Delete the driver we just restored
                     console.log('🔄 تنفيذ Rollback: حذف السائق من drivers...');
                     try {
-                        await deleteDoc(doc(db, 'drivers', newDriverRef.id));
+                        await deleteDoc(doc(db, 'drivers', employeeNumber));
                         console.log('✅ تم التراجع بنجاح');
                     } catch (rollbackError) {
                         console.error('❌ فشل التراجع:', rollbackError);
-                        alert('⚠️ خطأ خطير: تم إضافة السائق لكن فشل تحديثه في الأرشيف وفشل التراجع!\n' +
+                        alert('⚠️ خطأ خطير: تم استعادة السائق لكن فشل حذفه من الأرشيف وفشل التراجع!\n' +
                               'السائق موجود الآن في المكانين!\n\n' +
                               'يرجى حذف السجل يدوياً من Firebase Console:\n' +
-                              'drivers/' + newDriverRef.id);
+                              'drivers/' + employeeNumber);
                         throw rollbackError;
                     }
 
                     // Show error to user
                     alert('❌ فشلت عملية الاستعادة\n\n' +
-                          'السبب: ' + updateError.message + '\n\n' +
+                          'السبب: ' + deleteError.message + '\n\n' +
                           'تم التراجع عن العملية.');
-                    throw updateError;
+                    throw deleteError;
                 }
 
                 // Reload archived drivers to update the display
@@ -415,8 +386,8 @@
 
 
 
-        // Delete permanently
-        window.deletePermanently = async (archiveId) => {
+        // Delete permanently using employeeNumber
+        window.deletePermanently = async (employeeNumber) => {
             if (!confirm('⚠️ تحذير: هل أنت متأكد من الحذف النهائي؟\nلن تتمكن من استعادة هذا السائق بعد الحذف!')) {
                 return;
             }
@@ -427,7 +398,7 @@
 
             try {
                 console.log('🗑️ بدء الحذف النهائي للسائق:', archiveId);
-                await deleteDoc(doc(db, 'archivedDrivers', archiveId));
+                await deleteDoc(doc(db, 'archivedDrivers', employeeNumber));
                 console.log('✅ تم حذف السائق من Firebase بنجاح');
                 
                 alert('تم الحذف النهائي بنجاح');
