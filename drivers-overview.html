@@ -692,7 +692,7 @@
             
             // Check contract type
             const contractType = driver.contractType || 'daily';
-            let expectedTotal, totalPaid, lateAmount, daysLate, paidUntilDate;
+            let expectedTotal, totalPaid, lateAmount, daysLate, paidUntilDate, paidForCompletedDays;
             
             if (contractType === 'monthly') {
                 // For monthly contracts, calculate based on monthly payment
@@ -712,6 +712,7 @@
                 // Calculate COMPLETE months only (not partial balance)
                 const completedMonths = monthlyPayment > 0 ? Math.floor(totalPaid / monthlyPayment) : 0;
                 const paidForCompletedMonths = completedMonths * monthlyPayment;
+                paidForCompletedDays = paidForCompletedMonths; // For consistency
                 
                 lateAmount = Math.max(0, expectedTotal - paidForCompletedMonths);
                 daysLate = monthlyPayment > 0 ? Math.floor((lateAmount / monthlyPayment) * 30) : 0;
