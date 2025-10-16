@@ -325,23 +325,37 @@
 
                 // Step 2: Mark as restored in archived collection (instead of deleting)
                 console.log('✏️ الخطوة 2: وضع علامة على السائق كمستعاد في archivedDrivers...');
+                console.log('🔍 التحقق من وجود السجل:', archiveId);
                 try {
-                    await updateDoc(doc(db, 'archivedDrivers', archiveId), {
-                        isRestored: true,
-                        restoredAt: new Date(),
-                        restoredBy: currentUser.name || currentUser.email,
-                        restoredDriverId: newDriverRef.id
-                    });
-                    console.log('✅ تم وضع علامة الاستعادة بنجاح');
+                    // First, check if the document exists
+                    const archiveDocRef = doc(db, 'archivedDrivers', archiveId);
+                    const archiveDocSnap = await getDoc(archiveDocRef);
+                    
+                    if (!archiveDocSnap.exists()) {
+                        console.error('❌ السجل غير موجود في archivedDrivers:', archiveId);
+                        console.log('⚠️ تخطي التحديث - السجل قد يكون محذوف مسبقاً');
+                        // Don't throw error - the driver is already restored to active list
+                        // Just log a warning and continue
+                        console.log('✅ السائق تم استعادته بنجاح (السجل في الأرشيف غير موجود)');
+                    } else {
+                        // Document exists, update it
+                        await updateDoc(archiveDocRef, {
+                            isRestored: true,
+                            restoredAt: new Date(),
+                            restoredBy: currentUser.name || currentUser.email,
+                            restoredDriverId: newDriverRef.id
+                        });
+                        console.log('✅ تم وضع علامة الاستعادة بنجاح');
 
-                    // Verify update
-                    console.log('🔍 التحقق من التحديث...');
-                    const verifyDoc = await getDoc(doc(db, 'archivedDrivers', archiveId));
-                    if (!verifyDoc.exists() || !verifyDoc.data().isRestored) {
-                        console.error('❌ فشل التحقق: لم يتم وضع العلامة!');
-                        throw new Error('فشل وضع علامة الاستعادة على السجل');
+                        // Verify update
+                        console.log('🔍 التحقق من التحديث...');
+                        const verifyDoc = await getDoc(archiveDocRef);
+                        if (!verifyDoc.exists() || !verifyDoc.data().isRestored) {
+                            console.error('❌ فشل التحقق: لم يتم وضع العلامة!');
+                            throw new Error('فشل وضع علامة الاستعادة على السجل');
+                        }
+                        console.log('✅ تم التحقق: السجل تم تحديثه بنجاح');
                     }
-                    console.log('✅ تم التحقق: السجل تم تحديثه بنجاح');
 
                 } catch (updateError) {
                     console.error('❌ فشل في تحديث السائق في الأرشيف:', updateError);
