@@ -729,20 +729,24 @@
                 );
                 totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
                 
-                // Calculate COMPLETE days only (not partial balance)
+                // Calculate COMPLETE days only
                 const completedDays = dailyWage > 0 ? Math.floor(totalPaid / dailyWage) : 0;
                 const paidForCompletedDays = completedDays * dailyWage;
                 
-                lateAmount = Math.max(0, expectedTotal - paidForCompletedDays);
-                daysLate = dailyWage > 0 ? Math.floor(lateAmount / dailyWage) : 0;
+                // Calculate late amount (actual debt remaining)
+                lateAmount = Math.max(0, expectedTotal - totalPaid);
+                daysLate = dailyWage > 0 ? Math.ceil(lateAmount / dailyWage) : 0;
                 
                 // Calculate paid until date (only complete days)
                 paidUntilDate = new Date(contractStart);
                 paidUntilDate.setDate(paidUntilDate.getDate() + completedDays);
             }
             
-            // Calculate driver balance (positive balance means driver paid extra)
-            const driverBalance = Math.max(0, totalPaid - expectedTotal);
+            // Calculate driver balance (partial day payment - the remainder after complete days)
+            // This represents the amount paid towards the next incomplete day
+            const driverBalance = totalPaid > expectedTotal ? 
+                (totalPaid - expectedTotal) : // If overpaid, show the extra amount
+                (totalPaid - paidForCompletedDays); // Otherwise, show partial day payment
             
             // Calculate violations (positive = driver owes, negative = driver paid)
             const violationPayments = driverPayments.filter(p => 
