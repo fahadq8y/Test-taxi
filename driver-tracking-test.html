@@ -3,7 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>صفحة السائق - اختبار</title>
+    <title>تتبع السائق - GPS Tracker</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="تطبيق تتبع موقع السائق في الوقت الفعلي">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="تتبع GPS">
+    <link rel="manifest" href="/driver-manifest.json">
+    <link rel="apple-touch-icon" href="/icon-192.png">
     <style>
         * {
             margin: 0;
@@ -79,6 +88,57 @@
             font-size: 12px;
             color: #856404;
         }
+        
+        .install-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            display: none;
+            width: 100%;
+        }
+        
+        .install-btn:hover {
+            background: #218838;
+        }
+        
+        .pwa-info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: right;
+            font-size: 14px;
+            color: #004085;
+            border-right: 4px solid #007bff;
+        }
+        
+        .wake-lock-btn {
+            background: #ffc107;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px 0;
+            width: 100%;
+        }
+        
+        .wake-lock-btn:hover {
+            background: #e0a800;
+        }
+        
+        .wake-lock-btn.active {
+            background: #28a745;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -90,6 +150,22 @@
             <p><strong>الوقت:</strong> <span id="time"></span></p>
             <p><strong>التاريخ:</strong> <span id="date"></span></p>
         </div>
+        
+        <!-- PWA Install Button -->
+        <button id="installBtn" class="install-btn">
+            📥 تثبيت التطبيق
+        </button>
+        
+        <!-- PWA Info -->
+        <div class="pwa-info" id="pwaInfo" style="display: none;">
+            <p><strong>📱 تطبيق ويب متقدم (PWA)</strong></p>
+            <p>يمكنك تثبيت هذا التطبيق على الشاشة الرئيسية للهاتف ليعمل مثل التطبيق العادي!</p>
+        </div>
+        
+        <!-- Wake Lock Button -->
+        <button id="wakeLockBtn" class="wake-lock-btn">
+            🔒 منع الشاشة من الإغلاق
+        </button>
         
         <p style="color: #666; margin-top: 20px;">
             نتمنى لك يوماً موفقاً! 🌟
@@ -222,6 +298,173 @@
         if (window.location.search.includes('debug=true')) {
             document.getElementById('debug').style.display = 'block';
         }
+        
+        // ==================== PWA Features ====================
+        
+        // 1. Service Worker Registration
+        let deferredPrompt;
+        let wakeLock = null;
+        
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', async () => {
+                try {
+                    const registration = await navigator.serviceWorker.register('/driver-sw.js');
+                    console.log('Service Worker registered:', registration);
+                    
+                    // Show PWA info
+                    document.getElementById('pwaInfo').style.display = 'block';
+                    
+                    // Listen for updates
+                    registration.addEventListener('updatefound', () => {
+                        console.log('Service Worker update found');
+                    });
+                    
+                } catch (error) {
+                    console.error('Service Worker registration failed:', error);
+                }
+            });
+        }
+        
+        // 2. Install Prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('beforeinstallprompt event fired');
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Show install button
+            document.getElementById('installBtn').style.display = 'block';
+        });
+        
+        document.getElementById('installBtn').addEventListener('click', async () => {
+            if (!deferredPrompt) {
+                alert('التطبيق مثبت بالفعل أو غير متاح للتثبيت');
+                return;
+            }
+            
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log('Install prompt outcome:', outcome);
+            
+            if (outcome === 'accepted') {
+                console.log('User accepted the install prompt');
+                document.getElementById('installBtn').style.display = 'none';
+            }
+            
+            deferredPrompt = null;
+        });
+        
+        // 3. App Installed
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA was installed');
+            document.getElementById('installBtn').style.display = 'none';
+            alert('✅ تم تثبيت التطبيق بنجاح!');
+        });
+        
+        // 4. Wake Lock API (prevent screen from sleeping)
+        const wakeLockBtn = document.getElementById('wakeLockBtn');
+        
+        wakeLockBtn.addEventListener('click', async () => {
+            if (!('wakeLock' in navigator)) {
+                alert('⚠️ متصلحك لا يدعم Wake Lock API');
+                return;
+            }
+            
+            try {
+                if (wakeLock !== null) {
+                    // Release wake lock
+                    await wakeLock.release();
+                    wakeLock = null;
+                    wakeLockBtn.textContent = '🔒 منع الشاشة من الإغلاق';
+                    wakeLockBtn.classList.remove('active');
+                    console.log('Wake Lock released');
+                } else {
+                    // Request wake lock
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLockBtn.textContent = '✅ الشاشة مفعلة دائماً';
+                    wakeLockBtn.classList.add('active');
+                    console.log('Wake Lock acquired');
+                    
+                    wakeLock.addEventListener('release', () => {
+                        console.log('Wake Lock was released');
+                    });
+                }
+            } catch (err) {
+                console.error('Wake Lock error:', err);
+                alert('⚠️ خطأ: ' + err.message);
+            }
+        });
+        
+        // Re-acquire wake lock when page becomes visible
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Wake Lock re-acquired');
+                } catch (err) {
+                    console.error('Wake Lock re-acquire error:', err);
+                }
+            }
+        });
+        
+        // 5. Background Sync (when supported)
+        if ('serviceWorker' in navigator && 'sync' in navigator.serviceWorker) {
+            console.log('Background Sync is supported');
+            
+            // Register sync when going offline
+            window.addEventListener('offline', async () => {
+                console.log('Going offline - registering sync');
+                const registration = await navigator.serviceWorker.ready;
+                await registration.sync.register('sync-location');
+            });
+        }
+        
+        // 6. Periodic Background Sync (experimental)
+        if ('serviceWorker' in navigator && 'periodicSync' in navigator.serviceWorker) {
+            console.log('Periodic Background Sync is supported');
+            
+            navigator.serviceWorker.ready.then(async (registration) => {
+                try {
+                    await registration.periodicSync.register('update-location', {
+                        minInterval: 60 * 1000 // 1 minute
+                    });
+                    console.log('Periodic sync registered');
+                } catch (err) {
+                    console.error('Periodic sync registration failed:', err);
+                }
+            });
+        }
+        
+        // 7. Listen for messages from Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                console.log('Message from Service Worker:', event.data);
+                
+                if (event.data.type === 'UPDATE_LOCATION') {
+                    // Trigger location update
+                    navigator.geolocation.getCurrentPosition(sendLocation, handleLocationError);
+                }
+            });
+        }
+        
+        // 8. Battery Status (optional - to warn user)
+        if ('getBattery' in navigator) {
+            navigator.getBattery().then((battery) => {
+                console.log('Battery level:', (battery.level * 100) + '%');
+                console.log('Battery charging:', battery.charging);
+                
+                battery.addEventListener('levelchange', () => {
+                    if (battery.level < 0.2 && !battery.charging) {
+                        console.warn('Low battery!');
+                    }
+                });
+            });
+        }
+        
+        console.log('PWA features initialized');
+        console.log('Service Worker support:', 'serviceWorker' in navigator);
+        console.log('Wake Lock support:', 'wakeLock' in navigator);
+        console.log('Background Sync support:', 'serviceWorker' in navigator && 'sync' in navigator.serviceWorker);
+        console.log('Periodic Sync support:', 'serviceWorker' in navigator && 'periodicSync' in navigator.serviceWorker);
     </script>
 </body>
 </html>
