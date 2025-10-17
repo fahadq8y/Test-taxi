@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تتبع السائقين - اختبار</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
     <style>
         * {
             margin: 0;
@@ -128,6 +132,16 @@
             padding: 20px;
             color: #666;
         }
+        
+        /* Custom marker style */
+        .custom-marker {
+            background: #667eea;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
     </style>
 </head>
 <body>
@@ -148,6 +162,9 @@
             <div id="map"></div>
         </div>
     </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
@@ -171,82 +188,67 @@
         let markers = {};
         let drivers = {};
 
-        // Initialize Google Map
+        // Initialize Leaflet Map
         function initMap() {
             // Default center (Kuwait)
-            const center = { lat: 29.3759, lng: 47.9774 };
+            const center = [29.3759, 47.9774];
             
-            map = new google.maps.Map(document.getElementById('map'), {
-                zoom: 12,
-                center: center,
-                mapTypeControl: true,
-                streetViewControl: false,
-                fullscreenControl: true,
-                styles: [
-                    {
-                        featureType: 'poi',
-                        elementType: 'labels',
-                        stylers: [{ visibility: 'off' }]
-                    }
-                ]
-            });
+            map = L.map('map').setView(center, 12);
+            
+            // Add OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
         }
 
         // Add or update driver marker
         function updateDriverMarker(driverData) {
-            const position = {
-                lat: driverData.latitude,
-                lng: driverData.longitude
-            };
+            const position = [driverData.latitude, driverData.longitude];
 
             if (markers[driverData.driverId]) {
                 // Update existing marker
-                markers[driverData.driverId].setPosition(position);
+                markers[driverData.driverId].setLatLng(position);
+                markers[driverData.driverId].getPopup().setContent(getPopupContent(driverData));
             } else {
+                // Create custom icon
+                const customIcon = L.divIcon({
+                    className: 'custom-marker',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15],
+                    popupAnchor: [0, -15],
+                    html: '<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">🚕</div>'
+                });
+
                 // Create new marker
-                const marker = new google.maps.Marker({
-                    position: position,
-                    map: map,
-                    title: driverData.driverId,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 10,
-                        fillColor: '#667eea',
-                        fillOpacity: 1,
-                        strokeColor: 'white',
-                        strokeWeight: 2
-                    },
-                    animation: google.maps.Animation.DROP
-                });
+                const marker = L.marker(position, { icon: customIcon })
+                    .addTo(map)
+                    .bindPopup(getPopupContent(driverData));
 
-                // Info window
-                const infoWindow = new google.maps.InfoWindow({
-                    content: `
-                        <div style="padding: 10px; text-align: right; direction: rtl;">
-                            <h3 style="margin: 0 0 10px 0; color: #667eea;">🚕 ${driverData.driverId}</h3>
-                            <p style="margin: 5px 0;"><strong>الوقت:</strong> ${new Date(driverData.localTime).toLocaleTimeString('ar-SA')}</p>
-                            <p style="margin: 5px 0;"><strong>الدقة:</strong> ${driverData.accuracy.toFixed(0)} متر</p>
-                            <p style="margin: 5px 0;"><strong>السرعة:</strong> ${(driverData.speed * 3.6).toFixed(1)} كم/س</p>
-                        </div>
-                    `
-                });
-
-                marker.addListener('click', () => {
-                    // Close all other info windows
-                    Object.values(markers).forEach(m => {
-                        if (m.infoWindow) m.infoWindow.close();
-                    });
-                    infoWindow.open(map, marker);
-                });
-
-                marker.infoWindow = infoWindow;
                 markers[driverData.driverId] = marker;
             }
 
             // Center map on first driver
             if (Object.keys(markers).length === 1) {
-                map.setCenter(position);
+                map.setView(position, 15);
             }
+        }
+
+        // Get popup content
+        function getPopupContent(driverData) {
+            return `
+                <div style="padding: 10px; text-align: right; direction: rtl; min-width: 200px;">
+                    <h3 style="margin: 0 0 10px 0; color: #667eea;">🚕 ${driverData.driverId}</h3>
+                    <p style="margin: 5px 0;"><strong>الوقت:</strong> ${new Date(driverData.localTime).toLocaleTimeString('ar-SA')}</p>
+                    <p style="margin: 5px 0;"><strong>الدقة:</strong> ${driverData.accuracy.toFixed(0)} متر</p>
+                    <p style="margin: 5px 0;"><strong>السرعة:</strong> ${(driverData.speed * 3.6).toFixed(1)} كم/س</p>
+                    <p style="margin: 5px 0; font-size: 11px; color: #666;">
+                        <strong>الموقع:</strong><br>
+                        Lat: ${driverData.latitude.toFixed(6)}<br>
+                        Lng: ${driverData.longitude.toFixed(6)}
+                    </p>
+                </div>
+            `;
         }
 
         // Update drivers list
@@ -280,11 +282,10 @@
                 `;
                 
                 card.onclick = () => {
-                    const position = { lat: driver.latitude, lng: driver.longitude };
-                    map.setCenter(position);
-                    map.setZoom(15);
+                    const position = [driver.latitude, driver.longitude];
+                    map.setView(position, 17);
                     if (markers[driver.driverId]) {
-                        google.maps.event.trigger(markers[driver.driverId], 'click');
+                        markers[driver.driverId].openPopup();
                     }
                 };
                 
@@ -306,7 +307,7 @@
                     } else if (change.type === 'removed') {
                         delete drivers[driverData.driverId];
                         if (markers[driverData.driverId]) {
-                            markers[driverData.driverId].setMap(null);
+                            map.removeLayer(markers[driverData.driverId]);
                             delete markers[driverData.driverId];
                         }
                     }
@@ -321,15 +322,12 @@
             updateDriversList();
         };
 
-        // Initialize when Google Maps is loaded
-        window.initMap = function() {
+        // Initialize on page load
+        window.addEventListener('load', () => {
             initMap();
             startRealtimeTracking();
-        };
+        });
     </script>
-    
-    <!-- Google Maps API -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g&callback=initMap" async defer></script>
 </body>
 </html>
 
