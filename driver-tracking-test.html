@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>صفحة السائق - اختبار</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        
+        .info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: right;
+        }
+        
+        .info p {
+            margin: 10px 0;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .status.active {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        #debug {
+            display: none; /* مخفي للسائق */
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: right;
+            font-size: 12px;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚕 مرحباً بك</h1>
+        
+        <div class="info">
+            <p><strong>الحالة:</strong> <span class="status active" id="status">نشط</span></p>
+            <p><strong>الوقت:</strong> <span id="time"></span></p>
+            <p><strong>التاريخ:</strong> <span id="date"></span></p>
+        </div>
+        
+        <p style="color: #666; margin-top: 20px;">
+            نتمنى لك يوماً موفقاً! 🌟
+        </p>
+        
+        <!-- Debug info (hidden from driver) -->
+        <div id="debug">
+            <p><strong>Debug Info:</strong></p>
+            <p id="debugInfo">جاري التحميل...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Driver ID (في التطبيق الفعلي، سيأتي من تسجيل الدخول)
+        const driverId = 'TEST_DRIVER_001';
+        
+        // Update time display
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('time').textContent = now.toLocaleTimeString('ar-SA');
+            document.getElementById('date').textContent = now.toLocaleDateString('ar-SA');
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        // Track location
+        let trackingActive = false;
+        let watchId = null;
+
+        async function sendLocation(position) {
+            const locationData = {
+                driverId: driverId,
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                speed: position.coords.speed || 0,
+                heading: position.coords.heading || 0,
+                timestamp: serverTimestamp(),
+                localTime: new Date().toISOString()
+            };
+
+            try {
+                // Save to Firestore
+                await setDoc(doc(db, 'driverLocations', driverId), locationData);
+                
+                // Debug info (hidden)
+                const debugInfo = `
+                    ✅ تم إرسال الموقع<br>
+                    📍 Lat: ${position.coords.latitude.toFixed(6)}<br>
+                    📍 Lng: ${position.coords.longitude.toFixed(6)}<br>
+                    🎯 Accuracy: ${position.coords.accuracy.toFixed(0)}m<br>
+                    ⏰ ${new Date().toLocaleTimeString('ar-SA')}
+                `;
+                document.getElementById('debugInfo').innerHTML = debugInfo;
+                
+                console.log('Location sent:', locationData);
+            } catch (error) {
+                console.error('Error sending location:', error);
+                document.getElementById('debugInfo').innerHTML = `❌ خطأ: ${error.message}`;
+            }
+        }
+
+        function handleLocationError(error) {
+            console.error('Location error:', error);
+            document.getElementById('status').textContent = 'غير نشط';
+            document.getElementById('status').className = 'status inactive';
+            
+            let errorMsg = '';
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    errorMsg = 'تم رفض إذن الموقع';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    errorMsg = 'الموقع غير متاح';
+                    break;
+                case error.TIMEOUT:
+                    errorMsg = 'انتهت مهلة الحصول على الموقع';
+                    break;
+                default:
+                    errorMsg = 'خطأ غير معروف';
+            }
+            
+            document.getElementById('debugInfo').innerHTML = `❌ ${errorMsg}`;
+        }
+
+        // Start tracking automatically
+        if ('geolocation' in navigator) {
+            // Request permission and start tracking
+            watchId = navigator.geolocation.watchPosition(
+                sendLocation,
+                handleLocationError,
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+            
+            trackingActive = true;
+            console.log('Tracking started automatically');
+            
+            // Also send location every 10 seconds
+            setInterval(() => {
+                navigator.geolocation.getCurrentPosition(sendLocation, handleLocationError);
+            }, 10000);
+        } else {
+            alert('المتصفح لا يدعم تحديد الموقع');
+            document.getElementById('status').textContent = 'غير مدعوم';
+            document.getElementById('status').className = 'status inactive';
+        }
+
+        // Show debug info if URL contains ?debug=true
+        if (window.location.search.includes('debug=true')) {
+            document.getElementById('debug').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
+

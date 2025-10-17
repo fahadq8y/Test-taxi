@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تتبع السائقين - اختبار</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: white;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .driver-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-right: 4px solid #667eea;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .driver-card:hover {
+            transform: translateX(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .driver-card.active {
+            background: #e7f3ff;
+            border-right-color: #28a745;
+        }
+        
+        .driver-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .driver-info {
+            font-size: 14px;
+            color: #666;
+            margin: 5px 0;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        
+        .status-badge.online {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-badge.offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        
+        .refresh-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗺️ تتبع السائقين - نسخة تجريبية</h1>
+        <p>عرض مواقع السائقين في الوقت الفعلي</p>
+    </div>
+    
+    <div class="container">
+        <div class="sidebar">
+            <button class="refresh-btn" onclick="loadDrivers()">🔄 تحديث</button>
+            <div id="driversList">
+                <div class="loading">جاري تحميل السائقين...</div>
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getFirestore, collection, onSnapshot, query } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let map;
+        let markers = {};
+        let drivers = {};
+
+        // Initialize Google Map
+        function initMap() {
+            // Default center (Kuwait)
+            const center = { lat: 29.3759, lng: 47.9774 };
+            
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 12,
+                center: center,
+                mapTypeControl: true,
+                streetViewControl: false,
+                fullscreenControl: true,
+                styles: [
+                    {
+                        featureType: 'poi',
+                        elementType: 'labels',
+                        stylers: [{ visibility: 'off' }]
+                    }
+                ]
+            });
+        }
+
+        // Add or update driver marker
+        function updateDriverMarker(driverData) {
+            const position = {
+                lat: driverData.latitude,
+                lng: driverData.longitude
+            };
+
+            if (markers[driverData.driverId]) {
+                // Update existing marker
+                markers[driverData.driverId].setPosition(position);
+            } else {
+                // Create new marker
+                const marker = new google.maps.Marker({
+                    position: position,
+                    map: map,
+                    title: driverData.driverId,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 10,
+                        fillColor: '#667eea',
+                        fillOpacity: 1,
+                        strokeColor: 'white',
+                        strokeWeight: 2
+                    },
+                    animation: google.maps.Animation.DROP
+                });
+
+                // Info window
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `
+                        <div style="padding: 10px; text-align: right; direction: rtl;">
+                            <h3 style="margin: 0 0 10px 0; color: #667eea;">🚕 ${driverData.driverId}</h3>
+                            <p style="margin: 5px 0;"><strong>الوقت:</strong> ${new Date(driverData.localTime).toLocaleTimeString('ar-SA')}</p>
+                            <p style="margin: 5px 0;"><strong>الدقة:</strong> ${driverData.accuracy.toFixed(0)} متر</p>
+                            <p style="margin: 5px 0;"><strong>السرعة:</strong> ${(driverData.speed * 3.6).toFixed(1)} كم/س</p>
+                        </div>
+                    `
+                });
+
+                marker.addListener('click', () => {
+                    // Close all other info windows
+                    Object.values(markers).forEach(m => {
+                        if (m.infoWindow) m.infoWindow.close();
+                    });
+                    infoWindow.open(map, marker);
+                });
+
+                marker.infoWindow = infoWindow;
+                markers[driverData.driverId] = marker;
+            }
+
+            // Center map on first driver
+            if (Object.keys(markers).length === 1) {
+                map.setCenter(position);
+            }
+        }
+
+        // Update drivers list
+        function updateDriversList() {
+            const driversList = document.getElementById('driversList');
+            
+            if (Object.keys(drivers).length === 0) {
+                driversList.innerHTML = '<div class="loading">لا توجد بيانات حالياً</div>';
+                return;
+            }
+
+            driversList.innerHTML = '';
+            
+            Object.values(drivers).forEach(driver => {
+                const lastUpdate = new Date(driver.localTime);
+                const timeDiff = Date.now() - lastUpdate.getTime();
+                const isOnline = timeDiff < 60000; // Online if updated in last minute
+
+                const card = document.createElement('div');
+                card.className = `driver-card ${isOnline ? 'active' : ''}`;
+                card.innerHTML = `
+                    <h3>🚕 ${driver.driverId}</h3>
+                    <div class="driver-info">📍 Lat: ${driver.latitude.toFixed(6)}</div>
+                    <div class="driver-info">📍 Lng: ${driver.longitude.toFixed(6)}</div>
+                    <div class="driver-info">🎯 الدقة: ${driver.accuracy.toFixed(0)} متر</div>
+                    <div class="driver-info">🚗 السرعة: ${(driver.speed * 3.6).toFixed(1)} كم/س</div>
+                    <div class="driver-info">⏰ ${lastUpdate.toLocaleTimeString('ar-SA')}</div>
+                    <span class="status-badge ${isOnline ? 'online' : 'offline'}">
+                        ${isOnline ? '🟢 نشط' : '🔴 غير نشط'}
+                    </span>
+                `;
+                
+                card.onclick = () => {
+                    const position = { lat: driver.latitude, lng: driver.longitude };
+                    map.setCenter(position);
+                    map.setZoom(15);
+                    if (markers[driver.driverId]) {
+                        google.maps.event.trigger(markers[driver.driverId], 'click');
+                    }
+                };
+                
+                driversList.appendChild(card);
+            });
+        }
+
+        // Listen to real-time updates
+        function startRealtimeTracking() {
+            const q = query(collection(db, 'driverLocations'));
+            
+            onSnapshot(q, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    const driverData = change.doc.data();
+                    
+                    if (change.type === 'added' || change.type === 'modified') {
+                        drivers[driverData.driverId] = driverData;
+                        updateDriverMarker(driverData);
+                    } else if (change.type === 'removed') {
+                        delete drivers[driverData.driverId];
+                        if (markers[driverData.driverId]) {
+                            markers[driverData.driverId].setMap(null);
+                            delete markers[driverData.driverId];
+                        }
+                    }
+                });
+                
+                updateDriversList();
+            });
+        }
+
+        // Make loadDrivers global
+        window.loadDrivers = function() {
+            updateDriversList();
+        };
+
+        // Initialize when Google Maps is loaded
+        window.initMap = function() {
+            initMap();
+            startRealtimeTracking();
+        };
+    </script>
+    
+    <!-- Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g&callback=initMap" async defer></script>
+</body>
+</html>
+
