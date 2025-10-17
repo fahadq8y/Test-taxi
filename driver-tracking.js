@@ -10,11 +10,18 @@ function initializeTracking() {
     const driverId = sessionStorage.getItem('driverId');
     if (!driverId) {
         console.warn('No driver ID available yet');
+        setTimeout(initializeTracking, 1000); // Retry after 1 second
         return;
     }
     
     console.log('Initializing tracking for driver:', driverId);
     setupTrackingUI();
+    
+    // Start tracking automatically after a short delay
+    setTimeout(() => {
+        startTracking();
+        console.log('Auto-started tracking');
+    }, 500);
 }
 
 // Setup tracking UI
@@ -33,7 +40,13 @@ function setupTrackingUI() {
     // Initialize UI
     trackingIndicator.classList.add('inactive');
     
-    // Button event listeners
+    // Hide start/stop buttons since tracking is automatic
+    const controlsDiv = document.querySelector('.tracking-controls');
+    if (controlsDiv) {
+        controlsDiv.style.display = 'none';
+    }
+    
+    // Button event listeners (kept for potential manual control)
     startBtn.addEventListener('click', startTracking);
     stopBtn.addEventListener('click', stopTracking);
     wakeLockBtn.addEventListener('click', toggleWakeLock);
