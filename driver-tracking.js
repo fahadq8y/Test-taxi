@@ -17,11 +17,48 @@ function initializeTracking() {
     console.log('Initializing tracking for driver:', driverId);
     setupTrackingUI();
     
-    // Start tracking automatically after a short delay
-    setTimeout(() => {
-        startTracking();
-        console.log('Auto-started tracking');
-    }, 500);
+    // Request location permission and start tracking
+    requestLocationAndStart();
+}
+
+// Request location permission and start tracking
+function requestLocationAndStart() {
+    if (!('geolocation' in navigator)) {
+        alert('المتصفح لا يدعم تحديد الموقع');
+        return;
+    }
+    
+    console.log('Requesting location permission...');
+    
+    // Request permission by getting current position first
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            console.log('Location permission granted!');
+            // Permission granted, start tracking
+            setTimeout(() => {
+                startTracking();
+                console.log('Auto-started tracking after permission granted');
+            }, 500);
+        },
+        (error) => {
+            console.error('Location permission denied or error:', error);
+            // Show manual activation button
+            showManualActivation();
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        }
+    );
+}
+
+// Show manual activation button if auto-start fails
+function showManualActivation() {
+    const statusText = document.getElementById('trackingStatusText');
+    if (statusText) {
+        statusText.innerHTML = 'يتطلب تفعيل يدوي<br><button onclick="requestLocationAndStart()" style="margin-top:10px;padding:10px 20px;background:#10b981;color:white;border:none;border-radius:5px;cursor:pointer;">🚀 تفعيل التتبع</button>';
+    }
 }
 
 // Setup tracking UI
@@ -40,7 +77,7 @@ function setupTrackingUI() {
     // Initialize UI
     trackingIndicator.classList.add('inactive');
     
-    // Hide start/stop buttons since tracking is automatic
+    // Keep controls hidden initially
     const controlsDiv = document.querySelector('.tracking-controls');
     if (controlsDiv) {
         controlsDiv.style.display = 'none';
