@@ -631,40 +631,15 @@
                     </div>
                 
         <!-- GPS Tracking -->
-        <div class="card tracking-card">
+        <div class="card">
             <h2>📍 التتبع المباشر</h2>
             
-            <!-- Tracking Status -->
-            <div class="tracking-status">
-                <div class="tracking-indicator" id="trackingIndicator"></div>
-                <div>
-                    <div style="font-size: 1.2rem; font-weight: 600;" id="trackingStatusText">غير نشط</div>
-                    <div style="opacity: 0.8; font-size: 0.9rem;">حالة التتبع</div>
-                </div>
-            </div>
-
-            <!-- Wake Lock Button -->
-            <button class="wake-lock-btn" id="wakeLockBtn">
-                🔒 منع الشاشة من الإغلاق
-            </button>
-
-            <!-- Tracking Info -->
-            <div class="tracking-info">
-                <div class="tracking-info-item">
-                    <span class="tracking-info-label">آخر تحديث:</span>
-                    <span class="tracking-info-value" id="lastUpdate">-</span>
-                </div>
-                <div class="tracking-info-item">
-                    <span class="tracking-info-label">الموقع:</span>
-                    <span class="tracking-info-value" id="currentLocation">-</span>
-                </div>
-                <div class="tracking-info-item">
-                    <span class="tracking-info-label">السرعة:</span>
-                    <span class="tracking-info-value" id="currentSpeed">-</span>
-                </div>
-                <div class="tracking-info-item">
-                    <span class="tracking-info-label">الدقة:</span>
-                    <span class="tracking-info-value" id="accuracy">-</span>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="value" id="trackingStatusText" style="display: flex; align-items: center; gap: 0.5rem; font-size: 1.3rem;">
+                        <span class="tracking-indicator" id="trackingIndicator" style="width: 14px; height: 14px; border-radius: 50%; background: #ef4444;"></span>
+                        <span>غير نشط</span>
+                    </div>
                 </div>
             </div>
         </div>
