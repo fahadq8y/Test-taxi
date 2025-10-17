@@ -142,6 +142,43 @@
             border: 3px solid white;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
+        
+        /* Map type controls */
+        .map-type-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .map-type-btn {
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+            color: #666;
+        }
+        
+        .map-type-btn:hover {
+            background: #f0f0f0;
+            border-color: #667eea;
+        }
+        
+        .map-type-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
     </style>
 </head>
 <body>
@@ -159,6 +196,11 @@
         </div>
         
         <div class="map-container">
+            <div class="map-type-controls">
+                <button class="map-type-btn active" onclick="changeMapType('streets')">🗺️ الشوارع</button>
+                <button class="map-type-btn" onclick="changeMapType('satellite')">🛰️ الأقمار</button>
+                <button class="map-type-btn" onclick="changeMapType('hybrid')">🌐 هجين</button>
+            </div>
             <div id="map"></div>
         </div>
     </div>
@@ -187,6 +229,25 @@
         let map;
         let markers = {};
         let drivers = {};
+        let currentTileLayer = null;
+        let currentMapType = 'streets';
+        
+        // Map tile layers
+        const mapLayers = {
+            streets: {
+                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                attribution: '© OpenStreetMap contributors'
+            },
+            satellite: {
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                attribution: '© Esri, Maxar, Earthstar Geographics'
+            },
+            hybrid: {
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                attribution: '© Esri, Maxar, Earthstar Geographics',
+                labels: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+            }
+        };
 
         // Initialize Leaflet Map
         function initMap() {
@@ -195,12 +256,46 @@
             
             map = L.map('map').setView(center, 12);
             
-            // Add OpenStreetMap tiles
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors',
+            // Add default tile layer (streets)
+            currentTileLayer = L.tileLayer(mapLayers.streets.url, {
+                attribution: mapLayers.streets.attribution,
                 maxZoom: 19
             }).addTo(map);
         }
+        
+        // Change map type
+        window.changeMapType = function(type) {
+            if (currentMapType === type) return;
+            
+            // Remove current tile layer
+            if (currentTileLayer) {
+                map.removeLayer(currentTileLayer);
+            }
+            
+            // Add new tile layer
+            const layer = mapLayers[type];
+            currentTileLayer = L.tileLayer(layer.url, {
+                attribution: layer.attribution,
+                maxZoom: 19
+            }).addTo(map);
+            
+            // For hybrid, add labels layer on top
+            if (type === 'hybrid' && layer.labels) {
+                L.tileLayer(layer.labels, {
+                    attribution: '',
+                    maxZoom: 19,
+                    opacity: 0.7
+                }).addTo(map);
+            }
+            
+            currentMapType = type;
+            
+            // Update button states
+            document.querySelectorAll('.map-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        };
 
         // Add or update driver marker
         function updateDriverMarker(driverData) {
@@ -279,9 +374,13 @@
                     <span class="status-badge ${isOnline ? 'online' : 'offline'}">
                         ${isOnline ? '🟢 نشط' : '🔴 غير نشط'}
                     </span>
+                    <button onclick="window.location.href='driver-details.html?id=${driver.driverId}'" style="margin-top: 10px; width: 100%; padding: 8px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">📊 عرض التفاصيل</button>
                 `;
                 
-                card.onclick = () => {
+                card.onclick = (e) => {
+                    // Don't trigger if clicking the details button
+                    if (e.target.tagName === 'BUTTON') return;
+                    
                     const position = [driver.latitude, driver.longitude];
                     map.setView(position, 17);
                     if (markers[driver.driverId]) {

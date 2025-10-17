@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تفاصيل السائق</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+        }
+        
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .back-btn:hover {
+            background: white;
+            color: #667eea;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-card .icon {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        
+        .stat-card .label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .stat-card.online .value {
+            color: #28a745;
+        }
+        
+        .stat-card.offline .value {
+            color: #dc3545;
+        }
+        
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .map-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        
+        .map-section h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        #map {
+            width: 100%;
+            height: 500px;
+            border-radius: 8px;
+        }
+        
+        .timeline-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .timeline-section h2 {
+            margin-bottom: 15px;
+            color: #333;
+            position: sticky;
+            top: 0;
+            background: white;
+            padding-bottom: 10px;
+            z-index: 10;
+        }
+        
+        .timeline-item {
+            padding: 15px;
+            border-right: 3px solid #667eea;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            position: relative;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            right: -8px;
+            top: 20px;
+            width: 13px;
+            height: 13px;
+            background: #667eea;
+            border-radius: 50%;
+            border: 3px solid white;
+        }
+        
+        .timeline-item.moving {
+            border-right-color: #28a745;
+        }
+        
+        .timeline-item.moving::before {
+            background: #28a745;
+        }
+        
+        .timeline-item.stopped {
+            border-right-color: #ffc107;
+        }
+        
+        .timeline-item.stopped::before {
+            background: #ffc107;
+        }
+        
+        .timeline-time {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .timeline-status {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .timeline-details {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .map-type-controls {
+            position: absolute;
+            top: 70px;
+            left: 30px;
+            z-index: 1000;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .map-type-btn {
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+            color: #666;
+        }
+        
+        .map-type-btn:hover {
+            background: #f0f0f0;
+            border-color: #667eea;
+        }
+        
+        .map-type-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .filters {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .filters h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .filter-btn:hover {
+            border-color: #667eea;
+        }
+        
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 18px;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        @media (max-width: 1024px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1 id="driverName">🚕 تفاصيل السائق</h1>
+            <a href="admin-tracking-test.html" class="back-btn">← العودة للخريطة</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card" id="statusCard">
+                <div class="icon">🟢</div>
+                <div class="label">الحالة</div>
+                <div class="value" id="statusValue">نشط</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="icon">⏰</div>
+                <div class="label">ساعات العمل اليوم</div>
+                <div class="value" id="workHours">0:00</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="icon">📏</div>
+                <div class="label">المسافة المقطوعة</div>
+                <div class="value" id="totalDistance">0 كم</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="icon">🚗</div>
+                <div class="label">متوسط السرعة</div>
+                <div class="value" id="avgSpeed">0 كم/س</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="icon">⏸️</div>
+                <div class="label">عدد التوقفات</div>
+                <div class="value" id="stopsCount">0</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="icon">⏱️</div>
+                <div class="label">آخر نشاط</div>
+                <div class="value" id="lastActivity">--</div>
+            </div>
+        </div>
+        
+        <!-- Filters -->
+        <div class="filters">
+            <h3>📅 فلتر التاريخ</h3>
+            <div class="filter-group">
+                <button class="filter-btn active" onclick="filterByDate('today')">اليوم</button>
+                <button class="filter-btn" onclick="filterByDate('yesterday')">أمس</button>
+                <button class="filter-btn" onclick="filterByDate('week')">آخر 7 أيام</button>
+                <button class="filter-btn" onclick="filterByDate('month')">آخر 30 يوم</button>
+            </div>
+        </div>
+        
+        <!-- Map and Timeline -->
+        <div class="content-grid">
+            <div class="map-section">
+                <h2>🗺️ المسار</h2>
+                <div class="map-type-controls">
+                    <button class="map-type-btn active" onclick="changeMapType('streets')">🗺️ الشوارع</button>
+                    <button class="map-type-btn" onclick="changeMapType('satellite')">🛰️ الأقمار</button>
+                    <button class="map-type-btn" onclick="changeMapType('hybrid')">🌐 هجين</button>
+                </div>
+                <div id="map"></div>
+            </div>
+            
+            <div class="timeline-section">
+                <h2>📋 الجدول الزمني</h2>
+                <div id="timeline">
+                    <div class="loading">جاري تحميل البيانات...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getFirestore, collection, query, where, orderBy, getDocs, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Get driver ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const driverId = urlParams.get('id') || 'TEST_DRIVER_001';
+        
+        let map;
+        let currentTileLayer = null;
+        let currentMapType = 'streets';
+        let pathPolyline = null;
+        let locationHistory = [];
+        let currentFilter = 'today';
+        
+        // Map tile layers
+        const mapLayers = {
+            streets: {
+                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                attribution: '© OpenStreetMap contributors'
+            },
+            satellite: {
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                attribution: '© Esri, Maxar, Earthstar Geographics'
+            },
+            hybrid: {
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                attribution: '© Esri, Maxar, Earthstar Geographics',
+                labels: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+            }
+        };
+
+        // Initialize map
+        function initMap() {
+            const center = [29.3759, 47.9774];
+            
+            map = L.map('map').setView(center, 12);
+            
+            currentTileLayer = L.tileLayer(mapLayers.streets.url, {
+                attribution: mapLayers.streets.attribution,
+                maxZoom: 19
+            }).addTo(map);
+        }
+        
+        // Change map type
+        window.changeMapType = function(type) {
+            if (currentMapType === type) return;
+            
+            if (currentTileLayer) {
+                map.removeLayer(currentTileLayer);
+            }
+            
+            const layer = mapLayers[type];
+            currentTileLayer = L.tileLayer(layer.url, {
+                attribution: layer.attribution,
+                maxZoom: 19
+            }).addTo(map);
+            
+            if (type === 'hybrid' && layer.labels) {
+                L.tileLayer(layer.labels, {
+                    attribution: '',
+                    maxZoom: 19,
+                    opacity: 0.7
+                }).addTo(map);
+            }
+            
+            currentMapType = type;
+            
+            document.querySelectorAll('.map-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        };
+        
+        // Filter by date
+        window.filterByDate = function(period) {
+            currentFilter = period;
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            loadDriverHistory();
+        };
+        
+        // Calculate distance between two points (Haversine formula)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                     Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+        
+        // Get date range based on filter
+        function getDateRange() {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            
+            switch(currentFilter) {
+                case 'today':
+                    return { start: today, end: new Date() };
+                case 'yesterday':
+                    const yesterday = new Date(today);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    return { start: yesterday, end: today };
+                case 'week':
+                    const weekAgo = new Date(today);
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    return { start: weekAgo, end: new Date() };
+                case 'month':
+                    const monthAgo = new Date(today);
+                    monthAgo.setDate(monthAgo.getDate() - 30);
+                    return { start: monthAgo, end: new Date() };
+                default:
+                    return { start: today, end: new Date() };
+            }
+        }
+        
+        // Load driver history
+        async function loadDriverHistory() {
+            try {
+                // For now, we'll use real-time listener on current location
+                // In production, you'd query a locationHistory collection
+                const q = query(collection(db, 'driverLocations'), where('driverId', '==', driverId));
+                
+                onSnapshot(q, (snapshot) => {
+                    locationHistory = [];
+                    snapshot.forEach((doc) => {
+                        locationHistory.push(doc.data());
+                    });
+                    
+                    if (locationHistory.length > 0) {
+                        updateMap();
+                        updateTimeline();
+                        updateStatistics();
+                    } else {
+                        document.getElementById('timeline').innerHTML = '<div class="no-data">لا توجد بيانات لهذا السائق</div>';
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading history:', error);
+                document.getElementById('timeline').innerHTML = '<div class="no-data">حدث خطأ في تحميل البيانات</div>';
+            }
+        }
+        
+        // Update map with path
+        function updateMap() {
+            if (locationHistory.length === 0) return;
+            
+            // Remove old path
+            if (pathPolyline) {
+                map.removeLayer(pathPolyline);
+            }
+            
+            // Get latest location
+            const latest = locationHistory[locationHistory.length - 1];
+            const position = [latest.latitude, latest.longitude];
+            
+            // Center map on latest position
+            map.setView(position, 15);
+            
+            // Add marker for current position
+            const icon = L.divIcon({
+                className: 'custom-marker',
+                iconSize: [40, 40],
+                html: '<div style="width: 100%; height: 100%; background: #667eea; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-size: 20px;">🚕</div>'
+            });
+            
+            L.marker(position, { icon: icon })
+                .addTo(map)
+                .bindPopup(`
+                    <div style="padding: 10px; text-align: right; direction: rtl;">
+                        <h3 style="margin: 0 0 10px 0; color: #667eea;">🚕 ${driverId}</h3>
+                        <p style="margin: 5px 0;"><strong>الوقت:</strong> ${new Date(latest.localTime).toLocaleString('ar-SA')}</p>
+                        <p style="margin: 5px 0;"><strong>السرعة:</strong> ${(latest.speed * 3.6).toFixed(1)} كم/س</p>
+                    </div>
+                `);
+        }
+        
+        // Update timeline
+        function updateTimeline() {
+            const timelineEl = document.getElementById('timeline');
+            
+            if (locationHistory.length === 0) {
+                timelineEl.innerHTML = '<div class="no-data">لا توجد بيانات</div>';
+                return;
+            }
+            
+            timelineEl.innerHTML = '';
+            
+            locationHistory.forEach((location, index) => {
+                const time = new Date(location.localTime);
+                const speed = (location.speed * 3.6).toFixed(1);
+                const isMoving = location.speed > 0.5;
+                
+                const item = document.createElement('div');
+                item.className = `timeline-item ${isMoving ? 'moving' : 'stopped'}`;
+                item.innerHTML = `
+                    <div class="timeline-time">${time.toLocaleTimeString('ar-SA')}</div>
+                    <div class="timeline-status">
+                        ${isMoving ? '🚗 في حركة' : '⏸️ متوقف'}
+                    </div>
+                    <div class="timeline-details">
+                        📍 ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}<br>
+                        🚗 السرعة: ${speed} كم/س<br>
+                        🎯 الدقة: ${location.accuracy.toFixed(0)} متر
+                    </div>
+                `;
+                
+                timelineEl.appendChild(item);
+            });
+        }
+        
+        // Update statistics
+        function updateStatistics() {
+            if (locationHistory.length === 0) return;
+            
+            const latest = locationHistory[locationHistory.length - 1];
+            const lastTime = new Date(latest.localTime);
+            const now = new Date();
+            const timeDiff = now - lastTime;
+            const isOnline = timeDiff < 60000; // Online if updated in last minute
+            
+            // Status
+            const statusCard = document.getElementById('statusCard');
+            const statusValue = document.getElementById('statusValue');
+            if (isOnline) {
+                statusCard.classList.add('online');
+                statusCard.classList.remove('offline');
+                statusCard.querySelector('.icon').textContent = '🟢';
+                statusValue.textContent = 'نشط';
+            } else {
+                statusCard.classList.add('offline');
+                statusCard.classList.remove('online');
+                statusCard.querySelector('.icon').textContent = '🔴';
+                statusValue.textContent = 'غير نشط';
+            }
+            
+            // Last activity
+            const minutes = Math.floor(timeDiff / 60000);
+            if (minutes < 1) {
+                document.getElementById('lastActivity').textContent = 'الآن';
+            } else if (minutes < 60) {
+                document.getElementById('lastActivity').textContent = `منذ ${minutes} دقيقة`;
+            } else {
+                const hours = Math.floor(minutes / 60);
+                document.getElementById('lastActivity').textContent = `منذ ${hours} ساعة`;
+            }
+            
+            // Calculate total distance
+            let totalDistance = 0;
+            for (let i = 1; i < locationHistory.length; i++) {
+                const prev = locationHistory[i-1];
+                const curr = locationHistory[i];
+                totalDistance += calculateDistance(
+                    prev.latitude, prev.longitude,
+                    curr.latitude, curr.longitude
+                );
+            }
+            document.getElementById('totalDistance').textContent = totalDistance.toFixed(1) + ' كم';
+            
+            // Average speed
+            const speeds = locationHistory.map(l => l.speed * 3.6).filter(s => s > 0);
+            const avgSpeed = speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
+            document.getElementById('avgSpeed').textContent = avgSpeed.toFixed(1) + ' كم/س';
+            
+            // Stops count
+            const stops = locationHistory.filter(l => l.speed < 0.5).length;
+            document.getElementById('stopsCount').textContent = stops;
+            
+            // Work hours (simplified - from first to last record)
+            if (locationHistory.length > 1) {
+                const first = new Date(locationHistory[0].localTime);
+                const last = new Date(locationHistory[locationHistory.length - 1].localTime);
+                const workMs = last - first;
+                const hours = Math.floor(workMs / 3600000);
+                const minutes = Math.floor((workMs % 3600000) / 60000);
+                document.getElementById('workHours').textContent = `${hours}:${minutes.toString().padStart(2, '0')}`;
+            }
+            
+            // Update page title
+            document.getElementById('driverName').textContent = `🚕 ${driverId}`;
+        }
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            initMap();
+            loadDriverHistory();
+        });
+    </script>
+</body>
+</html>
+
