@@ -84,9 +84,9 @@ function setupTrackingUI() {
     }
     
     // Button event listeners (kept for potential manual control)
-    startBtn.addEventListener('click', startTracking);
-    stopBtn.addEventListener('click', stopTracking);
-    wakeLockBtn.addEventListener('click', toggleWakeLock);
+    if (startBtn) startBtn.addEventListener('click', startTracking);
+    if (stopBtn) stopBtn.addEventListener('click', stopTracking);
+    if (wakeLockBtn) wakeLockBtn.addEventListener('click', toggleWakeLock);
     
     // Re-acquire wake lock when page becomes visible
     document.addEventListener('visibilitychange', async () => {
