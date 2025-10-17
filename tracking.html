@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تتبع السائقين - نظام إدارة التاكسي</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: white;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .driver-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-right: 4px solid #667eea;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .driver-card:hover {
+            transform: translateX(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .driver-card.active {
+            background: #e7f3ff;
+            border-right-color: #28a745;
+        }
+        
+        .driver-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .driver-info {
+            font-size: 14px;
+            color: #666;
+            margin: 5px 0;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        
+        .status-badge.online {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-badge.offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        
+        .refresh-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        /* Custom marker style */
+        .custom-marker {
+            background: #667eea;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        /* Map type controls */
+        .map-type-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .map-type-btn {
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+            color: #666;
+        }
+        
+        .map-type-btn:hover {
+            background: #f0f0f0;
+            border-color: #667eea;
+        }
+        
+        .map-type-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗺️ تتبع السائقين - نسخة تجريبية</h1>
+        <p>عرض مواقع السائقين في الوقت الفعلي</p>
+    </div>
+    
+    <div class="container">
+        <div class="sidebar">
+            <button class="refresh-btn" onclick="loadDrivers()">🔄 تحديث</button>
+            <div id="driversList">
+                <div class="loading">جاري تحميل السائقين...</div>
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div class="map-type-controls">
+                <button class="map-type-btn active" onclick="changeMapType('streets')">🗺️ الشوارع</button>
+                <button class="map-type-btn" onclick="changeMapType('satellite')">🛰️ الأقمار</button>
+                <button class="map-type-btn" onclick="changeMapType('hybrid')">🌐 هجين</button>
+            </div>
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getFirestore, collection, onSnapshot, query } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let map;
+        let markers = {};
+        let drivers = {};
+        let driversInfo = {}; // Store driver names and info
+        let currentTileLayer = null;
+        let currentMapType = 'streets';
+        
+        // Map tile layers
+        const mapLayers = {
+            streets: {
+                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                attribution: '© OpenStreetMap contributors'
+            },
+            satellite: {
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                attribution: '© Esri, Maxar, Earthstar Geographics'
+            },
+            hybrid: {
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                attribution: '© Esri, Maxar, Earthstar Geographics',
+                labels: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+            }
+        };
+
+        // Initialize Leaflet Map
+        function initMap() {
+            // Default center (Kuwait)
+            const center = [29.3759, 47.9774];
+            
+            map = L.map('map').setView(center, 12);
+            
+            // Add default tile layer (streets)
+            currentTileLayer = L.tileLayer(mapLayers.streets.url, {
+                attribution: mapLayers.streets.attribution,
+                maxZoom: 19
+            }).addTo(map);
+        }
+        
+        // Change map type
+        window.changeMapType = function(type) {
+            if (currentMapType === type) return;
+            
+            // Remove current tile layer
+            if (currentTileLayer) {
+                map.removeLayer(currentTileLayer);
+            }
+            
+            // Add new tile layer
+            const layer = mapLayers[type];
+            currentTileLayer = L.tileLayer(layer.url, {
+                attribution: layer.attribution,
+                maxZoom: 19
+            }).addTo(map);
+            
+            // For hybrid, add labels layer on top
+            if (type === 'hybrid' && layer.labels) {
+                L.tileLayer(layer.labels, {
+                    attribution: '',
+                    maxZoom: 19,
+                    opacity: 0.7
+                }).addTo(map);
+            }
+            
+            currentMapType = type;
+            
+            // Update button states
+            document.querySelectorAll('.map-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        };
+
+        // Add or update driver marker
+        function updateDriverMarker(driverData) {
+            const position = [driverData.latitude, driverData.longitude];
+
+            if (markers[driverData.driverId]) {
+                // Update existing marker
+                markers[driverData.driverId].setLatLng(position);
+                markers[driverData.driverId].getPopup().setContent(getPopupContent(driverData));
+            } else {
+                // Create custom icon
+                const customIcon = L.divIcon({
+                    className: 'custom-marker',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15],
+                    popupAnchor: [0, -15],
+                    html: '<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">🚕</div>'
+                });
+
+                // Create new marker
+                const marker = L.marker(position, { icon: customIcon })
+                    .addTo(map)
+                    .bindPopup(getPopupContent(driverData));
+
+                markers[driverData.driverId] = marker;
+            }
+
+            // Center map on first driver
+            if (Object.keys(markers).length === 1) {
+                map.setView(position, 15);
+            }
+        }
+
+        // Get popup content
+        function getPopupContent(driverData) {
+            return `
+                <div style="padding: 10px; text-align: right; direction: rtl; min-width: 200px;">
+                    <h3 style="margin: 0 0 10px 0; color: #667eea;">🚕 ${getDriverName(driverData.driverId)}</h3>
+                    <p style="margin: 5px 0;"><strong>الوقت:</strong> ${new Date(driverData.localTime).toLocaleTimeString('ar-SA')}</p>
+                    <p style="margin: 5px 0;"><strong>الدقة:</strong> ${driverData.accuracy.toFixed(0)} متر</p>
+                    <p style="margin: 5px 0;"><strong>السرعة:</strong> ${(driverData.speed * 3.6).toFixed(1)} كم/س</p>
+                    <p style="margin: 5px 0; font-size: 11px; color: #666;">
+                        <strong>الموقع:</strong><br>
+                        Lat: ${driverData.latitude.toFixed(6)}<br>
+                        Lng: ${driverData.longitude.toFixed(6)}
+                    </p>
+                </div>
+            `;
+        }
+
+        // Update drivers list
+        function updateDriversList() {
+            const driversList = document.getElementById('driversList');
+            
+            if (Object.keys(drivers).length === 0) {
+                driversList.innerHTML = '<div class="loading">لا توجد بيانات حالياً</div>';
+                return;
+            }
+
+            driversList.innerHTML = '';
+            
+            Object.values(drivers).forEach(driver => {
+                const lastUpdate = new Date(driver.localTime);
+                const timeDiff = Date.now() - lastUpdate.getTime();
+                const isOnline = timeDiff < 60000; // Online if updated in last minute
+
+                const card = document.createElement('div');
+                card.className = `driver-card ${isOnline ? 'active' : ''}`;
+                card.innerHTML = `
+                    <h3>🚕 ${getDriverName(driver.driverId)}</h3>
+                    <div class="driver-info">📍 Lat: ${driver.latitude.toFixed(6)}</div>
+                    <div class="driver-info">📍 Lng: ${driver.longitude.toFixed(6)}</div>
+                    <div class="driver-info">🎯 الدقة: ${driver.accuracy.toFixed(0)} متر</div>
+                    <div class="driver-info">🚗 السرعة: ${(driver.speed * 3.6).toFixed(1)} كم/س</div>
+                    <div class="driver-info">⏰ ${lastUpdate.toLocaleTimeString('ar-SA')}</div>
+                    <span class="status-badge ${isOnline ? 'online' : 'offline'}">
+                        ${isOnline ? '🟢 نشط' : '🔴 غير نشط'}
+                    </span>
+                    <button onclick="window.location.href='driver-details.html?id=${driver.driverId}'" style="margin-top: 10px; width: 100%; padding: 8px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">📊 عرض التفاصيل</button>
+                `;
+                
+                card.onclick = (e) => {
+                    // Don't trigger if clicking the details button
+                    if (e.target.tagName === 'BUTTON') return;
+                    
+                    const position = [driver.latitude, driver.longitude];
+                    map.setView(position, 17);
+                    if (markers[driver.driverId]) {
+                        markers[driver.driverId].openPopup();
+                    }
+                };
+                
+                driversList.appendChild(card);
+            });
+        }
+
+        // Load drivers info from Firebase
+        async function loadDriversInfo() {
+            const driversRef = collection(db, 'drivers');
+            onSnapshot(driversRef, (snapshot) => {
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    driversInfo[data.employeeId] = {
+                        name: data.name,
+                        employeeId: data.employeeId,
+                        phone: data.phone
+                    };
+                });
+                console.log('Drivers info loaded:', driversInfo);
+            });
+        }
+        
+        // Get driver display name
+        function getDriverName(driverId) {
+            if (driversInfo[driverId]) {
+                return `${driversInfo[driverId].name} (${driverId})`;
+            }
+            return driverId;
+        }
+        
+        // Listen to real-time updates
+        function startRealtimeTracking() {
+            const q = query(collection(db, 'driverLocations'));
+            
+            onSnapshot(q, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    const driverData = change.doc.data();
+                    
+                    if (change.type === 'added' || change.type === 'modified') {
+                        drivers[driverData.driverId] = driverData;
+                        updateDriverMarker(driverData);
+                    } else if (change.type === 'removed') {
+                        delete drivers[driverData.driverId];
+                        if (markers[driverData.driverId]) {
+                            map.removeLayer(markers[driverData.driverId]);
+                            delete markers[driverData.driverId];
+                        }
+                    }
+                });
+                
+                updateDriversList();
+            });
+        }
+
+        // Make loadDrivers global
+        window.loadDrivers = function() {
+            updateDriversList();
+        };
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            initMap();
+            loadDriversInfo();
+            startRealtimeTracking();
+        });
+    </script>
+</body>
+</html>
+
