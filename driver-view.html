@@ -832,13 +832,27 @@
 
         // Check if user is logged in
         function checkLogin() {
-            driverId = sessionStorage.getItem('driverId');
+            // First, try to get driverId from URL parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const driverIdFromUrl = urlParams.get('driverId');
+            
+            if (driverIdFromUrl) {
+                // If driverId is in URL, use it and save to sessionStorage
+                driverId = driverIdFromUrl;
+                sessionStorage.setItem('driverId', driverId);
+                console.log('Driver ID loaded from URL:', driverId);
+            } else {
+                // Otherwise, try to get from sessionStorage
+                driverId = sessionStorage.getItem('driverId');
+            }
             
             if (!driverId) {
+                console.log('No driver ID found, redirecting to driver-login.html');
                 window.location.href = 'driver-login.html';
                 return false;
             }
             
+            console.log('Driver logged in with ID:', driverId);
             return true;
         }
 
