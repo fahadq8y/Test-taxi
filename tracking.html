@@ -399,9 +399,9 @@
             onSnapshot(driversRef, (snapshot) => {
                 snapshot.forEach((doc) => {
                     const data = doc.data();
-                    driversInfo[data.employeeId] = {
+                    driversInfo[data.employeeNumber] = {
                         name: data.name,
-                        employeeId: data.employeeId,
+                        employeeNumber: data.employeeNumber,
                         phone: data.phone
                     };
                 });
@@ -412,7 +412,7 @@
         // Get driver display name
         function getDriverName(driverId) {
             if (driversInfo[driverId]) {
-                return `${driversInfo[driverId].name} (${driverId})`;
+                return `${driversInfo[driverId].name} (${driversInfo[driverId].employeeNumber})`;
             }
             return driverId;
         }
