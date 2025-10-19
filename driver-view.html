@@ -1000,7 +1000,7 @@
 
             // Always refresh driver data from Firebase to get latest updates
             try {
-                const driverDoc = await getDoc(doc(db, 'drivers', driverId));
+                const driverDoc = await getDoc(doc(db, 'users', driverId));
                 if (driverDoc.exists()) {
                     driverData = { id: driverId, ...driverDoc.data() };
                     // Update sessionStorage with fresh data
@@ -1180,7 +1180,7 @@
                 }
 
                 // Update driver data
-                await updateDoc(doc(db, 'drivers', driverId), updateData);
+                await updateDoc(doc(db, 'users', driverId), updateData);
 
                 // Update car data if driver has assigned car
                 if (driverData.assignedCar) {
