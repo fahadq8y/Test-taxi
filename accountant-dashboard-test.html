@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار لوحة المحاسب</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f3f4f6;
+            padding: 2rem;
+            direction: rtl;
+        }
+        .log {
+            background: #1f2937;
+            color: #10b981;
+            padding: 1rem;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>اختبار لوحة المحاسب</h1>
+    <div class="log" id="log"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const logDiv = document.getElementById('log');
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString('ar-SA');
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        log('=== بدء الاختبار ===');
+
+        // Check authentication
+        onAuthStateChanged(auth, async (user) => {
+            log('onAuthStateChanged triggered');
+            
+            if (!user) {
+                log('❌ المستخدم غير مسجل دخول - إعادة توجيه إلى index.html');
+                localStorage.clear();
+                // window.location.href = 'index.html';
+                return;
+            }
+            
+            log(`✅ المستخدم مسجل دخول: ${user.email}`);
+            
+            let userRole = localStorage.getItem('userRole');
+            log(`localStorage userRole: ${userRole}`);
+            
+            // If userRole is not in localStorage, fetch it from Firestore
+            if (!userRole) {
+                log('⚠️ userRole غير موجود في localStorage - جلب من Firestore...');
+                try {
+                    log(`جلب بيانات المستخدم: users/${user.uid}`);
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        log(`✅ تم جلب البيانات من Firestore`);
+                        log(`   - الاسم: ${userData.name}`);
+                        log(`   - الدور: ${userData.role}`);
+                        
+                        userRole = userData.role;
+                        localStorage.setItem('userRole', userData.role);
+                        localStorage.setItem('userName', userData.name);
+                        localStorage.setItem('userId', user.uid);
+                        log('✅ تم حفظ البيانات في localStorage');
+                    } else {
+                        log('❌ بيانات المستخدم غير موجودة في Firestore');
+                        localStorage.clear();
+                        // window.location.href = 'index.html';
+                        return;
+                    }
+                } catch (error) {
+                    log(`❌ خطأ في جلب بيانات المستخدم: ${error.message}`);
+                    console.error('Error fetching user data:', error);
+                    localStorage.clear();
+                    // window.location.href = 'index.html';
+                    return;
+                }
+            }
+            
+            log(`التحقق من الصلاحيات: userRole = ${userRole}`);
+            
+            // Check if user has accountant or admin role
+            if (userRole !== 'accountant' && userRole !== 'admin') {
+                log(`❌ الدور غير مسموح: ${userRole}`);
+                localStorage.clear();
+                // window.location.href = 'index.html';
+                return;
+            }
+            
+            log(`✅ الصلاحيات صحيحة - السماح بالدخول`);
+            log('=== نجح الاختبار ===');
+        });
+    </script>
+</body>
+</html>
+

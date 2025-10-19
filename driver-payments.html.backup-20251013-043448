@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دفعات السائق - نظام إدارة التاكسي</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .driver-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            text-align: center;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 1.1rem;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .renewal-notice {
+            background: linear-gradient(45deg, #ff9a56, #ff6b6b);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .form-container {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border: 2px solid #e9ecef;
+        }
+
+        .form-title {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .payment-note {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #1976d2;
+            display: none;
+        }
+
+        .submit-btn {
+            background: linear-gradient(45deg, #4caf50, #45a049);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .payments-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .payments-table th {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .payments-table td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .payments-table tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .amount.positive {
+            color: #4caf50;
+            font-weight: bold;
+        }
+
+        .amount.negative {
+            color: #f44336;
+            font-weight: bold;
+        }
+
+        .delete-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .delete-btn:hover {
+            background: #d32f2f;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+
+        /* Mobile Cards Styles */
+        .mobile-cards {
+            display: none;
+        }
+
+        .payment-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-right: 5px solid #667eea;
+        }
+
+        .payment-card.positive-border {
+            border-right-color: #28a745;
+        }
+
+        .payment-card.negative-border {
+            border-right-color: #dc3545;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .card-date {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .date-icon {
+            font-size: 1.2rem;
+        }
+
+        .card-amount {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .card-amount.positive {
+            color: #28a745;
+        }
+
+        .card-amount.negative {
+            color: #dc3545;
+        }
+
+        .card-body {
+            margin-bottom: 12px;
+        }
+
+        .card-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f8f9fa;
+        }
+
+        .card-label {
+            color: #666;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .card-value {
+            color: #333;
+            font-weight: 600;
+            text-align: left;
+        }
+
+        .type-badge {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: center;
+            padding-top: 10px;
+        }
+
+        .card-footer .delete-btn {
+            width: 100%;
+            max-width: 200px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .driver-info {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            /* Hide table, show cards on mobile */
+            .desktop-table {
+                display: none;
+            }
+
+            .mobile-cards {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 دفعات السائق</h1>
+            <div class="nav-buttons">
+                <a href="drivers-overview.html" class="nav-btn">🔙 العودة لجدول السائقين</a>
+                <a href="admin-dashboard.html" class="nav-btn">🏠 الرئيسية</a>
+            </div>
+        </div>
+
+        <!-- معلومات السائق -->
+        <div class="card">
+            <h2 style="text-align: center; margin-bottom: 20px; color: #333;">معلومات السائق</h2>
+            <div class="driver-info">
+                <div class="info-item">
+                    <div class="info-label">اسم السائق</div>
+                    <div class="info-value" id="driverName">جاري التحميل...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">رقم الهوية</div>
+                    <div class="info-value" id="driverIdNumber">جاري التحميل...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">رقم الجوال</div>
+                    <div class="info-value" id="driverPhone">جاري التحميل...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">آخر دفعة</div>
+                    <div class="info-value" id="lastPayment">جاري التحميل...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">إجمالي الدين</div>
+                    <div class="info-value" id="totalDebt">جاري التحميل...</div>
+                </div>
+            </div>
+            
+            <!-- تنبيه تجديد الإقامة -->
+            <div id="renewalNotice" class="renewal-notice" style="display: none;">
+                🔔 تجديد الإقامة المقرر: تم إضافة 30 دينار طلقائياً كدين على السائق عند انتهاء الإقامة سنوياً
+            </div>
+        </div>
+
+        <!-- نموذج إضافة دفعة جديدة -->
+        <div class="card">
+            <div class="form-container">
+                <h2 class="form-title">إضافة دفعة جديدة</h2>
+                <form id="paymentForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="paymentType">📋 نوع الدفعة</label>
+                            <select id="paymentType" required onchange="showPaymentNote()">
+                                <option value="">اختر نوع الدفعة</option>
+                                <option value="أجرة يومية">أجرة يومية</option>
+                                <option value="سداد مخالفة">سداد مخالفة</option>
+                                <option value="تحصيل مخالفة">تحصيل مخالفة</option>
+                                <option value="سداد رسوم إقامة">سداد رسوم إقامة</option>
+                                <option value="تحصيل رسوم إقامة">تحصيل رسوم إقامة</option>
+                                <option value="تحصيل رسوم إيداعات الرواتب">تحصيل رسوم إيداعات الرواتب</option>
+                                <option value="دين قديم">دين قديم</option>
+                            </select>
+                            <div id="paymentNote" class="payment-note"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="amount">💰 المبلغ (د.ك)</label>
+                            <input type="number" id="amount" step="0.001" min="0" required placeholder="0.000">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="paymentDate">📅 التاريخ</label>
+                            <input type="date" id="paymentDate" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description">📝 الوصف (اختياري)</label>
+                            <textarea id="description" rows="3" placeholder="وصف إضافي للدفعة..."></textarea>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-btn">إضافة الدفعة</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- تاريخ الدفعات -->
+        <div class="card">
+            <h2 style="text-align: center; margin-bottom: 20px; color: #333;">تاريخ الدفعات</h2>
+            
+            <!-- Desktop Table View -->
+            <table class="payments-table desktop-table">
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>النوع</th>
+                        <th>المبلغ</th>
+                        <th>الوصف</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="paymentsTableBody">
+                    <tr>
+                        <td colspan="5" class="loading">جاري تحميل تاريخ الدفعات...</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Mobile Cards View -->
+            <div class="mobile-cards" id="mobilePaymentsContainer">
+                <div class="no-data">جاري تحميل تاريخ الدفعات...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    
+    <!-- نظام الصلاحيات -->
+    <script src="user-permissions.js"></script>
+    <script src="driver-payments-permissions.js"></script>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Global variables
+        let currentDriverId = null;
+        let currentDriver = null;
+        let driverPayments = [];
+
+        // Get driver ID from URL
+        function getDriverIdFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('driverId');
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            if (!dateString) return 'غير محدد';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-GB');
+        }
+
+        // Calculate driver debt according to new accounting system
+        function calculateDriverDebt(driverId, payments) {
+            let debt = 0;
+            
+            payments.forEach(payment => {
+                const amount = parseFloat(payment.amount || 0);
+                
+                switch(payment.type) {
+                    case 'أجرة يومية':
+                        debt -= amount; // ينقص الدين
+                        break;
+                    case 'سداد مخالفة':
+                        debt += amount; // يزيد الدين
+                        break;
+                    case 'تحصيل مخالفة':
+                        debt -= amount; // ينقص الدين
+                        break;
+                    case 'سداد رسوم إقامة':
+                        debt += amount; // يزيد الدين
+                        break;
+                    case 'تحصيل رسوم إقامة':
+                        debt -= amount; // ينقص الدين
+                        break;
+                    case 'دين قديم':
+                        debt -= amount; // ينقص الدين
+                        break;
+                }
+            });
+            
+            return debt;
+        }
+
+        // Load driver data
+        async function loadDriverData() {
+            try {
+                const driverDoc = await db.collection('drivers').doc(currentDriverId).get();
+                if (driverDoc.exists) {
+                    currentDriver = { id: driverDoc.id, ...driverDoc.data() };
+                    
+                    // Update driver info display
+                    document.getElementById('driverName').textContent = currentDriver.name || 'غير محدد';
+                    document.getElementById('driverIdNumber').textContent = currentDriver.idNumber || currentDriver.civilId || 'غير محدد';
+                    document.getElementById('driverPhone').textContent = currentDriver.phone || currentDriver.phoneNumber || 'غير محدد';
+                } else {
+                    console.error('Driver not found');
+                    alert('السائق غير موجود');
+                    window.location.href = 'drivers-overview.html';
+                }
+            } catch (error) {
+                console.error('Error loading driver data:', error);
+                document.getElementById('driverName').textContent = 'خطأ في التحميل';
+                document.getElementById('driverIdNumber').textContent = 'خطأ في التحميل';
+                document.getElementById('driverPhone').textContent = 'خطأ في التحميل';
+            }
+        }
+
+        // Load driver payments
+        async function loadDriverPayments() {
+            try {
+                const paymentsSnapshot = await db.collection('driverPayments')
+                    .where('driverId', '==', currentDriverId)
+                    .get();
+                
+                driverPayments = [];
+                paymentsSnapshot.forEach(doc => {
+                    const paymentData = { id: doc.id, ...doc.data() };
+                    driverPayments.push(paymentData);
+                });
+                
+                // Sort by date (newest first)
+                driverPayments.sort((a, b) => {
+                    const dateA = new Date(a.date || a.createdAt?.toDate?.() || 0);
+                    const dateB = new Date(b.date || b.createdAt?.toDate?.() || 0);
+                    return dateB - dateA;
+                });
+                
+                displayPayments();
+                updateDriverDebt();
+            } catch (error) {
+                console.error('Error loading driver payments:', error);
+                const tbody = document.getElementById('paymentsTableBody');
+                tbody.innerHTML = '<tr><td colspan="5" class="no-data">خطأ في تحميل تاريخ الدفعات</td></tr>';
+            }
+        }
+
+        // Display payments in table
+        function displayPayments() {
+            const tbody = document.getElementById('paymentsTableBody');
+            const mobileContainer = document.getElementById('mobilePaymentsContainer');
+            
+            if (driverPayments.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="no-data">لا توجد دفعات مسجلة</td></tr>';
+                mobileContainer.innerHTML = '<div class="no-data">لا توجد دفعات مسجلة</div>';
+                return;
+            }
+            
+            // Desktop table view
+            tbody.innerHTML = '';
+            driverPayments.forEach(payment => {
+                const row = document.createElement('tr');
+                const isPositive = ['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم'].includes(payment.type);
+                const amountClass = isPositive ? 'positive' : 'negative';
+                const amountSign = isPositive ? '+' : '-';
+                
+                row.innerHTML = `
+                    <td>${formatDate(payment.date)}</td>
+                    <td>${payment.type || 'غير محدد'}</td>
+                    <td class="amount ${amountClass}">${amountSign}${parseFloat(payment.amount || 0).toFixed(3)} د.ك</td>
+                    <td>${payment.description || '-'}</td>
+                    <td><button class="delete-btn" onclick="deletePayment('${payment.id}')">حذف</button></td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Mobile cards view
+            mobileContainer.innerHTML = '';
+            driverPayments.forEach(payment => {
+                const isPositive = ['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم'].includes(payment.type);
+                const amountClass = isPositive ? 'positive' : 'negative';
+                const amountSign = isPositive ? '+' : '';
+                const borderClass = isPositive ? 'positive-border' : 'negative-border';
+                
+                const card = document.createElement('div');
+                card.className = `payment-card ${borderClass}`;
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-date">
+                            <span class="date-icon">📅</span>
+                            <span>${formatDate(payment.date)}</span>
+                        </div>
+                        <div class="card-amount ${amountClass}">
+                            ${amountSign}${parseFloat(payment.amount || 0).toFixed(3)} د.ك
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-row">
+                            <span class="card-label">🏷️ النوع:</span>
+                            <span class="card-value type-badge">${payment.type || 'غير محدد'}</span>
+                        </div>
+                        <div class="card-row">
+                            <span class="card-label">📝 الوصف:</span>
+                            <span class="card-value">${payment.description || '-'}</span>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="delete-btn" onclick="deletePayment('${payment.id}')">🗑️ حذف</button>
+                    </div>
+                `;
+                mobileContainer.appendChild(card);
+            });
+            
+            // تحديث أزرار الحذف بناءً على الصلاحيات
+            updatePaymentDeleteButtonsVisibility();
+        }
+
+        // Update driver debt
+        function updateDriverDebt() {
+            if (!currentDriver) return;
+            
+            const debt = calculateDriverDebt(currentDriverId, driverPayments);
+            document.getElementById('totalDebt').textContent = debt.toFixed(3) + ' د.ك';
+            
+            // Update last payment
+            if (driverPayments.length > 0) {
+                const lastPayment = driverPayments[0];
+                document.getElementById('lastPayment').textContent = formatDate(lastPayment.date);
+            } else {
+                document.getElementById('lastPayment').textContent = 'لا توجد دفعات';
+            }
+        }
+
+        // Show payment note
+        function showPaymentNote() {
+            const paymentType = document.getElementById('paymentType').value;
+            const noteDiv = document.getElementById('paymentNote');
+            
+            const notes = {
+                'أجرة يومية': 'يزيد الرصيد البنكي، ينقص دين السائق',
+                'سداد مخالفة': 'ينقص الرصيد البنكي، يزيد دين السائق، يزيد ديون السائقين',
+                'تحصيل مخالفة': 'يزيد الرصيد البنكي، ينقص دين السائق، ينقص ديون السائقين',
+                'سداد رسوم إقامة': 'ينقص الرصيد البنكي، يزيد دين السائق، يزيد ديون السائقين',
+                'تحصيل رسوم إقامة': 'يزيد الرصيد البنكي، ينقص دين السائق، ينقص ديون السائقين',
+                'دين قديم': 'يزيد الرصيد البنكي، ينقص دين السائق'
+            };
+            
+            if (notes[paymentType]) {
+                noteDiv.textContent = notes[paymentType];
+                noteDiv.style.display = 'block';
+            } else {
+                noteDiv.style.display = 'none';
+            }
+        }
+
+        // Check residence renewal
+        async function checkResidenceRenewal() {
+            if (!currentDriver || !currentDriver.residenceExpiryDate) return;
+            
+            const expiryDate = new Date(currentDriver.residenceExpiryDate);
+            const today = new Date();
+            
+            if (expiryDate <= today) {
+                // Add automatic residence renewal debt
+                const renewalData = {
+                    driverId: currentDriverId,
+                    driverName: currentDriver.name,
+                    type: 'سداد رسوم إقامة',
+                    amount: 30,
+                    date: today.toISOString().split('T')[0],
+                    description: 'تجديد إقامة تلقائي',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                await db.collection('driverPayments').add(renewalData);
+                
+                // Update residence expiry date (add one year)
+                const newExpiryDate = new Date(expiryDate);
+                newExpiryDate.setFullYear(newExpiryDate.getFullYear() + 1);
+                
+                await db.collection('drivers').doc(currentDriverId).update({
+                    residenceExpiryDate: newExpiryDate.toISOString().split('T')[0]
+                });
+                
+                document.getElementById('renewalNotice').style.display = 'block';
+            }
+        }
+
+        // Delete payment
+        async function deletePayment(paymentId) {
+            // التحقق من الصلاحيات قبل الحذف
+            const hasPermission = await verifyPaymentDeletePermission(paymentId);
+            if (!hasPermission) {
+                return;
+            }
+            
+            if (!confirm('هل أنت متأكد من حذف هذه الدفعة؟')) return;
+            
+            try {
+                await db.collection('driverPayments').doc(paymentId).delete();
+                await loadDriverPayments();
+                alert('تم حذف الدفعة بنجاح!');
+            } catch (error) {
+                console.error('Error deleting payment:', error);
+                alert('حدث خطأ أثناء حذف الدفعة');
+            }
+        }
+
+        // Handle form submission
+        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // حماية من الضغط المزدوج
+            const submitBtn = e.target.querySelector('.submit-btn');
+            if (submitBtn.disabled) return;
+            
+            submitBtn.disabled = true;
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'جاري الإضافة...';
+            
+            const paymentType = document.getElementById('paymentType').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const paymentDate = document.getElementById('paymentDate').value;
+            const description = document.getElementById('description').value;
+            
+            try {
+                const paymentData = {
+                    driverId: currentDriverId,
+                    driverName: currentDriver.name,
+                    type: paymentType,
+                    amount: amount,
+                    date: paymentDate,
+                    description: description,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                await db.collection('driverPayments').add(paymentData);
+                
+                // ملاحظة: الإيرادات تُحسب تلقائياً من driverPayments
+                // لا حاجة لإضافتها إلى جدول revenues لتجنب التسجيل المضاعف
+                
+                // Check for automatic residence renewal
+                await checkResidenceRenewal();
+                
+                // Reload data and reset form
+                await loadDriverPayments();
+                document.getElementById('paymentForm').reset();
+                document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
+                document.getElementById('paymentNote').style.display = 'none';
+                
+                alert('تم إضافة الدفعة بنجاح!');
+            } catch (error) {
+                console.error('Error adding payment:', error);
+                alert('حدث خطأ أثناء إضافة الدفعة');
+            } finally {
+                // إعادة تفعيل الزر
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        });
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async () => {
+            currentDriverId = getDriverIdFromUrl();
+            
+            if (!currentDriverId) {
+                alert('معرف السائق مفقود');
+                window.location.href = 'drivers-overview.html';
+                return;
+            }
+            
+            // Set default date
+            document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
+            
+            // Load data
+            await loadDriverData();
+            await loadDriverPayments();
+            await checkResidenceRenewal();
+        });
+    </script>
+</body>
+</html>
+

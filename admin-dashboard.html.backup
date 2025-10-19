@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم المدير - نظام إدارة التاكسي</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>جاري تحميل البيانات...</p>
+        </div>
+
+        <div id="dashboard" style="display: none;">
+            <!-- Header -->
+            <div class="header">
+                <h1>🚕 لوحة تحكم المدير</h1>
+                <p>مرحباً بك في نظام إدارة التاكسي - <span id="userName">المدير</span></p>
+                <div class="nav-buttons">
+                    <a href="drivers-overview.html" class="nav-btn">👥 السائقين</a>
+                    <a href="revenues.html" class="nav-btn">💰 الإيرادات</a>
+                    <a href="expenses.html" class="nav-btn">💸 المصروفات</a>
+                    <a href="balance-display.html" class="nav-btn">📊 الميزانية</a>
+                    <button class="nav-btn" onclick="logout()">تسجيل الخروج</button>
+                </div>
+            </div>
+
+            <!-- Balance Section -->
+            <div class="balance-section">
+                <h3>📊 الإحصائيات السريعة</h3>
+                <div class="balance-grid">
+                    <div class="balance-item clickable" onclick="window.location.href='cars.html'">
+                        <div class="balance-label">إجمالي السيارات</div>
+                        <div class="balance-amount" id="totalCars">0</div>
+                    </div>
+                    <div class="balance-item clickable" onclick="window.location.href='drivers-overview.html'">
+                        <div class="balance-label">السائقين النشطين</div>
+                        <div class="balance-amount" id="activeDrivers">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- الإجراءات السريعة -->
+            <div class="form-section">
+                <h3>⚡ الإجراءات السريعة</h3>
+                <div class="quick-actions">
+                <a href="drivers.html" class="action-btn">
+                    <div class="action-icon">👨‍💼</div>
+                    <span>إدارة السائقين</span>
+                </a>
+                <a href="drivers-overview.html" class="action-btn">
+                    <div class="action-icon">📊</div>
+                    <span>جدول السائقين الشامل</span>
+                </a>
+                <a href="cars.html" class="action-btn">
+                    <div class="action-icon">🚗</div>
+                    <span>إدارة السيارات</span>
+                </a>
+                <a href="revenues.html" class="action-btn">
+                    <div class="action-icon">💰</div>
+                    <span>الإيرادات</span>
+                </a>
+                <a href="expenses.html" class="action-btn">
+                    <div class="action-icon">📊</div>
+                    <span>المصروفات</span>
+                </a>
+                <a href="reports.html" class="action-btn">
+                    <div class="action-icon">📈</div>
+                    <span>التقارير</span>
+                </a>
+                <a href="notifications.html" class="action-btn">
+                    <div class="action-icon">🔔</div>
+                    <span>الإشعارات</span>
+                </a>
+                <a href="driver-payments.html" class="action-btn">
+                    <div class="action-icon">💵</div>
+                    <span>دفعات السائقين</span>
+                </a>
+                <a href="accountant-dashboard.html" class="action-btn">
+                    <div class="action-icon">📋</div>
+                    <span>لوحة المحاسب</span>
+                </a>
+                <a href="user-management.html" class="action-btn">
+                    <div class="action-icon">👥</div>
+                    <span>إدارة المستخدمين</span>
+                </a>
+                </div>
+            </div>
+
+            <!-- التنبيهات والتحذيرات -->
+            <div class="revenue-history">
+                <div class="table-header">
+                    <h3>🔔 التنبيهات والتحذيرات</h3>
+                    <span id="alertsCount">0 تنبيه</span>
+                </div>
+                <div id="alertsList">
+                    <!-- سيتم ملء التنبيهات هنا -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, query, where, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Check authentication
+        auth.onAuthStateChanged((user) => {
+            if (!user || localStorage.getItem('userRole') !== 'admin') {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            document.getElementById('userName').textContent = `مرحباً، ${localStorage.getItem('userName') || 'المدير'}`;
+            loadDashboardData();
+        });
+
+        // Load dashboard data
+        async function loadDashboardData() {
+            try {
+                // Load statistics
+                await Promise.all([
+                    loadStats(),
+                    loadAlerts()
+                ]);
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                document.getElementById('loading').innerHTML = '<p>حدث خطأ في تحميل البيانات</p>';
+            }
+        }
+
+        // Load statistics
+        async function loadStats() {
+            try {
+                // Get total cars
+                const carsSnapshot = await getDocs(collection(db, 'cars'));
+                document.getElementById('totalCars').textContent = carsSnapshot.size;
+
+                // Get active drivers
+                const driversQuery = query(collection(db, 'drivers'), where('contractStatus', '==', 'active'));
+                const driversSnapshot = await getDocs(driversQuery);
+                document.getElementById('activeDrivers').textContent = driversSnapshot.size;
+
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // Load alerts
+        async function loadAlerts() {
+            try {
+                const alerts = [];
+                const today = new Date();
+
+                // Check document expiry alerts
+                const driversSnapshot = await getDocs(collection(db, 'drivers'));
+                driversSnapshot.forEach(doc => {
+                    const driver = doc.data();
+                    const driverName = driver.name;
+
+                    // Check each document type
+                    const documents = [
+                        { field: 'carRegistrationExpiry', name: 'دفتر السيارة', warningDays: 30 },
+                        { field: 'residenceExpiry', name: 'الإقامة', warningDays: 30 },
+                        { field: 'licenseExpiry', name: 'الرخصة', warningDays: 30 },
+                        { field: 'permitExpiry', name: 'التصريح', warningDays: 30 },
+                        { field: 'passportExpiry', name: 'جواز السفر', warningDays: 425 } // سنة وشهرين
+                    ];
+
+                    documents.forEach(docType => {
+                        if (driver[docType.field]) {
+                            const expiryDate = driver[docType.field].toDate();
+                            const daysUntilExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+
+                            if (daysUntilExpiry <= docType.warningDays && daysUntilExpiry > 0) {
+                                alerts.push({
+                                    type: daysUntilExpiry <= 7 ? 'urgent' : 'warning',
+                                    icon: '📄',
+                                    title: `انتهاء ${docType.name} - ${driverName}`,
+                                    desc: `ينتهي خلال ${daysUntilExpiry} يوم`,
+                                    time: 'الآن'
+                                });
+                            } else if (daysUntilExpiry <= 0) {
+                                alerts.push({
+                                    type: 'urgent',
+                                    icon: '⚠️',
+                                    title: `انتهى ${docType.name} - ${driverName}`,
+                                    desc: `انتهى منذ ${Math.abs(daysUntilExpiry)} يوم`,
+                                    time: 'الآن'
+                                });
+                            }
+                        }
+                    });
+
+                    // Check oil change alerts
+                    if (driver.lastOilChangeDate) {
+                        const lastOilChange = driver.lastOilChangeDate.toDate();
+                        const daysSinceOilChange = Math.ceil((today - lastOilChange) / (1000 * 60 * 60 * 24));
+
+                        if (daysSinceOilChange >= 15) {
+                            alerts.push({
+                                type: 'warning',
+                                icon: '🔧',
+                                title: `تغيير زيت المكينة - ${driverName}`,
+                                desc: `مر ${daysSinceOilChange} يوم منذ آخر تغيير`,
+                                time: 'الآن'
+                            });
+                        }
+                    }
+                });
+
+                // Display alerts
+                displayAlerts(alerts);
+
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+            }
+        }
+
+        // Display alerts
+        function displayAlerts(alerts) {
+            const alertsList = document.getElementById('alertsList');
+            const alertsCount = document.getElementById('alertsCount');
+
+            alertsCount.textContent = `${alerts.length} تنبيه`;
+
+            if (alerts.length === 0) {
+                alertsList.innerHTML = '<div class="alert-item alert-info"><div class="alert-icon">✅</div><div class="alert-content"><strong>لا توجد تنبيهات</strong><p>جميع الأمور تسير بشكل طبيعي</p></div></div>';
+                return;
+            }
+
+            alertsList.innerHTML = alerts.map(alert => `
+                <div class="alert-item alert-${alert.type}">
+                    <div class="alert-icon">${alert.icon}</div>
+                    <div class="alert-content">
+                        <strong>${alert.title}</strong>
+                        <p>${alert.desc}</p>
+                    </div>
+                    <div class="alert-time">${alert.time}</div>
+                </div>
+            `).join('');
+        }
+
+        // Logout function
+        window.logout = async () => {
+            try {
+                await signOut(auth);
+                localStorage.clear();
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        };
+    </script>
+</body>
+</html>

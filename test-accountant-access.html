@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار الوصول - لوحة المحاسب</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f3f4f6;
+            padding: 2rem;
+            direction: rtl;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #059669;
+            margin-bottom: 1rem;
+        }
+        .info-box {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+        }
+        .error-box {
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+        }
+        .log {
+            background: #1f2937;
+            color: #10b981;
+            padding: 1rem;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        button {
+            background: #059669;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 0.5rem;
+        }
+        button:hover {
+            background: #047857;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 اختبار الوصول إلى لوحة المحاسب</h1>
+        
+        <div class="info-box">
+            <strong>الغرض:</strong> هذه الصفحة تساعد في تشخيص مشكلة الوصول إلى لوحة المحاسب
+        </div>
+
+        <button onclick="checkAuth()">فحص حالة المصادقة</button>
+        <button onclick="checkLocalStorage()">فحص localStorage</button>
+        <button onclick="clearAndReload()">مسح البيانات وإعادة التحميل</button>
+        <button onclick="testAccountantPage()">اختبار فتح لوحة المحاسب</button>
+
+        <h3>سجل الأحداث:</h3>
+        <div class="log" id="log"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const logDiv = document.getElementById('log');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('ar-SA');
+            const color = type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#60a5fa';
+            logDiv.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        window.checkAuth = function() {
+            log('🔍 جاري فحص حالة المصادقة...', 'info');
+            
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    log('✅ المستخدم مسجل دخول', 'success');
+                    log(`   - UID: ${user.uid}`, 'info');
+                    log(`   - Email: ${user.email}`, 'info');
+                    
+                    try {
+                        const userDoc = await getDoc(doc(db, 'users', user.uid));
+                        if (userDoc.exists()) {
+                            const userData = userDoc.data();
+                            log('✅ بيانات المستخدم موجودة في Firestore', 'success');
+                            log(`   - الاسم: ${userData.name}`, 'info');
+                            log(`   - الدور: ${userData.role}`, 'info');
+                            log(`   - نشط: ${userData.active}`, 'info');
+                        } else {
+                            log('❌ بيانات المستخدم غير موجودة في Firestore!', 'error');
+                        }
+                    } catch (error) {
+                        log(`❌ خطأ في جلب بيانات المستخدم: ${error.message}`, 'error');
+                    }
+                } else {
+                    log('❌ المستخدم غير مسجل دخول', 'error');
+                }
+            });
+        };
+
+        window.checkLocalStorage = function() {
+            log('🔍 جاري فحص localStorage...', 'info');
+            
+            const userRole = localStorage.getItem('userRole');
+            const userName = localStorage.getItem('userName');
+            const userId = localStorage.getItem('userId');
+            
+            if (userRole || userName || userId) {
+                log('✅ بيانات موجودة في localStorage:', 'success');
+                log(`   - userRole: ${userRole}`, 'info');
+                log(`   - userName: ${userName}`, 'info');
+                log(`   - userId: ${userId}`, 'info');
+            } else {
+                log('⚠️ لا توجد بيانات في localStorage', 'info');
+            }
+        };
+
+        window.clearAndReload = function() {
+            log('🗑️ جاري مسح localStorage...', 'info');
+            localStorage.clear();
+            log('✅ تم مسح localStorage', 'success');
+            log('🔄 إعادة تحميل الصفحة خلال 2 ثانية...', 'info');
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        };
+
+        window.testAccountantPage = function() {
+            log('🚀 محاولة فتح لوحة المحاسب...', 'info');
+            window.location.href = 'accountant-dashboard.html';
+        };
+
+        // Auto-check on load
+        log('=== بدء الفحص التلقائي ===', 'info');
+        checkAuth();
+        checkLocalStorage();
+    </script>
+</body>
+</html>
+

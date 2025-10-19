@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تشخيص مشاكل الأرشيف</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .diagnostic-section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .diagnostic-section h3 {
+            color: #2563eb;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+        
+        .log-entry {
+            background: #f3f4f6;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        
+        .log-entry.success {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+        }
+        
+        .log-entry.error {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+        }
+        
+        .log-entry.warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .log-entry.info {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .test-btn {
+            background: linear-gradient(45deg, #3b82f6, #2563eb);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .test-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        
+        .test-btn.danger {
+            background: linear-gradient(45deg, #ef4444, #dc2626);
+        }
+        
+        .test-btn.success {
+            background: linear-gradient(45deg, #10b981, #059669);
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .data-table th {
+            background: #f9fafb;
+            font-weight: bold;
+            color: #374151;
+        }
+        
+        .data-table tr:hover {
+            background: #f9fafb;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .badge.duplicate {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .badge.unique {
+            background: #d1fae5;
+            color: #059669;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 تشخيص مشاكل الأرشيف</h1>
+            <p>أداة تشخيص شاملة لفحص مشاكل السائقين المؤرشفين</p>
+            <div class="nav-buttons">
+                <a href="archived-drivers.html" class="nav-btn">📦 الأرشيف</a>
+                <a href="drivers.html" class="nav-btn">👥 السائقين</a>
+            </div>
+        </div>
+
+        <div class="diagnostic-section">
+            <h3>📊 إحصائيات عامة</h3>
+            <div id="statsContainer">
+                <p>جاري التحميل...</p>
+            </div>
+        </div>
+
+        <div class="diagnostic-section">
+            <h3>🔍 فحص السجلات المكررة</h3>
+            <button class="test-btn" onclick="checkDuplicates()">فحص التكرار</button>
+            <div id="duplicatesContainer"></div>
+        </div>
+
+        <div class="diagnostic-section">
+            <h3>🗑️ اختبار عملية الحذف</h3>
+            <button class="test-btn danger" onclick="testDelete()">اختبار الحذف</button>
+            <div id="deleteTestContainer"></div>
+        </div>
+
+        <div class="diagnostic-section">
+            <h3>♻️ اختبار عملية الاستعادة</h3>
+            <button class="test-btn success" onclick="testRestore()">اختبار الاستعادة</button>
+            <div id="restoreTestContainer"></div>
+        </div>
+
+        <div class="diagnostic-section">
+            <h3>📝 سجل العمليات</h3>
+            <button class="test-btn" onclick="clearLogs()">مسح السجل</button>
+            <div id="logsContainer"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, doc, getDoc, deleteDoc, addDoc, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let logs = [];
+
+        // Check authentication
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            try {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (!userDoc.exists()) {
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                const userData = userDoc.data();
+                if (!['admin', 'accountant'].includes(userData.role)) {
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                currentUser = { uid: user.uid, ...userData };
+                
+                await loadStats();
+            } catch (error) {
+                console.error('Error checking user role:', error);
+                window.location.href = 'index.html';
+            }
+        });
+
+        // Add log entry
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleString('ar-EG');
+            logs.push({ timestamp, message, type });
+            updateLogsDisplay();
+        }
+
+        // Update logs display
+        function updateLogsDisplay() {
+            const container = document.getElementById('logsContainer');
+            if (logs.length === 0) {
+                container.innerHTML = '<p>لا توجد سجلات بعد</p>';
+                return;
+            }
+            
+            container.innerHTML = logs.map(log => 
+                `<div class="log-entry ${log.type}">
+                    <strong>[${log.timestamp}]</strong> ${log.message}
+                </div>`
+            ).reverse().join('');
+        }
+
+        // Clear logs
+        window.clearLogs = () => {
+            logs = [];
+            updateLogsDisplay();
+        };
+
+        // Load statistics
+        async function loadStats() {
+            try {
+                addLog('🔄 بدء تحميل الإحصائيات...', 'info');
+                
+                const archivedSnapshot = await getDocs(collection(db, 'archivedDrivers'));
+                const driversSnapshot = await getDocs(collection(db, 'drivers'));
+                
+                const archivedCount = archivedSnapshot.size;
+                const activeCount = driversSnapshot.size;
+                
+                addLog(`✅ تم تحميل ${archivedCount} سائق مؤرشف و ${activeCount} سائق نشط`, 'success');
+                
+                // Get all archived drivers data
+                const archivedDrivers = [];
+                archivedSnapshot.forEach(doc => {
+                    archivedDrivers.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Display stats
+                const statsContainer = document.getElementById('statsContainer');
+                statsContainer.innerHTML = `
+                    <table class="data-table">
+                        <tr>
+                            <th>المؤشر</th>
+                            <th>القيمة</th>
+                        </tr>
+                        <tr>
+                            <td>عدد السائقين النشطين</td>
+                            <td><strong>${activeCount}</strong></td>
+                        </tr>
+                        <tr>
+                            <td>عدد السائقين المؤرشفين</td>
+                            <td><strong>${archivedCount}</strong></td>
+                        </tr>
+                        <tr>
+                            <td>إجمالي السائقين</td>
+                            <td><strong>${activeCount + archivedCount}</strong></td>
+                        </tr>
+                    </table>
+                    
+                    <h4 style="margin-top: 20px;">تفاصيل السائقين المؤرشفين:</h4>
+                    ${archivedDrivers.length > 0 ? `
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>الاسم</th>
+                                    <th>الهاتف</th>
+                                    <th>الرقم الوظيفي</th>
+                                    <th>تاريخ الأرشفة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${archivedDrivers.map(driver => `
+                                    <tr>
+                                        <td><code>${driver.id}</code></td>
+                                        <td>${driver.name}</td>
+                                        <td>${driver.phone}</td>
+                                        <td>${driver.employeeNumber || '-'}</td>
+                                        <td>${driver.archivedAt?.seconds ? 
+                                            new Date(driver.archivedAt.seconds * 1000).toLocaleString('ar-EG') : 
+                                            'غير محدد'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : '<p>لا توجد سجلات مؤرشفة</p>'}
+                `;
+                
+            } catch (error) {
+                addLog('❌ خطأ في تحميل الإحصائيات: ' + error.message, 'error');
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // Check for duplicates
+        window.checkDuplicates = async () => {
+            try {
+                addLog('🔍 بدء فحص السجلات المكررة...', 'info');
+                
+                const archivedSnapshot = await getDocs(collection(db, 'archivedDrivers'));
+                const phoneMap = new Map();
+                const duplicates = [];
+                
+                archivedSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    const phone = data.phone;
+                    
+                    if (!phoneMap.has(phone)) {
+                        phoneMap.set(phone, []);
+                    }
+                    phoneMap.set(phone, [...phoneMap.get(phone), { id: doc.id, ...data }]);
+                });
+                
+                // Find duplicates
+                phoneMap.forEach((drivers, phone) => {
+                    if (drivers.length > 1) {
+                        duplicates.push({ phone, drivers });
+                    }
+                });
+                
+                const container = document.getElementById('duplicatesContainer');
+                
+                if (duplicates.length === 0) {
+                    addLog('✅ لا توجد سجلات مكررة', 'success');
+                    container.innerHTML = `
+                        <div class="log-entry success" style="margin-top: 15px;">
+                            ✅ رائع! لا توجد سجلات مكررة في الأرشيف
+                        </div>
+                    `;
+                } else {
+                    addLog(`⚠️ تم العثور على ${duplicates.length} رقم هاتف مكرر`, 'warning');
+                    
+                    container.innerHTML = `
+                        <div class="log-entry warning" style="margin-top: 15px;">
+                            ⚠️ تم العثور على ${duplicates.length} رقم هاتف مكرر
+                        </div>
+                        ${duplicates.map(dup => `
+                            <div style="margin-top: 15px; padding: 15px; background: #fef3c7; border-radius: 8px;">
+                                <h4>رقم الهاتف: ${dup.phone}</h4>
+                                <p>عدد التكرارات: ${dup.drivers.length}</p>
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>الاسم</th>
+                                            <th>تاريخ الأرشفة</th>
+                                            <th>إجراء</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${dup.drivers.map((driver, index) => `
+                                            <tr>
+                                                <td><code>${driver.id}</code></td>
+                                                <td>${driver.name}</td>
+                                                <td>${driver.archivedAt?.seconds ? 
+                                                    new Date(driver.archivedAt.seconds * 1000).toLocaleString('ar-EG') : 
+                                                    'غير محدد'}</td>
+                                                <td>
+                                                    ${index > 0 ? 
+                                                        `<button class="test-btn danger" onclick="deleteDuplicate('${driver.id}')">حذف</button>` : 
+                                                        '<span class="badge unique">الأصلي</span>'}
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `).join('')}
+                    `;
+                }
+                
+            } catch (error) {
+                addLog('❌ خطأ في فحص التكرار: ' + error.message, 'error');
+                console.error('Error checking duplicates:', error);
+            }
+        };
+
+        // Delete duplicate
+        window.deleteDuplicate = async (docId) => {
+            if (!confirm('هل أنت متأكد من حذف هذا السجل المكرر؟')) {
+                return;
+            }
+            
+            try {
+                addLog(`🗑️ محاولة حذف السجل: ${docId}`, 'info');
+                await deleteDoc(doc(db, 'archivedDrivers', docId));
+                addLog(`✅ تم حذف السجل بنجاح: ${docId}`, 'success');
+                
+                // Reload stats and check duplicates again
+                await loadStats();
+                await checkDuplicates();
+            } catch (error) {
+                addLog(`❌ فشل حذف السجل: ${error.message}`, 'error');
+                console.error('Error deleting duplicate:', error);
+            }
+        };
+
+        // Test delete operation
+        window.testDelete = async () => {
+            try {
+                addLog('🧪 بدء اختبار عملية الحذف...', 'info');
+                
+                const archivedSnapshot = await getDocs(collection(db, 'archivedDrivers'));
+                
+                if (archivedSnapshot.empty) {
+                    addLog('⚠️ لا توجد سجلات للاختبار', 'warning');
+                    document.getElementById('deleteTestContainer').innerHTML = `
+                        <div class="log-entry warning" style="margin-top: 15px;">
+                            ⚠️ لا توجد سجلات مؤرشفة للاختبار
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const firstDoc = archivedSnapshot.docs[0];
+                const testId = firstDoc.id;
+                const testData = firstDoc.data();
+                
+                addLog(`📋 سيتم اختبار الحذف على: ${testData.name} (${testId})`, 'info');
+                
+                // Try to delete
+                addLog('🗑️ محاولة الحذف...', 'info');
+                await deleteDoc(doc(db, 'archivedDrivers', testId));
+                addLog('✅ تم الحذف بنجاح من الكود', 'success');
+                
+                // Verify deletion
+                addLog('🔍 التحقق من الحذف...', 'info');
+                const verifyDoc = await getDoc(doc(db, 'archivedDrivers', testId));
+                
+                if (verifyDoc.exists()) {
+                    addLog('❌ فشل الحذف: السجل ما زال موجوداً!', 'error');
+                    document.getElementById('deleteTestContainer').innerHTML = `
+                        <div class="log-entry error" style="margin-top: 15px;">
+                            ❌ فشل الحذف: السجل ما زال موجوداً في قاعدة البيانات!<br>
+                            <strong>المشكلة:</strong> قد تكون هناك مشكلة في صلاحيات Firebase Rules
+                        </div>
+                    `;
+                } else {
+                    addLog('✅ تم التحقق: السجل تم حذفه بنجاح', 'success');
+                    
+                    // Re-add the document for future tests
+                    await addDoc(collection(db, 'archivedDrivers'), testData);
+                    addLog('♻️ تمت إعادة السجل للأرشيف', 'info');
+                    
+                    document.getElementById('deleteTestContainer').innerHTML = `
+                        <div class="log-entry success" style="margin-top: 15px;">
+                            ✅ عملية الحذف تعمل بشكل صحيح!<br>
+                            تم حذف السجل وإعادته بنجاح
+                        </div>
+                    `;
+                }
+                
+                await loadStats();
+                
+            } catch (error) {
+                addLog(`❌ خطأ في اختبار الحذف: ${error.message}`, 'error');
+                console.error('Error testing delete:', error);
+                
+                document.getElementById('deleteTestContainer').innerHTML = `
+                    <div class="log-entry error" style="margin-top: 15px;">
+                        ❌ خطأ في اختبار الحذف:<br>
+                        <strong>الخطأ:</strong> ${error.message}<br>
+                        <strong>الكود:</strong> ${error.code || 'N/A'}
+                    </div>
+                `;
+            }
+        };
+
+        // Test restore operation
+        window.testRestore = async () => {
+            try {
+                addLog('🧪 بدء اختبار عملية الاستعادة...', 'info');
+                
+                const archivedSnapshot = await getDocs(collection(db, 'archivedDrivers'));
+                
+                if (archivedSnapshot.empty) {
+                    addLog('⚠️ لا توجد سجلات للاختبار', 'warning');
+                    document.getElementById('restoreTestContainer').innerHTML = `
+                        <div class="log-entry warning" style="margin-top: 15px;">
+                            ⚠️ لا توجد سجلات مؤرشفة للاختبار
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const firstDoc = archivedSnapshot.docs[0];
+                const testId = firstDoc.id;
+                const testData = firstDoc.data();
+                
+                addLog(`📋 سيتم اختبار الاستعادة على: ${testData.name} (${testId})`, 'info');
+                
+                // Check if already exists in drivers
+                const existingQuery = query(collection(db, 'drivers'), where('phone', '==', testData.phone));
+                const existingSnapshot = await getDocs(existingQuery);
+                
+                if (!existingSnapshot.empty) {
+                    addLog('⚠️ السائق موجود بالفعل في القائمة النشطة', 'warning');
+                    document.getElementById('restoreTestContainer').innerHTML = `
+                        <div class="log-entry warning" style="margin-top: 15px;">
+                            ⚠️ لا يمكن اختبار الاستعادة: السائق موجود بالفعل في القائمة النشطة
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Prepare restore data
+                const restoreData = { ...testData };
+                delete restoreData.id;
+                delete restoreData.isArchived;
+                delete restoreData.archivedAt;
+                delete restoreData.archivedBy;
+                delete restoreData.archiveReason;
+                restoreData.restoredAt = new Date();
+                restoreData.restoredBy = currentUser.name || currentUser.email;
+                
+                // Step 1: Add to drivers
+                addLog('📝 الخطوة 1: إضافة إلى drivers...', 'info');
+                const newDriverRef = await addDoc(collection(db, 'drivers'), restoreData);
+                addLog(`✅ تمت الإضافة بنجاح: ${newDriverRef.id}`, 'success');
+                
+                // Step 2: Delete from archive
+                addLog('🗑️ الخطوة 2: حذف من الأرشيف...', 'info');
+                await deleteDoc(doc(db, 'archivedDrivers', testId));
+                addLog('✅ تم الحذف من الأرشيف بنجاح', 'success');
+                
+                // Step 3: Verify
+                addLog('🔍 الخطوة 3: التحقق...', 'info');
+                const verifyArchive = await getDoc(doc(db, 'archivedDrivers', testId));
+                const verifyDriver = await getDoc(doc(db, 'drivers', newDriverRef.id));
+                
+                if (verifyArchive.exists()) {
+                    addLog('❌ فشل: السجل ما زال في الأرشيف!', 'error');
+                } else {
+                    addLog('✅ تم التحقق: السجل تم حذفه من الأرشيف', 'success');
+                }
+                
+                if (verifyDriver.exists()) {
+                    addLog('✅ تم التحقق: السجل موجود في drivers', 'success');
+                } else {
+                    addLog('❌ فشل: السجل غير موجود في drivers!', 'error');
+                }
+                
+                // Restore back to archive for future tests
+                addLog('♻️ إعادة السائق للأرشيف...', 'info');
+                await deleteDoc(doc(db, 'drivers', newDriverRef.id));
+                await addDoc(collection(db, 'archivedDrivers'), testData);
+                addLog('✅ تمت الإعادة بنجاح', 'success');
+                
+                document.getElementById('restoreTestContainer').innerHTML = `
+                    <div class="log-entry success" style="margin-top: 15px;">
+                        ✅ عملية الاستعادة تعمل بشكل صحيح!<br>
+                        تم نقل السائق من الأرشيف إلى القائمة النشطة وإعادته
+                    </div>
+                `;
+                
+                await loadStats();
+                
+            } catch (error) {
+                addLog(`❌ خطأ في اختبار الاستعادة: ${error.message}`, 'error');
+                console.error('Error testing restore:', error);
+                
+                document.getElementById('restoreTestContainer').innerHTML = `
+                    <div class="log-entry error" style="margin-top: 15px;">
+                        ❌ خطأ في اختبار الاستعادة:<br>
+                        <strong>الخطأ:</strong> ${error.message}<br>
+                        <strong>الكود:</strong> ${error.code || 'N/A'}
+                    </div>
+                `;
+            }
+        };
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // السماح للجميع بالقراءة والكتابة والحذف (للاستخدام المحلي)
+    // ملاحظة: يجب تحديث هذه القواعد للإنتاج لتكون أكثر أماناً
+    match /{document=**} {
+      allow read, create, update, delete: if true;
+    }
+    
+    // قواعد محددة لـ archivedDrivers للتأكد من السماح بالحذف
+    match /archivedDrivers/{driverId} {
+      allow read, create, update, delete: if true;
+    }
+    
+    // قواعد محددة لـ drivers
+    match /drivers/{driverId} {
+      allow read, create, update, delete: if true;
+    }
+  }
+}
+

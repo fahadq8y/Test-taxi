@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة المستخدمين - نظام التاكسي</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👥 إدارة المستخدمين</h1>
+            <p>إضافة وتعديل وإدارة المستخدمين</p>
+            <div class="nav-buttons">
+                <a href="admin-dashboard.html" class="nav-btn">🏠 لوحة التحكم</a>
+                <a href="drivers-overview.html" class="nav-btn">👥 السائقين</a>
+                <a href="revenues.html" class="nav-btn">💰 الإيرادات</a>
+                <a href="expenses.html" class="nav-btn">💸 المصروفات</a>
+            </div>
+        </div>
+
+        <div id="message" class="message"></div>
+
+        <!-- Add User Form -->
+        <div class="form-section">
+            <h3>➕ إضافة مستخدم جديد</h3>
+            <form id="addUserForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>الاسم</label>
+                        <input type="text" id="userName" required placeholder="اسم المستخدم">
+                    </div>
+                    <div class="form-group">
+                        <label>البريد الإلكتروني (اختياري للسائقين والمحاسبين)</label>
+                        <input type="email" id="userEmail" placeholder="example@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>كلمة المرور</label>
+                        <input type="password" id="userPassword" required placeholder="كلمة المرور (6 أحرف على الأقل)">
+                    </div>
+                    <div class="form-group">
+                        <label>الدور</label>
+                        <select id="userRole" required>
+                            <option value="">اختر الدور</option>
+                            <option value="admin">مدير (Admin)</option>
+                            <option value="accountant">محاسب (Accountant)</option>
+                            <option value="driver">سائق (Driver)</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="text-align: center; display: flex; gap: 10px; justify-content: center;">
+                    <button type="submit" class="btn btn-primary">💾 إضافة مستخدم</button>
+                    <button type="button" class="btn btn-secondary" onclick="syncDriversToUsers()" style="background: #28a745;">🔄 مزامنة السائقين</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Users Table -->
+        <div class="users-table">
+            <h3>📋 قائمة المستخدمين</h3>
+            
+            <!-- Desktop Table -->
+            <table class="desktop-table">
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>البريد الإلكتروني</th>
+                        <th>الدور</th>
+                        <th>الحالة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    <tr>
+                        <td colspan="5" class="loading">جاري تحميل المستخدمين...</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- Mobile Cards -->
+            <div class="mobile-cards" id="mobileCardsContainer">
+                <div class="loading">جاري تحميل المستخدمين...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeEditModal()">&times;</span>
+                <h3>✏️ تعديل المستخدم</h3>
+            </div>
+            <form id="editUserForm">
+                <input type="hidden" id="editUserId">
+                <div class="form-group">
+                    <label>الاسم</label>
+                    <input type="text" id="editUserName" required>
+                </div>
+                <div class="form-group">
+                    <label>الدور</label>
+                    <select id="editUserRole" required>
+                        <option value="admin">مدير (Admin)</option>
+                        <option value="accountant">محاسب (Accountant)</option>
+                        <option value="driver">سائق (Driver)</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">💾 حفظ التغييرات</button>
+                    <button type="button" class="btn btn-danger" onclick="closeEditModal()">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Password Modal -->
+    <div id="passwordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closePasswordModal()">&times;</span>
+                <h3>🔑 تغيير كلمة المرور</h3>
+            </div>
+            <form id="passwordForm">
+                <input type="hidden" id="passwordUserId">
+                <input type="hidden" id="passwordUserRole">
+                <div class="form-group">
+                    <label>اسم المستخدم</label>
+                    <input type="text" id="passwordUserName" readonly style="background: #f8f9fa;">
+                </div>
+                <div class="form-group">
+                    <label>كلمة المرور الجديدة</label>
+                    <input type="password" id="newPassword" required placeholder="كلمة المرور الجديدة (6 أحرف على الأقل)">
+                </div>
+                <div class="form-group">
+                    <label>تأكيد كلمة المرور</label>
+                    <input type="password" id="confirmPassword" required placeholder="أعد إدخال كلمة المرور">
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">💾 حفظ كلمة المرور</button>
+                    <button type="button" class="btn btn-danger" onclick="closePasswordModal()">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Check auth
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const userRole = localStorage.getItem('userRole');
+            if (userRole !== 'admin') {
+                alert('هذه الصفحة متاحة للمدير فقط');
+                window.location.href = 'admin-dashboard.html';
+                return;
+            }
+
+            await loadUsers();
+        });
+
+        let users = [];
+
+        // Load users
+        async function loadUsers() {
+            try {
+                const snapshot = await db.collection('users').get();
+                users = [];
+                snapshot.forEach(doc => {
+                    users.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                displayUsers();
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showMessage('حدث خطأ في تحميل المستخدمين', 'error');
+            }
+        }
+
+        // Display users
+        function displayUsers() {
+            const tbody = document.getElementById('usersTableBody');
+            const mobileContainer = document.getElementById('mobileCardsContainer');
+            
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="no-data">لا يوجد مستخدمون</td></tr>';
+                mobileContainer.innerHTML = '<div class="no-data">لا يوجد مستخدمون</div>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            mobileContainer.innerHTML = '';
+            
+            users.forEach(user => {
+                const roleName = getRoleName(user.role);
+                const roleClass = `role-${user.role}`;
+                const statusName = user.isActive !== false ? 'نشط' : 'معطل';
+                const statusClass = user.isActive !== false ? 'status-active' : 'status-inactive';
+                
+                // Desktop Table Row
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${user.name || '-'}</td>
+                    <td>${user.email || 'لا يوجد'}</td>
+                    <td><span class="role-badge ${roleClass}">${roleName}</span></td>
+                    <td><span class="status-badge ${statusClass}">${statusName}</span></td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-warning" onclick="openEditModal('${user.id}')">✏️ تعديل</button>
+                            <button class="btn btn-primary" onclick="openPasswordModal('${user.id}', '${user.name}', '${user.role}')">🔑 تغيير كلمة المرور</button>
+                            ${user.isActive !== false ?
+                                `<button class="btn btn-danger" onclick="toggleUserStatus('${user.id}', false)">🚫 تعطيل</button>` :
+                                `<button class="btn btn-success" onclick="toggleUserStatus('${user.id}', true)">✅ تفعيل</button>`
+                            }
+                            <button class="btn btn-danger" onclick="deleteUser('${user.id}')">🗑️ حذف</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+                
+                // Mobile Card
+                const card = document.createElement('div');
+                card.className = 'mobile-card';
+                card.innerHTML = `
+                    <div class="mobile-card-header">
+                        <span class="role-badge ${roleClass}">${roleName}</span>
+                        <span class="status-badge ${statusClass}">${statusName}</span>
+                    </div>
+                    <div class="mobile-card-body">
+                        <div class="mobile-card-row">
+                            <span class="mobile-card-label">👤 الاسم</span>
+                            <span class="mobile-card-value">${user.name || '-'}</span>
+                        </div>
+                        <div class="mobile-card-row">
+                            <span class="mobile-card-label">📧 البريد الإلكتروني</span>
+                            <span class="mobile-card-value">${user.email || 'لا يوجد'}</span>
+                        </div>
+                        <div class="mobile-card-row">
+                            <span class="mobile-card-label">🔑 الدور</span>
+                            <span class="mobile-card-value">${roleName}</span>
+                        </div>
+                    </div>
+                    <div class="mobile-card-footer">
+                        <button class="btn btn-warning" onclick="openEditModal('${user.id}')">✏️ تعديل</button>
+                        <button class="btn btn-primary" onclick="openPasswordModal('${user.id}', '${user.name}', '${user.role}')">🔑 تغيير كلمة المرور</button>
+                        ${user.isActive !== false ?
+                            `<button class="btn btn-danger" onclick="toggleUserStatus('${user.id}', false)">🚫 تعطيل</button>` :
+                            `<button class="btn btn-success" onclick="toggleUserStatus('${user.id}', true)">✅ تفعيل</button>`
+                        }
+                        <button class="btn btn-danger" onclick="deleteUser('${user.id}')">🗑️ حذف</button>
+                    </div>
+                `;
+                mobileContainer.appendChild(card);
+            });
+        }
+
+        function getRoleName(role) {
+            const roles = {
+                'admin': 'مدير',
+                'accountant': 'محاسب',
+                'driver': 'سائق'
+            };
+            return roles[role] || role;
+        }
+
+        // Add user form
+        document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('userName').value;
+            const email = document.getElementById('userEmail').value.trim();
+            const password = document.getElementById('userPassword').value;
+            const role = document.getElementById('userRole').value;
+
+            if (password.length < 6) {
+                showMessage('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
+                return;
+            }
+
+            try {
+                let userId;
+                
+                // إذا كان البريد الإلكتروني موجود والدور مدير أو محاسب
+                if (email && (role === 'admin' || role === 'accountant')) {
+                    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                    userId = userCredential.user.uid;
+                } else {
+                    // للسائقين فقط - إنشاء معرف فريد
+                    userId = `${role}_${name.replace(/\s/g, '_').toLowerCase()}_${Date.now()}`;
+                }
+
+                // حفظ البيانات في Firestore
+                await db.collection('users').doc(userId).set({
+                    name: name,
+                    email: email || null,
+                    password: password,
+                    role: role,
+                    isActive: true,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                showMessage('تم إضافة المستخدم بنجاح! ✅', 'success');
+                document.getElementById('addUserForm').reset();
+                await loadUsers();
+                
+            } catch (error) {
+                console.error('Error adding user:', error);
+                let errorMsg = 'حدث خطأ في إضافة المستخدم';
+                
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMsg = 'البريد الإلكتروني مستخدم من قبل';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMsg = 'البريد الإلكتروني غير صحيح';
+                } else if (error.code === 'auth/weak-password') {
+                    errorMsg = 'كلمة المرور ضعيفة جداً';
+                }
+                
+                showMessage(errorMsg, 'error');
+            }
+        });
+
+        // Edit modal functions
+        function openEditModal(userId) {
+            const user = users.find(u => u.id === userId);
+            if (!user) return;
+
+            document.getElementById('editUserId').value = user.id;
+            document.getElementById('editUserName').value = user.name || '';
+            document.getElementById('editUserRole').value = user.role;
+            
+            document.getElementById('editModal').style.display = 'block';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        // Edit user form
+        document.getElementById('editUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const userId = document.getElementById('editUserId').value;
+            const name = document.getElementById('editUserName').value;
+            const role = document.getElementById('editUserRole').value;
+
+            try {
+                await db.collection('users').doc(userId).update({
+                    name: name,
+                    role: role,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                showMessage('تم تحديث المستخدم بنجاح! ✅', 'success');
+                closeEditModal();
+                await loadUsers();
+                
+            } catch (error) {
+                console.error('Error updating user:', error);
+                showMessage('حدث خطأ في تحديث المستخدم', 'error');
+            }
+        });
+
+        // Toggle user status
+        async function toggleUserStatus(userId, isActive) {
+            const action = isActive ? 'تفعيل' : 'تعطيل';
+            
+            if (!confirm(`هل أنت متأكد من ${action} هذا المستخدم؟`)) return;
+
+            try {
+                await db.collection('users').doc(userId).update({
+                    isActive: isActive,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                showMessage(`تم ${action} المستخدم بنجاح! ✅`, 'success');
+                await loadUsers();
+                
+            } catch (error) {
+                console.error('Error toggling user status:', error);
+                showMessage(`حدث خطأ في ${action} المستخدم`, 'error');
+            }
+        }
+
+        // Delete user
+        async function deleteUser(userId) {
+            if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟ هذا الإجراء لا يمكن التراجع عنه!')) return;
+
+            try {
+                await db.collection('users').doc(userId).delete();
+                showMessage('تم حذف المستخدم بنجاح! ✅', 'success');
+                await loadUsers();
+                
+            } catch (error) {
+                console.error('Error deleting user:', error);
+                showMessage('حدث خطأ في حذف المستخدم', 'error');
+            }
+        }
+
+        // Show message
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = message;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Password modal functions
+        function openPasswordModal(userId, userName, userRole) {
+            // التحقق من الصلاحيات
+            const currentUserRole = localStorage.getItem('userRole');
+            
+            // المحاسب يمكنه فقط تغيير كلمة مرور السائقين
+            if (currentUserRole === 'accountant' && userRole !== 'driver') {
+                showMessage('المحاسب يمكنه فقط تغيير كلمة مرور السائقين', 'error');
+                return;
+            }
+
+            document.getElementById('passwordUserId').value = userId;
+            document.getElementById('passwordUserName').value = userName;
+            document.getElementById('passwordUserRole').value = userRole;
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+            
+            document.getElementById('passwordModal').style.display = 'block';
+        }
+
+        function closePasswordModal() {
+            document.getElementById('passwordModal').style.display = 'none';
+        }
+
+        // Password form
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const userId = document.getElementById('passwordUserId').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (newPassword.length < 6) {
+                showMessage('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                showMessage('كلمة المرور غير متطابقة', 'error');
+                return;
+            }
+
+            try {
+                await db.collection('users').doc(userId).update({
+                    password: newPassword,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                showMessage('تم تغيير كلمة المرور بنجاح! ✅', 'success');
+                closePasswordModal();
+                
+            } catch (error) {
+                console.error('Error changing password:', error);
+                showMessage('حدث خطأ في تغيير كلمة المرور', 'error');
+            }
+        });
+
+        // Sync drivers to users
+        async function syncDriversToUsers() {
+            if (!confirm('هل تريد مزامنة جميع السائقين وإنشاء حسابات للسائقين الذين ليس لديهم حساب؟')) {
+                return;
+            }
+
+            try {
+                showMessage('جاري المزامنة...', 'info');
+                
+                // قراءة جميع السائقين
+                const driversSnapshot = await db.collection('drivers').get();
+                const drivers = [];
+                driversSnapshot.forEach(doc => {
+                    drivers.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                if (drivers.length === 0) {
+                    showMessage('لا يوجد سائقين في النظام', 'error');
+                    return;
+                }
+
+                // قراءة جميع المستخدمين
+                const usersSnapshot = await db.collection('users').get();
+                const existingUsers = [];
+                usersSnapshot.forEach(doc => {
+                    existingUsers.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                // البحث عن السائقين الذين ليس لديهم حساب
+                let createdCount = 0;
+                let skippedCount = 0;
+                const errors = [];
+
+                for (const driver of drivers) {
+                    // التحقق من وجود حساب بنفس الاسم
+                    const userExists = existingUsers.some(user => 
+                        user.name === driver.name && user.role === 'driver'
+                    );
+
+                    if (userExists) {
+                        skippedCount++;
+                        console.log(`تم تخطي ${driver.name} - لديه حساب بالفعل`);
+                        continue;
+                    }
+
+                    // إنشاء حساب جديد
+                    try {
+                        const userData = {
+                            name: driver.name,
+                            email: '',
+                            password: '123',
+                            role: 'driver',
+                            isActive: true,
+                            driverId: driver.id,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            createdBy: localStorage.getItem('userName') || 'admin',
+                            syncedFromDrivers: true
+                        };
+
+                        await db.collection('users').add(userData);
+                        createdCount++;
+                        console.log(`✅ تم إنشاء حساب لـ ${driver.name}`);
+                    } catch (error) {
+                        console.error(`❌ خطأ في إنشاء حساب لـ ${driver.name}:`, error);
+                        errors.push(driver.name);
+                    }
+                }
+
+                // عرض النتائج
+                let message = `تمت المزامنة بنجاح!\n\n`;
+                message += `✅ تم إنشاء ${createdCount} حساب جديد\n`;
+                message += `⏭️ تم تخطي ${skippedCount} سائق (لديهم حسابات بالفعل)\n`;
+                message += `📊 إجمالي السائقين: ${drivers.length}`;
+
+                if (errors.length > 0) {
+                    message += `\n\n❌ فشل إنشاء حسابات لـ: ${errors.join(', ')}`;
+                }
+
+                alert(message);
+                showMessage(`تم إنشاء ${createdCount} حساب جديد بنجاح! ✅`, 'success');
+                
+                // إعادة تحميل المستخدمين
+                await loadUsers();
+
+            } catch (error) {
+                console.error('Error syncing drivers:', error);
+                showMessage('حدث خطأ في المزامنة: ' + error.message, 'error');
+            }
+        }
+
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const editModal = document.getElementById('editModal');
+            const passwordModal = document.getElementById('passwordModal');
+            
+            if (event.target === editModal) {
+                closeEditModal();
+            }
+            if (event.target === passwordModal) {
+                closePasswordModal();
+            }
+        }
+    </script>
+</body>
+</html>
+
