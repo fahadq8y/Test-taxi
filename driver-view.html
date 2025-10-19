@@ -1000,15 +1000,37 @@
 
             // Always refresh driver data from Firebase to get latest updates
             try {
-                const driverDoc = await getDoc(doc(db, 'users', driverId));
-                if (driverDoc.exists()) {
-                    driverData = { id: driverId, ...driverDoc.data() };
-                    // Update sessionStorage with fresh data
-                    sessionStorage.setItem('driverData', JSON.stringify(driverData));
-                } else {
-                    showMessage('لم يتم العثور على بيانات السائق', true);
+                // Step 1: Get user document to find the driverId
+                const userDoc = await getDoc(doc(db, 'users', driverId));
+                if (!userDoc.exists()) {
+                    showMessage('لم يتم العثور على حساب المستخدم', true);
                     return;
                 }
+                
+                const userData = userDoc.data();
+                const employeeNumber = userData.driverId; // This is the employee number like DRV001
+                
+                console.log('User driverId:', employeeNumber);
+                
+                // Step 2: Get full driver data from drivers collection using employee number
+                if (employeeNumber) {
+                    const driverDocRef = await getDoc(doc(db, 'drivers', employeeNumber));
+                    if (driverDocRef.exists()) {
+                        driverData = { id: employeeNumber, ...driverDocRef.data() };
+                        console.log('✅ تم تحميل البيانات الكاملة من drivers:', driverData);
+                    } else {
+                        // Fallback: use basic data from users collection
+                        console.warn('⚠️ لم يتم العثور على بيانات في drivers، استخدام بيانات users');
+                        driverData = { id: driverId, ...userData };
+                    }
+                } else {
+                    // Fallback: use basic data from users collection
+                    console.warn('⚠️ لا يوجد driverId في users، استخدام بيانات users');
+                    driverData = { id: driverId, ...userData };
+                }
+                
+                // Update sessionStorage with fresh data
+                sessionStorage.setItem('driverData', JSON.stringify(driverData));
             } catch (error) {
                 console.error('Error refreshing driver data:', error);
                 showMessage('حدث خطأ في تحميل البيانات', true);
