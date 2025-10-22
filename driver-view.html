@@ -988,17 +988,41 @@
 
             // Always refresh driver data from Firebase to get latest updates
             try {
-                // Step 1: Get user document to find the driverId
-                const userDoc = await getDoc(doc(db, 'users', driverId));
-                if (!userDoc.exists()) {
-                    showMessage('لم يتم العثور على حساب المستخدم', true);
-                    return;
+                let employeeNumber = driverId;
+                let userData = null;
+                
+                // Check if driverId is an employeeNumber (starts with DRV) or userId
+                if (driverId.startsWith('DRV')) {
+                    // driverId is already an employeeNumber
+                    console.log('📋 تم استقبال الرقم الوظيفي مباشرة:', employeeNumber);
+                    
+                    // Find the user document by searching for this employeeNumber
+                    const usersQuery = query(
+                        collection(db, 'users'),
+                        where('driverId', '==', employeeNumber)
+                    );
+                    const usersSnapshot = await getDocs(usersQuery);
+                    
+                    if (!usersSnapshot.empty) {
+                        userData = usersSnapshot.docs[0].data();
+                        console.log('✅ تم العثور على بيانات المستخدم:', userData.name);
+                    } else {
+                        console.warn('⚠️ لم يتم العثور على مستخدم بالرقم الوظيفي:', employeeNumber);
+                    }
+                } else {
+                    // driverId is a userId, get employeeNumber from user document
+                    console.log('🔑 تم استقبال معرف المستخدم:', driverId);
+                    const userDoc = await getDoc(doc(db, 'users', driverId));
+                    
+                    if (!userDoc.exists()) {
+                        showMessage('لم يتم العثور على حساب المستخدم', true);
+                        return;
+                    }
+                    
+                    userData = userDoc.data();
+                    employeeNumber = userData.driverId || userData.employeeNumber;
+                    console.log('✅ الرقم الوظيفي من المستخدم:', employeeNumber);
                 }
-                
-                const userData = userDoc.data();
-                const employeeNumber = userData.driverId; // This is the employee number like DRV001
-                
-                console.log('User driverId:', employeeNumber);
                 
                 // Step 2: Get full driver data from drivers collection using employee number
                 if (employeeNumber) {
@@ -1006,25 +1030,29 @@
                     if (driverDocRef.exists()) {
                         // Merge data from both collections
                         // drivers has: contract, payments, car info
-                        // users has: location, isActive, lastSeen
+                        // users has: location, isActive, lastSeen (if available)
                         driverData = { 
                             id: employeeNumber, 
                             ...driverDocRef.data(),
                             // Add location data from users if not in drivers
-                            location: driverDocRef.data().location || userData.location,
-                            isActive: driverDocRef.data().isActive !== undefined ? driverDocRef.data().isActive : userData.isActive,
-                            lastSeen: driverDocRef.data().lastSeen || userData.lastSeen
+                            location: driverDocRef.data().location || (userData ? userData.location : null),
+                            isActive: driverDocRef.data().isActive !== undefined ? driverDocRef.data().isActive : (userData ? userData.isActive : false),
+                            lastSeen: driverDocRef.data().lastSeen || (userData ? userData.lastSeen : null)
                         };
                         console.log('✅ تم تحميل البيانات المدمجة من drivers + users:', driverData);
                     } else {
-                        // Fallback: use basic data from users collection
-                        console.warn('⚠️ لم يتم العثور على بيانات في drivers، استخدام بيانات users');
-                        driverData = { id: driverId, ...userData };
+                        // Fallback: use basic data from users collection if available
+                        if (userData) {
+                            console.warn('⚠️ لم يتم العثور على بيانات في drivers، استخدام بيانات users');
+                            driverData = { id: employeeNumber, ...userData };
+                        } else {
+                            showMessage('لم يتم العثور على بيانات السائق', true);
+                            return;
+                        }
                     }
                 } else {
-                    // Fallback: use basic data from users collection
-                    console.warn('⚠️ لا يوجد driverId في users، استخدام بيانات users');
-                    driverData = { id: driverId, ...userData };
+                    showMessage('الرقم الوظيفي غير موجود', true);
+                    return;
                 }
                 
                 // Update sessionStorage with fresh data
