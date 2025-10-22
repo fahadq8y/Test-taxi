@@ -1004,8 +1004,18 @@
                 if (employeeNumber) {
                     const driverDocRef = await getDoc(doc(db, 'drivers', employeeNumber));
                     if (driverDocRef.exists()) {
-                        driverData = { id: employeeNumber, ...driverDocRef.data() };
-                        console.log('✅ تم تحميل البيانات الكاملة من drivers:', driverData);
+                        // Merge data from both collections
+                        // drivers has: contract, payments, car info
+                        // users has: location, isActive, lastSeen
+                        driverData = { 
+                            id: employeeNumber, 
+                            ...driverDocRef.data(),
+                            // Add location data from users if not in drivers
+                            location: driverDocRef.data().location || userData.location,
+                            isActive: driverDocRef.data().isActive !== undefined ? driverDocRef.data().isActive : userData.isActive,
+                            lastSeen: driverDocRef.data().lastSeen || userData.lastSeen
+                        };
+                        console.log('✅ تم تحميل البيانات المدمجة من drivers + users:', driverData);
                     } else {
                         // Fallback: use basic data from users collection
                         console.warn('⚠️ لم يتم العثور على بيانات في drivers، استخدام بيانات users');
