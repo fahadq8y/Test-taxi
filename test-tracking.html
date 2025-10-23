@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🗺️ اختبار التتبع - Tracking Test</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <style>
         * {
             margin: 0;
@@ -208,10 +214,14 @@
             overflow: hidden;
             margin-top: 15px;
             background: #e0e0e0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #666;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+            z-index: 1;
         }
 
         .coordinates {
@@ -303,8 +313,8 @@
         <!-- Map Placeholder -->
         <div class="card">
             <h2>🗺️ الخريطة</h2>
-            <div class="map-container" id="mapContainer">
-                <p>الخريطة غير متوفرة في هذا الإصدار<br>استخدم الإحداثيات أدناه</p>
+            <div class="map-container">
+                <div id="map"></div>
             </div>
             <div class="coordinates" id="coordinates" style="display: none;">
                 <div class="coordinate-item">
@@ -382,6 +392,12 @@
         let fetchCount = 0;
         let autoUpdateEnabled = true;
         let unsubscribe = null;
+        
+        // Map variables
+        let map = null;
+        let marker = null;
+        let accuracyCircle = null;
+        const defaultCenter = [24.7136, 46.6753]; // Riyadh, Saudi Arabia
 
         // Console functions
         function logToConsole(message, type = 'info') {
@@ -468,6 +484,11 @@
                     </div>
                 `;
                 document.getElementById('locationContainer').innerHTML = locationHTML;
+
+                // Update map
+                if (loc.latitude && loc.longitude) {
+                    updateMap(loc.latitude, loc.longitude, loc.accuracy || 50);
+                }
 
                 logToConsole(`موقع محدّث: Lat ${loc.latitude?.toFixed(6)}, Lng ${loc.longitude?.toFixed(6)}`, 'success');
             } else {
@@ -572,10 +593,79 @@
             }
         };
 
+        // Initialize map
+        function initMap() {
+            try {
+                logToConsole('جاري تهيئة الخريطة...', 'info');
+                
+                // Create map
+                map = L.map('map').setView(defaultCenter, 13);
+                
+                // Add OpenStreetMap tiles
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    maxZoom: 19
+                }).addTo(map);
+                
+                logToConsole('✓ الخريطة جاهزة', 'success');
+            } catch (error) {
+                logToConsole(`خطأ في تهيئة الخريطة: ${error.message}`, 'error');
+            }
+        }
+        
+        // Update map with driver location
+        function updateMap(lat, lng, accuracy) {
+            if (!map) return;
+            
+            try {
+                // Remove old marker and circle
+                if (marker) {
+                    map.removeLayer(marker);
+                }
+                if (accuracyCircle) {
+                    map.removeLayer(accuracyCircle);
+                }
+                
+                // Add new marker
+                const driverIcon = L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                });
+                
+                marker = L.marker([lat, lng], { icon: driverIcon })
+                    .addTo(map)
+                    .bindPopup(`<b>🚕 سائق 1 (DRV001)</b><br>Lat: ${lat.toFixed(6)}<br>Lng: ${lng.toFixed(6)}<br>Accuracy: ${accuracy.toFixed(2)}m`)
+                    .openPopup();
+                
+                // Add accuracy circle
+                accuracyCircle = L.circle([lat, lng], {
+                    radius: accuracy,
+                    color: '#f5576c',
+                    fillColor: '#f5576c',
+                    fillOpacity: 0.2,
+                    weight: 2
+                }).addTo(map);
+                
+                // Center map on driver
+                map.setView([lat, lng], 16);
+                
+                logToConsole(`✓ الخريطة محدثة: Lat ${lat.toFixed(6)}, Lng ${lng.toFixed(6)}`, 'success');
+            } catch (error) {
+                logToConsole(`خطأ في تحديث الخريطة: ${error.message}`, 'error');
+            }
+        }
+
         // Initialize on page load
         window.addEventListener('DOMContentLoaded', () => {
             logToConsole('الصفحة تم تحميلها', 'info');
             logToConsole('جاري الاتصال بـ Firebase...', 'info');
+            
+            // Initialize map
+            initMap();
             
             // Start with real-time listener
             startRealtimeListener();
