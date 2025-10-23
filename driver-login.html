@@ -282,18 +282,15 @@
 
                 // التوجيه حسب الدور
                 if (userFound.role === 'driver') {
-                    // البحث عن بيانات السائق في مجموعة drivers
-                    const driversSnapshot = await db.collection('drivers')
-                        .where('name', '==', username.trim())
-                        .get();
+                    // استخدام driverId من users (employeeNumber)
+                    const employeeNumber = userFound.driverId || userFound.employeeNumber;
                     
-                    if (!driversSnapshot.empty) {
-                        const driverDoc = driversSnapshot.docs[0];
-                        sessionStorage.setItem('driverId', driverDoc.id);
-                        sessionStorage.setItem('driverData', JSON.stringify(driverDoc.data()));
+                    if (employeeNumber) {
+                        sessionStorage.setItem('driverId', employeeNumber);
+                        window.location.href = `driver-view.html?driverId=${employeeNumber}`;
+                    } else {
+                        throw new Error('لم يتم العثور على الرقم الوظيفي للسائق');
                     }
-                    
-                    window.location.href = `driver-view.html?driverId=${driverDoc.id}`;
                 } else if (userFound.role === 'accountant') {
                     window.location.href = 'accountant-dashboard.html';
                 } else {
