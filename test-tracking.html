@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🗺️ اختبار التتبع - Tracking Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #f5576c;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #f5576c;
+            padding-bottom: 10px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #f5576c;
+        }
+
+        .status-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .status-value.success {
+            color: #28a745;
+        }
+
+        .status-value.error {
+            color: #dc3545;
+        }
+
+        .status-value.warning {
+            color: #ffc107;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .console {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .console-line {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 3px;
+        }
+
+        .console-line.info {
+            color: #4fc3f7;
+        }
+
+        .console-line.success {
+            color: #66bb6a;
+        }
+
+        .console-line.error {
+            color: #ef5350;
+            background: rgba(239, 83, 80, 0.1);
+        }
+
+        .console-line.warning {
+            color: #ffca28;
+        }
+
+        .console-timestamp {
+            color: #888;
+            margin-left: 10px;
+        }
+
+        .location-data {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .location-data pre {
+            margin: 0;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        .badge-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .badge-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .map-container {
+            width: 100%;
+            height: 400px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 15px;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+
+        .coordinates {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .coordinate-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .coordinate-label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .coordinate-value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🗺️ اختبار التتبع - Tracking Test</h1>
+            <p>مراقبة موقع السائق من Firebase في الوقت الفعلي</p>
+            <p style="margin-top: 5px;">
+                <span class="badge badge-info">معرف السائق: DRV001</span>
+                <span class="badge" id="autoUpdateBadge">التحديث التلقائي: مفعّل</span>
+            </p>
+        </div>
+
+        <!-- Connection Status -->
+        <div class="card">
+            <h2>📡 حالة الاتصال</h2>
+            <div class="status-grid">
+                <div class="status-item">
+                    <div class="status-label">Firebase</div>
+                    <div class="status-value" id="firebaseStatus">جاري الاتصال...</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">آخر تحديث</div>
+                    <div class="status-value" id="lastFetchTime">-</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">عدد التحديثات</div>
+                    <div class="status-value" id="fetchCount">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Driver Info -->
+        <div class="card">
+            <h2>👤 معلومات السائق</h2>
+            <div class="status-grid">
+                <div class="status-item">
+                    <div class="status-label">معرف السائق</div>
+                    <div class="status-value" id="driverIdDisplay">DRV001</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">حالة النشاط</div>
+                    <div class="status-value" id="driverActiveStatus">-</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">آخر تحديث من السائق</div>
+                    <div class="status-value" id="driverLastUpdate">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Location Data -->
+        <div class="card">
+            <h2>📍 بيانات الموقع</h2>
+            <div id="locationContainer">
+                <p style="color: #999; text-align: center; padding: 20px;">جاري تحميل البيانات...</p>
+            </div>
+        </div>
+
+        <!-- Map Placeholder -->
+        <div class="card">
+            <h2>🗺️ الخريطة</h2>
+            <div class="map-container" id="mapContainer">
+                <p>الخريطة غير متوفرة في هذا الإصدار<br>استخدم الإحداثيات أدناه</p>
+            </div>
+            <div class="coordinates" id="coordinates" style="display: none;">
+                <div class="coordinate-item">
+                    <div class="coordinate-label">خط العرض (Latitude)</div>
+                    <div class="coordinate-value" id="latValue">-</div>
+                </div>
+                <div class="coordinate-item">
+                    <div class="coordinate-label">خط الطول (Longitude)</div>
+                    <div class="coordinate-value" id="lngValue">-</div>
+                </div>
+                <div class="coordinate-item">
+                    <div class="coordinate-label">الدقة (Accuracy)</div>
+                    <div class="coordinate-value" id="accValue">-</div>
+                </div>
+                <div class="coordinate-item">
+                    <div class="coordinate-label">السرعة (Speed)</div>
+                    <div class="coordinate-value" id="speedValue">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Raw Data -->
+        <div class="card">
+            <h2>📄 البيانات الخام (JSON)</h2>
+            <div class="location-data" id="rawData">
+                <p style="color: #999; text-align: center;">لا يوجد بيانات</p>
+            </div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="card">
+            <h2>🎮 التحكم</h2>
+            <button class="btn btn-primary" onclick="fetchDriverData()">
+                🔄 تحديث يدوي
+            </button>
+            <button class="btn btn-info" id="toggleAutoBtn" onclick="toggleAutoUpdate()">
+                ⏸️ إيقاف التحديث التلقائي
+            </button>
+            <button class="btn btn-info" onclick="clearConsole()">
+                🗑️ مسح Console
+            </button>
+        </div>
+
+        <!-- Console -->
+        <div class="card">
+            <h2>🖥️ Console (سجل الأحداث)</h2>
+            <div class="console" id="console">
+                <div class="console-line info">
+                    [INFO] Console جاهز... <span class="console-timestamp">${new Date().toLocaleTimeString('ar-SA')}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getFirestore, doc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAECsL_kKKSoQv-sSRJhMO8sSXTvuv_Jqo",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "966856802326",
+            appId: "1:966856802326:web:e5a9b0f4e5e5e5e5e5e5e5"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Global variables
+        const driverId = 'DRV001';
+        let fetchCount = 0;
+        let autoUpdateEnabled = true;
+        let unsubscribe = null;
+
+        // Console functions
+        function logToConsole(message, type = 'info') {
+            const consoleEl = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString('ar-SA');
+            const line = document.createElement('div');
+            line.className = `console-line ${type}`;
+            line.innerHTML = `[${type.toUpperCase()}] ${message} <span class="console-timestamp">${timestamp}</span>`;
+            consoleEl.appendChild(line);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+            
+            // Also log to browser console
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        window.clearConsole = function() {
+            document.getElementById('console').innerHTML = '';
+            logToConsole('Console تم مسحه', 'info');
+        };
+
+        // Update UI with driver data
+        function updateUI(data) {
+            if (!data) {
+                document.getElementById('locationContainer').innerHTML = 
+                    '<p style="color: #999; text-align: center; padding: 20px;">⚠️ لا يوجد بيانات للسائق</p>';
+                logToConsole('لا يوجد بيانات للسائق في Firebase', 'warning');
+                return;
+            }
+
+            // Update driver status
+            const isActive = data.isActive || false;
+            const statusEl = document.getElementById('driverActiveStatus');
+            if (isActive) {
+                statusEl.textContent = '✓ نشط';
+                statusEl.className = 'status-value success';
+            } else {
+                statusEl.textContent = '✗ غير نشط';
+                statusEl.className = 'status-value error';
+            }
+
+            // Update last update time
+            if (data.lastUpdate) {
+                const lastUpdate = data.lastUpdate.toDate ? data.lastUpdate.toDate() : new Date(data.lastUpdate);
+                document.getElementById('driverLastUpdate').textContent = lastUpdate.toLocaleString('ar-SA');
+            }
+
+            // Update location data
+            if (data.location) {
+                const loc = data.location;
+                
+                // Show coordinates
+                document.getElementById('coordinates').style.display = 'grid';
+                document.getElementById('latValue').textContent = loc.latitude?.toFixed(6) || '-';
+                document.getElementById('lngValue').textContent = loc.longitude?.toFixed(6) || '-';
+                document.getElementById('accValue').textContent = loc.accuracy ? `${loc.accuracy.toFixed(2)} m` : '-';
+                document.getElementById('speedValue').textContent = loc.speed ? `${(loc.speed * 3.6).toFixed(2)} km/h` : '0 km/h';
+
+                // Update location container
+                const locationHTML = `
+                    <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                        <strong style="color: #2e7d32;">✓ موقع متاح</strong>
+                    </div>
+                    <div class="coordinates">
+                        <div class="coordinate-item">
+                            <div class="coordinate-label">Latitude</div>
+                            <div class="coordinate-value">${loc.latitude?.toFixed(6) || '-'}</div>
+                        </div>
+                        <div class="coordinate-item">
+                            <div class="coordinate-label">Longitude</div>
+                            <div class="coordinate-value">${loc.longitude?.toFixed(6) || '-'}</div>
+                        </div>
+                        <div class="coordinate-item">
+                            <div class="coordinate-label">Accuracy</div>
+                            <div class="coordinate-value">${loc.accuracy ? `${loc.accuracy.toFixed(2)} m` : '-'}</div>
+                        </div>
+                        <div class="coordinate-item">
+                            <div class="coordinate-label">Speed</div>
+                            <div class="coordinate-value">${loc.speed ? `${(loc.speed * 3.6).toFixed(2)} km/h` : '0 km/h'}</div>
+                        </div>
+                        <div class="coordinate-item">
+                            <div class="coordinate-label">Heading</div>
+                            <div class="coordinate-value">${loc.heading || 0}°</div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('locationContainer').innerHTML = locationHTML;
+
+                logToConsole(`موقع محدّث: Lat ${loc.latitude?.toFixed(6)}, Lng ${loc.longitude?.toFixed(6)}`, 'success');
+            } else {
+                document.getElementById('locationContainer').innerHTML = 
+                    '<p style="color: #999; text-align: center; padding: 20px;">⚠️ لا يوجد موقع متاح<br><small>تأكد من أن السائق بدأ التتبع</small></p>';
+                logToConsole('لا يوجد موقع في البيانات', 'warning');
+            }
+
+            // Update raw data
+            const rawDataHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            document.getElementById('rawData').innerHTML = rawDataHTML;
+
+            // Update fetch time
+            document.getElementById('lastFetchTime').textContent = new Date().toLocaleTimeString('ar-SA');
+            fetchCount++;
+            document.getElementById('fetchCount').textContent = fetchCount;
+        }
+
+        // Fetch driver data (one-time)
+        window.fetchDriverData = async function() {
+            try {
+                logToConsole('جاري جلب البيانات من Firebase...', 'info');
+                
+                const docRef = doc(db, 'drivers', driverId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    logToConsole('✓ تم جلب البيانات بنجاح', 'success');
+                    updateUI(data);
+                    
+                    document.getElementById('firebaseStatus').textContent = '✓ متصل';
+                    document.getElementById('firebaseStatus').className = 'status-value success';
+                } else {
+                    logToConsole('المستند غير موجود في Firebase', 'error');
+                    document.getElementById('locationContainer').innerHTML = 
+                        '<p style="color: #dc3545; text-align: center; padding: 20px;">✗ المستند غير موجود<br><small>تأكد من أن السائق سجل دخول مرة واحدة على الأقل</small></p>';
+                    
+                    document.getElementById('firebaseStatus').textContent = '✗ المستند غير موجود';
+                    document.getElementById('firebaseStatus').className = 'status-value error';
+                }
+            } catch (error) {
+                logToConsole(`خطأ في جلب البيانات: ${error.message}`, 'error');
+                document.getElementById('firebaseStatus').textContent = '✗ خطأ في الاتصال';
+                document.getElementById('firebaseStatus').className = 'status-value error';
+            }
+        };
+
+        // Start real-time listener
+        function startRealtimeListener() {
+            logToConsole('بدء المراقبة في الوقت الفعلي...', 'info');
+
+            const docRef = doc(db, 'drivers', driverId);
+            
+            unsubscribe = onSnapshot(docRef, 
+                (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        logToConsole('✓ تحديث تلقائي من Firebase', 'info');
+                        updateUI(data);
+                        
+                        document.getElementById('firebaseStatus').textContent = '✓ متصل (Real-time)';
+                        document.getElementById('firebaseStatus').className = 'status-value success';
+                    } else {
+                        logToConsole('المستند غير موجود', 'warning');
+                    }
+                },
+                (error) => {
+                    logToConsole(`خطأ في المراقبة: ${error.message}`, 'error');
+                }
+            );
+        }
+
+        // Stop real-time listener
+        function stopRealtimeListener() {
+            if (unsubscribe) {
+                unsubscribe();
+                unsubscribe = null;
+                logToConsole('تم إيقاف المراقبة في الوقت الفعلي', 'info');
+            }
+        }
+
+        // Toggle auto update
+        window.toggleAutoUpdate = function() {
+            autoUpdateEnabled = !autoUpdateEnabled;
+            
+            const btn = document.getElementById('toggleAutoBtn');
+            const badge = document.getElementById('autoUpdateBadge');
+            
+            if (autoUpdateEnabled) {
+                btn.textContent = '⏸️ إيقاف التحديث التلقائي';
+                badge.textContent = 'التحديث التلقائي: مفعّل';
+                badge.className = 'badge badge-success';
+                startRealtimeListener();
+                logToConsole('✓ التحديث التلقائي مفعّل', 'success');
+            } else {
+                btn.textContent = '▶️ تفعيل التحديث التلقائي';
+                badge.textContent = 'التحديث التلقائي: معطّل';
+                badge.className = 'badge badge-danger';
+                stopRealtimeListener();
+                logToConsole('○ التحديث التلقائي معطّل', 'warning');
+            }
+        };
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            logToConsole('الصفحة تم تحميلها', 'info');
+            logToConsole('جاري الاتصال بـ Firebase...', 'info');
+            
+            // Start with real-time listener
+            startRealtimeListener();
+            
+            // Also do initial fetch
+            fetchDriverData();
+        });
+    </script>
+</body>
+</html>
+

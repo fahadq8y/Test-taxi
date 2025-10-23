@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚕 اختبار السائق - Geolocation Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .status-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .status-value.success {
+            color: #28a745;
+        }
+
+        .status-value.error {
+            color: #dc3545;
+        }
+
+        .status-value.warning {
+            color: #ffc107;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .console {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .console-line {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 3px;
+        }
+
+        .console-line.info {
+            color: #4fc3f7;
+        }
+
+        .console-line.success {
+            color: #66bb6a;
+        }
+
+        .console-line.error {
+            color: #ef5350;
+            background: rgba(239, 83, 80, 0.1);
+        }
+
+        .console-line.warning {
+            color: #ffca28;
+        }
+
+        .console-timestamp {
+            color: #888;
+            margin-left: 10px;
+        }
+
+        .location-data {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .location-data pre {
+            margin: 0;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        .badge-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .badge-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .badge-info {
+            background: #17a2b8;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚕 اختبار السائق - Geolocation Test</h1>
+            <p>اختبار مباشر لـ Geolocation API بدون React Native</p>
+            <p style="margin-top: 5px;">
+                <span class="badge badge-info">معرف السائق: DRV001</span>
+                <span class="badge badge-warning" id="watchIdBadge">Watch ID: غير نشط</span>
+            </p>
+        </div>
+
+        <!-- Permission Status -->
+        <div class="card">
+            <h2>📍 حالة الصلاحيات</h2>
+            <div class="status-grid">
+                <div class="status-item">
+                    <div class="status-label">صلاحية الموقع</div>
+                    <div class="status-value" id="permissionStatus">جاري التحقق...</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Geolocation API</div>
+                    <div class="status-value" id="geoApiStatus">جاري التحقق...</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">نوع المتصفح</div>
+                    <div class="status-value" id="browserType">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tracking Status -->
+        <div class="card">
+            <h2>🎯 حالة التتبع</h2>
+            <div class="status-grid">
+                <div class="status-item">
+                    <div class="status-label">حالة التتبع</div>
+                    <div class="status-value" id="trackingStatus">غير نشط</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">عدد التحديثات</div>
+                    <div class="status-value" id="updateCount">0</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">آخر تحديث</div>
+                    <div class="status-value" id="lastUpdate">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="card">
+            <h2>🎮 التحكم</h2>
+            <button class="btn btn-success" id="startBtn" onclick="startTracking()">
+                ▶ بدء التتبع
+            </button>
+            <button class="btn btn-danger" id="stopBtn" onclick="stopTracking()" disabled>
+                ■ إيقاف التتبع
+            </button>
+            <button class="btn btn-primary" onclick="getCurrentPosition()">
+                📍 الموقع الحالي (مرة واحدة)
+            </button>
+            <button class="btn btn-info" onclick="clearConsole()">
+                🗑️ مسح Console
+            </button>
+        </div>
+
+        <!-- Location Data -->
+        <div class="card">
+            <h2>📌 آخر موقع</h2>
+            <div class="location-data" id="locationData">
+                <p style="color: #999; text-align: center;">لا يوجد بيانات بعد</p>
+            </div>
+        </div>
+
+        <!-- Console -->
+        <div class="card">
+            <h2>🖥️ Console (سجل الأحداث)</h2>
+            <div class="console" id="console">
+                <div class="console-line info">
+                    [INFO] Console جاهز... <span class="console-timestamp">${new Date().toLocaleTimeString('ar-SA')}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAECsL_kKKSoQv-sSRJhMO8sSXTvuv_Jqo",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "966856802326",
+            appId: "1:966856802326:web:e5a9b0f4e5e5e5e5e5e5e5"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Global variables
+        const driverId = 'DRV001';
+        let watchId = null;
+        let updateCount = 0;
+        let lastPosition = null;
+
+        // Console functions
+        function logToConsole(message, type = 'info') {
+            const consoleEl = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString('ar-SA');
+            const line = document.createElement('div');
+            line.className = `console-line ${type}`;
+            line.innerHTML = `[${type.toUpperCase()}] ${message} <span class="console-timestamp">${timestamp}</span>`;
+            consoleEl.appendChild(line);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+            
+            // Also log to browser console
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        window.clearConsole = function() {
+            document.getElementById('console').innerHTML = '';
+            logToConsole('Console تم مسحه', 'info');
+        };
+
+        // Check browser and permissions
+        async function checkBrowserAndPermissions() {
+            // Check browser type
+            const userAgent = navigator.userAgent;
+            let browserType = 'Unknown';
+            if (userAgent.includes('Chrome')) browserType = 'Chrome';
+            else if (userAgent.includes('Safari')) browserType = 'Safari';
+            else if (userAgent.includes('Firefox')) browserType = 'Firefox';
+            else if (userAgent.includes('Edge')) browserType = 'Edge';
+            
+            document.getElementById('browserType').textContent = browserType;
+            logToConsole(`المتصفح: ${browserType}`, 'info');
+
+            // Check Geolocation API
+            if ('geolocation' in navigator) {
+                document.getElementById('geoApiStatus').textContent = '✓ متوفر';
+                document.getElementById('geoApiStatus').className = 'status-value success';
+                logToConsole('Geolocation API متوفر', 'success');
+            } else {
+                document.getElementById('geoApiStatus').textContent = '✗ غير متوفر';
+                document.getElementById('geoApiStatus').className = 'status-value error';
+                logToConsole('Geolocation API غير متوفر!', 'error');
+                return;
+            }
+
+            // Check permissions (if supported)
+            if ('permissions' in navigator) {
+                try {
+                    const result = await navigator.permissions.query({ name: 'geolocation' });
+                    updatePermissionStatus(result.state);
+                    
+                    // Listen for permission changes
+                    result.addEventListener('change', () => {
+                        updatePermissionStatus(result.state);
+                    });
+                } catch (error) {
+                    logToConsole(`فشل التحقق من الصلاحيات: ${error.message}`, 'warning');
+                    document.getElementById('permissionStatus').textContent = 'غير معروف';
+                }
+            } else {
+                logToConsole('Permissions API غير مدعوم في هذا المتصفح', 'warning');
+                document.getElementById('permissionStatus').textContent = 'غير معروف';
+            }
+        }
+
+        function updatePermissionStatus(state) {
+            const statusEl = document.getElementById('permissionStatus');
+            
+            if (state === 'granted') {
+                statusEl.textContent = '✓ ممنوحة';
+                statusEl.className = 'status-value success';
+                logToConsole('صلاحية الموقع: ممنوحة', 'success');
+            } else if (state === 'denied') {
+                statusEl.textContent = '✗ مرفوضة';
+                statusEl.className = 'status-value error';
+                logToConsole('صلاحية الموقع: مرفوضة', 'error');
+            } else {
+                statusEl.textContent = '⚠ قيد الانتظار';
+                statusEl.className = 'status-value warning';
+                logToConsole('صلاحية الموقع: قيد الانتظار', 'warning');
+            }
+        }
+
+        // Update location data display
+        function updateLocationDisplay(position) {
+            const data = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                altitude: position.coords.altitude,
+                altitudeAccuracy: position.coords.altitudeAccuracy,
+                heading: position.coords.heading,
+                speed: position.coords.speed,
+                timestamp: new Date(position.timestamp).toLocaleString('ar-SA')
+            };
+
+            const html = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            document.getElementById('locationData').innerHTML = html;
+            
+            lastPosition = position;
+        }
+
+        // Save to Firebase
+        async function saveToFirebase(position) {
+            try {
+                const locationData = {
+                    driverId: driverId,
+                    isActive: true,
+                    location: {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        accuracy: position.coords.accuracy,
+                        speed: position.coords.speed || 0,
+                        heading: position.coords.heading || 0
+                    },
+                    lastUpdate: serverTimestamp()
+                };
+
+                await setDoc(doc(db, 'drivers', driverId), locationData, { merge: true });
+                logToConsole('✓ تم حفظ البيانات في Firebase', 'success');
+            } catch (error) {
+                logToConsole(`✗ فشل الحفظ في Firebase: ${error.message}`, 'error');
+            }
+        }
+
+        // Start tracking
+        window.startTracking = function() {
+            if (watchId !== null) {
+                logToConsole('التتبع نشط بالفعل!', 'warning');
+                return;
+            }
+
+            logToConsole('بدء التتبع...', 'info');
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            };
+
+            watchId = navigator.geolocation.watchPosition(
+                // Success callback
+                (position) => {
+                    updateCount++;
+                    document.getElementById('updateCount').textContent = updateCount;
+                    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('ar-SA');
+                    
+                    logToConsole(`تحديث #${updateCount} - Lat: ${position.coords.latitude.toFixed(6)}, Lng: ${position.coords.longitude.toFixed(6)}, Accuracy: ${position.coords.accuracy.toFixed(2)}m`, 'success');
+                    
+                    updateLocationDisplay(position);
+                    saveToFirebase(position);
+                },
+                // Error callback
+                (error) => {
+                    let errorMsg = '';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg = 'المستخدم رفض صلاحية الموقع';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg = 'معلومات الموقع غير متوفرة';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg = 'انتهت مهلة الطلب';
+                            break;
+                        default:
+                            errorMsg = 'خطأ غير معروف';
+                    }
+                    logToConsole(`خطأ في التتبع: ${errorMsg} (${error.message})`, 'error');
+                },
+                options
+            );
+
+            // Update UI
+            document.getElementById('trackingStatus').textContent = '✓ نشط';
+            document.getElementById('trackingStatus').className = 'status-value success';
+            document.getElementById('watchIdBadge').textContent = `Watch ID: ${watchId}`;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+
+            logToConsole(`✓ التتبع بدأ بنجاح (Watch ID: ${watchId})`, 'success');
+        };
+
+        // Stop tracking
+        window.stopTracking = function() {
+            if (watchId === null) {
+                logToConsole('التتبع غير نشط!', 'warning');
+                return;
+            }
+
+            navigator.geolocation.clearWatch(watchId);
+            logToConsole(`✓ تم إيقاف التتبع (Watch ID: ${watchId})`, 'success');
+            
+            watchId = null;
+
+            // Update UI
+            document.getElementById('trackingStatus').textContent = '○ غير نشط';
+            document.getElementById('trackingStatus').className = 'status-value warning';
+            document.getElementById('watchIdBadge').textContent = 'Watch ID: غير نشط';
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+
+            // Update Firebase
+            setDoc(doc(db, 'drivers', driverId), {
+                isActive: false,
+                lastUpdate: serverTimestamp()
+            }, { merge: true }).catch(error => {
+                logToConsole(`فشل تحديث Firebase: ${error.message}`, 'error');
+            });
+        };
+
+        // Get current position (one-time)
+        window.getCurrentPosition = function() {
+            logToConsole('جاري الحصول على الموقع الحالي...', 'info');
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            };
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    logToConsole(`✓ تم الحصول على الموقع - Lat: ${position.coords.latitude.toFixed(6)}, Lng: ${position.coords.longitude.toFixed(6)}, Accuracy: ${position.coords.accuracy.toFixed(2)}m`, 'success');
+                    updateLocationDisplay(position);
+                },
+                (error) => {
+                    let errorMsg = '';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg = 'المستخدم رفض صلاحية الموقع';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg = 'معلومات الموقع غير متوفرة';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg = 'انتهت مهلة الطلب';
+                            break;
+                        default:
+                            errorMsg = 'خطأ غير معروف';
+                    }
+                    logToConsole(`خطأ: ${errorMsg} (${error.message})`, 'error');
+                },
+                options
+            );
+        };
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            logToConsole('الصفحة تم تحميلها', 'info');
+            checkBrowserAndPermissions();
+        });
+    </script>
+</body>
+</html>
+
