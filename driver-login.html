@@ -292,7 +292,7 @@
                         sessionStorage.setItem('driverData', JSON.stringify(driverDoc.data()));
                     }
                     
-                    window.location.href = 'driver-view.html';
+                    window.location.href = `driver-view.html?driverId=${driverDoc.id}`;
                 } else if (userFound.role === 'accountant') {
                     window.location.href = 'accountant-dashboard.html';
                 } else {
