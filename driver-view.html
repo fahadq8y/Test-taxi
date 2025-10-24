@@ -1371,7 +1371,8 @@
         };
 
         // Initialize page
-        document.addEventListener('DOMContentLoaded', loadDriverData);
+        // استدعاء مباشر بدلاً من DOMContentLoaded لأن module scripts تحمل بعد DOM
+        loadDriverData();
     </script>
 
     <!-- Service Worker Registration -->
