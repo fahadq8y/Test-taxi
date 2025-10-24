@@ -636,7 +636,7 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
-        import { getFirestore, doc, getDoc, updateDoc, getDocs, collection, query, where } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+        import { getFirestore, doc, getDoc, updateDoc, getDocs, collection, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
         import { getAuth, signOut } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
         const firebaseConfig = {
@@ -668,6 +668,7 @@
         let drivers = [];
         let driverPayments = [];
         let cars = [];
+        let driverUnsubscribe = null; // For real-time listener cleanup
 
         // Parse date from various formats
         function parseDate(dateValue) {
@@ -1024,31 +1025,75 @@
                     console.log('✅ الرقم الوظيفي من المستخدم:', employeeNumber);
                 }
                 
-                // Step 2: Get full driver data from drivers collection using employee number
+                // Step 2: Setup real-time listener for driver data
                 if (employeeNumber) {
+                    // Cleanup previous listener if exists
+                    if (driverUnsubscribe) {
+                        console.log('🗑️ إيقاف الاستماع السابق');
+                        driverUnsubscribe();
+                    }
+                    
+                    // Setup real-time listener
+                    console.log('🔊 بدء الاستماع للتحديثات في الوقت الفعلي للسائق:', employeeNumber);
+                    driverUnsubscribe = onSnapshot(
+                        doc(db, 'drivers', employeeNumber),
+                        (driverDocSnapshot) => {
+                            if (driverDocSnapshot.exists()) {
+                                const timestamp = new Date().toLocaleTimeString('ar-SA');
+                                console.log(`🔄 [التحديث ${timestamp}] تم استلام بيانات جديدة للسائق`);
+                                
+                                // Merge data from both collections
+                                const freshData = driverDocSnapshot.data();
+                                driverData = { 
+                                    id: employeeNumber, 
+                                    ...freshData,
+                                    // Add location data from users if not in drivers
+                                    location: freshData.location || (userData ? userData.location : null),
+                                    isActive: freshData.isActive !== undefined ? freshData.isActive : (userData ? userData.isActive : false),
+                                    lastSeen: freshData.lastSeen || (userData ? userData.lastSeen : null)
+                                };
+                                
+                                console.log('✅ البيانات المحدثة:', {
+                                    isActive: driverData.isActive,
+                                    hasLocation: !!driverData.location,
+                                    lastUpdate: driverData.lastUpdate
+                                });
+                                
+                                // Update sessionStorage
+                                sessionStorage.setItem('driverData', JSON.stringify(driverData));
+                                
+                                // Update UI with fresh data
+                                updateDriverUI();
+                            } else {
+                                console.warn('⚠️ لم يتم العثور على بيانات في drivers');
+                                // Fallback: use basic data from users collection if available
+                                if (userData) {
+                                    driverData = { id: employeeNumber, ...userData };
+                                    updateDriverUI();
+                                }
+                            }
+                        },
+                        (error) => {
+                            console.error('❌ خطأ في الاستماع للتحديثات:', error);
+                        }
+                    );
+                    
+                    // Initial load - get data once to populate UI immediately
                     const driverDocRef = await getDoc(doc(db, 'drivers', employeeNumber));
                     if (driverDocRef.exists()) {
-                        // Merge data from both collections
-                        // drivers has: contract, payments, car info
-                        // users has: location, isActive, lastSeen (if available)
                         driverData = { 
                             id: employeeNumber, 
                             ...driverDocRef.data(),
-                            // Add location data from users if not in drivers
                             location: driverDocRef.data().location || (userData ? userData.location : null),
                             isActive: driverDocRef.data().isActive !== undefined ? driverDocRef.data().isActive : (userData ? userData.isActive : false),
                             lastSeen: driverDocRef.data().lastSeen || (userData ? userData.lastSeen : null)
                         };
-                        console.log('✅ تم تحميل البيانات المدمجة من drivers + users:', driverData);
+                        console.log('✅ تم تحميل البيانات الأولية:', driverData);
+                    } else if (userData) {
+                        driverData = { id: employeeNumber, ...userData };
                     } else {
-                        // Fallback: use basic data from users collection if available
-                        if (userData) {
-                            console.warn('⚠️ لم يتم العثور على بيانات في drivers، استخدام بيانات users');
-                            driverData = { id: employeeNumber, ...userData };
-                        } else {
-                            showMessage('لم يتم العثور على بيانات السائق', true);
-                            return;
-                        }
+                        showMessage('لم يتم العثور على بيانات السائق', true);
+                        return;
                     }
                 } else {
                     showMessage('الرقم الوظيفي غير موجود', true);
@@ -1063,118 +1108,131 @@
                 return;
             }
 
-            // Calculate financial stats using the new system
-            const stats = calculateDriverStats(driverData);
 
-            // Basic info
-            document.getElementById('welcomeMessage').textContent = `مرحباً ${driverData.name}`;
-            document.getElementById('driverName').textContent = driverData.name || '-';
-            document.getElementById('driverPhone').textContent = driverData.phone || '-';
-            document.getElementById('employeeNumber').textContent = driverData.employeeNumber || 'غير محدد';
-            
-            // Contract type
-            const contractType = driverData.contractType || 'daily';
-            const contractTypeText = contractType === 'monthly' ? '📆 عقد شهري' : '📅 عقد يومي';
-            document.getElementById('contractType').textContent = contractTypeText;
-            document.getElementById('driverNationality').textContent = driverData.nationality || '-';
-            document.getElementById('driverAddress').textContent = driverData.address || '-';
+            // Update UI with initial data
+            updateDriverUI();
 
-            // Car info
-            const assignedCar = cars.find(car => car.id === driverData.assignedCar);
-            if (assignedCar) {
-                document.getElementById('assignedCar').textContent = `${assignedCar.plateNumber} - ${assignedCar.model}`;
-                // Set car registration expiry as insurance expiry
-                document.getElementById('carRegistrationExpiry').textContent = formatDateEnglish(assignedCar.registrationExpiry);
-                document.getElementById('insuranceExpiry').textContent = formatDateEnglish(assignedCar.registrationExpiry);
+        // Update Driver UI (called on real-time updates)
+        function updateDriverUI() {
+            try {
+                // Calculate financial stats using the new system
+                const stats = calculateDriverStats(driverData);
+
+                // Basic info
+                document.getElementById('welcomeMessage').textContent = `مرحباً ${driverData.name}`;
+                document.getElementById('driverName').textContent = driverData.name || '-';
+                document.getElementById('driverPhone').textContent = driverData.phone || '-';
+                document.getElementById('employeeNumber').textContent = driverData.employeeNumber || 'غير محدد';
                 
-                const carRegStatus = getDocumentExpiryStatus(assignedCar.registrationExpiry, 'document');
-                document.getElementById('carRegistrationStatus').textContent = carRegStatus.status;
-                document.getElementById('carRegistrationStatus').className = `expiry-status ${carRegStatus.class}`;
-                document.getElementById('insuranceStatus').textContent = carRegStatus.status;
-                document.getElementById('insuranceStatus').className = `expiry-status ${carRegStatus.class}`;
-            } else {
-                document.getElementById('assignedCar').textContent = '-';
-            }
+                // Contract type
+                const contractType = driverData.contractType || 'daily';
+                const contractTypeText = contractType === 'monthly' ? '📆 عقد شهري' : '📅 عقد يومي';
+                document.getElementById('contractType').textContent = contractTypeText;
+                document.getElementById('driverNationality').textContent = driverData.nationality || '-';
+                document.getElementById('driverAddress').textContent = driverData.address || '-';
 
-            // Contract info
-            document.getElementById('contractStartDate').textContent = formatDate(driverData.contractStartDate);
-            document.getElementById('contractDuration').textContent = driverData.contractDuration ? `${driverData.contractDuration} شهر` : '-';
-            document.getElementById('contractEndDate').textContent = formatDate(driverData.contractEndDate);
+                // Car info
+                const assignedCar = cars.find(car => car.id === driverData.assignedCar);
+                if (assignedCar) {
+                    document.getElementById('assignedCar').textContent = `${assignedCar.plateNumber} - ${assignedCar.model}`;
+                    document.getElementById('carRegistrationExpiry').textContent = formatDateEnglish(assignedCar.registrationExpiry);
+                    document.getElementById('insuranceExpiry').textContent = formatDateEnglish(assignedCar.registrationExpiry);
+                    
+                    const carRegStatus = getDocumentExpiryStatus(assignedCar.registrationExpiry, 'document');
+                    document.getElementById('carRegistrationStatus').textContent = carRegStatus.status;
+                    document.getElementById('carRegistrationStatus').className = `expiry-status ${carRegStatus.class}`;
+                    document.getElementById('insuranceStatus').textContent = carRegStatus.status;
+                    document.getElementById('insuranceStatus').className = `expiry-status ${carRegStatus.class}`;
+                } else {
+                    document.getElementById('assignedCar').textContent = '-';
+                }
 
-            // Financial info using new calculations
-            document.getElementById('dailyRent').textContent = `${stats.dailyWage} د.ك`;
-            document.getElementById('lastPaymentDate').textContent = formatDate(stats.lastPayment);
-            document.getElementById('paidUntilDate').textContent = formatDate(stats.paidUntilDate);
-            document.getElementById('overdueDays').textContent = `${stats.daysLate} يوم`;
-            document.getElementById('overdueAmount').textContent = `${stats.lateAmount.toFixed(3)} د.ك`;
-            
-            // Set driver balance with proper color
-            const driverBalanceEl = document.getElementById('driverBalance');
-            if (driverBalanceEl) {
-                driverBalanceEl.textContent = `${stats.driverBalance.toFixed(3)} د.ك`;
-                driverBalanceEl.className = stats.driverBalance > 0 ? 'value amount-highlight positive-amount' : 'value amount-highlight';
-            }
-            
-            // Set individual debt components with proper colors
-            const violationsEl = document.getElementById('violations');
-            violationsEl.textContent = `${stats.violations.toFixed(3)} د.ك`;
-            violationsEl.className = stats.violations > 0 ? 'value amount-highlight negative-amount' : 'value amount-highlight';
-            
-            const residenceEl = document.getElementById('residenceExpenses');
-            residenceEl.textContent = `${stats.residencyFees.toFixed(3)} د.ك`;
-            residenceEl.className = stats.residencyFees > 0 ? 'value amount-highlight negative-amount' : 'value amount-highlight';
-            
-            const oldDebtsEl = document.getElementById('oldDebts');
-            oldDebtsEl.textContent = `${stats.oldDebts.toFixed(3)} د.ك`;
-            oldDebtsEl.className = stats.oldDebts > 0 ? 'value amount-highlight negative-amount' : 'value amount-highlight';
-            
-            const totalDebtsEl = document.getElementById('totalDebts');
-            totalDebtsEl.textContent = `${stats.totalDebt.toFixed(3)} د.ك`;
-            totalDebtsEl.className = stats.totalDebt > 0 ? 'value amount-highlight negative-amount' : 'value amount-highlight';
-            
-            // Set account status
-            const accountStatusEl = document.getElementById('accountStatus');
-            accountStatusEl.textContent = stats.status;
-            if (stats.status === 'منتظم') {
-                accountStatusEl.className = 'status-indicator status-good';
-            } else if (stats.status === 'متأخر') {
-                accountStatusEl.className = 'status-indicator status-warning';
-            } else {
-                accountStatusEl.className = 'status-indicator status-danger';
-            }
+                // Contract info
+                document.getElementById('contractStartDate').textContent = formatDate(driverData.contractStartDate);
+                document.getElementById('contractDuration').textContent = driverData.contractDuration ? `${driverData.contractDuration} شهر` : '-';
+                document.getElementById('contractEndDate').textContent = formatDate(driverData.contractEndDate);
 
-            // Maintenance info
-            const currentKilometers = driverData.currentKilometers || 0;
-            document.getElementById('currentKilometers').textContent = `${currentKilometers.toLocaleString()} كم`;
-            document.getElementById('lastOilChange').textContent = formatDate(driverData.lastOilChangeDate);
+                // Financial info
+                document.getElementById('dailyRent').textContent = `${stats.dailyWage} د.ك`;
+                document.getElementById('lastPaymentDate').textContent = formatDate(stats.lastPayment);
+                document.getElementById('paidUntilDate').textContent = formatDate(stats.paidUntilDate);
+                document.getElementById('overdueDays').textContent = `${stats.daysLate} يوم`;
+                document.getElementById('overdueAmount').textContent = `${stats.lateAmount.toFixed(3)} د.ك`;
+                
+                const driverBalanceEl = document.getElementById('driverBalance');
+                if (driverBalanceEl) {
+                    driverBalanceEl.textContent = `${stats.driverBalance.toFixed(3)} د.ك`;
+                    driverBalanceEl.className = stats.driverBalance > 0 ? 'value amount-highlight positive-amount' : 'value amount-highlight';
+                }
+                
+                const violationsEl = document.getElementById('violations');
+                violationsEl.textContent = `${stats.violations.toFixed(3)} د.ك`;
+                violationsEl.className = stats.violations > 0 ? 'value amount-highlight negative-amount' : 'value amount-highlight';
+                
+                const residenceEl = document.getElementById('residenceExpenses');
+                residenceEl.textContent = `${stats.residencyFees.toFixed(3)} د.ك`;
+                residenceEl.className = stats.residencyFees > 0 ? 'value amount-highlight negative-amount' : 'value amount-highlight';
+                
+                const oldDebtsEl = document.getElementById('oldDebts');
+                oldDebtsEl.textContent = `${stats.oldDebts.toFixed(3)} د.ك`;
+                oldDebtsEl.className = stats.oldDebts > 0 ? 'value amount-highlight negative-amount' : 'value amount-highlight';
+                
+                const totalDebtsEl = document.getElementById('totalDebts');
+                totalDebtsEl.textContent = `${stats.totalDebt.toFixed(3)} د.ك`;
+                totalDebtsEl.className = stats.totalDebt > 0 ? 'value amount-highlight negative-amount' : 'value amount-highlight';
+                
+                const accountStatusEl = document.getElementById('accountStatus');
+                accountStatusEl.textContent = stats.status;
+                accountStatusEl.className = `status-indicator ${stats.statusClass}`;
 
-            // Oil status
-            const oilStatus = getOilChangeStatus(driverData.lastOilChangeDate);
-            const oilStatusEl = document.getElementById('oilStatus');
-            oilStatusEl.textContent = oilStatus.status;
-            oilStatusEl.style.backgroundColor = oilStatus.color + '20';
-            oilStatusEl.style.color = oilStatus.color;
+                // Maintenance info
+                const currentKilometers = driverData.currentKilometers || (assignedCar ? assignedCar.currentKilometers : 0) || 0;
+                const lastOilChangeKm = driverData.lastOilChangeKm || (assignedCar ? assignedCar.lastOilChangeKm : 0) || 0;
+                const kmSinceOilChange = currentKilometers - lastOilChangeKm;
+                const oilChangeThreshold = 5000;
+                const kmUntilOilChange = Math.max(0, oilChangeThreshold - kmSinceOilChange);
 
-            // Documents
-            const documents = [
-                { id: 'licenseExpiry', statusId: 'licenseStatus', data: driverData.licenseExpiry, type: 'document' },
-                { id: 'permitExpiry', statusId: 'permitStatus', data: driverData.permitExpiry, type: 'document' },
-                { id: 'residenceExpiry', statusId: 'residenceStatus', data: driverData.residencyExpiry, type: 'document' },
-                { id: 'passportExpiry', statusId: 'passportStatus', data: driverData.passportExpiry, type: 'passport' }
-            ];
+                document.getElementById('currentKilometers').textContent = currentKilometers.toLocaleString();
+                document.getElementById('lastOilChangeKm').textContent = lastOilChangeKm.toLocaleString();
+                document.getElementById('kmSinceOilChange').textContent = kmSinceOilChange.toLocaleString();
+                document.getElementById('kmUntilOilChange').textContent = kmUntilOilChange.toLocaleString();
 
-            documents.forEach(doc => {
-                document.getElementById(doc.id).textContent = formatDate(doc.data);
-                const status = getDocumentExpiryStatus(doc.data, doc.type);
-                document.getElementById(doc.statusId).textContent = status.status;
-                document.getElementById(doc.statusId).className = `expiry-status ${status.class}`;
-            });
+                const oilStatusEl = document.getElementById('oilStatus');
+                if (kmSinceOilChange >= oilChangeThreshold) {
+                    oilStatusEl.textContent = '⚠️ يحتاج تغيير زيت';
+                    oilStatusEl.className = 'oil-status status-danger';
+                } else if (kmSinceOilChange >= oilChangeThreshold * 0.8) {
+                    oilStatusEl.textContent = '⚠️ قريب من موعد التغيير';
+                    oilStatusEl.className = 'oil-status status-warning';
+                } else {
+                    oilStatusEl.textContent = '✅ جيد';
+                    oilStatusEl.className = 'oil-status status-good';
+                }
 
-            // Set current values in form
-            document.getElementById('newKilometers').value = currentKilometers;
-            if (driverData.lastOilChangeDate) {
-                const oilDate = parseDate(driverData.lastOilChangeDate);
-                document.getElementById('oilChangeDate').value = oilDate.toISOString().split('T')[0];
+                // Documents
+                const documents = [
+                    { id: 'licenseExpiry', statusId: 'licenseStatus', data: driverData.licenseExpiry, type: 'license' },
+                    { id: 'residencyExpiry', statusId: 'residencyStatus', data: driverData.residencyExpiry, type: 'residency' },
+                    { id: 'passportExpiry', statusId: 'passportStatus', data: driverData.passportExpiry, type: 'passport' }
+                ];
+
+                documents.forEach(doc => {
+                    document.getElementById(doc.id).textContent = formatDate(doc.data);
+                    const status = getDocumentExpiryStatus(doc.data, doc.type);
+                    document.getElementById(doc.statusId).textContent = status.status;
+                    document.getElementById(doc.statusId).className = `expiry-status ${status.class}`;
+                });
+
+                // Set current values in form
+                document.getElementById('newKilometers').value = currentKilometers;
+                if (driverData.lastOilChangeDate) {
+                    const oilDate = parseDate(driverData.lastOilChangeDate);
+                    document.getElementById('oilChangeDate').value = oilDate.toISOString().split('T')[0];
+                }
+                
+                console.log('✅ تم تحديث واجهة المستخدم بنجاح');
+            } catch (error) {
+                console.error('❌ خطأ في تحديث واجهة المستخدم:', error);
             }
         }
 
