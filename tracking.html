@@ -435,7 +435,7 @@
                                 longitude: data.location.longitude,
                                 speed: data.location.speed || 0,
                                 accuracy: data.location.accuracy || 0,
-                                localTime: data.lastUpdate ? new Date(data.lastUpdate).toISOString() : new Date().toISOString(),
+                                localTime: data.lastUpdate ? (data.lastUpdate.toDate ? data.lastUpdate.toDate().toISOString() : new Date().toISOString()) : new Date().toISOString(),
                                 isActive: data.isActive || false
                             };
                             drivers[driverId] = driverData;
