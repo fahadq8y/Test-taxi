@@ -792,19 +792,6 @@
             return Math.max(0, debt);
         }
 
-        // Load drivers data
-        async function loadDrivers() {
-            try {
-                const querySnapshot = await getDocs(collection(db, 'drivers'));
-                drivers = [];
-                querySnapshot.forEach((doc) => {
-                    drivers.push({ id: doc.id, ...doc.data() });
-                });
-            } catch (error) {
-                console.error('Error loading drivers:', error);
-            }
-        }
-
         // Load driver payments from Firebase
         async function loadDriverPayments() {
             try {
@@ -979,87 +966,40 @@
         async function loadDriverData() {
             if (!checkLogin()) return;
 
-            // Load all required data
-            await Promise.all([
-                loadCars(),
-                loadDrivers(),
-                loadDriverPayments()
-            ]);
-
-            // Always refresh driver data from Firebase to get latest updates
             try {
-                let employeeNumber = driverId;
-                let userData = null;
+                console.log('🔍 جاري تحميل بيانات السائق:', driverId);
                 
-                // Check if driverId is an employeeNumber (starts with DRV) or userId
-                if (driverId.startsWith('DRV')) {
-                    // driverId is already an employeeNumber
-                    console.log('📋 تم استقبال الرقم الوظيفي مباشرة:', employeeNumber);
-                    
-                    // Find the user document by searching for this employeeNumber
-                    const usersQuery = query(
-                        collection(db, 'users'),
-                        where('driverId', '==', employeeNumber)
-                    );
-                    const usersSnapshot = await getDocs(usersQuery);
-                    
-                    if (!usersSnapshot.empty) {
-                        userData = usersSnapshot.docs[0].data();
-                        console.log('✅ تم العثور على بيانات المستخدم:', userData.name);
-                    } else {
-                        console.warn('⚠️ لم يتم العثور على مستخدم بالرقم الوظيفي:', employeeNumber);
-                    }
-                } else {
-                    // driverId is a userId, get employeeNumber from user document
-                    console.log('🔑 تم استقبال معرف المستخدم:', driverId);
-                    const userDoc = await getDoc(doc(db, 'users', driverId));
-                    
-                    if (!userDoc.exists()) {
-                        showMessage('لم يتم العثور على حساب المستخدم', true);
-                        return;
-                    }
-                    
-                    userData = userDoc.data();
-                    employeeNumber = userData.driverId || userData.employeeNumber;
-                    console.log('✅ الرقم الوظيفي من المستخدم:', employeeNumber);
-                }
+                // قراءة مباشرة من drivers collection
+                const driverDocRef = doc(db, 'drivers', driverId);
+                const driverDoc = await getDoc(driverDocRef);
                 
-                // Step 2: Get full driver data from drivers collection using employee number
-                if (employeeNumber) {
-                    const driverDocRef = await getDoc(doc(db, 'drivers', employeeNumber));
-                    if (driverDocRef.exists()) {
-                        // Merge data from both collections
-                        // drivers has: contract, payments, car info
-                        // users has: location, isActive, lastSeen (if available)
-                        driverData = { 
-                            id: employeeNumber, 
-                            ...driverDocRef.data(),
-                            // Add location data from users if not in drivers
-                            location: driverDocRef.data().location || (userData ? userData.location : null),
-                            isActive: driverDocRef.data().isActive !== undefined ? driverDocRef.data().isActive : (userData ? userData.isActive : false),
-                            lastSeen: driverDocRef.data().lastSeen || (userData ? userData.lastSeen : null)
-                        };
-                        console.log('✅ تم تحميل البيانات المدمجة من drivers + users:', driverData);
-                    } else {
-                        // Fallback: use basic data from users collection if available
-                        if (userData) {
-                            console.warn('⚠️ لم يتم العثور على بيانات في drivers، استخدام بيانات users');
-                            driverData = { id: employeeNumber, ...userData };
-                        } else {
-                            showMessage('لم يتم العثور على بيانات السائق', true);
-                            return;
-                        }
-                    }
+                if (driverDoc.exists()) {
+                    driverData = driverDoc.data();
+                    console.log('✅ تم تحميل بيانات السائق:', driverData.name);
+                    
+                    // تحميل البيانات الإضافية فقط عند النجاح
+                    await Promise.all([
+                        loadCars(),
+                        loadDriverPayments()
+                    ]);
+                    
+                    // Update sessionStorage with fresh data
+                    sessionStorage.setItem('driverData', JSON.stringify(driverData));
+                    
                 } else {
-                    showMessage('الرقم الوظيفي غير موجود', true);
+                    console.error('❌ لم يتم العثور على السائق:', driverId);
+                    showMessage('لم يتم العثور على بيانات السائق', true);
+                    
+                    // إعادة توجيه لصفحة تسجيل الدخول
+                    setTimeout(() => {
+                        window.location.href = 'driver-login.html';
+                    }, 2000);
                     return;
                 }
                 
-                // Update sessionStorage with fresh data
-                sessionStorage.setItem('driverData', JSON.stringify(driverData));
             } catch (error) {
-                console.error('Error refreshing driver data:', error);
-                showMessage('حدث خطأ في تحميل البيانات', true);
+                console.error('❌ خطأ في تحميل البيانات:', error);
+                showMessage('خطأ في الاتصال بقاعدة البيانات', true);
                 return;
             }
 
