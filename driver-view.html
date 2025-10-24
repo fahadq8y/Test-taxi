@@ -635,6 +635,8 @@
 
     <!-- Firebase SDK -->
     <script type="module">
+        console.log('🔵 Module script started loading...');
+        
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
         import { getFirestore, doc, getDoc, updateDoc, getDocs, collection, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
         import { getAuth, signOut } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
@@ -649,9 +651,11 @@
             measurementId: "G-GY8820W410"
         };
 
+        console.log('🔵 Initializing Firebase...');
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+        console.log('✅ Firebase initialized successfully!');
 
         // Make Firebase functions globally available
         window.db = db;
@@ -1372,7 +1376,14 @@
 
         // Initialize page
         // استدعاء مباشر بدلاً من DOMContentLoaded لأن module scripts تحمل بعد DOM
-        loadDriverData();
+        console.log('🔵 About to call loadDriverData()...');
+        try {
+            loadDriverData();
+            console.log('✅ loadDriverData() called successfully');
+        } catch (error) {
+            console.error('❌ Error calling loadDriverData():', error);
+            console.error('Error stack:', error.stack);
+        }
     </script>
 
     <!-- Service Worker Registration -->
