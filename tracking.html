@@ -360,8 +360,7 @@
             
             Object.values(drivers).forEach(driver => {
                 const lastUpdate = new Date(driver.localTime);
-                const timeDiff = Date.now() - lastUpdate.getTime();
-                const isOnline = timeDiff < 60000; // Online if updated in last minute
+                const isOnline = driver.isActive || false; // Use isActive from Firestore
 
                 const card = document.createElement('div');
                 card.className = `driver-card ${isOnline ? 'active' : ''}`;
@@ -419,20 +418,40 @@
         
         // Listen to real-time updates
         function startRealtimeTracking() {
-            const q = query(collection(db, 'driverLocations'));
+            console.log('🔊 بدء الاستماع للتحديثات في الوقت الفعلي...');
+            const q = query(collection(db, 'drivers')); // Read from 'drivers' collection
             
             onSnapshot(q, (snapshot) => {
                 snapshot.docChanges().forEach((change) => {
-                    const driverData = change.doc.data();
+                    const data = change.doc.data();
+                    const driverId = change.doc.id; // Use document ID as driverId
                     
                     if (change.type === 'added' || change.type === 'modified') {
-                        drivers[driverData.driverId] = driverData;
-                        updateDriverMarker(driverData);
+                        // Only process drivers with location data
+                        if (data.location && data.location.latitude && data.location.longitude) {
+                            const driverData = {
+                                driverId: driverId,
+                                latitude: data.location.latitude,
+                                longitude: data.location.longitude,
+                                speed: data.location.speed || 0,
+                                accuracy: data.location.accuracy || 0,
+                                localTime: data.lastUpdate ? (data.lastUpdate.toDate ? data.lastUpdate.toDate().toISOString() : data.lastUpdate) : new Date().toISOString(),
+                                isActive: data.isActive || false
+                            };
+                            drivers[driverId] = driverData;
+                            updateDriverMarker(driverData);
+                            console.log(`✅ تحديث سائق ${driverId}:`, data.isActive ? 'نشط' : 'غير نشط');
+                        } else if (markers[driverId]) {
+                            // Remove marker if location data is missing
+                            map.removeLayer(markers[driverId]);
+                            delete markers[driverId];
+                            delete drivers[driverId];
+                        }
                     } else if (change.type === 'removed') {
-                        delete drivers[driverData.driverId];
-                        if (markers[driverData.driverId]) {
-                            map.removeLayer(markers[driverData.driverId]);
-                            delete markers[driverData.driverId];
+                        delete drivers[driverId];
+                        if (markers[driverId]) {
+                            map.removeLayer(markers[driverId]);
+                            delete markers[driverId];
                         }
                     }
                 });

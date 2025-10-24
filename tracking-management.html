@@ -333,30 +333,51 @@
             return 'غير معروف';
         }
 
-        // Load drivers from tracking
-        async function loadDrivers() {
+        // Load drivers from tracking with real-time updates
+        function loadDrivers() {
             document.getElementById('loading').style.display = 'block';
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('driversTable').style.display = 'none';
 
             try {
-                const querySnapshot = await getDocs(collection(db, 'driverLocations'));
-                driversData = [];
+                console.log('🔊 بدء الاستماع للتحديثات في الوقت الفعلي...');
                 
-                querySnapshot.forEach((doc) => {
-                    driversData.push({
-                        id: doc.id,
-                        ...doc.data()
+                // Setup real-time listener for drivers collection
+                const driversRef = collection(db, 'drivers');
+                onSnapshot(driversRef, (snapshot) => {
+                    driversData = [];
+                    
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        // Only include drivers with location data
+                        if (data.location && data.location.latitude && data.location.longitude) {
+                            driversData.push({
+                                id: doc.id,
+                                driverId: doc.id, // Use document ID as driverId
+                                latitude: data.location.latitude,
+                                longitude: data.location.longitude,
+                                speed: data.location.speed || 0,
+                                accuracy: data.location.accuracy || 0,
+                                localTime: data.lastUpdate ? (data.lastUpdate.toDate ? data.lastUpdate.toDate().toISOString() : data.lastUpdate) : new Date().toISOString(),
+                                isActive: data.isActive || false,
+                                ...data
+                            });
+                        }
                     });
+
+                    console.log(`✅ تم تحديث بيانات ${driversData.length} سائق`);
+                    displayDrivers();
+                    document.getElementById('loading').style.display = 'none';
+                }, (error) => {
+                    console.error('Error loading drivers:', error);
+                    alert('حدث خطأ أثناء تحميل البيانات');
+                    document.getElementById('loading').style.display = 'none';
                 });
-
-                displayDrivers();
             } catch (error) {
-                console.error('Error loading drivers:', error);
-                alert('حدث خطأ أثناء تحميل البيانات');
+                console.error('Error setting up listener:', error);
+                alert('حدث خطأ أثناء إعداد الاستماع');
+                document.getElementById('loading').style.display = 'none';
             }
-
-            document.getElementById('loading').style.display = 'none';
         }
 
         // Display drivers in table
@@ -378,8 +399,7 @@
 
             driversData.forEach((driver) => {
                 const lastUpdate = new Date(driver.localTime);
-                const timeDiff = Date.now() - lastUpdate.getTime();
-                const isOnline = timeDiff < 60000;
+                const isOnline = driver.isActive || false; // Use isActive from Firestore
 
                 if (isOnline) activeCount++;
                 else inactiveCount++;

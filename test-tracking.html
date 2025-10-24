@@ -259,7 +259,7 @@
             <h1>🗺️ اختبار التتبع - Tracking Test</h1>
             <p>مراقبة موقع السائق من Firebase في الوقت الفعلي</p>
             <p style="margin-top: 5px;">
-                <span class="badge badge-info">معرف السائق: DRV001</span>
+                <span class="badge badge-info" id="driverIdBadge">معرف السائق: <span id="driverIdValue">-</span></span>
                 <span class="badge" id="autoUpdateBadge">التحديث التلقائي: مفعّل</span>
             </p>
         </div>
@@ -289,7 +289,7 @@
             <div class="status-grid">
                 <div class="status-item">
                     <div class="status-label">معرف السائق</div>
-                    <div class="status-value" id="driverIdDisplay">DRV001</div>
+                    <div class="status-value" id="driverIdDisplay">-</div>
                 </div>
                 <div class="status-item">
                     <div class="status-label">حالة النشاط</div>
@@ -388,7 +388,10 @@
         const db = getFirestore(app);
 
         // Global variables
-        const driverId = 'DRV001';
+        // Get driverId from URL query parameter, default to '1' if not provided
+        const urlParams = new URLSearchParams(window.location.search);
+        const driverId = urlParams.get('driverId') || '1';
+        console.log('🔑 Driver ID:', driverId);
         let fetchCount = 0;
         let autoUpdateEnabled = true;
         let unsubscribe = null;
@@ -638,7 +641,7 @@
                 
                 marker = L.marker([lat, lng], { icon: driverIcon })
                     .addTo(map)
-                    .bindPopup(`<b>🚕 سائق 1 (DRV001)</b><br>Lat: ${lat.toFixed(6)}<br>Lng: ${lng.toFixed(6)}<br>Accuracy: ${accuracy.toFixed(2)}m`)
+                    .bindPopup(`<b>🚕 سائق (${driverId})</b><br>Lat: ${lat.toFixed(6)}<br>Lng: ${lng.toFixed(6)}<br>Accuracy: ${accuracy.toFixed(2)}m`)
                     .openPopup();
                 
                 // Add accuracy circle
@@ -662,6 +665,12 @@
         // Initialize on page load
         window.addEventListener('DOMContentLoaded', () => {
             logToConsole('الصفحة تم تحميلها', 'info');
+            logToConsole(`معرف السائق: ${driverId}`, 'info');
+            
+            // Update driver ID in UI
+            document.getElementById('driverIdValue').textContent = driverId;
+            document.getElementById('driverIdDisplay').textContent = driverId;
+            
             logToConsole('جاري الاتصال بـ Firebase...', 'info');
             
             // Initialize map
