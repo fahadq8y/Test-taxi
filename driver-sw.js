@@ -1,5 +1,5 @@
 // Service Worker for Driver GPS Tracking
-const CACHE_NAME = 'driver-gps-v1';
+const CACHE_NAME = 'driver-gps-v2'; // Updated version to force cache refresh
 const urlsToCache = [
   '/driver-tracking-test.html',
   '/driver-manifest.json'
@@ -35,18 +35,46 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - Network First for HTML, Cache First for assets
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Cache hit - return response
-        if (response) {
+  const url = new URL(event.request.url);
+  
+  // Network First strategy for HTML pages
+  if (event.request.headers.get('accept')?.includes('text/html') || url.pathname.endsWith('.html')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Clone the response before caching
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
           return response;
-        }
-        return fetch(event.request);
-      })
-  );
+        })
+        .catch(() => {
+          // Fallback to cache if network fails
+          return caches.match(event.request);
+        })
+    );
+  } else {
+    // Cache First strategy for other assets (CSS, JS, images)
+    event.respondWith(
+      caches.match(event.request)
+        .then((response) => {
+          if (response) {
+            return response;
+          }
+          return fetch(event.request).then((response) => {
+            // Clone and cache the response
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+            return response;
+          });
+        })
+    );
+  }
 });
 
 // Background Sync - for sending location when offline
