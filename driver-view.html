@@ -635,11 +635,11 @@
 
     <!-- Firebase SDK -->
     <script type="module">
-        console.log('🔵 Module script started loading...');
-        
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
         import { getFirestore, doc, getDoc, updateDoc, getDocs, collection, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
         import { getAuth, signOut } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+        
+        console.log('🔵 Module script started loading...');
 
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
