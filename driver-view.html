@@ -702,15 +702,24 @@
 
         // Calculate driver statistics (same logic as drivers-overview.html)
         function calculateDriverStats(driver) {
+            console.log('=== calculateDriverStats DEBUG ===');
+            console.log('Driver:', driver.name, driver.id);
+            console.log('Contract Type:', driver.contractType);
+            console.log('Daily Wage:', driver.dailyWage, driver.dailyRent);
+            
             const today = new Date();
             const contractStart = parseDate(driver.contractStartDate || driver.createdAt);
             const lastPayment = parseDate(driver.lastPaymentDate || driver.contractStartDate || driver.createdAt);
+            
+            console.log('Contract Start:', contractStart);
+            console.log('Today:', today);
             
             // Calculate days since contract start
             const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
             
             // Check contract type
             const contractType = driver.contractType || 'daily';
+            console.log('Resolved Contract Type:', contractType);
             let expectedTotal, totalPaid, lateAmount, daysLate, paidUntilDate, paidForCompletedDays;
             
             if (contractType === 'monthly') {
@@ -748,6 +757,8 @@
                     payment.driverId === driver.id && payment.type === 'أجرة يومية'
                 );
                 totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
+                
+                console.log('Daily Contract - Expected:', expectedTotal, 'Paid:', totalPaid);
                 
                 // Calculate COMPLETE days only
                 const completedDays = dailyWage > 0 ? Math.floor(totalPaid / dailyWage) : 0;
