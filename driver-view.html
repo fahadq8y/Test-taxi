@@ -706,7 +706,7 @@
             console.log('=== calculateDriverStats DEBUG ===');
             console.log('Driver:', driver.name, driver.id);
             console.log('Contract Type:', driver.contractType);
-            console.log('Daily Wage:', driver.dailyWage, driver.dailyRent);
+            console.log('Daily Wage:', driver.dailyWage, driver.dailyRent, driver.dailyFee);
             
             const today = new Date();
             const contractStart = parseDate(driver.contractStartDate || driver.createdAt);
@@ -751,7 +751,7 @@
                 paidUntilDate.setMonth(paidUntilDate.getMonth() + completedMonths);
             } else {
                 // For daily contracts (original logic)
-                const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
+                const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || driver.dailyFee || 0);
                 expectedTotal = daysSinceStart * dailyWage;
                 
                 const payments = driverPayments.filter(payment => 
@@ -823,7 +823,7 @@
             }
             
             return {
-                dailyWage: contractType === 'monthly' ? parseFloat(driver.monthlyPayment || 0) : parseFloat(driver.dailyWage || driver.dailyRent || 0),
+                dailyWage: contractType === 'monthly' ? parseFloat(driver.monthlyPayment || 0) : parseFloat(driver.dailyWage || driver.dailyRent || driver.dailyFee || 0),
                 contractStart,
                 lastPayment,
                 paidUntilDate,
