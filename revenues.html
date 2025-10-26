@@ -873,9 +873,7 @@
             
             dataToExport.forEach(revenue => {
                 const source = revenue.source === 'driverPayment' ? 'دفعة سائق' : 'إيراد مباشر';
-                const detailedDesc = revenue.source === 'driverPayment' ? 
-                    `${revenue.type} من السائق` : 
-                    (revenue.description || '-');
+                const detailedDesc = (revenue.description || '-').replace(/"/g, '""');
                 csv += `${revenue.date},${revenue.type},${source},${revenue.amount},"${detailedDesc}"\n`;
             });
             
