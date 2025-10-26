@@ -120,11 +120,54 @@
                     <label>💰 الحد الأقصى للمبلغ</label>
                     <input type="number" id="maxAmount" step="0.001" min="0" placeholder="1000.000" onchange="applyFilters()">
                 </div>
+                <div class="form-group">
+                    <label>📦 المصدر</label>
+                    <select id="sourceFilter" onchange="applyFilters()">
+                        <option value="">جميع المصادر</option>
+                        <option value="direct">إيراد مباشر</option>
+                        <option value="driverPayment">دفعة سائق</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>🔄 الترتيب حسب</label>
+                    <select id="sortBy" onchange="applyFilters()">
+                        <option value="date-desc">التاريخ (الأحدث أولاً)</option>
+                        <option value="date-asc">التاريخ (الأقدم أولاً)</option>
+                        <option value="amount-desc">المبلغ (الأعلى أولاً)</option>
+                        <option value="amount-asc">المبلغ (الأقل أولاً)</option>
+                        <option value="type-asc">النوع (أ-ي)</option>
+                        <option value="type-desc">النوع (ي-أ)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="filter-stats">
+                <div class="stat-item">
+                    <span class="stat-label">عدد العمليات:</span>
+                    <span class="stat-value" id="statsCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">إجمالي المبلغ:</span>
+                    <span class="stat-value" id="statsTotal">0.000 د.ك</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">المتوسط:</span>
+                    <span class="stat-value" id="statsAverage">0.000 د.ك</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">الأعلى:</span>
+                    <span class="stat-value" id="statsMax">0.000 د.ك</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">الأقل:</span>
+                    <span class="stat-value" id="statsMin">0.000 د.ك</span>
+                </div>
             </div>
 
             <div class="filter-actions">
                 <button class="btn btn-secondary" onclick="clearFilters()">🗑️ مسح الفلاتر</button>
-                <button class="btn btn-success" onclick="exportResults()">📊 تصدير النتائج</button>
+                <button class="btn btn-success" onclick="exportResults(false)">📊 تصدير النتائج</button>
+                <button class="btn btn-success" onclick="exportResults(true)">📊 تصدير الكل</button>
             </div>
         </div>
 
@@ -690,6 +733,8 @@
             const toDate = document.getElementById('toDate').value;
             const minAmount = parseFloat(document.getElementById('minAmount').value) || 0;
             const maxAmount = parseFloat(document.getElementById('maxAmount').value) || Infinity;
+            const sourceFilter = document.getElementById('sourceFilter').value;
+            const sortBy = document.getElementById('sortBy')?.value || 'date-desc';
             
             // Get all revenue items (revenues + driver payments)
             let allRevenueItems = [...revenues];
@@ -709,18 +754,47 @@
             });
             
             filteredRevenues = allRevenueItems.filter(revenue => {
-                const matchesSearch = !searchText || (revenue.description && revenue.description.toLowerCase().includes(searchText));
+                const matchesSearch = !searchText || 
+                    (revenue.description && revenue.description.toLowerCase().includes(searchText)) ||
+                    (revenue.type && revenue.type.toLowerCase().includes(searchText)) ||
+                    (revenue.date && revenue.date.includes(searchText));
                 const matchesType = !typeFilter || revenue.type === typeFilter;
                 const matchesFromDate = !fromDate || revenue.date >= fromDate;
                 const matchesToDate = !toDate || revenue.date <= toDate;
                 const amount = parseFloat(revenue.amount) || 0;
                 const matchesAmount = amount >= minAmount && amount <= maxAmount;
+                const matchesSource = !sourceFilter || 
+                    (sourceFilter === 'direct' && revenue.source !== 'driverPayment') ||
+                    (sourceFilter === 'driverPayment' && revenue.source === 'driverPayment');
                 
-                return matchesSearch && matchesType && matchesFromDate && matchesToDate && matchesAmount;
+                return matchesSearch && matchesType && matchesFromDate && matchesToDate && matchesAmount && matchesSource;
             });
             
-            // Sort by date (newest first)
-            filteredRevenues.sort((a, b) => new Date(b.date) - new Date(a.date));
+            // Sort
+            const [field, order] = sortBy.split('-');
+            filteredRevenues.sort((a, b) => {
+                let compareA, compareB;
+                
+                if (field === 'date') {
+                    compareA = new Date(a.date);
+                    compareB = new Date(b.date);
+                } else if (field === 'amount') {
+                    compareA = parseFloat(a.amount) || 0;
+                    compareB = parseFloat(b.amount) || 0;
+                } else if (field === 'type') {
+                    compareA = a.type || '';
+                    compareB = b.type || '';
+                }
+                
+                if (order === 'asc') {
+                    return compareA > compareB ? 1 : -1;
+                } else {
+                    return compareA < compareB ? 1 : -1;
+                }
+            });
+            
+            // Update statistics
+            updateFilterStats(filteredRevenues);
             
             displayRevenues();
         }
@@ -732,6 +806,8 @@
             document.getElementById('toDate').value = '';
             document.getElementById('minAmount').value = '';
             document.getElementById('maxAmount').value = '';
+            document.getElementById('sourceFilter').value = '';
+            document.getElementById('sortBy').value = 'date-desc';
             
             document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelector('.filter-btn').classList.add('active');
@@ -739,14 +815,63 @@
             applyFilters();
         }
 
-        function exportResults() {
-            if (filteredRevenues.length === 0) {
+        // Update filter statistics
+        function updateFilterStats(filtered) {
+            const count = filtered.length;
+            const total = filtered.reduce((sum, rev) => sum + parseFloat(rev.amount || 0), 0);
+            const average = count > 0 ? total / count : 0;
+            const amounts = filtered.map(rev => parseFloat(rev.amount || 0));
+            const max = amounts.length > 0 ? Math.max(...amounts) : 0;
+            const min = amounts.length > 0 ? Math.min(...amounts) : 0;
+            
+            document.getElementById('statsCount').textContent = count;
+            document.getElementById('statsTotal').textContent = total.toFixed(3) + ' د.ك';
+            document.getElementById('statsAverage').textContent = average.toFixed(3) + ' د.ك';
+            document.getElementById('statsMax').textContent = max.toFixed(3) + ' د.ك';
+            document.getElementById('statsMin').textContent = min.toFixed(3) + ' د.ك';
+        }
+
+        // Get all revenues (without filters)
+        function getAllRevenues() {
+            let allRevenueItems = [...revenues];
+            
+            driverPayments.forEach(payment => {
+                if (['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم'].includes(payment.type)) {
+                    const driver = drivers.find(d => d.id === payment.driverId);
+                    allRevenueItems.push({
+                        id: payment.id,
+                        date: payment.date,
+                        type: payment.type,
+                        amount: payment.amount,
+                        description: `${payment.type} - ${driver ? driver.name : 'سائق غير محدد'}`,
+                        source: 'driverPayment'
+                    });
+                }
+            });
+            
+            return allRevenueItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+        }
+
+        function exportResults(exportAll = false) {
+            const dataToExport = exportAll ? getAllRevenues() : filteredRevenues;
+            
+            if (dataToExport.length === 0) {
                 alert('لا توجد بيانات للتصدير');
                 return;
             }
             
+            // Calculate statistics
+            const count = dataToExport.length;
+            const total = dataToExport.reduce((sum, rev) => sum + parseFloat(rev.amount || 0), 0);
+            const average = count > 0 ? total / count : 0;
+            const amounts = dataToExport.map(rev => parseFloat(rev.amount || 0));
+            const max = amounts.length > 0 ? Math.max(...amounts) : 0;
+            const min = amounts.length > 0 ? Math.min(...amounts) : 0;
+            
+            // Create CSV
             let csv = 'التاريخ,النوع,المصدر,المبلغ,الوصف التفصيلي\n';
-            filteredRevenues.forEach(revenue => {
+            
+            dataToExport.forEach(revenue => {
                 const source = revenue.source === 'driverPayment' ? 'دفعة سائق' : 'إيراد مباشر';
                 const detailedDesc = revenue.source === 'driverPayment' ? 
                     `${revenue.type} من السائق` : 
@@ -754,10 +879,23 @@
                 csv += `${revenue.date},${revenue.type},${source},${revenue.amount},"${detailedDesc}"\n`;
             });
             
+            // Add statistics
+            csv += '\n';
+            csv += 'الإحصائيات\n';
+            csv += `عدد العمليات,${count}\n`;
+            csv += `إجمالي المبلغ,${total.toFixed(3)}\n`;
+            csv += `المتوسط,${average.toFixed(3)}\n`;
+            csv += `الأعلى,${max.toFixed(3)}\n`;
+            csv += `الأقل,${min.toFixed(3)}\n`;
+            
+            // Download
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `revenues_${new Date().toISOString().split('T')[0]}.csv`;
+            const filename = exportAll ? 
+                `all_revenues_${new Date().toISOString().split('T')[0]}.csv` :
+                `filtered_revenues_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = filename;
             link.click();
         }
 

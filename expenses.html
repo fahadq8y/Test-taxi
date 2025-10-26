@@ -534,6 +534,34 @@
             box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
         }
 
+        .filter-stats {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            display: block;
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            display: block;
+            color: #333;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
         @media (max-width: 768px) {
             .table-header {
                 flex-direction: column;
@@ -558,6 +586,10 @@
 
             .filter-buttons {
                 flex-direction: column;
+            }
+
+            .filter-stats {
+                grid-template-columns: repeat(2, 1fr);
             }
         }
     </style>
@@ -703,11 +735,54 @@
                     <label>💰 الحد الأقصى للمبلغ</label>
                     <input type="number" id="maxAmount" step="0.001" min="0" placeholder="1000.000" onchange="applyFilters()">
                 </div>
+                <div class="form-group">
+                    <label>📦 المصدر</label>
+                    <select id="sourceFilter" onchange="applyFilters()">
+                        <option value="">جميع المصادر</option>
+                        <option value="direct">مصروف مباشر</option>
+                        <option value="driverPayment">دفعة سائق</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>🔄 الترتيب حسب</label>
+                    <select id="sortBy" onchange="applyFilters()">
+                        <option value="date-desc">التاريخ (الأحدث أولاً)</option>
+                        <option value="date-asc">التاريخ (الأقدم أولاً)</option>
+                        <option value="amount-desc">المبلغ (الأعلى أولاً)</option>
+                        <option value="amount-asc">المبلغ (الأقل أولاً)</option>
+                        <option value="type-asc">النوع (أ-ي)</option>
+                        <option value="type-desc">النوع (ي-أ)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="filter-stats">
+                <div class="stat-item">
+                    <span class="stat-label">عدد العمليات:</span>
+                    <span class="stat-value" id="statsCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">إجمالي المبلغ:</span>
+                    <span class="stat-value" id="statsTotal">0.000 د.ك</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">المتوسط:</span>
+                    <span class="stat-value" id="statsAverage">0.000 د.ك</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">الأعلى:</span>
+                    <span class="stat-value" id="statsMax">0.000 د.ك</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">الأقل:</span>
+                    <span class="stat-value" id="statsMin">0.000 د.ك</span>
+                </div>
             </div>
 
             <div class="filter-actions">
                 <button class="btn btn-secondary" onclick="clearFilters()">🗑️ مسح الفلاتر</button>
-                <button class="btn btn-success" onclick="exportResults()">📊 تصدير النتائج</button>
+                <button class="btn btn-success" onclick="exportResults(false)">📊 تصدير النتائج</button>
+                <button class="btn btn-success" onclick="exportResults(true)">📊 تصدير الكل</button>
             </div>
         </div>
 
@@ -926,6 +1001,8 @@
             const toDate = document.getElementById('toDate').value;
             const minAmount = parseFloat(document.getElementById('minAmount').value) || 0;
             const maxAmount = parseFloat(document.getElementById('maxAmount').value) || Infinity;
+            const sourceFilter = document.getElementById('sourceFilter').value;
+            const sortBy = document.getElementById('sortBy')?.value || 'date-desc';
             
             // Get all expense items (expenses + driver payments)
             let allExpenseItems = [...expenses];
@@ -955,21 +1032,50 @@
             let filtered = allExpenseItems.filter(expense => {
                 const matchesSearch = !searchText || 
                     (expense.description && expense.description.toLowerCase().includes(searchText)) ||
-                    (expense.note && expense.note.toLowerCase().includes(searchText));
+                    (expense.note && expense.note.toLowerCase().includes(searchText)) ||
+                    (expense.type && expense.type.toLowerCase().includes(searchText)) ||
+                    (expense.date && expense.date.includes(searchText));
                 const matchesType = !typeFilter || expense.type === typeFilter;
                 const matchesFromDate = !fromDate || expense.date >= fromDate;
                 const matchesToDate = !toDate || expense.date <= toDate;
                 const amount = parseFloat(expense.amount) || 0;
                 const matchesAmount = amount >= minAmount && amount <= maxAmount;
+                const matchesSource = !sourceFilter || 
+                    (sourceFilter === 'direct' && expense.source !== 'driverPayment') ||
+                    (sourceFilter === 'driverPayment' && expense.source === 'driverPayment');
                 
-                return matchesSearch && matchesType && matchesFromDate && matchesToDate && matchesAmount;
+                return matchesSearch && matchesType && matchesFromDate && matchesToDate && matchesAmount && matchesSource;
             });
             
-            // Sort by date (newest first)
-            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+            // Sort
+            const [field, order] = sortBy.split('-');
+            filtered.sort((a, b) => {
+                let compareA, compareB;
+                
+                if (field === 'date') {
+                    compareA = new Date(a.date);
+                    compareB = new Date(b.date);
+                } else if (field === 'amount') {
+                    compareA = parseFloat(a.amount) || 0;
+                    compareB = parseFloat(b.amount) || 0;
+                } else if (field === 'type') {
+                    compareA = a.type || '';
+                    compareB = b.type || '';
+                }
+                
+                if (order === 'asc') {
+                    return compareA > compareB ? 1 : -1;
+                } else {
+                    return compareA < compareB ? 1 : -1;
+                }
+            });
+            
+            // Update statistics
+            updateFilterStats(filtered);
             
             // Reset to first page
             currentPage = 1;
+            filteredExpenses = filtered;
             displayExpenses(filtered);
         }
 
@@ -981,6 +1087,8 @@
             document.getElementById('toDate').value = '';
             document.getElementById('minAmount').value = '';
             document.getElementById('maxAmount').value = '';
+            document.getElementById('sourceFilter').value = '';
+            document.getElementById('sortBy').value = 'date-desc';
             
             document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelector('.filter-btn').classList.add('active');
@@ -988,25 +1096,93 @@
             applyFilters();
         }
 
-        // Export filtered results to CSV
-        function exportResults() {
-            if (filteredExpenses.length === 0) {
+        // Update filter statistics
+        function updateFilterStats(filtered) {
+            const count = filtered.length;
+            const total = filtered.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+            const average = count > 0 ? total / count : 0;
+            const amounts = filtered.map(exp => parseFloat(exp.amount || 0));
+            const max = amounts.length > 0 ? Math.max(...amounts) : 0;
+            const min = amounts.length > 0 ? Math.min(...amounts) : 0;
+            
+            document.getElementById('statsCount').textContent = count;
+            document.getElementById('statsTotal').textContent = total.toFixed(3) + ' د.ك';
+            document.getElementById('statsAverage').textContent = average.toFixed(3) + ' د.ك';
+            document.getElementById('statsMax').textContent = max.toFixed(3) + ' د.ك';
+            document.getElementById('statsMin').textContent = min.toFixed(3) + ' د.ك';
+        }
+
+        // Get all expenses (without filters)
+        function getAllExpenses() {
+            let allExpenseItems = [...expenses];
+            
+            driverPayments.forEach(payment => {
+                if (['سداد مخالفة', 'سداد رسوم إقامة'].includes(payment.type)) {
+                    const driverInfo = getDriverInfo(payment.driverId);
+                    const driverDisplay = driverInfo.employeeNumber ? 
+                        `${driverInfo.name} (${driverInfo.employeeNumber})` : 
+                        driverInfo.name;
+                    const archivedBadge = driverInfo.isArchived ? ' 📦' : '';
+                    
+                    allExpenseItems.push({
+                        id: payment.id,
+                        date: payment.date,
+                        type: payment.type,
+                        amount: payment.amount,
+                        description: `${payment.type} - ${driverDisplay}${archivedBadge}`,
+                        note: payment.notes || '-',
+                        source: 'driverPayment'
+                    });
+                }
+            });
+            
+            return allExpenseItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+        }
+
+        // Export results to CSV
+        function exportResults(exportAll = false) {
+            const dataToExport = exportAll ? getAllExpenses() : filteredExpenses;
+            
+            if (dataToExport.length === 0) {
                 alert('لا توجد بيانات للتصدير');
                 return;
             }
             
+            // Calculate statistics
+            const count = dataToExport.length;
+            const total = dataToExport.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+            const average = count > 0 ? total / count : 0;
+            const amounts = dataToExport.map(exp => parseFloat(exp.amount || 0));
+            const max = amounts.length > 0 ? Math.max(...amounts) : 0;
+            const min = amounts.length > 0 ? Math.min(...amounts) : 0;
+            
+            // Create CSV
             let csv = 'التاريخ,النوع,المبلغ,الوصف,الملاحظة,المصدر\n';
-            filteredExpenses.forEach(expense => {
+            
+            dataToExport.forEach(expense => {
                 const source = expense.source === 'driverPayment' ? 'دفعة سائق' : 'مصروف مباشر';
                 const description = (expense.description || '-').replace(/"/g, '""');
                 const note = (expense.note || '-').replace(/"/g, '""');
                 csv += `${expense.date},${expense.type},${expense.amount},"${description}","${note}",${source}\n`;
             });
             
+            // Add statistics
+            csv += '\n';
+            csv += 'الإحصائيات\n';
+            csv += `عدد العمليات,${count}\n`;
+            csv += `إجمالي المبلغ,${total.toFixed(3)}\n`;
+            csv += `المتوسط,${average.toFixed(3)}\n`;
+            csv += `الأعلى,${max.toFixed(3)}\n`;
+            csv += `الأقل,${min.toFixed(3)}\n`;
+            
+            // Download
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
+            const filename = exportAll ? 
+                `all_expenses_${new Date().toISOString().split('T')[0]}.csv` :
+                `filtered_expenses_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = filename;
             link.click();
         }
 
