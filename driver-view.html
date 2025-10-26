@@ -1099,6 +1099,9 @@
 
         // Update driver UI (separated from loadDriverData)
         function updateDriverUI() {
+            // Add id to driverData for calculateDriverStats
+            driverData.id = driverId;
+            
             // Calculate financial stats using the new system
             const stats = calculateDriverStats(driverData);
 
