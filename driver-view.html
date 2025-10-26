@@ -636,7 +636,7 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
-        import { getFirestore, doc, getDoc, updateDoc, getDocs, collection, query, where } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+        import { getFirestore, doc, getDoc, updateDoc, getDocs, collection, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
         import { getAuth, signOut } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
         const firebaseConfig = {
@@ -962,7 +962,43 @@
             return diffDays > 0 ? diffDays : 0;
         }
 
-        // Load driver data
+        // Setup real-time listener for driver data
+        function setupDriverListener() {
+            if (!checkLogin()) return;
+            
+            console.log('🔊 إعداد real-time listener للسائق:', driverId);
+            const driverDocRef = doc(db, 'drivers', driverId);
+            
+            // Listen to real-time changes
+            const unsubscribe = onSnapshot(driverDocRef, async (driverDoc) => {
+                if (driverDoc.exists()) {
+                    driverData = driverDoc.data();
+                    console.log('🔄 تحديث فوري: تم تحديث بيانات السائق');
+                    
+                    // Reload additional data
+                    await Promise.all([
+                        loadCars(),
+                        loadDriverPayments()
+                    ]);
+                    
+                    // Update sessionStorage
+                    sessionStorage.setItem('driverData', JSON.stringify(driverData));
+                    
+                    // Update UI
+                    updateDriverUI();
+                } else {
+                    console.error('❌ لم يتم العثور على السائق:', driverId);
+                    showMessage('لم يتم العثور على بيانات السائق', true);
+                }
+            }, (error) => {
+                console.error('❌ خطأ في real-time listener:', error);
+            });
+            
+            // Store unsubscribe function
+            window.driverListenerUnsubscribe = unsubscribe;
+        }
+
+        // Load driver data (initial load)
         async function loadDriverData() {
             if (!checkLogin()) return;
 
@@ -986,6 +1022,12 @@
                     // Update sessionStorage with fresh data
                     sessionStorage.setItem('driverData', JSON.stringify(driverData));
                     
+                    // Setup real-time listener after initial load
+                    setupDriverListener();
+                    
+                    // Update UI
+                    updateDriverUI();
+                    
                 } else {
                     console.error('❌ لم يتم العثور على السائق:', driverId);
                     showMessage('لم يتم العثور على بيانات السائق', true);
@@ -1002,7 +1044,10 @@
                 showMessage('خطأ في الاتصال بقاعدة البيانات', true);
                 return;
             }
+        }
 
+        // Update driver UI (separated from loadDriverData)
+        function updateDriverUI() {
             // Calculate financial stats using the new system
             const stats = calculateDriverStats(driverData);
 
@@ -1010,7 +1055,8 @@
             document.getElementById('welcomeMessage').textContent = `مرحباً ${driverData.name}`;
             document.getElementById('driverName').textContent = driverData.name || '-';
             document.getElementById('driverPhone').textContent = driverData.phone || '-';
-            document.getElementById('employeeNumber').textContent = driverData.employeeNumber || 'غير محدد';
+            // Fix: Read from driverId if employeeNumber is empty
+            document.getElementById('employeeNumber').textContent = driverData.driverId || driverData.employeeNumber || driverId || 'غير محدد';
             
             // Contract type
             const contractType = driverData.contractType || 'daily';
@@ -1083,13 +1129,20 @@
                 accountStatusEl.className = 'status-indicator status-danger';
             }
 
-            // Maintenance info
-            const currentKilometers = driverData.currentKilometers || 0;
-            document.getElementById('currentKilometers').textContent = `${currentKilometers.toLocaleString()} كم`;
-            document.getElementById('lastOilChange').textContent = formatDate(driverData.lastOilChangeDate);
+            // Maintenance info - Read from car document
+            let currentKilometers = 0;
+            if (assignedCar) {
+                currentKilometers = assignedCar.currentKilometers || 0;
+                document.getElementById('currentKilometers').textContent = `${currentKilometers.toLocaleString()} كم`;
+                document.getElementById('lastOilChange').textContent = formatDate(assignedCar.lastOilChangeDate);
+            } else {
+                document.getElementById('currentKilometers').textContent = '0 كم';
+                document.getElementById('lastOilChange').textContent = 'غير محدد';
+            }
 
-            // Oil status
-            const oilStatus = getOilChangeStatus(driverData.lastOilChangeDate);
+            // Oil status - Use car's oil change date
+            const oilChangeDate = assignedCar ? assignedCar.lastOilChangeDate : null;
+            const oilStatus = getOilChangeStatus(oilChangeDate);
             const oilStatusEl = document.getElementById('oilStatus');
             oilStatusEl.textContent = oilStatus.status;
             oilStatusEl.style.backgroundColor = oilStatus.color + '20';
@@ -1110,10 +1163,10 @@
                 document.getElementById(doc.statusId).className = `expiry-status ${status.class}`;
             });
 
-            // Set current values in form
+            // Set current values in form - Use car data
             document.getElementById('newKilometers').value = currentKilometers;
-            if (driverData.lastOilChangeDate) {
-                const oilDate = parseDate(driverData.lastOilChangeDate);
+            if (assignedCar && assignedCar.lastOilChangeDate) {
+                const oilDate = parseDate(assignedCar.lastOilChangeDate);
                 document.getElementById('oilChangeDate').value = oilDate.toISOString().split('T')[0];
             }
         }
@@ -1157,64 +1210,62 @@
                 const updateData = {};
                 let shouldRecordOilChange = false;
                 
+                // Don't update driver document for maintenance data
+                // Only update car document
+                
                 if (newKm) {
-                    updateData.currentKilometers = newKm;
-                    updateData.lastKilometersUpdate = new Date().toISOString();
-                }
-                if (oilChangeDate) {
-                    updateData.lastOilChangeDate = oilChangeDate;
-                    updateData.lastOilChangeKm = newKm || driverData.currentKilometers || 0;
-                    shouldRecordOilChange = true;
+                    shouldRecordOilChange = oilChangeDate ? true : false;
                 }
 
-                // Update driver data
-                await updateDoc(doc(db, 'users', driverId), updateData);
-
-                // Update car data if driver has assigned car
-                if (driverData.assignedCar) {
-                    try {
-                        const carUpdateData = {};
-                        if (newKm) {
-                            carUpdateData.currentKilometers = newKm;
-                            carUpdateData.lastKilometersUpdate = new Date().toISOString();
-                            carUpdateData.lastUpdatedBy = driverData.name;
-                        }
-                        if (oilChangeDate) {
-                            carUpdateData.lastOilChangeDate = oilChangeDate;
-                            carUpdateData.lastOilChangeKm = newKm || driverData.currentKilometers || 0;
-                        }
-                        
-                        await updateDoc(doc(db, 'cars', driverData.assignedCar), carUpdateData);
-                        console.log('✅ تم تحديث بيانات السيارة');
-                        
-                        // Record oil change in history if oil was changed
-                        if (shouldRecordOilChange) {
-                            const { addDoc, collection } = await import('https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js');
-                            await addDoc(collection(db, 'oilChangeHistory'), {
-                                carId: driverData.assignedCar,
-                                driverId: driverId,
-                                driverName: driverData.name,
-                                changeDate: oilChangeDate,
-                                kilometers: newKm || driverData.currentKilometers || 0,
-                                notes: 'تم التحديث من قبل السائق',
-                                createdAt: new Date(),
-                                createdBy: driverData.name
-                            });
-                            console.log('✅ تم تسجيل تغيير الزيت في السجل');
-                        }
-                    } catch (carError) {
-                        console.error('خطأ في تحديث السيارة:', carError);
-                        // Continue even if car update fails
+                // Update car data - This is the primary storage for maintenance
+                if (!driverData.assignedCar) {
+                    showMessage('لا يوجد سيارة مخصصة لك', true);
+                    return;
+                }
+                
+                try {
+                    const carUpdateData = {};
+                    if (newKm) {
+                        carUpdateData.currentKilometers = newKm;
+                        carUpdateData.lastKilometersUpdate = new Date().toISOString();
+                        carUpdateData.lastUpdatedBy = driverData.name;
                     }
+                    if (oilChangeDate) {
+                        carUpdateData.lastOilChangeDate = oilChangeDate;
+                        // Get current km from car or use the new value
+                        const assignedCar = cars.find(car => car.id === driverData.assignedCar);
+                        carUpdateData.lastOilChangeKm = newKm || (assignedCar ? assignedCar.currentKilometers : 0) || 0;
+                        shouldRecordOilChange = true;
+                    }
+                        
+                    await updateDoc(doc(db, 'cars', driverData.assignedCar), carUpdateData);
+                    console.log('✅ تم تحديث بيانات السيارة');
+                    
+                    // Record oil change in history if oil was changed
+                    if (shouldRecordOilChange) {
+                            const { addDoc, collection } = await import('https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js');
+                        const assignedCar = cars.find(car => car.id === driverData.assignedCar);
+                        await addDoc(collection(db, 'oilChangeHistory'), {
+                            carId: driverData.assignedCar,
+                            driverId: driverId,
+                            driverName: driverData.name,
+                            changeDate: oilChangeDate,
+                            kilometers: newKm || (assignedCar ? assignedCar.currentKilometers : 0) || 0,
+                            notes: 'تم التحديث من قبل السائق',
+                            createdAt: new Date(),
+                            createdBy: driverData.name
+                        });
+                        console.log('✅ تم تسجيل تغيير الزيت في السجل');
+                    }
+                } catch (carError) {
+                    console.error('خطأ في تحديث السيارة:', carError);
+                    showMessage('حدث خطأ أثناء تحديث بيانات السيارة', true);
+                    return;
                 }
 
-                // Update local data
-                Object.assign(driverData, updateData);
-                sessionStorage.setItem('driverData', JSON.stringify(driverData));
-
-                // Reload display
-                loadDriverData();
-                showMessage('تم تحديث البيانات بنجاح (السائق والسيارة والسجل)');
+                // Reload display to show updated car data
+                await loadDriverData();
+                showMessage('تم تحديث بيانات السيارة بنجاح');
 
             } catch (error) {
                 console.error('Update error:', error);
