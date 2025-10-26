@@ -843,13 +843,16 @@
         // Load driver payments from Firebase
         async function loadDriverPayments() {
             try {
+                console.log('🔄 Loading driver payments...');
                 const querySnapshot = await getDocs(collection(db, 'driverPayments'));
                 driverPayments = [];
                 querySnapshot.forEach((doc) => {
                     driverPayments.push({ id: doc.id, ...doc.data() });
                 });
+                console.log('✅ Loaded', driverPayments.length, 'payments');
+                console.log('📊 Driver payments:', driverPayments);
             } catch (error) {
-                console.error('Error loading driver payments:', error);
+                console.error('❌ Error loading driver payments:', error);
             }
         }
 
