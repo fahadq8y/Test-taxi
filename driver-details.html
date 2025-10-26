@@ -539,7 +539,7 @@
             try {
                 // For now, we'll use real-time listener on current location
                 // In production, you'd query a locationHistory collection
-                const q = query(collection(db, 'driverLocations'), where('driverId', '==', driverId));
+                const q = query(collection(db, 'locationHistory'), where('driverId', '==', driverId));
                 
                 onSnapshot(q, (snapshot) => {
                     locationHistory = [];
