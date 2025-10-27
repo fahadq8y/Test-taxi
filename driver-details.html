@@ -397,6 +397,18 @@
                     <button class="map-type-btn active" onclick="changeMapType('streets')">🗺️ الشوارع</button>
                     <button class="map-type-btn" onclick="changeMapType('satellite')">🛰️ الأقمار</button>
                     <button class="map-type-btn" onclick="changeMapType('hybrid')">🌐 هجين</button>
+                    <button class="map-type-btn" onclick="changeMapType('osm')">🌍 OSM</button>
+                    <button class="map-type-btn" onclick="changeMapType('dark')">🌙 داكن</button>
+                    <button class="map-type-btn" onclick="changeMapType('terrain')">⛰️ تضاريس</button>
+                </div>
+                
+                <!-- Auto-Follow Control -->
+                <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); direction: rtl;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: bold;">
+                        <input type="checkbox" id="autoFollowCheckbox" onchange="toggleAutoFollow()" style="width: 20px; height: 20px; cursor: pointer;">
+                        <span>🎯 تتبع تلقائي للسائق</span>
+                    </label>
+                    <p style="margin: 8px 0 0 30px; font-size: 13px; color: #666;">عند التفعيل: الخريطة تتحرك تلقائياً مع موقع السائق</p>
                 </div>
                 
                 <!-- Route Controls -->
@@ -429,6 +441,53 @@
                             <span style="color: #c53030;">● سريع جداً (&gt;100)</span>
                         </div>
                     </div>
+                </div>
+                
+                <!-- Speed Color Customization -->
+                <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); direction: rtl;">
+                    <h4 style="margin: 0 0 15px 0; color: #2d3748;">🎨 تخصيص ألوان السرعة</h4>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <!-- Speed Range 1 -->
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="font-weight: bold; font-size: 14px;">🐢 بطيء (0-20 كم/س)</label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <input type="number" id="speed1Max" value="20" min="1" max="200" style="width: 60px; padding: 5px; border: 1px solid #e2e8f0; border-radius: 6px;">
+                                <input type="color" id="color1" value="#48bb78" style="width: 50px; height: 35px; border: none; border-radius: 6px; cursor: pointer;">
+                            </div>
+                        </div>
+                        
+                        <!-- Speed Range 2 -->
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="font-weight: bold; font-size: 14px;">🚗 متوسط (20-60 كم/س)</label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <input type="number" id="speed2Max" value="60" min="1" max="200" style="width: 60px; padding: 5px; border: 1px solid #e2e8f0; border-radius: 6px;">
+                                <input type="color" id="color2" value="#ed8936" style="width: 50px; height: 35px; border: none; border-radius: 6px; cursor: pointer;">
+                            </div>
+                        </div>
+                        
+                        <!-- Speed Range 3 -->
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="font-weight: bold; font-size: 14px;">🏎️ سريع (60-100 كم/س)</label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <input type="number" id="speed3Max" value="100" min="1" max="200" style="width: 60px; padding: 5px; border: 1px solid #e2e8f0; border-radius: 6px;">
+                                <input type="color" id="color3" value="#f56565" style="width: 50px; height: 35px; border: none; border-radius: 6px; cursor: pointer;">
+                            </div>
+                        </div>
+                        
+                        <!-- Speed Range 4 -->
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="font-weight: bold; font-size: 14px;">🚀 سريع جداً (+100 كم/س)</label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <span style="width: 60px; text-align: center; color: #718096;">+100</span>
+                                <input type="color" id="color4" value="#c53030" style="width: 50px; height: 35px; border: none; border-radius: 6px; cursor: pointer;">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button onclick="applySpeedColors()" style="margin-top: 15px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.3s;">
+                        ✅ تطبيق الألوان
+                    </button>
                 </div>
                 
                 <div id="map"></div>
@@ -479,6 +538,15 @@
         let pathVisible = true;
         let pathColor = '#667eea';
         let pathWidth = 4;
+        let autoFollow = false; // Auto-follow driver location
+        
+        // Speed color ranges (customizable)
+        let speedRanges = {
+            range1: { max: 20, color: '#48bb78' },  // Slow
+            range2: { max: 60, color: '#ed8936' },  // Medium
+            range3: { max: 100, color: '#f56565' }, // Fast
+            range4: { max: Infinity, color: '#c53030' } // Very fast
+        };
         
         // Map tile layers
         const mapLayers = {
@@ -494,6 +562,18 @@
                 url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                 attribution: '© Esri, Maxar, Earthstar Geographics',
                 labels: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+            },
+            osm: {
+                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                attribution: '© OpenStreetMap contributors'
+            },
+            dark: {
+                url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                attribution: '© OpenStreetMap contributors © CARTO'
+            },
+            terrain: {
+                url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+                attribution: '© OpenStreetMap contributors, SRTM | © OpenTopoMap'
             }
         };
 
@@ -566,6 +646,41 @@
             pathWidth = parseInt(width);
             document.getElementById('pathWidthValue').textContent = width;
             updateMap();
+        };
+        
+        // Toggle auto-follow mode
+        window.toggleAutoFollow = function() {
+            autoFollow = document.getElementById('autoFollowCheckbox').checked;
+            console.log('🎯 Auto-follow:', autoFollow ? 'enabled' : 'disabled');
+            
+            if (autoFollow && currentLocationMarker) {
+                // Immediately center on current location
+                const latLng = currentLocationMarker.getLatLng();
+                map.setView(latLng, 15, { animate: true });
+            }
+        };
+        
+        // Apply custom speed colors
+        window.applySpeedColors = function() {
+            // Get values from inputs
+            speedRanges.range1.max = parseInt(document.getElementById('speed1Max').value);
+            speedRanges.range1.color = document.getElementById('color1').value;
+            
+            speedRanges.range2.max = parseInt(document.getElementById('speed2Max').value);
+            speedRanges.range2.color = document.getElementById('color2').value;
+            
+            speedRanges.range3.max = parseInt(document.getElementById('speed3Max').value);
+            speedRanges.range3.color = document.getElementById('color3').value;
+            
+            speedRanges.range4.color = document.getElementById('color4').value;
+            
+            console.log('🎨 Speed colors updated:', speedRanges);
+            
+            // Update map with new colors
+            updateMap();
+            
+            // Show success message
+            alert('✅ تم تطبيق الألوان بنجاح!');
         };
         
         // Filter by date
@@ -828,6 +943,11 @@
                         <p style="margin: 5px 0; color: #48bb78; font-weight: bold;">✅ محدث في الوقت الفعلي</p>
                     </div>
                 `);
+            
+            // Auto-follow: center map on current location if enabled
+            if (autoFollow) {
+                map.setView(position, map.getZoom(), { animate: true, duration: 0.5 });
+            }
         }
         
         // Update map with path
@@ -857,13 +977,18 @@
                     const prevLoc = sortedHistory[index - 1];
                     const speedKmh = loc.speed * 3.6;
                     
-                    // Get color based on speed
+                    // Get color based on speed (using custom ranges)
                     let color = pathColor;
                     if (pathColor === '#667eea') { // Only apply speed colors to default color
-                        if (speedKmh < 20) color = '#48bb78';      // Green (slow)
-                        else if (speedKmh < 60) color = '#ed8936'; // Orange (medium)
-                        else if (speedKmh < 100) color = '#f56565'; // Red (fast)
-                        else color = '#c53030';                     // Dark red (very fast)
+                        if (speedKmh < speedRanges.range1.max) {
+                            color = speedRanges.range1.color;
+                        } else if (speedKmh < speedRanges.range2.max) {
+                            color = speedRanges.range2.color;
+                        } else if (speedKmh < speedRanges.range3.max) {
+                            color = speedRanges.range3.color;
+                        } else {
+                            color = speedRanges.range4.color;
+                        }
                     }
                     
                     const segment = L.polyline(
