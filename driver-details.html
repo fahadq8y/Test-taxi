@@ -758,16 +758,20 @@
                 const q = query(
                     collection(db, 'locationHistory'),
                     where('driverId', '==', driverId),
-                    where('timestamp', '>=', dateRange.start),
-                    where('timestamp', '<=', dateRange.end),
-                    orderBy('timestamp', 'desc')
+                    orderBy('timestamp', 'desc'),
+                    limit(1000)
                 );
                 
                 const snapshot = await getDocs(q);
-                locationHistory = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
+                locationHistory = snapshot.docs
+                    .map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }))
+                    .filter(loc => {
+                        const timestamp = loc.timestamp.toDate();
+                        return timestamp >= dateRange.start && timestamp <= dateRange.end;
+                    });
                 
                 console.log(`Loaded ${locationHistory.length} location records`);
             } catch (error) {
