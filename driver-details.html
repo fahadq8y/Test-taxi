@@ -617,8 +617,16 @@
         }
         
         // Load driver history
-        async function loadDriverHistory() {
+        function loadDriverHistory() {
             console.log('🔍 Loading driver history for:', driverId);
+            console.log('🔥 Firebase initialized:', !!db);
+            
+            if (!db) {
+                console.error('❌ Firebase not initialized!');
+                document.getElementById('timeline').innerHTML = '<div class="no-data">خطأ في الاتصال بقاعدة البيانات</div>';
+                return;
+            }
+            
             try {
                 // 1. Listen to current driver location from drivers collection (Real-time)
                 const driverDocRef = doc(db, 'drivers', driverId);
@@ -671,25 +679,33 @@
                 console.log('📍 Setting up locationHistory listener for:', driverId);
                 const q = query(collection(db, 'locationHistory'), where('driverId', '==', driverId));
                 
-                onSnapshot(q, (snapshot) => {
-                    console.log('📊 Snapshot received, docs count:', snapshot.size);
-                    locationHistory = [];
-                    snapshot.forEach((doc) => {
-                        locationHistory.push(doc.data());
-                    });
-                    
-                    console.log('✅ locationHistory loaded:', locationHistory.length, 'records');
-                    
-                    if (locationHistory.length > 0) {
-                        console.log('🗺️ Updating map, timeline, and statistics...');
-                        updateMap();
-                        updateTimeline();
-                        updateStatistics();
-                    } else {
-                        console.warn('⚠️ No location history found for driver:', driverId);
-                        document.getElementById('timeline').innerHTML = '<div class="no-data">لا توجد بيانات لهذا السائق</div>';
+                onSnapshot(q, 
+                    (snapshot) => {
+                        console.log('📊 Snapshot received, docs count:', snapshot.size);
+                        locationHistory = [];
+                        snapshot.forEach((doc) => {
+                            const data = doc.data();
+                            console.log('Document data:', doc.id, data);
+                            locationHistory.push(data);
+                        });
+                        
+                        console.log('✅ locationHistory loaded:', locationHistory.length, 'records');
+                        
+                        if (locationHistory.length > 0) {
+                            console.log('🗺️ Updating map, timeline, and statistics...');
+                            updateMap();
+                            updateTimeline();
+                            updateStatistics();
+                        } else {
+                            console.warn('⚠️ No location history found for driver:', driverId);
+                            document.getElementById('timeline').innerHTML = '<div class="no-data">لا توجد بيانات لهذا السائق</div>';
+                        }
+                    },
+                    (error) => {
+                        console.error('❌ Error in onSnapshot:', error);
+                        document.getElementById('timeline').innerHTML = '<div class="no-data">خطأ: ' + error.message + '</div>';
                     }
-                });
+                );
             } catch (error) {
                 console.error('Error loading history:', error);
                 document.getElementById('timeline').innerHTML = '<div class="no-data">حدث خطأ في تحميل البيانات</div>';
