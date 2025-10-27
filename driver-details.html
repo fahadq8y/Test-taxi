@@ -1051,8 +1051,8 @@
                     }
                 });
                 
-                // Fit map to show entire path
-                if (pathCoordinates.length > 0) {
+                // Fit map to show entire path (only if auto-follow is enabled)
+                if (pathCoordinates.length > 0 && autoFollow) {
                     const bounds = L.latLngBounds(pathCoordinates);
                     map.fitBounds(bounds, { padding: [50, 50] });
                 }
