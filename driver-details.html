@@ -691,8 +691,8 @@
                             // Update current location marker on map
                             updateCurrentLocationMarker(data.location);
                             
-                            // Merge and update if we have the data
-                            mergeAndUpdateLocations();
+                            // Don't call mergeAndUpdateLocations here - let locationHistory listener do it
+                            // This prevents showing only 1 point before history loads
                         }
                     }
                 });
