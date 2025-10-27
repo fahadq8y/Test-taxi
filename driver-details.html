@@ -328,6 +328,125 @@
                 opacity: 1;
             }
         }
+        
+        /* ===== Responsive Design for Mobile ===== */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 18px;
+            }
+            
+            .back-btn {
+                padding: 8px 15px;
+                font-size: 14px;
+            }
+            
+            .container {
+                padding: 0 10px;
+            }
+            
+            /* Stats Grid - 2 columns on mobile */
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+            
+            .stat-card {
+                padding: 15px 10px;
+            }
+            
+            .stat-card .icon {
+                font-size: 28px;
+            }
+            
+            .stat-card .label {
+                font-size: 12px;
+            }
+            
+            .stat-card .value {
+                font-size: 20px;
+            }
+            
+            /* Filter buttons - wrap on mobile */
+            .filter-group {
+                flex-wrap: wrap;
+                gap: 8px !important;
+            }
+            
+            .filter-btn {
+                padding: 8px 12px !important;
+                font-size: 13px !important;
+            }
+            
+            /* Custom Date Range - vertical layout */
+            .filters > div:last-child > div {
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+            
+            .filters > div:last-child > div > * {
+                width: 100% !important;
+            }
+            
+            .filters > div:last-child input[type="date"],
+            .filters > div:last-child input[type="time"] {
+                width: 100% !important;
+                margin-bottom: 8px;
+            }
+            
+            .filters > div:last-child button {
+                width: 100% !important;
+                margin-top: 10px;
+            }
+            
+            /* Map type buttons - horizontal scroll */
+            .map-section > div:first-child {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .map-section > div:first-child > div {
+                flex-wrap: nowrap !important;
+                min-width: max-content;
+            }
+            
+            /* Timeline sort buttons - wrap */
+            .timeline-section > div:first-child > div {
+                flex-wrap: wrap !important;
+                gap: 5px !important;
+            }
+            
+            .timeline-section button {
+                padding: 5px 10px !important;
+                font-size: 12px !important;
+            }
+            
+            /* Content grid - stack on mobile */
+            .content-grid {
+                grid-template-columns: 1fr !important;
+            }
+            
+            /* Map height on mobile */
+            #map {
+                height: 400px !important;
+            }
+            
+            /* Timeline items - smaller on mobile */
+            .timeline-item {
+                padding: 12px !important;
+            }
+            
+            .timeline-time {
+                font-size: 13px !important;
+            }
+            
+            .timeline-location {
+                font-size: 12px !important;
+            }
+            
+            .timeline-details {
+                font-size: 11px !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -826,8 +945,8 @@
                     const startDate = document.getElementById('startDate').value;
                     const endDate = document.getElementById('endDate').value;
                     if (startDate && endDate) {
-                        const start = new Date(startDate).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' });
-                        const end = new Date(endDate).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' });
+                        const start = new Date(startDate).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
+                        const end = new Date(endDate).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
                         suffix = ` (${start} - ${end})`;
                     } else {
                         suffix = ' (نطاق مخصص)';
@@ -1040,7 +1159,7 @@
                     });
                     
                     console.log('✅ After date filter (' + currentFilter + '):', mergedLocations.length, 'records');
-                    console.log('   Date range:', dateRange.start.toLocaleString('ar-SA'), '-', dateRange.end.toLocaleString('ar-SA'));
+                    console.log('   Date range:', dateRange.start.toLocaleString('en-GB'), '-', dateRange.end.toLocaleString('en-GB'));
                     
                     // Update global locationHistory with merged data
                     locationHistory = mergedLocations;
@@ -1174,7 +1293,7 @@
                     .bindPopup(`
                         <div style="padding: 10px; text-align: right; direction: rtl;">
                             <h4 style="margin: 0 0 5px 0; color: #48bb78;">🏁 نقطة البداية</h4>
-                            <p style="margin: 3px 0;"><strong>الوقت:</strong> ${startLoc.timestamp.toDate().toLocaleString('ar-SA')}</p>
+                            <p style="margin: 3px 0;"><strong>الوقت:</strong> ${startLoc.timestamp.toDate().toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                         </div>
                     `);
                 
@@ -1194,7 +1313,7 @@
                             .bindPopup(`
                                 <div style="padding: 10px; text-align: right; direction: rtl;">
                                     <h4 style="margin: 0 0 5px 0; color: #f56565;">⏸️ توقف</h4>
-                                    <p style="margin: 3px 0;"><strong>الوقت:</strong> ${loc.timestamp.toDate().toLocaleString('ar-SA')}</p>
+                                    <p style="margin: 3px 0;"><strong>الوقت:</strong> ${loc.timestamp.toDate().toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                                 </div>
                             `);
                     }
@@ -1252,7 +1371,7 @@
                 item.style.cursor = 'pointer';
                 item.style.transition = 'all 0.3s';
                 item.innerHTML = `
-                    <div class="timeline-time">${time.toLocaleTimeString('ar-SA')}</div>
+                    <div class="timeline-time">${time.toLocaleString('en-GB', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
                     <div class="timeline-status">
                         ${isMoving ? '🚗 في حركة' : '⏸️ متوقف'}
                     </div>
@@ -1299,7 +1418,7 @@
                         .setContent(`
                             <div style="padding: 10px; text-align: right; direction: rtl;">
                                 <h4 style="margin: 0 0 5px 0; color: #667eea;">📍 نقطة محددة</h4>
-                                <p style="margin: 3px 0;"><strong>الوقت:</strong> ${time.toLocaleString('ar-SA')}</p>
+                                <p style="margin: 3px 0;"><strong>الوقت:</strong> ${time.toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                                 <p style="margin: 3px 0;"><strong>السرعة:</strong> ${speed} كم/س</p>
                                 <p style="margin: 3px 0;"><strong>الحالة:</strong> ${isMoving ? '🚗 في حركة' : '⏸️ متوقف'}</p>
                             </div>
