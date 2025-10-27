@@ -901,16 +901,25 @@
         
         // Update timeline
         function updateTimeline() {
+            console.log('📋 updateTimeline called, locationHistory length:', locationHistory.length);
+            
             const timelineEl = document.getElementById('timeline');
             
             if (locationHistory.length === 0) {
+                console.warn('⚠️ No location history to display');
                 timelineEl.innerHTML = '<div class="no-data">لا توجد بيانات</div>';
                 return;
             }
             
+            console.log('✅ Rendering', locationHistory.length, 'timeline items...');
+            console.log('First item:', locationHistory[0]);
+            
             timelineEl.innerHTML = '';
             
             locationHistory.forEach((location, index) => {
+                if (index < 3) {
+                    console.log(`Item ${index}:`, location);
+                }
                 const time = location.timestamp.toDate();
                 const speed = (location.speed * 3.6).toFixed(1);
                 const isMoving = location.speed > 0.5;
