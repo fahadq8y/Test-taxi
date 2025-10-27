@@ -627,6 +627,8 @@
                 return;
             }
             
+            let currentDriverLocation = null; // Store current location from drivers collection
+            
             try {
                 // 1. Listen to current driver location from drivers collection (Real-time)
                 const driverDocRef = doc(db, 'drivers', driverId);
@@ -668,9 +670,24 @@
                             }
                         }
                         
-                        // Update current location marker on map
+                        // Store current location for merging with history
                         if (data.location && data.location.latitude && data.location.longitude) {
+                            currentDriverLocation = {
+                                latitude: data.location.latitude,
+                                longitude: data.location.longitude,
+                                speed: data.location.speed || 0,
+                                accuracy: data.location.accuracy || 0,
+                                timestamp: data.lastUpdate || data.location.timestamp,
+                                source: 'drivers' // Mark source for debugging
+                            };
+                            
+                            console.log('📍 Current location from drivers collection:', currentDriverLocation);
+                            
+                            // Update current location marker on map
                             updateCurrentLocationMarker(data.location);
+                            
+                            // Merge and update if we have the data
+                            mergeAndUpdateLocations();
                         }
                     }
                 });
@@ -685,27 +702,64 @@
                         locationHistory = [];
                         snapshot.forEach((doc) => {
                             const data = doc.data();
-                            console.log('Document data:', doc.id, data);
+                            data.source = 'locationHistory'; // Mark source
                             locationHistory.push(data);
                         });
                         
                         console.log('✅ locationHistory loaded:', locationHistory.length, 'records');
                         
-                        if (locationHistory.length > 0) {
-                            console.log('🗺️ Updating map, timeline, and statistics...');
-                            updateMap();
-                            updateTimeline();
-                            updateStatistics();
-                        } else {
-                            console.warn('⚠️ No location history found for driver:', driverId);
-                            document.getElementById('timeline').innerHTML = '<div class="no-data">لا توجد بيانات لهذا السائق</div>';
-                        }
+                        // Merge and update
+                        mergeAndUpdateLocations();
                     },
                     (error) => {
                         console.error('❌ Error in onSnapshot:', error);
                         document.getElementById('timeline').innerHTML = '<div class="no-data">خطأ: ' + error.message + '</div>';
                     }
                 );
+                
+                // Function to merge current location with history and update UI
+                function mergeAndUpdateLocations() {
+                    let mergedLocations = [...locationHistory];
+                    
+                    // Add current location if it exists and is not duplicate
+                    if (currentDriverLocation) {
+                        const isDuplicate = mergedLocations.some(loc => {
+                            if (!loc.timestamp || !currentDriverLocation.timestamp) return false;
+                            const locTime = loc.timestamp.toDate ? loc.timestamp.toDate().getTime() : loc.timestamp.getTime();
+                            const currTime = currentDriverLocation.timestamp.toDate ? currentDriverLocation.timestamp.toDate().getTime() : currentDriverLocation.timestamp.getTime();
+                            return Math.abs(locTime - currTime) < 5000; // Within 5 seconds = duplicate
+                        });
+                        
+                        if (!isDuplicate) {
+                            console.log('➕ Adding current location to merged array');
+                            mergedLocations.push(currentDriverLocation);
+                        } else {
+                            console.log('⚠️ Current location already in history, skipping');
+                        }
+                    }
+                    
+                    // Sort by timestamp
+                    mergedLocations.sort((a, b) => {
+                        const timeA = a.timestamp.toDate ? a.timestamp.toDate() : a.timestamp;
+                        const timeB = b.timestamp.toDate ? b.timestamp.toDate() : b.timestamp;
+                        return timeA - timeB;
+                    });
+                    
+                    console.log('🔀 Merged locations:', mergedLocations.length, 'total records');
+                    
+                    // Update global locationHistory with merged data
+                    locationHistory = mergedLocations;
+                    
+                    if (locationHistory.length > 0) {
+                        console.log('🗺️ Updating map, timeline, and statistics...');
+                        updateMap();
+                        updateTimeline();
+                        updateStatistics();
+                    } else {
+                        console.warn('⚠️ No location data found for driver:', driverId);
+                        document.getElementById('timeline').innerHTML = '<div class="no-data">لا توجد بيانات لهذا السائق</div>';
+                    }
+                }
             } catch (error) {
                 console.error('Error loading history:', error);
                 document.getElementById('timeline').innerHTML = '<div class="no-data">حدث خطأ في تحميل البيانات</div>';
