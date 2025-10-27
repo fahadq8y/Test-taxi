@@ -927,8 +927,9 @@
                 });
                 
                 // Fit map to show entire path
-                if (pathPolyline) {
-                    map.fitBounds(pathPolyline.getBounds(), { padding: [50, 50] });
+                if (pathCoordinates.length > 0) {
+                    const bounds = L.latLngBounds(pathCoordinates);
+                    map.fitBounds(bounds, { padding: [50, 50] });
                 }
             }
         }
