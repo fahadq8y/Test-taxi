@@ -312,6 +312,22 @@
                 gap: 15px;
             }
         }
+        
+        /* Pulse animation for markers */
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
@@ -382,6 +398,39 @@
                     <button class="map-type-btn" onclick="changeMapType('satellite')">🛰️ الأقمار</button>
                     <button class="map-type-btn" onclick="changeMapType('hybrid')">🌐 هجين</button>
                 </div>
+                
+                <!-- Route Controls -->
+                <div class="route-controls" style="margin: 15px 0; padding: 15px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; direction: rtl;">
+                        <!-- Toggle Route -->
+                        <button id="toggleRouteBtn" onclick="toggleRoute()" style="padding: 8px 16px; background: #48bb78; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.3s;">
+                            🛣️ إخفاء المسار
+                        </button>
+                        
+                        <!-- Color Picker -->
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label style="font-weight: bold; color: #2d3748;">🎨 اللون:</label>
+                            <input type="color" id="pathColorPicker" value="#667eea" onchange="changePathColor(this.value)" style="width: 50px; height: 35px; border: none; border-radius: 8px; cursor: pointer;">
+                        </div>
+                        
+                        <!-- Width Slider -->
+                        <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 200px;">
+                            <label style="font-weight: bold; color: #2d3748;">📏 السُمك:</label>
+                            <input type="range" id="pathWidthSlider" min="2" max="10" value="4" oninput="changePathWidth(this.value)" style="flex: 1; cursor: pointer;">
+                            <span id="pathWidthValue" style="font-weight: bold; color: #667eea; min-width: 30px;">4</span>
+                        </div>
+                        
+                        <!-- Speed Legend -->
+                        <div style="display: flex; align-items: center; gap: 10px; font-size: 12px; margin-right: auto;">
+                            <span style="font-weight: bold; color: #2d3748;">مفتاح السرعة:</span>
+                            <span style="color: #48bb78;">● بطيء (&lt;20)</span>
+                            <span style="color: #ed8936;">● متوسط (20-60)</span>
+                            <span style="color: #f56565;">● سريع (60-100)</span>
+                            <span style="color: #c53030;">● سريع جداً (&gt;100)</span>
+                        </div>
+                    </div>
+                </div>
+                
                 <div id="map"></div>
             </div>
             
@@ -399,7 +448,7 @@
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-        import { getFirestore, collection, query, where, orderBy, getDocs, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        import { getFirestore, collection, query, where, orderBy, getDocs, onSnapshot, doc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -423,8 +472,12 @@
         let currentTileLayer = null;
         let currentMapType = 'streets';
         let pathPolyline = null;
+        let currentLocationMarker = null;
         let locationHistory = [];
         let currentFilter = 'today';
+        let pathVisible = true;
+        let pathColor = '#667eea';
+        let pathWidth = 4;
         
         // Map tile layers
         const mapLayers = {
@@ -485,6 +538,35 @@
             event.target.classList.add('active');
         };
         
+        // Toggle route visibility
+        window.toggleRoute = function() {
+            pathVisible = !pathVisible;
+            const btn = document.getElementById('toggleRouteBtn');
+            
+            if (pathVisible) {
+                btn.textContent = '🛣️ إخفاء المسار';
+                btn.style.background = '#48bb78';
+            } else {
+                btn.textContent = '🛣️ إظهار المسار';
+                btn.style.background = '#cbd5e0';
+            }
+            
+            updateMap();
+        };
+        
+        // Change path color
+        window.changePathColor = function(color) {
+            pathColor = color;
+            updateMap();
+        };
+        
+        // Change path width
+        window.changePathWidth = function(width) {
+            pathWidth = parseInt(width);
+            document.getElementById('pathWidthValue').textContent = width;
+            updateMap();
+        };
+        
         // Filter by date
         window.filterByDate = function(period) {
             currentFilter = period;
@@ -537,8 +619,53 @@
         // Load driver history
         async function loadDriverHistory() {
             try {
-                // For now, we'll use real-time listener on current location
-                // In production, you'd query a locationHistory collection
+                // 1. Listen to current driver location from drivers collection (Real-time)
+                const driverDocRef = doc(db, 'drivers', driverId);
+                onSnapshot(driverDocRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        
+                        // Update driver status
+                        if (data.isActive !== undefined) {
+                            const statusEl = document.querySelector('.status-badge');
+                            if (statusEl) {
+                                if (data.isActive) {
+                                    statusEl.textContent = 'نشط';
+                                    statusEl.style.background = '#48bb78';
+                                } else {
+                                    statusEl.textContent = 'غير نشط';
+                                    statusEl.style.background = '#f56565';
+                                }
+                            }
+                        }
+                        
+                        // Update last activity
+                        if (data.lastUpdate) {
+                            const lastUpdateTime = data.lastUpdate.toDate();
+                            const now = new Date();
+                            const diffMinutes = Math.floor((now - lastUpdateTime) / 60000);
+                            
+                            const lastActivityEl = document.querySelector('.stat-card:nth-child(3) .stat-value');
+                            if (lastActivityEl) {
+                                if (diffMinutes < 1) {
+                                    lastActivityEl.textContent = 'الآن';
+                                } else if (diffMinutes < 60) {
+                                    lastActivityEl.textContent = `منذ ${diffMinutes} دقيقة`;
+                                } else {
+                                    const diffHours = Math.floor(diffMinutes / 60);
+                                    lastActivityEl.textContent = `منذ ${diffHours} ساعة`;
+                                }
+                            }
+                        }
+                        
+                        // Update current location marker on map
+                        if (data.location && data.location.latitude && data.location.longitude) {
+                            updateCurrentLocationMarker(data.location);
+                        }
+                    }
+                });
+                
+                // 2. Listen to location history from locationHistory collection
                 const q = query(collection(db, 'locationHistory'), where('driverId', '==', driverId));
                 
                 onSnapshot(q, (snapshot) => {
@@ -561,6 +688,36 @@
             }
         }
         
+        // Update current location marker (Real-time from drivers collection)
+        function updateCurrentLocationMarker(location) {
+            if (!map) return;
+            
+            const position = [location.latitude, location.longitude];
+            
+            // Remove old marker
+            if (currentLocationMarker) {
+                map.removeLayer(currentLocationMarker);
+            }
+            
+            // Add new marker for current position
+            const icon = L.divIcon({
+                className: 'current-location-marker',
+                iconSize: [50, 50],
+                html: '<div style="width: 100%; height: 100%; background: #48bb78; border-radius: 50%; border: 4px solid white; box-shadow: 0 3px 15px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; font-size: 24px; animation: pulse 2s infinite;">🚕</div>'
+            });
+            
+            currentLocationMarker = L.marker(position, { icon: icon })
+                .addTo(map)
+                .bindPopup(`
+                    <div style="padding: 10px; text-align: right; direction: rtl;">
+                        <h3 style="margin: 0 0 10px 0; color: #48bb78;">📍 الموقع الحالي</h3>
+                        <p style="margin: 5px 0;"><strong>السائق:</strong> ${driverId}</p>
+                        <p style="margin: 5px 0;"><strong>السرعة:</strong> ${(location.speed * 3.6).toFixed(1)} كم/س</p>
+                        <p style="margin: 5px 0; color: #48bb78; font-weight: bold;">✅ محدث في الوقت الفعلي</p>
+                    </div>
+                `);
+        }
+        
         // Update map with path
         function updateMap() {
             if (locationHistory.length === 0) return;
@@ -568,31 +725,100 @@
             // Remove old path
             if (pathPolyline) {
                 map.removeLayer(pathPolyline);
+                pathPolyline = null;
             }
             
-            // Get latest location
-            const latest = locationHistory[locationHistory.length - 1];
-            const position = [latest.latitude, latest.longitude];
-            
-            // Center map on latest position
-            map.setView(position, 15);
-            
-            // Add marker for current position
-            const icon = L.divIcon({
-                className: 'custom-marker',
-                iconSize: [40, 40],
-                html: '<div style="width: 100%; height: 100%; background: #667eea; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-size: 20px;">🚕</div>'
+            // Sort by timestamp
+            const sortedHistory = [...locationHistory].sort((a, b) => {
+                return a.timestamp.toDate() - b.timestamp.toDate();
             });
             
-            L.marker(position, { icon: icon })
-                .addTo(map)
-                .bindPopup(`
-                    <div style="padding: 10px; text-align: right; direction: rtl;">
-                        <h3 style="margin: 0 0 10px 0; color: #667eea;">🚕 ${driverId}</h3>
-                        <p style="margin: 5px 0;"><strong>الوقت:</strong> ${latest.timestamp.toDate().toLocaleString('ar-SA')}</p>
-                        <p style="margin: 5px 0;"><strong>السرعة:</strong> ${(latest.speed * 3.6).toFixed(1)} كم/س</p>
-                    </div>
-                `);
+            // Create path coordinates
+            const pathCoordinates = sortedHistory.map(loc => [loc.latitude, loc.longitude]);
+            
+            // Draw path with color based on speed
+            if (pathCoordinates.length > 1) {
+                // Draw path as multiple segments colored by speed
+                sortedHistory.forEach((loc, index) => {
+                    if (index === 0) return;
+                    
+                    const prevLoc = sortedHistory[index - 1];
+                    const speedKmh = loc.speed * 3.6;
+                    
+                    // Get color based on speed
+                    let color = pathColor;
+                    if (pathColor === '#667eea') { // Only apply speed colors to default color
+                        if (speedKmh < 20) color = '#48bb78';      // Green (slow)
+                        else if (speedKmh < 60) color = '#ed8936'; // Orange (medium)
+                        else if (speedKmh < 100) color = '#f56565'; // Red (fast)
+                        else color = '#c53030';                     // Dark red (very fast)
+                    }
+                    
+                    const segment = L.polyline(
+                        [[prevLoc.latitude, prevLoc.longitude], [loc.latitude, loc.longitude]],
+                        {
+                            color: color,
+                            weight: pathWidth,
+                            opacity: 0.8,
+                            smoothFactor: 1
+                        }
+                    );
+                    
+                    if (pathVisible) {
+                        segment.addTo(map);
+                    }
+                    
+                    // Store reference for later removal
+                    if (!pathPolyline) {
+                        pathPolyline = L.layerGroup([segment]).addTo(map);
+                    } else {
+                        pathPolyline.addLayer(segment);
+                    }
+                });
+                
+                // Add start marker
+                const startLoc = sortedHistory[0];
+                const startIcon = L.divIcon({
+                    className: 'start-marker',
+                    iconSize: [30, 30],
+                    html: '<div style="width: 100%; height: 100%; background: #48bb78; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 16px;">🏁</div>'
+                });
+                L.marker([startLoc.latitude, startLoc.longitude], { icon: startIcon })
+                    .addTo(map)
+                    .bindPopup(`
+                        <div style="padding: 10px; text-align: right; direction: rtl;">
+                            <h4 style="margin: 0 0 5px 0; color: #48bb78;">🏁 نقطة البداية</h4>
+                            <p style="margin: 3px 0;"><strong>الوقت:</strong> ${startLoc.timestamp.toDate().toLocaleString('ar-SA')}</p>
+                        </div>
+                    `);
+                
+                // Add stop markers
+                sortedHistory.forEach((loc, index) => {
+                    const speedKmh = loc.speed * 3.6;
+                    
+                    if (speedKmh < 1 && index > 0) { // Stopped
+                        const stopIcon = L.divIcon({
+                            className: 'stop-marker',
+                            iconSize: [20, 20],
+                            html: '<div style="width: 100%; height: 100%; background: #f56565; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>'
+                        });
+                        
+                        L.marker([loc.latitude, loc.longitude], { icon: stopIcon })
+                            .addTo(map)
+                            .bindPopup(`
+                                <div style="padding: 10px; text-align: right; direction: rtl;">
+                                    <h4 style="margin: 0 0 5px 0; color: #f56565;">⏸️ توقف</h4>
+                                    <p style="margin: 3px 0;"><strong>الوقت:</strong> ${loc.timestamp.toDate().toLocaleString('ar-SA')}</p>
+                                </div>
+                            `);
+                    }
+                });
+                
+                // Fit map to show entire path
+                if (pathPolyline) {
+                    map.fitBounds(pathPolyline.getBounds(), { padding: [50, 50] });
+                }
+            }
         }
         
         // Update timeline
@@ -613,6 +839,8 @@
                 
                 const item = document.createElement('div');
                 item.className = `timeline-item ${isMoving ? 'moving' : 'stopped'}`;
+                item.style.cursor = 'pointer';
+                item.style.transition = 'all 0.3s';
                 item.innerHTML = `
                     <div class="timeline-time">${time.toLocaleTimeString('ar-SA')}</div>
                     <div class="timeline-status">
@@ -624,6 +852,63 @@
                         🎯 الدقة: ${location.accuracy.toFixed(0)} متر
                     </div>
                 `;
+                
+                // Add click handler to highlight location on map
+                item.addEventListener('click', function() {
+                    // Remove previous highlights
+                    document.querySelectorAll('.timeline-item').forEach(el => {
+                        el.style.background = '';
+                        el.style.borderLeft = '';
+                    });
+                    
+                    // Highlight clicked item
+                    item.style.background = '#f0f4ff';
+                    item.style.borderLeft = '4px solid #667eea';
+                    
+                    // Center map on this location
+                    const position = [location.latitude, location.longitude];
+                    map.setView(position, 16, { animate: true });
+                    
+                    // Add temporary highlight marker
+                    const highlightIcon = L.divIcon({
+                        className: 'highlight-marker',
+                        iconSize: [60, 60],
+                        html: '<div style="width: 100%; height: 100%; background: rgba(102, 126, 234, 0.3); border-radius: 50%; border: 3px solid #667eea; animation: pulse 1s ease-out 3;"></div>'
+                    });
+                    
+                    const highlightMarker = L.marker(position, { icon: highlightIcon }).addTo(map);
+                    
+                    // Remove highlight marker after 3 seconds
+                    setTimeout(() => {
+                        map.removeLayer(highlightMarker);
+                    }, 3000);
+                    
+                    // Show popup
+                    L.popup()
+                        .setLatLng(position)
+                        .setContent(`
+                            <div style="padding: 10px; text-align: right; direction: rtl;">
+                                <h4 style="margin: 0 0 5px 0; color: #667eea;">📍 نقطة محددة</h4>
+                                <p style="margin: 3px 0;"><strong>الوقت:</strong> ${time.toLocaleString('ar-SA')}</p>
+                                <p style="margin: 3px 0;"><strong>السرعة:</strong> ${speed} كم/س</p>
+                                <p style="margin: 3px 0;"><strong>الحالة:</strong> ${isMoving ? '🚗 في حركة' : '⏸️ متوقف'}</p>
+                            </div>
+                        `)
+                        .openOn(map);
+                });
+                
+                // Add hover effect
+                item.addEventListener('mouseenter', function() {
+                    if (!item.style.borderLeft) {
+                        item.style.background = '#fafbff';
+                    }
+                });
+                
+                item.addEventListener('mouseleave', function() {
+                    if (!item.style.borderLeft) {
+                        item.style.background = '';
+                    }
+                });
                 
                 timelineEl.appendChild(item);
             });
