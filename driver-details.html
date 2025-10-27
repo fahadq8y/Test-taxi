@@ -1051,11 +1051,8 @@
                     }
                 });
                 
-                // Fit map to show entire path (only if auto-follow is enabled)
-                if (pathCoordinates.length > 0 && autoFollow) {
-                    const bounds = L.latLngBounds(pathCoordinates);
-                    map.fitBounds(bounds, { padding: [50, 50] });
-                }
+                // Note: Auto-follow only tracks current location, not entire path
+                // This prevents unwanted zoom-out behavior on every update
             }
         }
         
