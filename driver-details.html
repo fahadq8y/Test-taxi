@@ -349,25 +349,25 @@
             
             <div class="stat-card">
                 <div class="icon">⏰</div>
-                <div class="label">ساعات العمل اليوم</div>
+                <div class="label" id="workHoursLabel">ساعات العمل اليوم</div>
                 <div class="value" id="workHours">0:00</div>
             </div>
             
             <div class="stat-card">
                 <div class="icon">📏</div>
-                <div class="label">المسافة المقطوعة</div>
+                <div class="label" id="totalDistanceLabel">المسافة المقطوعة</div>
                 <div class="value" id="totalDistance">0 كم</div>
             </div>
             
             <div class="stat-card">
                 <div class="icon">🚗</div>
-                <div class="label">متوسط السرعة</div>
+                <div class="label" id="avgSpeedLabel">متوسط السرعة</div>
                 <div class="value" id="avgSpeed">0 كم/س</div>
             </div>
             
             <div class="stat-card">
                 <div class="icon">⏸️</div>
-                <div class="label">عدد التوقفات</div>
+                <div class="label" id="stopsCountLabel">عدد التوقفات</div>
                 <div class="value" id="stopsCount">0</div>
             </div>
             
@@ -395,8 +395,10 @@
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; direction: rtl;">
                     <label style="font-size: 14px; color: #4a5568;">من:</label>
                     <input type="date" id="startDate" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
+                    <input type="time" id="startTime" value="00:00" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
                     <label style="font-size: 14px; color: #4a5568;">إلى:</label>
                     <input type="date" id="endDate" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
+                    <input type="time" id="endTime" value="23:59" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
                     <button onclick="filterByCustomRange()" style="padding: 8px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s;">
                         تطبيق
                     </button>
@@ -795,6 +797,52 @@
             return R * c;
         }
         
+        // Update statistics labels based on current filter
+        function updateStatisticsLabels() {
+            const workHoursLabel = document.getElementById('workHoursLabel');
+            const totalDistanceLabel = document.getElementById('totalDistanceLabel');
+            const avgSpeedLabel = document.getElementById('avgSpeedLabel');
+            const stopsCountLabel = document.getElementById('stopsCountLabel');
+            
+            let suffix = '';
+            
+            switch(currentFilter) {
+                case 'today':
+                    suffix = ' اليوم';
+                    break;
+                case 'yesterday':
+                    suffix = ' أمس';
+                    break;
+                case 'week':
+                    suffix = ' (آخر 7 أيام)';
+                    break;
+                case 'month':
+                    suffix = ' (آخر 30 يوم)';
+                    break;
+                case 'all':
+                    suffix = ' (الكل)';
+                    break;
+                case 'custom':
+                    const startDate = document.getElementById('startDate').value;
+                    const endDate = document.getElementById('endDate').value;
+                    if (startDate && endDate) {
+                        const start = new Date(startDate).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' });
+                        const end = new Date(endDate).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' });
+                        suffix = ` (${start} - ${end})`;
+                    } else {
+                        suffix = ' (نطاق مخصص)';
+                    }
+                    break;
+                default:
+                    suffix = '';
+            }
+            
+            workHoursLabel.textContent = 'ساعات العمل' + suffix;
+            totalDistanceLabel.textContent = 'المسافة المقطوعة' + suffix;
+            avgSpeedLabel.textContent = 'متوسط السرعة' + suffix;
+            stopsCountLabel.textContent = 'عدد التوقفات' + suffix;
+        }
+        
         // Get date range based on filter
         function getDateRange() {
             const now = new Date();
@@ -819,13 +867,15 @@
                     // Return a very old date to include all records
                     return { start: new Date(2020, 0, 1), end: new Date() };
                 case 'custom':
-                    // Custom date range from date pickers
+                    // Custom date range from date and time pickers
                     const startDate = document.getElementById('startDate').value;
+                    const startTime = document.getElementById('startTime').value || '00:00';
                     const endDate = document.getElementById('endDate').value;
+                    const endTime = document.getElementById('endTime').value || '23:59';
+                    
                     if (startDate && endDate) {
-                        const start = new Date(startDate);
-                        const end = new Date(endDate);
-                        end.setHours(23, 59, 59, 999); // End of day
+                        const start = new Date(startDate + 'T' + startTime);
+                        const end = new Date(endDate + 'T' + endTime);
                         return { start, end };
                     }
                     return { start: today, end: new Date() };
@@ -998,6 +1048,7 @@
                     if (locationHistory.length > 0) {
                         console.log('🗺️ Updating map, timeline, and statistics...');
                         console.log('   locationHistory length RIGHT BEFORE updateMap:', locationHistory.length);
+                        updateStatisticsLabels(); // Update labels first
                         updateMap();
                         console.log('   locationHistory length RIGHT BEFORE updateTimeline:', locationHistory.length);
                         updateTimeline();
