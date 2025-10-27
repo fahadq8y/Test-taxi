@@ -784,7 +784,9 @@
                     
                     if (locationHistory.length > 0) {
                         console.log('🗺️ Updating map, timeline, and statistics...');
+                        console.log('   locationHistory length RIGHT BEFORE updateMap:', locationHistory.length);
                         updateMap();
+                        console.log('   locationHistory length RIGHT BEFORE updateTimeline:', locationHistory.length);
                         updateTimeline();
                         updateStatistics();
                     } else {
