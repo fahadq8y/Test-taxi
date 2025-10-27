@@ -382,10 +382,25 @@
         <div class="filters">
             <h3>📅 فلتر التاريخ</h3>
             <div class="filter-group">
-                <button class="filter-btn" onclick="filterByDate('today')">اليوم</button>
+                <button class="filter-btn active" onclick="filterByDate('today')">اليوم</button>
                 <button class="filter-btn" onclick="filterByDate('yesterday')">أمس</button>
-                <button class="filter-btn active" onclick="filterByDate('week')">آخر 7 أيام</button>
+                <button class="filter-btn" onclick="filterByDate('week')">آخر 7 أيام</button>
                 <button class="filter-btn" onclick="filterByDate('month')">آخر 30 يوم</button>
+                <button class="filter-btn" onclick="filterByDate('all')">الكل</button>
+            </div>
+            
+            <!-- Custom Date Range -->
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                <h4 style="margin-bottom: 10px; color: #4a5568; font-size: 14px;">📅 نطاق تاريخ مخصص</h4>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; direction: rtl;">
+                    <label style="font-size: 14px; color: #4a5568;">من:</label>
+                    <input type="date" id="startDate" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
+                    <label style="font-size: 14px; color: #4a5568;">إلى:</label>
+                    <input type="date" id="endDate" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
+                    <button onclick="filterByCustomRange()" style="padding: 8px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s;">
+                        تطبيق
+                    </button>
+                </div>
             </div>
         </div>
         
@@ -494,7 +509,23 @@
             </div>
             
             <div class="timeline-section">
-                <h2>📋 الجدول الزمني</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2 style="margin: 0;">📋 الجدول الزمني</h2>
+                    <div style="display: flex; gap: 10px; direction: rtl;">
+                        <button onclick="sortTimeline('time', 'desc')" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
+                            ⬇️ الأحدث
+                        </button>
+                        <button onclick="sortTimeline('time', 'asc')" style="padding: 6px 12px; background: #e2e8f0; color: #4a5568; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
+                            ⬆️ الأقدم
+                        </button>
+                        <button onclick="sortTimeline('speed', 'desc')" style="padding: 6px 12px; background: #e2e8f0; color: #4a5568; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
+                            🚀 الأسرع
+                        </button>
+                        <button onclick="sortTimeline('speed', 'asc')" style="padding: 6px 12px; background: #e2e8f0; color: #4a5568; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
+                            🐌 الأبطأ
+                        </button>
+                    </div>
+                </div>
                 <div id="timeline">
                     <div class="loading">جاري تحميل البيانات...</div>
                 </div>
@@ -534,11 +565,13 @@
         let currentLocationMarker = null;
         let locationHistory = []; // Filtered data for display
         let rawLocationHistory = []; // Raw data from Firebase (never filtered)
-        let currentFilter = 'week'; // Default to last 7 days to show more data
+        let currentFilter = 'today'; // Default to today
         let pathVisible = true;
         let pathColor = '#667eea';
         let pathWidth = 4;
         let autoFollow = false; // Auto-follow driver location
+        let timelineSortBy = 'time'; // Sort timeline by: 'time' or 'speed'
+        let timelineSortOrder = 'desc'; // Sort order: 'asc' or 'desc'
         
         // Speed color ranges (customizable)
         let speedRanges = {
@@ -699,6 +732,57 @@
             }
         };
         
+        // Sort timeline
+        window.sortTimeline = function(by, order) {
+            console.log('🔄 Sort timeline:', by, order);
+            timelineSortBy = by;
+            timelineSortOrder = order;
+            
+            // Update button styles
+            const buttons = document.querySelectorAll('.timeline-section button');
+            buttons.forEach(btn => {
+                btn.style.background = '#e2e8f0';
+                btn.style.color = '#4a5568';
+            });
+            event.target.style.background = '#667eea';
+            event.target.style.color = 'white';
+            
+            // Re-render timeline with new sort
+            updateTimeline();
+        };
+        
+        // Filter by custom date range
+        window.filterByCustomRange = function() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!startDate || !endDate) {
+                alert('الرجاء اختيار تاريخ البداية والنهاية');
+                return;
+            }
+            
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            if (start > end) {
+                alert('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
+                return;
+            }
+            
+            console.log('📅 Custom filter:', startDate, '-', endDate);
+            currentFilter = 'custom';
+            
+            // Remove active class from all filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Re-apply filter
+            if (window.mergeAndUpdateLocations) {
+                window.mergeAndUpdateLocations();
+            }
+        };
+        
         // Calculate distance between two points (Haversine formula)
         function calculateDistance(lat1, lon1, lat2, lon2) {
             const R = 6371; // Earth radius in km
@@ -731,6 +815,20 @@
                     const monthAgo = new Date(today);
                     monthAgo.setDate(monthAgo.getDate() - 30);
                     return { start: monthAgo, end: new Date() };
+                case 'all':
+                    // Return a very old date to include all records
+                    return { start: new Date(2020, 0, 1), end: new Date() };
+                case 'custom':
+                    // Custom date range from date pickers
+                    const startDate = document.getElementById('startDate').value;
+                    const endDate = document.getElementById('endDate').value;
+                    if (startDate && endDate) {
+                        const start = new Date(startDate);
+                        const end = new Date(endDate);
+                        end.setHours(23, 59, 59, 999); // End of day
+                        return { start, end };
+                    }
+                    return { start: today, end: new Date() };
                 default:
                     return { start: today, end: new Date() };
             }
@@ -1073,7 +1171,24 @@
             
             timelineEl.innerHTML = '';
             
-            locationHistory.forEach((location, index) => {
+            // Sort locationHistory based on current sort settings
+            let sortedHistory = [...locationHistory];
+            
+            if (timelineSortBy === 'time') {
+                sortedHistory.sort((a, b) => {
+                    const timeA = a.timestamp.toDate ? a.timestamp.toDate() : a.timestamp;
+                    const timeB = b.timestamp.toDate ? b.timestamp.toDate() : b.timestamp;
+                    return timelineSortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+                });
+            } else if (timelineSortBy === 'speed') {
+                sortedHistory.sort((a, b) => {
+                    const speedA = a.speed * 3.6;
+                    const speedB = b.speed * 3.6;
+                    return timelineSortOrder === 'asc' ? speedA - speedB : speedB - speedA;
+                });
+            }
+            
+            sortedHistory.forEach((location, index) => {
                 if (index < 3) {
                     console.log(`Item ${index}:`, location);
                 }
@@ -1206,22 +1321,40 @@
             }
             document.getElementById('totalDistance').textContent = totalDistance.toFixed(1) + ' كم';
             
-            // Average speed
+            // Average speed (exclude speeds = 0)
             const speeds = locationHistory.map(l => l.speed * 3.6).filter(s => s > 0);
             const avgSpeed = speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
             document.getElementById('avgSpeed').textContent = avgSpeed.toFixed(1) + ' كم/س';
             
-            // Stops count
-            const stops = locationHistory.filter(l => l.speed < 0.5).length;
+            // Stops count (speed < 1 km/h)
+            const stops = locationHistory.filter(l => (l.speed * 3.6) < 1).length;
             document.getElementById('stopsCount').textContent = stops;
             
-            // Work hours (simplified - from first to last record)
+            // Work hours (only when speed > 10 km/h)
             if (locationHistory.length > 1) {
-                const first = locationHistory[0].timestamp.toDate();
-                const last = locationHistory[locationHistory.length - 1].timestamp.toDate();
-                const workMs = last - first;
-                const hours = Math.floor(workMs / 3600000);
-                const minutes = Math.floor((workMs % 3600000) / 60000);
+                // Sort by timestamp
+                const sorted = [...locationHistory].sort((a, b) => {
+                    const timeA = a.timestamp.toDate ? a.timestamp.toDate() : a.timestamp;
+                    const timeB = b.timestamp.toDate ? b.timestamp.toDate() : b.timestamp;
+                    return timeA - timeB;
+                });
+                
+                let workingTimeMs = 0;
+                for (let i = 1; i < sorted.length; i++) {
+                    const speedKmh = sorted[i].speed * 3.6;
+                    if (speedKmh > 10) {
+                        const prevTime = sorted[i-1].timestamp.toDate ? sorted[i-1].timestamp.toDate() : sorted[i-1].timestamp;
+                        const currTime = sorted[i].timestamp.toDate ? sorted[i].timestamp.toDate() : sorted[i].timestamp;
+                        const timeDiff = currTime - prevTime;
+                        // Only count if time difference is reasonable (< 5 minutes)
+                        if (timeDiff < 300000) {
+                            workingTimeMs += timeDiff;
+                        }
+                    }
+                }
+                
+                const hours = Math.floor(workingTimeMs / 3600000);
+                const minutes = Math.floor((workingTimeMs % 3600000) / 60000);
                 document.getElementById('workHours').textContent = `${hours}:${minutes.toString().padStart(2, '0')}`;
             }
             
