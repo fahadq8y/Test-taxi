@@ -473,7 +473,8 @@
         let currentMapType = 'streets';
         let pathPolyline = null;
         let currentLocationMarker = null;
-        let locationHistory = [];
+        let locationHistory = []; // Filtered data for display
+        let rawLocationHistory = []; // Raw data from Firebase (never filtered)
         let currentFilter = 'week'; // Default to last 7 days to show more data
         let pathVisible = true;
         let pathColor = '#667eea';
@@ -703,14 +704,14 @@
                 onSnapshot(q, 
                     (snapshot) => {
                         console.log('📊 Snapshot received, docs count:', snapshot.size);
-                        locationHistory = [];
+                        rawLocationHistory = []; // Store raw data
                         snapshot.forEach((doc) => {
                             const data = doc.data();
                             data.source = 'locationHistory'; // Mark source
-                            locationHistory.push(data);
+                            rawLocationHistory.push(data);
                         });
                         
-                        console.log('✅ locationHistory loaded:', locationHistory.length, 'records');
+                        console.log('✅ rawLocationHistory loaded:', rawLocationHistory.length, 'records');
                         
                         // Merge and update
                         mergeAndUpdateLocations();
@@ -723,7 +724,11 @@
                 
                 // Function to merge current location with history and update UI
                 window.mergeAndUpdateLocations = function() {
-                    let mergedLocations = [...locationHistory];
+                    console.log('🔄 mergeAndUpdateLocations called');
+                    console.log('   rawLocationHistory:', rawLocationHistory.length, 'records');
+                    console.log('   currentDriverLocation:', currentDriverLocation ? 'exists' : 'null');
+                    
+                    let mergedLocations = [...rawLocationHistory]; // Use raw data
                     
                     // Add current location if it exists and is not duplicate
                     if (currentDriverLocation) {
