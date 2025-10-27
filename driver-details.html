@@ -529,14 +529,6 @@
         <div class="content-grid">
             <div class="map-section">
                 <h2>🗺️ المسار</h2>
-                <div class="map-type-controls">
-                    <button class="map-type-btn active" onclick="changeMapType('streets')">🗺️ الشوارع</button>
-                    <button class="map-type-btn" onclick="changeMapType('satellite')">🛰️ الأقمار</button>
-                    <button class="map-type-btn" onclick="changeMapType('hybrid')">🌐 هجين</button>
-                    <button class="map-type-btn" onclick="changeMapType('osm')">🌍 OSM</button>
-                    <button class="map-type-btn" onclick="changeMapType('dark')">🌙 داكن</button>
-                    <button class="map-type-btn" onclick="changeMapType('terrain')">⛰️ تضاريس</button>
-                </div>
                 
                 <!-- Auto-Follow Control -->
                 <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); direction: rtl;">
@@ -545,6 +537,15 @@
                         <span>🎯 تتبع تلقائي للسائق</span>
                     </label>
                     <p style="margin: 8px 0 0 30px; font-size: 13px; color: #666;">عند التفعيل: الخريطة تتحرك تلقائياً مع موقع السائق</p>
+                </div>
+                
+                <div class="map-type-controls">
+                    <button class="map-type-btn active" onclick="changeMapType('streets')">🗺️ الشوارع</button>
+                    <button class="map-type-btn" onclick="changeMapType('satellite')">🛰️ الأقمار</button>
+                    <button class="map-type-btn" onclick="changeMapType('hybrid')">🌐 هجين</button>
+                    <button class="map-type-btn" onclick="changeMapType('osm')">🌍 OSM</button>
+                    <button class="map-type-btn" onclick="changeMapType('dark')">🌙 داكن</button>
+                    <button class="map-type-btn" onclick="changeMapType('terrain')">⛰️ تضاريس</button>
                 </div>
                 
                 <!-- Route Controls -->
