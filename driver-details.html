@@ -382,9 +382,9 @@
         <div class="filters">
             <h3>📅 فلتر التاريخ</h3>
             <div class="filter-group">
-                <button class="filter-btn active" onclick="filterByDate('today')">اليوم</button>
+                <button class="filter-btn" onclick="filterByDate('today')">اليوم</button>
                 <button class="filter-btn" onclick="filterByDate('yesterday')">أمس</button>
-                <button class="filter-btn" onclick="filterByDate('week')">آخر 7 أيام</button>
+                <button class="filter-btn active" onclick="filterByDate('week')">آخر 7 أيام</button>
                 <button class="filter-btn" onclick="filterByDate('month')">آخر 30 يوم</button>
             </div>
         </div>
@@ -474,7 +474,7 @@
         let pathPolyline = null;
         let currentLocationMarker = null;
         let locationHistory = [];
-        let currentFilter = 'today';
+        let currentFilter = 'week'; // Default to last 7 days to show more data
         let pathVisible = true;
         let pathColor = '#667eea';
         let pathWidth = 4;
@@ -569,6 +569,7 @@
         
         // Filter by date
         window.filterByDate = function(period) {
+            console.log('📅 Filter changed to:', period);
             currentFilter = period;
             
             document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -576,7 +577,10 @@
             });
             event.target.classList.add('active');
             
-            loadDriverHistory();
+            // Re-apply filter to existing data (don't reload from Firebase)
+            if (window.mergeAndUpdateLocations) {
+                window.mergeAndUpdateLocations();
+            }
         };
         
         // Calculate distance between two points (Haversine formula)
@@ -718,7 +722,7 @@
                 );
                 
                 // Function to merge current location with history and update UI
-                function mergeAndUpdateLocations() {
+                window.mergeAndUpdateLocations = function() {
                     let mergedLocations = [...locationHistory];
                     
                     // Add current location if it exists and is not duplicate
@@ -745,7 +749,18 @@
                         return timeA - timeB;
                     });
                     
-                    console.log('🔀 Merged locations:', mergedLocations.length, 'total records');
+                    console.log('🔀 Merged locations (before filter):', mergedLocations.length, 'total records');
+                    
+                    // Apply date filter
+                    const dateRange = getDateRange();
+                    mergedLocations = mergedLocations.filter(loc => {
+                        if (!loc.timestamp) return false;
+                        const locTime = loc.timestamp.toDate ? loc.timestamp.toDate() : loc.timestamp;
+                        return locTime >= dateRange.start && locTime <= dateRange.end;
+                    });
+                    
+                    console.log('✅ After date filter (' + currentFilter + '):', mergedLocations.length, 'records');
+                    console.log('   Date range:', dateRange.start.toLocaleString('ar-SA'), '-', dateRange.end.toLocaleString('ar-SA'));
                     
                     // Update global locationHistory with merged data
                     locationHistory = mergedLocations;
