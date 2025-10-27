@@ -753,10 +753,22 @@
                     
                     // Apply date filter
                     const dateRange = getDateRange();
+                    console.log('📅 Date range for filter:', dateRange.start, '-', dateRange.end);
+                    
+                    // Debug: show first few timestamps before filter
+                    if (mergedLocations.length > 0) {
+                        console.log('Sample timestamps before filter:');
+                        mergedLocations.slice(0, 3).forEach((loc, i) => {
+                            const locTime = loc.timestamp.toDate ? loc.timestamp.toDate() : loc.timestamp;
+                            console.log(`  ${i}: ${locTime}`);
+                        });
+                    }
+                    
                     mergedLocations = mergedLocations.filter(loc => {
                         if (!loc.timestamp) return false;
                         const locTime = loc.timestamp.toDate ? loc.timestamp.toDate() : loc.timestamp;
-                        return locTime >= dateRange.start && locTime <= dateRange.end;
+                        const inRange = locTime >= dateRange.start && locTime <= dateRange.end;
+                        return inRange;
                     });
                     
                     console.log('✅ After date filter (' + currentFilter + '):', mergedLocations.length, 'records');
