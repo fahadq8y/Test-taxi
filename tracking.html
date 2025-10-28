@@ -98,6 +98,23 @@
             font-weight: bold;
         }
         
+        .header-icon-btn {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s;
+            margin-left: 10px;
+        }
+        
+        .header-icon-btn:hover {
+            background: white;
+            transform: scale(1.1);
+        }
+        
         .header-logout {
             background: rgba(255,255,255,0.2);
             border: 2px solid white;
@@ -533,14 +550,64 @@
                 width: 100%;
                 height: 400px;
             }
-            
-            .map-type-controls {
+                        .map-type-controls {
                 top: 10px;
                 left: 10px;
                 padding: 5px;
                 gap: 5px;
             }
             
+            .header-icon-btn {
+                padding: 6px 10px;
+                font-size: 16px;
+                margin-left: 5px;
+            }
+        }
+        
+        /* Dark Mode Styles */
+        body.dark-mode {
+            background: #1a1a2e;
+            color: #eee;
+        }
+        
+        body.dark-mode .header {
+            background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+        }
+        
+        body.dark-mode .stats-container,
+        body.dark-mode .filters-container,
+        body.dark-mode .sidebar,
+        body.dark-mode .driver-card {
+            background: #16213e;
+            color: #eee;
+        }
+        
+        body.dark-mode .driver-card {
+            background: linear-gradient(135deg, #16213e 0%, #1a1a2e 100%);
+            border-right-color: #0f3460;
+        }
+        
+        body.dark-mode .driver-card.active {
+            background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
+            border-right-color: #28a745;
+        }
+        
+        body.dark-mode .driver-card h3,
+        body.dark-mode .driver-info,
+        body.dark-mode .stat-label {
+            color: #eee;
+        }
+        
+        body.dark-mode .stat-card {
+            background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
+        }
+        
+        body.dark-mode input[type="text"],
+        body.dark-mode input[type="checkbox"] {
+            background: #0f3460;
+            border-color: #16213e;
+            color: #eee;
+        }
             .map-type-btn {
                 padding: 6px 12px;
                 font-size: 12px;
@@ -570,6 +637,12 @@
             </div>
         </div>
         <div class="header-right">
+            <button class="header-icon-btn" onclick="toggleDarkMode()" title="وضع داكن">
+                <span id="darkModeIcon">🌙</span>
+            </button>
+            <button class="header-icon-btn" onclick="exportData()" title="تصدير البيانات">
+                📊
+            </button>
             <div class="header-notifications" onclick="showNotifications()">
                 🔔
                 <span class="notification-badge" id="notificationCount">0</span>
@@ -578,7 +651,7 @@
                 <div class="header-user-avatar">A</div>
                 <span>مرحباً، Admin</span>
             </div>
-            <button class="header-logout" onclick="logout()">🚪 تسجيل الخروج</button>
+            <button class="header-logout" onclick="logout()">🚺 تسجيل الخروج</button>
         </div>
     </div>
     
@@ -1043,6 +1116,62 @@
             alert(message);
         };
         
+        // Dark Mode Toggle
+        window.toggleDarkMode = function() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            document.getElementById('darkModeIcon').textContent = isDark ? '☀️' : '🌙';
+            localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+        };
+        
+        // Export Data
+        window.exportData = function() {
+            const options = prompt('📊 اختر نوع التصدير:\n\n1 - Excel (CSV)\n2 - JSON\n3 - نسخ البيانات\n\nأدخل رقم الخيار:');
+            
+            if (!options) return;
+            
+            const driversData = Object.values(drivers).map(driver => ({
+                'السائق': getDriverName(driver.driverId),
+                'الحالة': driver.isActive ? 'نشط' : 'غير نشط',
+                'خط العرض': driver.latitude.toFixed(6),
+                'خط الطول': driver.longitude.toFixed(6),
+                'السرعة (كم/س)': (driver.speed * 3.6).toFixed(1),
+                'الدقة (متر)': driver.accuracy.toFixed(0),
+                'آخر تحديث': new Date(driver.localTime).toLocaleString('ar-SA')
+            }));
+            
+            if (options === '1') {
+                // CSV Export
+                let csv = '﻿'; // BOM for UTF-8
+                csv += Object.keys(driversData[0]).join(',') + '\n';
+                driversData.forEach(row => {
+                    csv += Object.values(row).join(',') + '\n';
+                });
+                
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `drivers_${Date.now()}.csv`;
+                link.click();
+                alert('✅ تم تصدير Excel بنجاح!');
+            } else if (options === '2') {
+                // JSON Export
+                const json = JSON.stringify(driversData, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `drivers_${Date.now()}.json`;
+                link.click();
+                alert('✅ تم تصدير JSON بنجاح!');
+            } else if (options === '3') {
+                // Copy to clipboard
+                const text = JSON.stringify(driversData, null, 2);
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('✅ تم نسخ البيانات!');
+                });
+            }
+        };
+        
         // Logout
         window.logout = function() {
             if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
@@ -1058,6 +1187,12 @@
 
         // Initialize on page load
         window.addEventListener('load', () => {
+            // Load dark mode preference
+            if (localStorage.getItem('darkMode') === 'enabled') {
+                document.body.classList.add('dark-mode');
+                document.getElementById('darkModeIcon').textContent = '☀️';
+            }
+            
             initMap();
             loadDriversInfo();
             startRealtimeTracking();
