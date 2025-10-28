@@ -267,35 +267,73 @@
         }
         
         .driver-card {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 15px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border-radius: 12px;
+            padding: 18px;
             margin-bottom: 15px;
             border-right: 4px solid #667eea;
             cursor: pointer;
             transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
         
         .driver-card:hover {
-            transform: translateX(-5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transform: translateX(-5px) translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
         }
         
         .driver-card.active {
-            background: #e7f3ff;
+            background: linear-gradient(135deg, #e7f3ff 0%, #d4edda 100%);
             border-right-color: #28a745;
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
         }
         
         .driver-card h3 {
             color: #333;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
         .driver-info {
-            font-size: 14px;
+            font-size: 13px;
             color: #666;
-            margin: 5px 0;
+            margin: 6px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .driver-info-icon {
+            font-size: 16px;
+            min-width: 20px;
+        }
+        
+        .driver-speed-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 5px;
+        }
+        
+        .driver-speed-badge.slow {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .driver-speed-badge.medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .driver-speed-badge.fast {
+            background: #f8d7da;
+            color: #721c24;
         }
         
         .status-badge {
@@ -770,17 +808,35 @@
                 const card = document.createElement('div');
                 card.className = `driver-card ${isOnline ? 'active' : ''}`;
                 card.dataset.driverId = driver.driverId;
+                const speedKmh = driver.speed * 3.6;
+                const speedClass = speedKmh < 20 ? 'slow' : speedKmh < 60 ? 'medium' : 'fast';
+                const speedLabel = speedKmh < 20 ? 'بطيء' : speedKmh < 60 ? 'متوسط' : 'سريع';
+                
                 card.innerHTML = `
-                    <h3>🚕 ${getDriverName(driver.driverId)}</h3>
-                    <div class="driver-info">📍 Lat: ${driver.latitude.toFixed(6)}</div>
-                    <div class="driver-info">📍 Lng: ${driver.longitude.toFixed(6)}</div>
-                    <div class="driver-info">🎯 الدقة: ${driver.accuracy.toFixed(0)} متر</div>
-                    <div class="driver-info">🚗 السرعة: ${(driver.speed * 3.6).toFixed(1)} كم/س</div>
-                    <div class="driver-info">⏰ ${lastUpdate.toLocaleTimeString('ar-SA')}</div>
+                    <h3><span>🚕</span> ${getDriverName(driver.driverId)}</h3>
+                    <div class="driver-info">
+                        <span class="driver-info-icon">📍</span>
+                        <span>${driver.latitude.toFixed(6)}, ${driver.longitude.toFixed(6)}</span>
+                    </div>
+                    <div class="driver-info">
+                        <span class="driver-info-icon">🎯</span>
+                        <span>الدقة: ${driver.accuracy.toFixed(0)} متر</span>
+                    </div>
+                    <div class="driver-info">
+                        <span class="driver-info-icon">🚗</span>
+                        <span>
+                            <span class="driver-speed-badge ${speedClass}">${speedKmh.toFixed(1)} كم/س</span>
+                            ${speedLabel}
+                        </span>
+                    </div>
+                    <div class="driver-info">
+                        <span class="driver-info-icon">⏰</span>
+                        <span>${lastUpdate.toLocaleTimeString('ar-SA')}</span>
+                    </div>
                     <span class="status-badge ${isOnline ? 'online' : 'offline'}">
                         ${isOnline ? '🟢 نشط' : '🔴 غير نشط'}
                     </span>
-                    <button onclick="window.location.href='driver-details.html?id=${driver.driverId}'" style="margin-top: 10px; width: 100%; padding: 8px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">📊 عرض التفاصيل</button>
+                    <button onclick="window.location.href='driver-details.html?id=${driver.driverId}'" style="margin-top: 10px; width: 100%; padding: 8px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s;" onmouseover="this.style.background='#5568d3'" onmouseout="this.style.background='#667eea'">📊 عرض التفاصيل</button>
                 `;
                 
                 card.onclick = (e) => {
