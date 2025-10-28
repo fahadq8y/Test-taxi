@@ -389,6 +389,130 @@
             color: white;
             border-color: #667eea;
         }
+        
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px;
+            }
+            
+            .header-left {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .header-right {
+                width: 100%;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+            
+            .header-title h1 {
+                font-size: 18px;
+            }
+            
+            .header-title p {
+                font-size: 11px;
+            }
+            
+            .header-user span {
+                font-size: 12px;
+            }
+            
+            .header-logout {
+                padding: 6px 15px;
+                font-size: 12px;
+            }
+            
+            .stats-container {
+                padding: 15px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+            }
+            
+            .stat-card {
+                padding: 15px;
+            }
+            
+            .stat-icon {
+                font-size: 24px;
+            }
+            
+            .stat-value {
+                font-size: 22px;
+            }
+            
+            .stat-label {
+                font-size: 12px;
+            }
+            
+            .filters-container {
+                padding: 15px;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-box {
+                width: 100%;
+                min-width: auto;
+            }
+            
+            .filter-group {
+                width: 100%;
+                justify-content: space-between;
+            }
+            
+            .filter-checkbox {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+            
+            .container {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .sidebar {
+                width: 100%;
+                max-height: 300px;
+                order: 2;
+            }
+            
+            .map-container {
+                width: 100%;
+                height: 400px;
+                order: 1;
+            }
+            
+            .map-type-controls {
+                top: 10px;
+                left: 10px;
+                padding: 5px;
+                gap: 5px;
+            }
+            
+            .map-type-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+            
+            .driver-card {
+                padding: 12px;
+            }
+            
+            .driver-card h3 {
+                font-size: 16px;
+            }
+            
+            .driver-info {
+                font-size: 12px;
+            }
+        }
     </style>
 </head>
 <body>
