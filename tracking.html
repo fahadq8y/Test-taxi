@@ -925,11 +925,57 @@
             });
         }
 
+        // Notifications system
+        let notifications = [];
+        
+        function checkNotifications() {
+            notifications = [];
+            
+            Object.values(drivers).forEach(driver => {
+                const speedKmh = (driver.speed || 0) * 3.6;
+                const driverName = getDriverName(driver.driverId);
+                
+                // High speed alert (> 100 km/h)
+                if (speedKmh > 100) {
+                    notifications.push({
+                        type: 'warning',
+                        icon: '⚠️',
+                        message: `${driverName} يقود بسرعة عالية: ${speedKmh.toFixed(1)} كم/س`,
+                        driverId: driver.driverId
+                    });
+                }
+                
+                // Inactive driver alert
+                if (!driver.isActive) {
+                    const lastUpdate = new Date(driver.localTime);
+                    const minutesAgo = Math.floor((Date.now() - lastUpdate.getTime()) / 60000);
+                    if (minutesAgo > 30) {
+                        notifications.push({
+                            type: 'info',
+                            icon: 'ℹ️',
+                            message: `${driverName} غير نشط منذ ${minutesAgo} دقيقة`,
+                            driverId: driver.driverId
+                        });
+                    }
+                }
+            });
+            
+            // Update notification count
+            const notificationCount = document.getElementById('notificationCount');
+            if (notificationCount) {
+                notificationCount.textContent = notifications.length;
+                notificationCount.style.display = notifications.length > 0 ? 'flex' : 'none';
+            }
+        }
+        
         // Update statistics
         function updateStats() {
             const allDrivers = Object.values(drivers);
             const activeDrivers = allDrivers.filter(d => d.isActive);
             const inactiveDrivers = allDrivers.filter(d => !d.isActive);
+            
+            // Check notifications
+            checkNotifications();
             
             // Count active/inactive
             document.getElementById('activeDrivers').textContent = activeDrivers.length;
@@ -984,7 +1030,17 @@
         
         // Show notifications
         window.showNotifications = function() {
-            alert('🔔 لا توجد تنبيهات جديدة');
+            if (notifications.length === 0) {
+                alert('🔔 لا توجد تنبيهات جديدة');
+                return;
+            }
+            
+            let message = '🔔 التنبيهات:\n\n';
+            notifications.forEach((notif, index) => {
+                message += `${index + 1}. ${notif.icon} ${notif.message}\n`;
+            });
+            
+            alert(message);
         };
         
         // Logout
