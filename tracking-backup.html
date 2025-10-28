@@ -23,229 +23,19 @@
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 15px 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .header-logo {
-            font-size: 32px;
-        }
-        
-        .header-title h1 {
-            font-size: 20px;
-            margin: 0;
-        }
-        
-        .header-title p {
-            font-size: 12px;
-            opacity: 0.9;
-            margin: 2px 0 0 0;
-        }
-        
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-        
-        .header-user {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .header-user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: white;
-            color: #667eea;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 18px;
-        }
-        
-        .header-notifications {
-            position: relative;
-            cursor: pointer;
-            font-size: 24px;
-        }
-        
-        .notification-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #ef4444;
-            color: white;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            font-size: 11px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
-        
-        .header-logout {
-            background: rgba(255,255,255,0.2);
-            border: 2px solid white;
-            color: white;
-            padding: 8px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-        
-        .header-logout:hover {
-            background: white;
-            color: #667eea;
-        }
-        
-        .stats-container {
-            background: white;
-            padding: 20px 30px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-        }
-        
-        .stat-card {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            border-radius: 12px;
             padding: 20px;
             text-align: center;
-            transition: all 0.3s;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-        }
-        
-        .stat-card.active {
-            background: linear-gradient(135deg, #d4edda 0%, #a8d5ba 100%);
-        }
-        
-        .stat-card.inactive {
-            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-        }
-        
-        .stat-card.speed {
-            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-        }
-        
-        .stat-card.distance {
-            background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
-        }
-        
-        .stat-icon {
-            font-size: 32px;
+        .header h1 {
+            font-size: 24px;
             margin-bottom: 10px;
-        }
-        
-        .stat-value {
-            font-size: 28px;
-            font-weight: bold;
-            color: #333;
-            margin: 5px 0;
-        }
-        
-        .stat-label {
-            font-size: 14px;
-            color: #666;
-        }
-        
-        .filters-container {
-            background: white;
-            padding: 15px 30px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        
-        .search-box {
-            flex: 1;
-            min-width: 250px;
-            position: relative;
-        }
-        
-        .search-box input {
-            width: 100%;
-            padding: 10px 15px 10px 40px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-        
-        .search-box input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .search-icon {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 18px;
-            color: #999;
-        }
-        
-        .filter-group {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        
-        .filter-checkbox {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            cursor: pointer;
-            padding: 8px 15px;
-            border-radius: 6px;
-            background: #f5f5f5;
-            transition: all 0.3s;
-        }
-        
-        .filter-checkbox:hover {
-            background: #e0e0e0;
-        }
-        
-        .filter-checkbox input {
-            cursor: pointer;
-        }
-        
-        .filter-checkbox label {
-            cursor: pointer;
-            font-size: 14px;
-            color: #666;
         }
         
         .container {
             display: flex;
-            height: calc(100vh - 240px);
+            height: calc(100vh - 80px);
         }
         
         .sidebar {
@@ -393,72 +183,8 @@
 </head>
 <body>
     <div class="header">
-        <div class="header-left">
-            <div class="header-logo">🚗</div>
-            <div class="header-title">
-                <h1>نظام تتبع التاكسي</h1>
-                <p>عرض مواقع السائقين في الوقت الفعلي</p>
-            </div>
-        </div>
-        <div class="header-right">
-            <div class="header-notifications" onclick="showNotifications()">
-                🔔
-                <span class="notification-badge" id="notificationCount">0</span>
-            </div>
-            <div class="header-user">
-                <div class="header-user-avatar">A</div>
-                <span>مرحباً، Admin</span>
-            </div>
-            <button class="header-logout" onclick="logout()">🚪 تسجيل الخروج</button>
-        </div>
-    </div>
-    
-    <!-- Stats Dashboard -->
-    <div class="stats-container">
-        <div class="stats-grid">
-            <div class="stat-card active">
-                <div class="stat-icon">🟢</div>
-                <div class="stat-value" id="activeDrivers">0</div>
-                <div class="stat-label">سائقين نشطين</div>
-            </div>
-            <div class="stat-card inactive">
-                <div class="stat-icon">🔴</div>
-                <div class="stat-value" id="inactiveDrivers">0</div>
-                <div class="stat-label">سائقين غير نشطين</div>
-            </div>
-            <div class="stat-card speed">
-                <div class="stat-icon">⚡</div>
-                <div class="stat-value" id="avgSpeed">0</div>
-                <div class="stat-label">متوسط السرعة (كم/س)</div>
-            </div>
-            <div class="stat-card distance">
-                <div class="stat-icon">📏</div>
-                <div class="stat-value" id="totalDistance">0</div>
-                <div class="stat-label">المسافة الكلية (كم)</div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Search & Filters -->
-    <div class="filters-container">
-        <div class="search-box">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="searchInput" placeholder="ابحث عن سائق..." oninput="filterDrivers()">
-        </div>
-        <div class="filter-group">
-            <div class="filter-checkbox">
-                <input type="checkbox" id="filterActive" checked onchange="filterDrivers()">
-                <label for="filterActive">نشط</label>
-            </div>
-            <div class="filter-checkbox">
-                <input type="checkbox" id="filterInactive" checked onchange="filterDrivers()">
-                <label for="filterInactive">غير نشط</label>
-            </div>
-            <div class="filter-checkbox">
-                <input type="checkbox" id="filterHighSpeed" onchange="filterDrivers()">
-                <label for="filterHighSpeed">سرعة عالية (>80)</label>
-            </div>
-        </div>
+        <h1>🗺️ تتبع السائقين - نسخة تجريبية</h1>
+        <p>عرض مواقع السائقين في الوقت الفعلي</p>
     </div>
     
     <div class="container">
@@ -638,7 +364,6 @@
 
                 const card = document.createElement('div');
                 card.className = `driver-card ${isOnline ? 'active' : ''}`;
-                card.dataset.driverId = driver.driverId;
                 card.innerHTML = `
                     <h3>🚕 ${getDriverName(driver.driverId)}</h3>
                     <div class="driver-info">📍 Lat: ${driver.latitude.toFixed(6)}</div>
@@ -665,9 +390,6 @@
                 
                 driversList.appendChild(card);
             });
-            
-            // Update stats after updating list
-            updateStats();
         }
 
         // Load drivers info from Firebase
@@ -738,79 +460,9 @@
             });
         }
 
-        // Update statistics
-        function updateStats() {
-            const allDrivers = Object.values(drivers);
-            const activeDrivers = allDrivers.filter(d => d.isActive);
-            const inactiveDrivers = allDrivers.filter(d => !d.isActive);
-            
-            // Count active/inactive
-            document.getElementById('activeDrivers').textContent = activeDrivers.length;
-            document.getElementById('inactiveDrivers').textContent = inactiveDrivers.length;
-            
-            // Calculate average speed (only active drivers)
-            if (activeDrivers.length > 0) {
-                const totalSpeed = activeDrivers.reduce((sum, d) => sum + (d.speed || 0), 0);
-                const avgSpeed = (totalSpeed / activeDrivers.length * 3.6).toFixed(1);
-                document.getElementById('avgSpeed').textContent = avgSpeed;
-            } else {
-                document.getElementById('avgSpeed').textContent = '0';
-            }
-            
-            // Total distance (placeholder - would need calculation from location history)
-            document.getElementById('totalDistance').textContent = '0';
-        }
-        
-        // Filter drivers
-        window.filterDrivers = function() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const showActive = document.getElementById('filterActive').checked;
-            const showInactive = document.getElementById('filterInactive').checked;
-            const showHighSpeed = document.getElementById('filterHighSpeed').checked;
-            
-            const driverCards = document.querySelectorAll('.driver-card');
-            
-            driverCards.forEach(card => {
-                const driverId = card.dataset.driverId;
-                const driver = drivers[driverId];
-                
-                if (!driver) {
-                    card.style.display = 'none';
-                    return;
-                }
-                
-                const driverName = (driversInfo[driverId]?.name || driverId).toLowerCase();
-                const matchesSearch = driverName.includes(searchTerm) || driverId.toLowerCase().includes(searchTerm);
-                
-                const matchesStatus = (driver.isActive && showActive) || (!driver.isActive && showInactive);
-                
-                const speedKmh = (driver.speed || 0) * 3.6;
-                const matchesSpeed = !showHighSpeed || speedKmh > 80;
-                
-                if (matchesSearch && matchesStatus && matchesSpeed) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        };
-        
-        // Show notifications
-        window.showNotifications = function() {
-            alert('🔔 لا توجد تنبيهات جديدة');
-        };
-        
-        // Logout
-        window.logout = function() {
-            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
-                window.location.href = 'index.html';
-            }
-        };
-
         // Make loadDrivers global
         window.loadDrivers = function() {
             updateDriversList();
-            updateStats();
         };
 
         // Initialize on page load
@@ -818,7 +470,6 @@
             initMap();
             loadDriversInfo();
             startRealtimeTracking();
-            updateStats();
         });
     </script>
 </body>
