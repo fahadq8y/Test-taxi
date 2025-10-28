@@ -1518,7 +1518,8 @@
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
                 
-                await db.collection('drivers').add(driverData);
+                // استخدام employeeNumber كـ Document ID بدلاً من ID عشوائي
+                await db.collection('drivers').doc(employeeNumber).set(driverData);
                 
                 alert('✅ تم إضافة السائق بنجاح!');
                 closeModal();
