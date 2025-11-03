@@ -797,6 +797,8 @@
                 driverData.createdAt = new Date();
                 driverData.createdBy = currentUser.name || currentUser.email;
                 driverData.isArchived = false;
+                driverData.driverId = driverData.employeeNumber; // Use employeeNumber as driverId
+                driverData.isActive = false; // Will be activated when driver starts tracking
             }
 
             try {

@@ -1495,6 +1495,7 @@
                     name: document.getElementById('driverName').value.trim(),
                     phone: document.getElementById('driverPhone').value.trim(),
                     employeeNumber: employeeNumber,
+                    driverId: employeeNumber, // Use employeeNumber as driverId
                     nationality: document.getElementById('driverNationality').value.trim() || '',
                     address: document.getElementById('driverAddress').value.trim() || '',
                     assignedCar: document.getElementById('assignedCar').value || '',
@@ -1518,6 +1519,8 @@
                         firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('passportExpiry').value)) : null,
                     oldDebts: parseFloat(document.getElementById('oldDebts').value) || 0,
                     notes: document.getElementById('driverNotes').value.trim() || '',
+                    isActive: false, // Will be activated when driver starts tracking
+                    isArchived: false,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
