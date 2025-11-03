@@ -1445,7 +1445,9 @@
                 let maxNumber = 0;
                 
                 driversSnapshot.forEach(doc => {
-                    const empNum = doc.data().employeeNumber;
+                    const data = doc.data();
+                    // Check both employeeNumber and driverId
+                    const empNum = data.employeeNumber || data.driverId;
                     if (empNum && empNum.startsWith('DRV')) {
                         const num = parseInt(empNum.replace('DRV', ''));
                         if (num > maxNumber) {
@@ -1458,7 +1460,9 @@
                 const archivedSnapshot = await db.collection('archivedDrivers').get();
                 
                 archivedSnapshot.forEach(doc => {
-                    const empNum = doc.data().employeeNumber;
+                    const data = doc.data();
+                    // Check both employeeNumber and driverId
+                    const empNum = data.employeeNumber || data.driverId;
                     if (empNum && empNum.startsWith('DRV')) {
                         const num = parseInt(empNum.replace('DRV', ''));
                         if (num > maxNumber) {
