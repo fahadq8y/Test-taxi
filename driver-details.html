@@ -1234,16 +1234,62 @@
                 return a.timestamp.toDate() - b.timestamp.toDate();
             });
             
-            // Create path coordinates
-            const pathCoordinates = sortedHistory.map(loc => [loc.latitude, loc.longitude]);
+            // Filter out unrealistic jumps (GPS errors)
+            const filteredHistory = [];
+            sortedHistory.forEach((loc, index) => {
+                if (index === 0) {
+                    filteredHistory.push(loc);
+                    return;
+                }
+                
+                const prevLoc = filteredHistory[filteredHistory.length - 1];
+                
+                // Calculate distance in km
+                const R = 6371; // Earth radius in km
+                const lat1 = prevLoc.latitude * Math.PI / 180;
+                const lat2 = loc.latitude * Math.PI / 180;
+                const deltaLat = (loc.latitude - prevLoc.latitude) * Math.PI / 180;
+                const deltaLon = (loc.longitude - prevLoc.longitude) * Math.PI / 180;
+                const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+                         Math.cos(lat1) * Math.cos(lat2) *
+                         Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                const distance = R * c;
+                
+                // Calculate time difference in seconds
+                const timeDiff = (loc.timestamp.toDate() - prevLoc.timestamp.toDate()) / 1000;
+                
+                // Calculate speed in km/h
+                const speedKmh = timeDiff > 0 ? (distance / timeDiff) * 3600 : 0;
+                
+                // Filter: Skip if distance > 10km AND time < 5 minutes (unrealistic jump)
+                // OR if speed > 200 km/h (impossible for taxi)
+                if ((distance > 10 && timeDiff < 300) || speedKmh > 200) {
+                    console.warn('⚠️ Filtered unrealistic jump:', {
+                        distance: distance.toFixed(2) + ' km',
+                        time: timeDiff.toFixed(0) + ' sec',
+                        speed: speedKmh.toFixed(1) + ' km/h',
+                        from: prevLoc.timestamp.toDate().toLocaleString(),
+                        to: loc.timestamp.toDate().toLocaleString()
+                    });
+                    return; // Skip this point
+                }
+                
+                filteredHistory.push(loc);
+            });
+            
+            console.log('📊 Location filter: ' + sortedHistory.length + ' → ' + filteredHistory.length + ' points');
+            
+            // Create path coordinates from filtered data
+            const pathCoordinates = filteredHistory.map(loc => [loc.latitude, loc.longitude]);
             
             // Draw path with color based on speed
             if (pathCoordinates.length > 1) {
                 // Draw path as multiple segments colored by speed
-                sortedHistory.forEach((loc, index) => {
+                filteredHistory.forEach((loc, index) => {
                     if (index === 0) return;
                     
-                    const prevLoc = sortedHistory[index - 1];
+                    const prevLoc = filteredHistory[index - 1];
                     const speedKmh = loc.speed * 3.6;
                     
                     // Get color based on speed (using custom ranges)
@@ -1283,7 +1329,7 @@
                 });
                 
                 // Add start marker
-                const startLoc = sortedHistory[0];
+                const startLoc = filteredHistory[0];
                 const startIcon = L.divIcon({
                     className: 'start-marker',
                     iconSize: [30, 30],
@@ -1299,7 +1345,7 @@
                     `);
                 
                 // Add stop markers
-                sortedHistory.forEach((loc, index) => {
+                filteredHistory.forEach((loc, index) => {
                     const speedKmh = loc.speed * 3.6;
                     
                     if (speedKmh < 1 && index > 0) { // Stopped
