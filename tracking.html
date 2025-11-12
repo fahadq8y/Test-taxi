@@ -887,6 +887,7 @@
                 
                 card.innerHTML = `
                     <h3><span>🚕</span> ${getDriverName(driver.driverId)}</h3>
+                    <div style="margin-bottom: 8px;">${getDriverVersionBadge(driver.driverId)}</div>
                     <div class="driver-info">
                         <span class="driver-info-icon">📍</span>
                         <span>${driver.latitude.toFixed(6)}, ${driver.longitude.toFixed(6)}</span>
@@ -939,11 +940,28 @@
                     driversInfo[data.employeeNumber] = {
                         name: data.name,
                         employeeNumber: data.employeeNumber,
-                        phone: data.phone
+                        phone: data.phone,
+                        appVersion: data.appVersion || 'غير معروف'
                     };
                 });
                 console.log('Drivers info loaded:', driversInfo);
             });
+        }
+        
+        // Get driver app version with color indicator
+        function getDriverVersionBadge(driverId) {
+            const currentVersion = '2.3.2';
+            const driverVersion = driversInfo[driverId]?.appVersion || 'غير معروف';
+            
+            if (driverVersion === 'غير معروف') {
+                return '<span style="font-size: 11px; color: #999;">الإصدار: غير معروف</span>';
+            }
+            
+            const isLatest = driverVersion === currentVersion;
+            const color = isLatest ? '#10b981' : '#f59e0b';
+            const icon = isLatest ? '✅' : '⚠️';
+            
+            return `<span style="font-size: 11px; color: ${color}; font-weight: 600;">${icon} الإصدار: ${driverVersion}</span>`;
         }
         
         // Get driver display name
