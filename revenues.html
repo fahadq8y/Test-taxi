@@ -748,7 +748,8 @@
                         type: payment.type,
                         amount: payment.amount,
                         description: `${payment.type} - ${driver ? driver.name : 'سائق غير محدد'}`,
-                        source: 'driverPayment'
+                        source: 'driverPayment',
+                        driverId: payment.driverId  // Fix: إضافة driverId لعرض اسم السائق بشكل صحيح عند الفلترة
                     });
                 }
             });
@@ -844,7 +845,8 @@
                         type: payment.type,
                         amount: payment.amount,
                         description: `${payment.type} - ${driver ? driver.name : 'سائق غير محدد'}`,
-                        source: 'driverPayment'
+                        source: 'driverPayment',
+                        driverId: payment.driverId  // Fix: إضافة driverId لعرض اسم السائق بشكل صحيح عند الفلترة
                     });
                 }
             });
