@@ -167,14 +167,14 @@
                 const archivedSnapshot = await getDocs(collection(db, 'archivedDrivers'));
                 console.log('📊 عدد السائقين المؤرشفين في قاعدة البيانات:', archivedSnapshot.size);
                 archivedDrivers = [];
-                archivedSnapshot.forEach(doc => {
-                    const data = doc.data();
+                archivedSnapshot.forEach(snapshot => {
+                    const data = snapshot.data();
                     // تجاهل السجلات التي تم استعادتها
                     if (!data.isRestored) {
-                        console.log('📦 سائق مؤرشف:', doc.id, data.name || data.driverData?.name);
-                        archivedDrivers.push({ id: doc.id, ...data });
+                        console.log('📦 سائق مؤرشف:', snapshot.id, data.name || data.driverData?.name);
+                        archivedDrivers.push({ id: snapshot.id, ...data });
                     } else {
-                        console.log('⏭️ تخطي سجل مستعاد:', doc.id);
+                        console.log('⏭️ تخطي سجل مستعاد:', snapshot.id);
                     }
                 });
                 

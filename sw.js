@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taxi-management-v7-delete-archive-fix';
+const CACHE_NAME = 'taxi-management-v8-doc-conflict-fix';
 const urlsToCache = [
   '/',
   '/index.html',
