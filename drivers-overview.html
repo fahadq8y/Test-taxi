@@ -384,10 +384,13 @@
                             <input type="number" id="monthlyPayment" step="0.001">
                         </div>
                         <div class="form-group">
-                            <label for="contractDuration">مدة العقد (بالأشهر)</label>
-                            <select id="contractDuration" onchange="calculateContractEndDate()">
-                                <option value="">اختر المدة</option>
-                            </select>
+                            <label>مدة العقد</label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <input type="number" id="contractDurationMonths" min="0" max="120" placeholder="الأشهر" onchange="calculateContractEndDate()" style="width: 50%;">
+                                <span style="white-space: nowrap; font-size: 13px;">شهر</span>
+                                <input type="number" id="contractDurationDays" min="0" max="30" placeholder="الأيام" onchange="calculateContractEndDate()" style="width: 50%;">
+                                <span style="white-space: nowrap; font-size: 13px;">يوم</span>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="contractStartDate">تاريخ بداية العقد</label>
@@ -586,50 +589,85 @@
             const payments = driverPayments.filter(payment => payment.driverId === driverId);
             
             let totalDebt = 0;
-            
-            // 1. حساب الأجرة المتأخرة (يومي أو شهري)
             const today = new Date();
-            const contractStart = driver.contractStartDate ? 
-                (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) :
-                (driver.createdAt ? (driver.createdAt.toDate ? driver.createdAt.toDate() : new Date(driver.createdAt)) : today);
+            let expectedRentTotal = 0;
+            let totalRentPaid = 0;
             
-            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
-            const contractType = driver.contractType || 'daily';
-            let expectedTotal, totalRentPaid;
-            
-            if (contractType === 'monthly') {
-                // For monthly contracts
-                const monthlyPayment = parseFloat(driver.monthlyPayment || 0);
-                const monthsSinceStart = Math.floor(daysSinceStart / 30);
-                expectedTotal = monthsSinceStart * monthlyPayment;
-                
-                // Get only rent-related payments for monthly contracts
-                const rentPayments = payments.filter(p => 
-                    !['سداد مخالفة', 'تحصيل مخالفة', 'سداد رسوم إقامة', 
-                      'تحصيل رسوم إقامة', 'سداد رسوم رواتب', 'تحصيل رسوم رواتب',
-                      'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'سداد رواتب'].includes(p.type)
-                );
-                const totalPaid = rentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-                
-                // Calculate only COMPLETE months
-                const completedMonths = monthlyPayment > 0 ? Math.floor(totalPaid / monthlyPayment) : 0;
-                totalRentPaid = completedMonths * monthlyPayment;
+            // #005: إذا كان لدى السائق contractHistory، نحسب كل فترة بعقدها
+            if (driver.contractHistory && driver.contractHistory.length > 0) {
+                driver.contractHistory.forEach((contract, index) => {
+                    const periodStart = contract.startDate ?
+                        (contract.startDate.toDate ? contract.startDate.toDate() : new Date(contract.startDate)) : null;
+                    if (!periodStart) return;
+                    
+                    let periodEnd;
+                    if (index < driver.contractHistory.length - 1) {
+                        const nextContract = driver.contractHistory[index + 1];
+                        periodEnd = nextContract.startDate ?
+                            (nextContract.startDate.toDate ? nextContract.startDate.toDate() : new Date(nextContract.startDate)) : today;
+                    } else {
+                        periodEnd = today;
+                    }
+                    
+                    if (periodStart > today) return;
+                    if (periodEnd > today) periodEnd = today;
+                    
+                    if (contract.contractType === 'daily') {
+                        const days = Math.floor((periodEnd - periodStart) / (1000 * 60 * 60 * 24));
+                        const rate = parseFloat(contract.dailyRent || 0);
+                        expectedRentTotal += days * rate;
+                    } else if (contract.contractType === 'monthly') {
+                        const rate = parseFloat(contract.monthlyPayment || 0);
+                        const monthsDiff = (periodEnd.getFullYear() - periodStart.getFullYear()) * 12 +
+                            (periodEnd.getMonth() - periodStart.getMonth());
+                        expectedRentTotal += monthsDiff * rate;
+                    }
+                });
             } else {
-                // For daily contracts
-                const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
-                expectedTotal = daysSinceStart * dailyWage;
+                // #006: Fallback للسائقين القدامى بدون contractHistory
+                const contractStart = driver.contractStartDate ?
+                    (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) :
+                    (driver.createdAt ? (driver.createdAt.toDate ? driver.createdAt.toDate() : new Date(driver.createdAt)) : today);
                 
-                // حساب إجمالي الأجرة اليومية المدفوعة
-                const dailyRentPayments = payments.filter(p => p.type === 'أجرة يومية');
-                const totalPaid = dailyRentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                const contractType = driver.contractType || 'daily';
                 
-                // Calculate only COMPLETE days
-                const completedDays = dailyWage > 0 ? Math.floor(totalPaid / dailyWage) : 0;
-                totalRentPaid = completedDays * dailyWage;
+                if (contractType === 'monthly') {
+                    // #004: إصلاح حساب العقود الشهرية
+                    const rate = parseFloat(driver.monthlyPayment || 0);
+                    const monthsDiff = (today.getFullYear() - contractStart.getFullYear()) * 12 +
+                        (today.getMonth() - contractStart.getMonth());
+                    expectedRentTotal = monthsDiff * rate;
+                    
+                    // مدفوعات الأجرة الشهرية
+                    const rentPayments = payments.filter(p =>
+                        p.type === 'أجرة يومية' || p.type === 'أجرة شهرية'
+                    );
+                    const totalPaid = rentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                    const completedMonths = rate > 0 ? Math.floor(totalPaid / rate) : 0;
+                    totalRentPaid = completedMonths * rate;
+                } else {
+                    // عقد يومي
+                    const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+                    const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
+                    expectedRentTotal = daysSinceStart * dailyWage;
+                    
+                    const dailyRentPayments = payments.filter(p => p.type === 'أجرة يومية');
+                    const totalPaid = dailyRentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                    const completedDays = dailyWage > 0 ? Math.floor(totalPaid / dailyWage) : 0;
+                    totalRentPaid = completedDays * dailyWage;
+                }
+            }
+            
+            // إذا كان contractHistory موجود، نحسب إجمالي المدفوعات بشكل مباشر
+            if (driver.contractHistory && driver.contractHistory.length > 0) {
+                const rentPayments = payments.filter(p =>
+                    p.type === 'أجرة يومية' || p.type === 'أجرة شهرية'
+                );
+                totalRentPaid = rentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
             }
             
             // الأجرة المتأخرة = المتوقع - المدفوع
-            const lateRent = Math.max(0, expectedTotal - totalRentPaid);
+            const lateRent = Math.max(0, expectedRentTotal - totalRentPaid);
             totalDebt += lateRent;
             
             // 2. حساب الديون من المدفوعات الأخرى
@@ -650,25 +688,19 @@
                         totalDebt -= amount;
                         break;
                     
-                    // تحصيل رسوم الرواتب لا يؤثر على دين السائق
                     case 'تحصيل رسوم رواتب':
                     case 'تحصيل رسوم إيداعات الرواتب':
-                        // لا يؤثر على الدين
                         break;
                     
-                    // الديون القديمة (تنقص الدين عند التحصيل)
                     case 'دين قديم':
                         totalDebt -= amount;
                         break;
                     
-                    // الأجرة اليومية تم حسابها أعلاه
                     case 'أجرة يومية':
-                        // لا نفعل شيء هنا لأنها محسوبة في lateRent
+                    case 'أجرة شهرية':
                         break;
                     
-                    // دفع الرواتب لا يؤثر على دين السائق
                     case 'سداد رواتب':
-                        // لا يؤثر على دين السائق
                         break;
                 }
             });
@@ -1367,19 +1399,9 @@
         }
 
         // Populate Contract Duration Options
+        // #002: تم استبدال القائمة المنسدلة بحقلين منفصلين (أشهر + أيام)
         function populateContractDurationOptions() {
-            const select = document.getElementById('contractDuration');
-            
-            while (select.options.length > 1) {
-                select.remove(1);
-            }
-            
-            for (let i = 1; i <= 60; i++) {
-                const option = document.createElement('option');
-                option.value = i;
-                option.textContent = `${i} شهر`;
-                select.appendChild(option);
-            }
+            // لم تعد هذه الدالة مطلوبة - تم استبدال القائمة المنسدلة بحقلين منفصلين
         }
 
         // Update Car Registration Expiry
@@ -1398,14 +1420,17 @@
         }
 
         // Calculate Contract End Date
+        // #002: تعديل دالة حساب تاريخ نهاية العقد لدعم الأشهر + الأيام
         function calculateContractEndDate() {
             const startDate = document.getElementById('contractStartDate').value;
-            const duration = parseInt(document.getElementById('contractDuration').value);
+            const months = parseInt(document.getElementById('contractDurationMonths').value) || 0;
+            const days = parseInt(document.getElementById('contractDurationDays').value) || 0;
             
-            if (startDate && duration) {
+            if (startDate && (months > 0 || days > 0)) {
                 const start = new Date(startDate);
                 const end = new Date(start);
-                end.setMonth(end.getMonth() + duration);
+                if (months > 0) end.setMonth(end.getMonth() + months);
+                if (days > 0) end.setDate(end.getDate() + days);
                 
                 document.getElementById('contractEndDate').value = end.toISOString().split('T')[0];
             } else {
@@ -1502,7 +1527,10 @@
                     contractType: contractType,
                     dailyRent: contractType === 'daily' ? (parseFloat(document.getElementById('dailyRent').value) || 0) : 0,
                     monthlyPayment: contractType === 'monthly' ? (parseFloat(document.getElementById('monthlyPayment').value) || 0) : 0,
-                    contractDuration: parseInt(document.getElementById('contractDuration').value) || 0,
+                    // #002: حفظ الأشهر والأيام بشكل منفصل
+                    contractDurationMonths: parseInt(document.getElementById('contractDurationMonths').value) || 0,
+                    contractDurationDays: parseInt(document.getElementById('contractDurationDays').value) || 0,
+                    contractDuration: (parseInt(document.getElementById('contractDurationMonths').value) || 0), // للتوافق مع البيانات القديمة
                     contractStartDate: document.getElementById('contractStartDate').value ? 
                         firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('contractStartDate').value)) : null,
                     contractEndDate: document.getElementById('contractEndDate').value ? 
@@ -1524,6 +1552,20 @@
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
+                
+                // #003: إنشاء contractHistory عند إضافة سائق جديد
+                driverData.contractHistory = [{
+                    contractType: driverData.contractType,
+                    dailyRent: driverData.dailyRent || 0,
+                    monthlyPayment: driverData.monthlyPayment || 0,
+                    contractDurationMonths: driverData.contractDurationMonths || 0,
+                    contractDurationDays: driverData.contractDurationDays || 0,
+                    startDate: driverData.contractStartDate || firebase.firestore.Timestamp.fromDate(new Date()),
+                    endDate: driverData.contractEndDate || null,
+                    createdAt: firebase.firestore.Timestamp.fromDate(new Date()),
+                    createdBy: driverData.createdBy || '',
+                    note: 'عقد أولي'
+                }];
                 
                 // استخدام employeeNumber كـ Document ID بدلاً من ID عشوائي
                 await db.collection('drivers').doc(employeeNumber).set(driverData);

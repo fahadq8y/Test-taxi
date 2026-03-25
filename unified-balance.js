@@ -137,31 +137,93 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
 }
 
 // دالة موحدة لحساب ديون السائق حسب النظام المحاسبي الجديد
+// #004: إصلاح دعم العقود الشهرية
+// #005: إضافة دعم contractHistory لحساب كل فترة بعقدها
+// #006: Fallback للسائقين القدامى بدون contractHistory
 function calculateDriverDebt(driverId, driver, driverPayments) {
     let totalDebt = 0;
     
     // الحصول على مدفوعات السائق
     const payments = driverPayments ? driverPayments.filter(payment => payment.driverId === driverId) : [];
     
-    // 1. حساب الأجرة اليومية المتأخرة
     const today = new Date();
-    const contractStart = driver.contractStartDate ? 
-        (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) :
-        (driver.createdAt ? (driver.createdAt.toDate ? driver.createdAt.toDate() : new Date(driver.createdAt)) : today);
+    let expectedRentTotal = 0;
     
-    const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
-    const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
-    const expectedTotal = daysSinceStart * dailyWage;
+    // #005: إذا كان لدى السائق contractHistory، نحسب كل فترة بعقدها
+    if (driver.contractHistory && driver.contractHistory.length > 0) {
+        driver.contractHistory.forEach((contract, index) => {
+            const periodStart = contract.startDate ?
+                (contract.startDate.toDate ? contract.startDate.toDate() : new Date(contract.startDate)) : null;
+            
+            if (!periodStart) return;
+            
+            // نهاية الفترة: إذا كان هناك عقد تالٍ، نستخدم تاريخ بداية العقد التالي
+            // إذا كان العقد الأخير (النشط)، نستخدم اليوم
+            let periodEnd;
+            if (index < driver.contractHistory.length - 1) {
+                // ليس العقد الأخير - نهايته هي بداية العقد التالي
+                const nextContract = driver.contractHistory[index + 1];
+                periodEnd = nextContract.startDate ?
+                    (nextContract.startDate.toDate ? nextContract.startDate.toDate() : new Date(nextContract.startDate)) : today;
+            } else {
+                // العقد الأخير (النشط) - نهايته اليوم
+                periodEnd = today;
+            }
+            
+            // لا نحسب ما بعد اليوم
+            if (periodStart > today) return;
+            if (periodEnd > today) periodEnd = today;
+            
+            if (contract.contractType === 'daily') {
+                // عقد يومي: عدد الأيام × الأجرة اليومية
+                const days = Math.floor((periodEnd - periodStart) / (1000 * 60 * 60 * 24));
+                const rate = parseFloat(contract.dailyRent || 0);
+                expectedRentTotal += days * rate;
+            } else if (contract.contractType === 'monthly') {
+                // عقد شهري: عدد الأشهر الكاملة × المبلغ الشهري
+                const rate = parseFloat(contract.monthlyPayment || 0);
+                const startYear = periodStart.getFullYear();
+                const startMonth = periodStart.getMonth();
+                const endYear = periodEnd.getFullYear();
+                const endMonth = periodEnd.getMonth();
+                const monthsDiff = (endYear - startYear) * 12 + (endMonth - startMonth);
+                expectedRentTotal += monthsDiff * rate;
+            }
+        });
+    } else {
+        // #006: Fallback للسائقين القدامى بدون contractHistory
+        const contractStart = driver.contractStartDate ?
+            (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) :
+            (driver.createdAt ? (driver.createdAt.toDate ? driver.createdAt.toDate() : new Date(driver.createdAt)) : today);
+        
+        const contractType = driver.contractType || 'daily';
+        
+        if (contractType === 'monthly') {
+            // #004: إصلاح حساب العقود الشهرية
+            const rate = parseFloat(driver.monthlyPayment || 0);
+            const startYear = contractStart.getFullYear();
+            const startMonth = contractStart.getMonth();
+            const endYear = today.getFullYear();
+            const endMonth = today.getMonth();
+            const monthsDiff = (endYear - startYear) * 12 + (endMonth - startMonth);
+            expectedRentTotal = monthsDiff * rate;
+        } else {
+            // عقد يومي (الطريقة القديمة)
+            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+            const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
+            expectedRentTotal = daysSinceStart * dailyWage;
+        }
+    }
     
-    // حساب إجمالي الأجرة اليومية المدفوعة
-    const dailyRentPayments = payments.filter(p => p.type === 'أجرة يومية');
-    const totalDailyRentPaid = dailyRentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+    // حساب إجمالي الأجرة المدفوعة (يومية أو شهرية)
+    const rentPayments = payments.filter(p => p.type === 'أجرة يومية' || p.type === 'أجرة شهرية');
+    const totalRentPaid = rentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
     
     // الأجرة المتأخرة = المتوقع - المدفوع
-    const lateAmount = Math.max(0, expectedTotal - totalDailyRentPaid);
+    const lateAmount = Math.max(0, expectedRentTotal - totalRentPaid);
     
     // حساب رصيد السائق (إذا دفع أكثر من المطلوب)
-    const driverBalance = Math.max(0, totalDailyRentPaid - expectedTotal);
+    const driverBalance = Math.max(0, totalRentPaid - expectedRentTotal);
     
     // 2. حساب المخالفات (positive = driver owes, negative = driver paid)
     const violationPayments = payments.filter(p => 
@@ -191,7 +253,7 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
     const oldDebtsPaid = oldDebtPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
     const oldDebts = Math.max(0, oldDebtsInitial - oldDebtsPaid);
     
-    // 5. حساب إجمالي الدين (نفس طريقة drivers-overview.html)
+    // 5. حساب إجمالي الدين
     totalDebt = lateAmount + violations + residencyFees + oldDebts - driverBalance;
     
     // الدين لا يمكن أن يكون سالب

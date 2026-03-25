@@ -100,10 +100,13 @@
                             <input type="number" id="monthlyPayment" step="0.001">
                         </div>
                         <div class="form-group">
-                            <label for="contractDuration">مدة العقد (بالأشهر)</label>
-                            <select id="contractDuration" onchange="calculateContractEndDate()">
-                                <option value="">اختر المدة</option>
-                            </select>
+                            <label>مدة العقد</label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <input type="number" id="contractDurationMonths" min="0" max="120" placeholder="الأشهر" onchange="calculateContractEndDate()" style="width: 50%;">
+                                <span style="white-space: nowrap; font-size: 13px;">شهر</span>
+                                <input type="number" id="contractDurationDays" min="0" max="30" placeholder="الأيام" onchange="calculateContractEndDate()" style="width: 50%;">
+                                <span style="white-space: nowrap; font-size: 13px;">يوم</span>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="contractStartDate">تاريخ بداية العقد</label>
@@ -230,14 +233,9 @@
         });
 
         // Populate contract duration options (1-60 months)
+        // #002: تم استبدال populateContractDurationOptions بحقلين منفصلين (أشهر + أيام)
         function populateContractDurationOptions() {
-            const select = document.getElementById('contractDuration');
-            for (let i = 1; i <= 60; i++) {
-                const option = document.createElement('option');
-                option.value = i;
-                option.textContent = `${i} شهر`;
-                select.appendChild(option);
-            }
+            // لم تعد هذه الدالة مطلوبة - تم استبدال القائمة المنسدلة بحقلين منفصلين
         }
 
         // Load cars
@@ -328,14 +326,17 @@
         };
 
         // Calculate contract end date
+        // #002: تعديل دالة حساب تاريخ نهاية العقد لدعم الأشهر + الأيام
         window.calculateContractEndDate = () => {
             const startDate = document.getElementById('contractStartDate').value;
-            const duration = parseInt(document.getElementById('contractDuration').value);
+            const months = parseInt(document.getElementById('contractDurationMonths').value) || 0;
+            const days = parseInt(document.getElementById('contractDurationDays').value) || 0;
             
-            if (startDate && duration) {
+            if (startDate && (months > 0 || days > 0)) {
                 const start = new Date(startDate);
                 const end = new Date(start);
-                end.setMonth(end.getMonth() + duration);
+                if (months > 0) end.setMonth(end.getMonth() + months);
+                if (days > 0) end.setDate(end.getDate() + days);
                 
                 document.getElementById('contractEndDate').value = end.toISOString().split('T')[0];
             } else {
@@ -612,7 +613,9 @@
             populateCarOptions();
             document.getElementById('assignedCar').value = driver.assignedCar || '';            
             // Set contract duration and dates
-            document.getElementById('contractDuration').value = driver.contractDuration || '';
+            // #002: تحميل الأشهر والأيام بشكل منفصل
+            document.getElementById('contractDurationMonths').value = driver.contractDurationMonths || driver.contractDuration || '';
+            document.getElementById('contractDurationDays').value = driver.contractDurationDays || '';
             
             if (driver.contractStartDate) {
                 const startDate = driver.contractStartDate.seconds ? 
@@ -772,7 +775,10 @@
                 contractType: contractType,
                 dailyRent: contractType === 'daily' ? (parseFloat(document.getElementById('dailyRent').value) || 0) : 0,
                 monthlyPayment: contractType === 'monthly' ? (parseFloat(document.getElementById('monthlyPayment').value) || 0) : 0,
-                contractDuration: parseInt(document.getElementById('contractDuration').value) || null,
+                // #002: حفظ الأشهر والأيام بشكل منفصل
+                contractDurationMonths: parseInt(document.getElementById('contractDurationMonths').value) || 0,
+                contractDurationDays: parseInt(document.getElementById('contractDurationDays').value) || 0,
+                contractDuration: (parseInt(document.getElementById('contractDurationMonths').value) || 0), // للتوافق مع البيانات القديمة
                 contractStartDate: document.getElementById('contractStartDate').value ? 
                     new Date(document.getElementById('contractStartDate').value) : null,
                 contractEndDate: document.getElementById('contractEndDate').value ? 
@@ -799,6 +805,19 @@
                 driverData.isArchived = false;
                 driverData.driverId = driverData.employeeNumber; // Use employeeNumber as driverId
                 driverData.isActive = false; // Will be activated when driver starts tracking
+                // #003: إنشاء contractHistory عند إضافة سائق جديد
+                driverData.contractHistory = [{
+                    contractType: driverData.contractType,
+                    dailyRent: driverData.dailyRent || 0,
+                    monthlyPayment: driverData.monthlyPayment || 0,
+                    contractDurationMonths: driverData.contractDurationMonths || 0,
+                    contractDurationDays: driverData.contractDurationDays || 0,
+                    startDate: driverData.contractStartDate || new Date(),
+                    endDate: driverData.contractEndDate || null,
+                    createdAt: new Date(),
+                    createdBy: currentUser.name || currentUser.email,
+                    note: 'عقد أولي'
+                }];
             }
 
             try {
@@ -870,6 +889,31 @@
                         // Update the current driver with new contract type
                         driverData.previousContractType = oldDriver.contractType;
                     }
+                    
+                    // #003: تحديث contractHistory عند تعديل أي شيء في العقد
+                    const oldDriver2 = allDrivers.find(d => d.id === editingDriverId);
+                    const existingHistory = (oldDriver2 && oldDriver2.contractHistory) ? oldDriver2.contractHistory : [];
+                    
+                    // تحديث تاريخ انتهاء آخر عقد في التاريخ
+                    if (existingHistory.length > 0) {
+                        existingHistory[existingHistory.length - 1].endDate = new Date();
+                        existingHistory[existingHistory.length - 1].endedBy = currentUser.name || currentUser.email;
+                    }
+                    
+                    // إضافة العقد الجديد إلى التاريخ
+                    existingHistory.push({
+                        contractType: driverData.contractType,
+                        dailyRent: driverData.dailyRent || 0,
+                        monthlyPayment: driverData.monthlyPayment || 0,
+                        contractDurationMonths: driverData.contractDurationMonths || 0,
+                        contractDurationDays: driverData.contractDurationDays || 0,
+                        startDate: driverData.contractStartDate || new Date(),
+                        endDate: driverData.contractEndDate || null,
+                        createdAt: new Date(),
+                        createdBy: currentUser.name || currentUser.email,
+                        note: 'تعديل عقد'
+                    });
+                    driverData.contractHistory = existingHistory;
                     
                     // تحديث السائق الموجود
                     await updateDoc(doc(db, 'drivers', editingDriverId), driverData);
