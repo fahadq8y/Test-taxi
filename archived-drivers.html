@@ -172,7 +172,7 @@
                     // تجاهل السجلات التي تم استعادتها
                     if (!data.isRestored) {
                         console.log('📦 سائق مؤرشف:', snapshot.id, data.name || data.driverData?.name);
-                        archivedDrivers.push({ id: snapshot.id, ...data });
+                        archivedDrivers.push({ ...data, id: snapshot.id });
                     } else {
                         console.log('⏭️ تخطي سجل مستعاد:', snapshot.id);
                     }
