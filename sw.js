@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taxi-management-v2-annual-leave';
+const CACHE_NAME = 'taxi-management-v3-daysLate-fix';
 const urlsToCache = [
   '/',
   '/index.html',

@@ -1,5 +1,5 @@
 // Service Worker for Driver GPS Tracking
-const CACHE_NAME = 'driver-gps-v3-annual-leave'; // Updated version to force cache refresh
+const CACHE_NAME = 'driver-gps-v4-daysLate-fix'; // Updated version to force cache refresh
 const urlsToCache = [
   '/driver-tracking-test.html',
   '/driver-manifest.json'

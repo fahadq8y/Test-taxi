@@ -744,6 +744,13 @@
                 paidForCompletedDays = paidForCompletedMonths; // For consistency
                 
                 lateAmount = Math.max(0, expectedTotal - paidForCompletedMonths);
+                
+                // حساب خصم الإجازة السنوية من مبلغ التأخير (عقد شهري)
+                const annualLeavePaymentsMonthlyView = driverPayments.filter(p =>
+                    p.driverId === driver.id && p.type === 'إجازة سنوية'
+                );
+                const annualLeaveTotalMonthlyView = annualLeavePaymentsMonthlyView.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                lateAmount = Math.max(0, lateAmount - annualLeaveTotalMonthlyView);
                 daysLate = monthlyPayment > 0 ? Math.floor((lateAmount / monthlyPayment) * 30) : 0;
                 
                 // Calculate paid until date for monthly (only complete months)
@@ -767,6 +774,13 @@
                 
                 // Calculate late amount (actual debt remaining)
                 lateAmount = Math.max(0, expectedTotal - totalPaid);
+                
+                // حساب خصم الإجازة السنوية من مبلغ التأخير (عقد يومي)
+                const annualLeavePaymentsDaily = driverPayments.filter(p =>
+                    p.driverId === driver.id && p.type === 'إجازة سنوية'
+                );
+                const annualLeaveTotalDailyView = annualLeavePaymentsDaily.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                lateAmount = Math.max(0, lateAmount - annualLeaveTotalDailyView);
                 daysLate = dailyWage > 0 ? Math.ceil(lateAmount / dailyWage) : 0;
                 
                 // Calculate paid until date (only complete days)
