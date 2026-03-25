@@ -375,7 +375,7 @@
 
             // Add driver payments that should appear in revenues
             driverPayments.forEach(payment => {
-                if (['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم'].includes(payment.type)) {
+                if (['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'إجازة سنوية'].includes(payment.type)) {
                     const driver = drivers.find(d => d.id === payment.driverId);
                     allRevenueItems.push({
                         id: payment.id,
@@ -417,7 +417,7 @@
             // حساب إجمالي دفعات السائقين التي تُعتبر إيرادات
             console.log('💰 دفعات السائقين:', driverPayments.length);
             driverPayments.forEach(payment => {
-                if (['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم'].includes(payment.type)) {
+                if (['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'إجازة سنوية'].includes(payment.type)) {
                     totalRevenues += payment.amount || 0;
                     console.log('💰 دفعة سائق:', payment.type, payment.amount, 'الإجمالي الحالي:', totalRevenues);
                 }
@@ -740,7 +740,7 @@
             let allRevenueItems = [...revenues];
             
             driverPayments.forEach(payment => {
-                if (['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم'].includes(payment.type)) {
+                if (['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم', 'إجازة سنوية'].includes(payment.type)) {
                     const driver = drivers.find(d => d.id === payment.driverId);
                     allRevenueItems.push({
                         id: payment.id,
@@ -837,7 +837,7 @@
             let allRevenueItems = [...revenues];
             
             driverPayments.forEach(payment => {
-                if (['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم'].includes(payment.type)) {
+                if (['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم', 'إجازة سنوية'].includes(payment.type)) {
                     const driver = drivers.find(d => d.id === payment.driverId);
                     allRevenueItems.push({
                         id: payment.id,
@@ -846,11 +846,10 @@
                         amount: payment.amount,
                         description: `${payment.type} - ${driver ? driver.name : 'سائق غير محدد'}`,
                         source: 'driverPayment',
-                        driverId: payment.driverId  // Fix: إضافة driverId لعرض اسم السائق بشكل صحيح عند الفلترة
+                        driverId: payment.driverId
                     });
                 }
             });
-            
             return allRevenueItems.sort((a, b) => new Date(b.date) - new Date(a.date));
         }
 

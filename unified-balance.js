@@ -84,6 +84,11 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
                     bankBalance += amount;
                     break;
                 
+                // إجازة سنوية: تضاف كإيراد وتُخصم كمصروف = صافي صفر على رصيد رامي
+                case 'إجازة سنوية':
+                    // لا تؤثر على رصيد رامي (إيراد ومصروف بنفس القيمة يلغيان بعضهما)
+                    break;
+                
                 // دفعات تنقص الرصيد البنكي (الشركة تدفع)
                 case 'سداد مخالفة':
                 case 'سداد رسوم إقامة':
@@ -253,8 +258,12 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
     const oldDebtsPaid = oldDebtPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
     const oldDebts = Math.max(0, oldDebtsInitial - oldDebtsPaid);
     
-    // 5. حساب إجمالي الدين
-    totalDebt = lateAmount + violations + residencyFees + oldDebts - driverBalance;
+    // 5. حساب خصم الإجازة السنوية (تخفض الدين مباشرة)
+    const annualLeavePayments = payments.filter(p => p.type === 'إجازة سنوية');
+    const annualLeaveTotal = annualLeavePayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+    
+    // 6. حساب إجمالي الدين
+    totalDebt = lateAmount + violations + residencyFees + oldDebts - driverBalance - annualLeaveTotal;
     
     // الدين لا يمكن أن يكون سالب
     return Math.max(0, totalDebt);

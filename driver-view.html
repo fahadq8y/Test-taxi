@@ -810,9 +810,14 @@
             const oldDebtsPaid = oldDebtPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
             const oldDebts = Math.max(0, oldDebtsInitial - oldDebtsPaid);
             
+            // حساب خصم الإجازة السنوية (تخفض الدين مباشرة)
+            const annualLeavePayments = driverPayments.filter(p =>
+                p.driverId === driver.id && p.type === 'إجازة سنوية'
+            );
+            const annualLeaveTotal = annualLeavePayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+            
             // Calculate total debt
-            // Note: driverBalance is NOT subtracted - it's a separate credit, not a debt reduction
-            const totalDebt = lateAmount + violations + residencyFees + oldDebts;
+            const totalDebt = lateAmount + violations + residencyFees + oldDebts - annualLeaveTotal;
             
             // Determine status
             let status = 'منتظم';

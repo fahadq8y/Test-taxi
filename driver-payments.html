@@ -450,6 +450,7 @@
                                 <option value="تحصيل رسوم إقامة">تحصيل رسوم إقامة</option>
                                 <option value="تحصيل رسوم إيداعات الرواتب">تحصيل رسوم إيداعات الرواتب</option>
                                 <option value="دين قديم">دين قديم</option>
+                                <option value="إجازة سنوية">إجازة سنوية</option>
                             </select>
                             <div id="paymentNote" class="payment-note"></div>
                         </div>
@@ -571,6 +572,9 @@
                         debt -= amount; // ينقص الدين
                         break;
                     case 'دين قديم':
+                        debt -= amount; // ينقص الدين
+                        break;
+                    case 'إجازة سنوية':
                         debt -= amount; // ينقص الدين
                         break;
                 }

@@ -1008,7 +1008,7 @@
             let allExpenseItems = [...expenses];
             
             driverPayments.forEach(payment => {
-                if (['سداد مخالفة', 'سداد رسوم إقامة'].includes(payment.type)) {
+                if (['سداد مخالفة', 'سداد رسوم إقامة', 'إجازة سنوية'].includes(payment.type)) {
                     // استخدام getDriverInfo للبحث في السائقين النشطين والمؤرشفين
                     const driverInfo = getDriverInfo(payment.driverId);
                     const driverDisplay = driverInfo.employeeNumber ? 
@@ -1117,7 +1117,7 @@
             let allExpenseItems = [...expenses];
             
             driverPayments.forEach(payment => {
-                if (['سداد مخالفة', 'سداد رسوم إقامة'].includes(payment.type)) {
+                if (['سداد مخالفة', 'سداد رسوم إقامة', 'إجازة سنوية'].includes(payment.type)) {
                     const driverInfo = getDriverInfo(payment.driverId);
                     const driverDisplay = driverInfo.employeeNumber ? 
                         `${driverInfo.name} (${driverInfo.employeeNumber})` : 
