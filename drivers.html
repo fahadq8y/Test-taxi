@@ -873,18 +873,25 @@
                             totalRevenuesAmount: driverRevenues.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
                         };
                         
-                        // Check if already archived (prevent duplicates)
+                        // إصلاح: استخدام employeeNumber كمعرف للأرشيف مع رقم تسلسلي لمنع التكرار
+                        const empNum = oldDriver.employeeNumber || editingDriverId;
+                        
+                        // البحث عن عدد الأرشيفات السابقة لنفس الرقم الوظيفي
                         const existingArchive = await getDocs(
                             query(collection(db, 'archivedDrivers'), 
-                                  where('phone', '==', oldDriver.phone))
+                                  where('employeeNumber', '==', empNum))
                         );
                         
-                        if (existingArchive.empty) {
-                            await addDoc(collection(db, 'archivedDrivers'), archiveData);
-                            console.log('✅ تم حفظ الأرشيف الشامل');
-                        } else {
-                            console.log('⚠️ السائق موجود بالفعل في الأرشيف - لن يتم التكرار');
-                        }
+                        // إنشاء معرف تسلسلي: DRV001_archive_1, DRV001_archive_2, ...
+                        const archiveIndex = existingArchive.size + 1;
+                        const archiveDocId = `${empNum}_archive_${archiveIndex}`;
+                        
+                        // إضافة الرقم الوظيفي صريحاً في بيانات الأرشيف
+                        archiveData.employeeNumber = empNum;
+                        archiveData.archiveIndex = archiveIndex;
+                        
+                        await setDoc(doc(db, 'archivedDrivers', archiveDocId), archiveData);
+                        console.log('✅ تم حفظ الأرشيف الشامل بالمعرف:', archiveDocId);
                         
                         // Update the current driver with new contract type
                         driverData.previousContractType = oldDriver.contractType;
@@ -914,6 +921,12 @@
                         note: 'تعديل عقد'
                     });
                     driverData.contractHistory = existingHistory;
+                    
+                    // إصلاح: تأمين الرقم الوظيفي عند التحديث - لا يتغير أبداً
+                    if (!driverData.employeeNumber) {
+                        driverData.employeeNumber = editingDriverId;
+                    }
+                    driverData.driverId = driverData.employeeNumber;
                     
                     // تحديث السائق الموجود
                     await updateDoc(doc(db, 'drivers', editingDriverId), driverData);
