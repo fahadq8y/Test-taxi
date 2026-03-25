@@ -267,7 +267,7 @@
                             <button class="restore-btn" onclick="restoreDriver('${driver.employeeNumber}')">
                                 ♻️ استعادة السائق
                             </button>
-                            <button class="delete-permanent-btn" onclick="deletePermanently('${driver.employeeNumber}')">
+                            <button class="delete-permanent-btn" onclick="deletePermanently('${driver.id}')">
                                 🗑️ حذف نهائي
                             </button>
                         </div>
@@ -386,8 +386,8 @@
 
 
 
-        // Delete permanently using employeeNumber
-        window.deletePermanently = async (employeeNumber) => {
+        // Delete permanently using archive document ID
+        window.deletePermanently = async (archiveDocId) => {
             if (!confirm('⚠️ تحذير: هل أنت متأكد من الحذف النهائي؟\nلن تتمكن من استعادة هذا السائق بعد الحذف!')) {
                 return;
             }
@@ -397,8 +397,8 @@
             }
 
             try {
-                console.log('🗑️ بدء الحذف النهائي للسائق:', archiveId);
-                await deleteDoc(doc(db, 'archivedDrivers', employeeNumber));
+                console.log('🗑️ بدء الحذف النهائي للسائق بالمعرف:', archiveDocId);
+                await deleteDoc(doc(db, 'archivedDrivers', archiveDocId));
                 console.log('✅ تم حذف السائق من Firebase بنجاح');
                 
                 alert('تم الحذف النهائي بنجاح');
