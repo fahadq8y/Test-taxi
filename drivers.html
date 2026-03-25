@@ -876,7 +876,7 @@
                         // Check if already archived (prevent duplicates)
                         const existingArchive = await getDocs(
                             query(collection(db, 'archivedDrivers'), 
-                                  where('driverData.phone', '==', oldDriver.phone))
+                                  where('phone', '==', oldDriver.phone))
                         );
                         
                         if (existingArchive.empty) {
