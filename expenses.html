@@ -1857,14 +1857,21 @@
             try {
                 const snapshot = await db.collection('editHistory')
                     .where('recordId', '==', recordId)
-                    .orderBy('timestamp', 'desc')
                     .get();
+                
+                // ترتيب النتائج يدوياً حسب timestamp (الأحدث أولاً)
+                const sortedDocs = snapshot.docs.sort((a, b) => {
+                    const tsA = a.data().timestamp?.toMillis ? a.data().timestamp.toMillis() : 0;
+                    const tsB = b.data().timestamp?.toMillis ? b.data().timestamp.toMillis() : 0;
+                    return tsB - tsA;
+                });
+                
                 const historyBody = document.getElementById('historyModalBody');
                 if (snapshot.empty) {
                     historyBody.innerHTML = '<div class="no-data">لم يتم إجراء أي تعديلات على هذا السجل</div>';
                 } else {
                     let html = '';
-                    snapshot.forEach(doc => {
+                    sortedDocs.forEach(doc => {
                         const data = doc.data();
                         const timestamp = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleString('ar-EG') : 'غير محدد';
                         const actionBadge = data.action === 'delete' ? 'history-action-delete' : 'history-action-edit';
