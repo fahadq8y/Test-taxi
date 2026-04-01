@@ -446,6 +446,7 @@
                         driverId: payment.driverId,
                         driverName: driver ? driver.name : 'سائق غير محدد',
                         employeeNumber: driver ? driver.employeeNumber : null,
+                        refNum: payment.refNum || null,
                         source: 'driverPayment'
                     });
                 }
