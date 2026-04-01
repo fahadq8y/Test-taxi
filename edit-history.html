@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تاريخ التعديلات - نظام إدارة التاكسي</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .history-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .history-header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .history-header h1 {
+            font-size: 28px;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .history-header p {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .nav-btn {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.35);
+        }
+
+        .filter-section {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .filter-section h3 {
+            color: #fff;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            color: rgba(255,255,255,0.8);
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .form-group select option {
+            background: #333;
+            color: #fff;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.35);
+        }
+
+        .stats-bar {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .stat-item {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .stat-label {
+            color: rgba(255,255,255,0.7);
+            font-size: 13px;
+        }
+
+        .stat-value {
+            color: #fff;
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .history-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s;
+        }
+
+        .history-card:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+        }
+
+        .history-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .history-card-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .action-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .action-edit {
+            background: rgba(255,193,7,0.25);
+            color: #ffc107;
+            border: 1px solid rgba(255,193,7,0.5);
+        }
+
+        .action-delete {
+            background: rgba(244,67,54,0.25);
+            color: #f44336;
+            border: 1px solid rgba(244,67,54,0.5);
+        }
+
+        .record-type-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .type-revenue {
+            background: rgba(0,212,255,0.2);
+            color: #00d4ff;
+            border: 1px solid rgba(0,212,255,0.4);
+        }
+
+        .type-expense {
+            background: rgba(255,107,107,0.2);
+            color: #ff6b6b;
+            border: 1px solid rgba(255,107,107,0.4);
+        }
+
+        .type-driver {
+            background: rgba(76,175,80,0.2);
+            color: #4caf50;
+            border: 1px solid rgba(76,175,80,0.4);
+        }
+
+        .history-timestamp {
+            color: rgba(255,255,255,0.6);
+            font-size: 12px;
+        }
+
+        .history-card-body {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .history-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .history-field-label {
+            color: rgba(255,255,255,0.5);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .history-field-value {
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .old-value {
+            color: #f44336;
+            text-decoration: line-through;
+            font-size: 13px;
+        }
+
+        .new-value {
+            color: #4caf50;
+            font-size: 13px;
+        }
+
+        .value-arrow {
+            color: rgba(255,255,255,0.4);
+            margin: 0 4px;
+        }
+
+        .history-card-footer {
+            margin-top: 15px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .edit-reason {
+            color: rgba(255,255,255,0.7);
+            font-size: 13px;
+            font-style: italic;
+        }
+
+        .btn-undo {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: #fff;
+            padding: 7px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-undo:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255,152,0,0.4);
+        }
+
+        .no-data {
+            text-align: center;
+            color: rgba(255,255,255,0.5);
+            padding: 60px 20px;
+            font-size: 18px;
+        }
+
+        .loading {
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            padding: 40px;
+            font-size: 16px;
+        }
+
+        .pagination-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .pagination-info {
+            color: rgba(255,255,255,0.7);
+            font-size: 13px;
+        }
+
+        .pagination-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .pagination-buttons button {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .pagination-buttons button:hover:not(:disabled) {
+            background: rgba(255,255,255,0.35);
+        }
+
+        .pagination-buttons button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .ref-num-badge {
+            display: inline-block;
+            background: rgba(0,212,255,0.15);
+            color: #00d4ff;
+            border: 1px solid rgba(0,212,255,0.4);
+            border-radius: 5px;
+            padding: 2px 8px;
+            font-family: monospace;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 600px) {
+            .history-card-body {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="history-container">
+        <!-- Header -->
+        <div class="history-header">
+            <h1>📜 تاريخ التعديلات</h1>
+            <p>سجل كامل لجميع التعديلات والحذوفات على الإيرادات والمصروفات</p>
+            <div class="nav-buttons">
+                <a href="admin-dashboard.html" class="nav-btn">🏠 لوحة التحكم</a>
+                <a href="revenues.html" class="nav-btn">💰 الإيرادات</a>
+                <a href="expenses.html" class="nav-btn">💸 المصروفات</a>
+            </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <h3>🔍 البحث والفلتر</h3>
+            <div class="filter-grid">
+                <div class="form-group">
+                    <label>🔍 بحث نصي</label>
+                    <input type="text" id="searchText" placeholder="ابحث باسم المستخدم أو سبب التعديل..." oninput="applyFilters()">
+                </div>
+                <div class="form-group">
+                    <label>⚡ نوع العملية</label>
+                    <select id="actionFilter" onchange="applyFilters()">
+                        <option value="">جميع العمليات</option>
+                        <option value="edit">تعديل</option>
+                        <option value="delete">حذف</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>📂 نوع السجل</label>
+                    <select id="recordTypeFilter" onchange="applyFilters()">
+                        <option value="">جميع الأنواع</option>
+                        <option value="revenue">إيراد مباشر</option>
+                        <option value="expense">مصروف مباشر</option>
+                        <option value="driverPayment">دفعة سائق</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>👤 من قام بالتعديل</label>
+                    <select id="roleFilter" onchange="applyFilters()">
+                        <option value="">الجميع</option>
+                        <option value="admin">المدير</option>
+                        <option value="accountant">المحاسب</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>📅 من تاريخ</label>
+                    <input type="date" id="fromDate" onchange="applyFilters()">
+                </div>
+                <div class="form-group">
+                    <label>📅 إلى تاريخ</label>
+                    <input type="date" id="toDate" onchange="applyFilters()">
+                </div>
+            </div>
+            <div class="filter-actions">
+                <button class="btn btn-secondary" onclick="clearFilters()">🗑️ مسح الفلاتر</button>
+            </div>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-label">إجمالي التعديلات:</span>
+                <span class="stat-value" id="totalCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">تعديلات:</span>
+                <span class="stat-value" id="editCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">حذوفات:</span>
+                <span class="stat-value" id="deleteCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">النتائج الحالية:</span>
+                <span class="stat-value" id="filteredCount">0</span>
+            </div>
+        </div>
+
+        <!-- History List -->
+        <div id="historyList" class="history-list">
+            <div class="loading">⏳ جاري تحميل سجل التعديلات...</div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-footer">
+            <div class="pagination-info">
+                <span id="paginationInfo">عرض 0 من 0</span>
+            </div>
+            <div class="pagination-buttons">
+                <button id="prevPage" onclick="changePage(-1)" disabled>السابق</button>
+                <span id="pageNumbers" style="color:#fff;font-size:13px;"></span>
+                <button id="nextPage" onclick="changePage(1)" disabled>التالي</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let allHistory = [];
+        let filteredHistory = [];
+        let currentPage = 1;
+        const itemsPerPage = 20;
+        let totalPages = 1;
+
+        // تحميل البيانات
+        async function loadHistory() {
+            try {
+                const snapshot = await db.collection('editHistory')
+                    .orderBy('timestamp', 'desc')
+                    .get();
+
+                allHistory = [];
+                snapshot.forEach(doc => {
+                    allHistory.push({ id: doc.id, ...doc.data() });
+                });
+
+                updateStats();
+                applyFilters();
+            } catch (error) {
+                console.error('خطأ في تحميل الهيستوري:', error);
+                document.getElementById('historyList').innerHTML = '<div class="no-data">❌ حدث خطأ في تحميل البيانات</div>';
+            }
+        }
+
+        // تحديث الإحصائيات
+        function updateStats() {
+            const editCount = allHistory.filter(h => h.action === 'edit').length;
+            const deleteCount = allHistory.filter(h => h.action === 'delete').length;
+            document.getElementById('totalCount').textContent = allHistory.length;
+            document.getElementById('editCount').textContent = editCount;
+            document.getElementById('deleteCount').textContent = deleteCount;
+        }
+
+        // تطبيق الفلاتر
+        function applyFilters() {
+            const searchText = document.getElementById('searchText').value.toLowerCase().trim();
+            const actionFilter = document.getElementById('actionFilter').value;
+            const recordTypeFilter = document.getElementById('recordTypeFilter').value;
+            const roleFilter = document.getElementById('roleFilter').value;
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+
+            filteredHistory = allHistory.filter(item => {
+                // فلتر البحث النصي
+                if (searchText) {
+                    const searchFields = [
+                        item.editedBy || '',
+                        item.editReason || '',
+                        item.fieldLabel || item.field || '',
+                        String(item.oldValue || ''),
+                        String(item.newValue || '')
+                    ].join(' ').toLowerCase();
+                    if (!searchFields.includes(searchText)) return false;
+                }
+
+                // فلتر نوع العملية
+                if (actionFilter && item.action !== actionFilter) return false;
+
+                // فلتر نوع السجل
+                if (recordTypeFilter && item.recordType !== recordTypeFilter) return false;
+
+                // فلتر الدور
+                if (roleFilter && item.editedByRole !== roleFilter) return false;
+
+                // فلتر التاريخ
+                if (fromDate || toDate) {
+                    const itemDate = item.timestamp?.toDate ? item.timestamp.toDate() : new Date(item.timestamp);
+                    const itemDateStr = itemDate.toISOString().split('T')[0];
+                    if (fromDate && itemDateStr < fromDate) return false;
+                    if (toDate && itemDateStr > toDate) return false;
+                }
+
+                return true;
+            });
+
+            document.getElementById('filteredCount').textContent = filteredHistory.length;
+            currentPage = 1;
+            displayHistory();
+        }
+
+        // عرض الهيستوري
+        function displayHistory() {
+            const container = document.getElementById('historyList');
+
+            if (filteredHistory.length === 0) {
+                container.innerHTML = '<div class="no-data">📭 لا توجد تعديلات تطابق البحث</div>';
+                updatePagination(0, 0, 0);
+                return;
+            }
+
+            totalPages = Math.ceil(filteredHistory.length / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredHistory.length);
+            const pageData = filteredHistory.slice(startIndex, endIndex);
+
+            container.innerHTML = '';
+
+            pageData.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'history-card';
+
+                // تحديد نوع العملية
+                const actionBadge = item.action === 'delete'
+                    ? '<span class="action-badge action-delete">🗑️ حذف</span>'
+                    : '<span class="action-badge action-edit">✏️ تعديل</span>';
+
+                // تحديد نوع السجل
+                let recordTypeBadge = '';
+                let recordTypeLabel = '';
+                if (item.recordType === 'revenue') {
+                    recordTypeBadge = 'type-revenue';
+                    recordTypeLabel = '💰 إيراد مباشر';
+                } else if (item.recordType === 'expense') {
+                    recordTypeBadge = 'type-expense';
+                    recordTypeLabel = '💸 مصروف مباشر';
+                } else if (item.recordType === 'driverPayment') {
+                    recordTypeBadge = 'type-driver';
+                    recordTypeLabel = '👤 دفعة سائق';
+                }
+
+                // الوقت
+                const timestamp = item.timestamp?.toDate
+                    ? item.timestamp.toDate().toLocaleString('ar-EG')
+                    : 'غير محدد';
+
+                // الدور
+                const roleText = item.editedByRole === 'admin' ? 'مدير' : 'محاسب';
+
+                // قسم التغيير
+                let changeSection = '';
+                if (item.action !== 'delete') {
+                    changeSection = `
+                        <div class="history-field">
+                            <div class="history-field-label">الحقل المعدَّل</div>
+                            <div class="history-field-value">${item.fieldLabel || item.field || '-'}</div>
+                        </div>
+                        <div class="history-field">
+                            <div class="history-field-label">التغيير</div>
+                            <div class="history-field-value">
+                                <span class="old-value">${item.oldValue ?? '-'}</span>
+                                <span class="value-arrow">←</span>
+                                <span class="new-value">${item.newValue ?? '-'}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // زر التراجع (للتعديلات فقط)
+                const undoBtn = item.action !== 'delete'
+                    ? `<button class="btn-undo" onclick="undoEdit('${item.id}', '${item.recordId}', '${item.recordType}')">↩️ تراجع</button>`
+                    : '';
+
+                card.innerHTML = `
+                    <div class="history-card-header">
+                        <div class="history-card-left">
+                            ${actionBadge}
+                            <span class="record-type-badge ${recordTypeBadge}">${recordTypeLabel}</span>
+                        </div>
+                        <div class="history-timestamp">🕐 ${timestamp}</div>
+                    </div>
+                    <div class="history-card-body">
+                        <div class="history-field">
+                            <div class="history-field-label">من قام بالعملية</div>
+                            <div class="history-field-value">${item.editedBy || 'غير محدد'} <span style="color:rgba(255,255,255,0.5);font-size:12px;">(${roleText})</span></div>
+                        </div>
+                        ${changeSection}
+                    </div>
+                    <div class="history-card-footer">
+                        <div class="edit-reason">
+                            ${item.editReason ? `💬 السبب: ${item.editReason}` : ''}
+                        </div>
+                        ${undoBtn}
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+
+            updatePagination(startIndex + 1, endIndex, filteredHistory.length);
+        }
+
+        // تحديث معلومات الصفحات
+        function updatePagination(start, end, total) {
+            document.getElementById('paginationInfo').textContent = `عرض ${start} إلى ${end} من ${total}`;
+
+            const prevBtn = document.getElementById('prevPage');
+            const nextBtn = document.getElementById('nextPage');
+            const pageNumbers = document.getElementById('pageNumbers');
+
+            prevBtn.disabled = currentPage <= 1;
+            nextBtn.disabled = currentPage >= totalPages;
+            pageNumbers.textContent = `صفحة ${currentPage} من ${totalPages}`;
+        }
+
+        // تغيير الصفحة
+        function changePage(direction) {
+            currentPage += direction;
+            if (currentPage < 1) currentPage = 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            displayHistory();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // مسح الفلاتر
+        function clearFilters() {
+            document.getElementById('searchText').value = '';
+            document.getElementById('actionFilter').value = '';
+            document.getElementById('recordTypeFilter').value = '';
+            document.getElementById('roleFilter').value = '';
+            document.getElementById('fromDate').value = '';
+            document.getElementById('toDate').value = '';
+            applyFilters();
+        }
+
+        // التراجع عن تعديل
+        async function undoEdit(historyId, recordId, recordType) {
+            if (!confirm('هل أنت متأكد من التراجع عن هذا التعديل؟ سيتم استرجاع القيمة القديمة.')) return;
+
+            try {
+                const historyDoc = await db.collection('editHistory').doc(historyId).get();
+                const historyData = historyDoc.data();
+
+                const collection = recordType === 'driverPayment' ? 'driverPayments'
+                    : recordType === 'revenue' ? 'revenues' : 'expenses';
+
+                // استرجاع القيمة القديمة
+                await db.collection(collection).doc(recordId).update({
+                    [historyData.field]: historyData.oldValue
+                });
+
+                // حذف سجل الهيستوري
+                await db.collection('editHistory').doc(historyId).delete();
+
+                alert('✅ تم التراجع عن التعديل بنجاح!');
+                loadHistory();
+            } catch (error) {
+                console.error('خطأ في التراجع:', error);
+                alert('حدث خطأ في التراجع عن التعديل');
+            }
+        }
+
+        // تحميل البيانات عند فتح الصفحة
+        loadHistory();
+    </script>
+</body>
+</html>

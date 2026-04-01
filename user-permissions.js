@@ -40,16 +40,16 @@ function getUserRoleSync() {
 }
 
 /**
- * التحقق من إمكانية الحذف خلال فترة زمنية محددة (24 ساعة)
+ * التحقق من إمكانية الحذف خلال فترة زمنية محددة (أسبوعان = 336 ساعة)
  * @param {Date} createdAt - تاريخ إنشاء العنصر
- * @returns {boolean} true إذا كان ضمن 24 ساعة
+ * @returns {boolean} true إذا كان ضمن أسبوعين
  */
 function canDeleteWithinTimeLimit(createdAt) {
     const now = new Date();
     const itemTime = createdAt instanceof Date ? createdAt : new Date(createdAt);
     const hoursPassed = (now - itemTime) / (1000 * 60 * 60);
     
-    return hoursPassed <= 24;
+    return hoursPassed <= 336; // أسبوعان = 14 يوم × 24 ساعة
 }
 
 /**
@@ -65,7 +65,7 @@ function canDelete(itemDate) {
         return true;
     }
     
-    // Accountant (المسؤول) يمكنه الحذف فقط خلال 24 ساعة
+    // Accountant (المسؤول) يمكنه الحذف فقط خلال أسبوعين من تاريخ الإضافة
     if (userRole === 'accountant') {
         return canDeleteWithinTimeLimit(itemDate);
     }

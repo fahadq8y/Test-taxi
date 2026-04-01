@@ -24,6 +24,98 @@
             color: #aaa;
             font-size: 14px;
         }
+        
+        /* أنماط البنود المعدلة */
+        .edited-row {
+            background-color: rgba(255, 193, 7, 0.1);
+            border-left: 3px solid #ffc107;
+        }
+        .edited-badge {
+            display: inline-block;
+            background: rgba(255, 193, 7, 0.2);
+            color: #ff9800;
+            border: 1px solid rgba(255, 193, 7, 0.5);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-right: 5px;
+        }
+        /* نافذة التعديل */
+        .edit-modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+        }
+        .edit-modal-content {
+            background-color: #1a1a1a;
+            margin: 5% auto;
+            padding: 30px;
+            border: 1px solid #333;
+            border-radius: 12px;
+            width: 90%; max-width: 600px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .edit-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #333;
+        }
+        .edit-modal-title { font-size: 22px; font-weight: 700; color: #fff; }
+        .edit-close { color: #aaa; font-size: 32px; font-weight: bold; cursor: pointer; }
+        .edit-close:hover { color: #fff; }
+        .edit-form-group { margin-bottom: 20px; }
+        .edit-form-group label { display: block; margin-bottom: 8px; color: #ddd; font-weight: 600; font-size: 14px; }
+        .edit-form-group input, .edit-form-group select, .edit-form-group textarea {
+            width: 100%; padding: 12px; background: #2a2a2a;
+            border: 1px solid #444; border-radius: 6px; color: #fff; font-size: 14px;
+        }
+        .edit-form-group input:focus, .edit-form-group select:focus, .edit-form-group textarea:focus {
+            outline: none; border-color: #ff6b6b;
+        }
+        .edit-form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px; }
+        .edit-btn-save {
+            background: linear-gradient(135deg, #ff6b6b, #cc0000);
+            color: #fff; padding: 12px 24px; border: none; border-radius: 6px;
+            cursor: pointer; font-weight: 600;
+        }
+        .edit-btn-save:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255,107,107,0.4); }
+        .edit-btn-cancel {
+            background: #444; color: #fff; padding: 12px 24px;
+            border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
+        }
+        .edit-btn-cancel:hover { background: #555; }
+        /* نافذة الهيستوري */
+        .history-modal {
+            display: none; position: fixed; z-index: 10000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.6);
+        }
+        .history-modal-content {
+            background-color: #1a1a1a; margin: 3% auto; padding: 30px;
+            border: 1px solid #333; border-radius: 12px;
+            width: 90%; max-width: 900px; max-height: 85vh; overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .history-item { background: #2a2a2a; border: 1px solid #444; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        .history-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #444; }
+        .history-action-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+        .history-action-edit { background: rgba(255,193,7,0.2); color: #ffc107; border: 1px solid rgba(255,193,7,0.5); }
+        .history-action-delete { background: rgba(244,67,54,0.2); color: #f44336; border: 1px solid rgba(244,67,54,0.5); }
+        .history-item-body { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; }
+        .history-field { display: flex; flex-direction: column; }
+        .history-field-label { color: #888; font-size: 11px; margin-bottom: 3px; }
+        .history-field-value { color: #ddd; font-weight: 600; }
+        .history-old-value { color: #f44336; text-decoration: line-through; }
+        .history-new-value { color: #4caf50; }
+        .btn-undo { background: linear-gradient(135deg, #ff9800, #f57c00); color: #fff; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; }
         * {
             margin: 0;
             padding: 0;
@@ -848,6 +940,69 @@
         </div>
     </div>
 
+    <!-- Edit Expense Modal -->
+    <div id="editExpenseModal" class="edit-modal">
+        <div class="edit-modal-content">
+            <div class="edit-modal-header">
+                <h2 class="edit-modal-title">✏️ تعديل المصروف</h2>
+                <span class="edit-close" onclick="closeEditModal()">&times;</span>
+            </div>
+            <div id="editModalBody">
+                <div class="edit-form-group">
+                    <label>📅 التاريخ</label>
+                    <input type="date" id="editDate">
+                </div>
+                <div class="edit-form-group" id="editTypeGroup">
+                    <label>📋 نوع المصروف</label>
+                    <select id="editType">
+                        <option value="راتب">راتب</option>
+                        <option value="صيانة">صيانة</option>
+                        <option value="إيجار">إيجار</option>
+                        <option value="وقود">وقود</option>
+                        <option value="تأمين">تأمين</option>
+                        <option value="غرامات">غرامات</option>
+                        <option value="رسوم إقامة">رسوم إقامة</option>
+                        <option value="إجازة سنوية">إجازة سنوية</option>
+                        <option value="أخرى">أخرى</option>
+                    </select>
+                </div>
+                <div class="edit-form-group">
+                    <label>💰 المبلغ (د.ك)</label>
+                    <input type="number" id="editAmount" step="0.001" min="0">
+                </div>
+                <div class="edit-form-group">
+                    <label>📝 الوصف</label>
+                    <textarea id="editDescription" rows="2"></textarea>
+                </div>
+                <div class="edit-form-group">
+                    <label>📌 ملاحظة</label>
+                    <textarea id="editNote" rows="2"></textarea>
+                </div>
+                <div class="edit-form-group">
+                    <label>💬 سبب التعديل</label>
+                    <input type="text" id="editReason" placeholder="اذكر سبب التعديل..." required>
+                </div>
+                <div class="edit-form-actions">
+                    <button class="edit-btn-cancel" onclick="closeEditModal()">إلغاء</button>
+                    <button class="edit-btn-save" onclick="saveExpenseEdit()">💾 حفظ التعديل</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="history-modal">
+        <div class="history-modal-content">
+            <div class="edit-modal-header">
+                <h2 class="edit-modal-title">📜 تاريخ التعديلات</h2>
+                <span class="edit-close" onclick="closeHistoryModal()">&times;</span>
+            </div>
+            <div id="historyModalBody">
+                <div class="no-data">جاري تحميل التعديلات...</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Driver Debts Modal -->
     <div id="debtsModal" class="modal">
         <div class="modal-content">
@@ -1394,15 +1549,33 @@
                     deleteButton = getExpenseDeleteButton(expense.id, expense.date, expense.createdAt, 'deleteExpense', 'delete-btn');
                 }
                 
+                // تحديد ما إذا كان البند معدلاً
+                const isEdited = expense.isEdited === true;
+                if (isEdited) row.classList.add('edited-row');
+                
+                // زر التعديل
+                let editButton = '';
+                if (expense.source !== 'driverPayment') {
+                    editButton = `<button class="btn btn-warning" style="padding:4px 8px;font-size:12px;margin-bottom:4px;" onclick="openEditModal('${expense.id}', 'direct')">✏️ تعديل</button>`;
+                } else {
+                    editButton = `<button class="btn btn-warning" style="padding:4px 8px;font-size:12px;margin-bottom:4px;" onclick="openEditModal('${expense.id}', 'driverPayment')">✏️ تعديل</button>`;
+                }
+                
+                // زر الهيستوري
+                const historyButton = `<button class="btn btn-secondary" style="padding:4px 8px;font-size:12px;margin-bottom:4px;" onclick="openHistoryModal('${expense.id}', '${expense.source === 'driverPayment' ? 'driverPayment' : 'expense'}')">📜 التعديلات</button>`;
+                
+                // شارة التعديل
+                const editedBadge = isEdited ? '<span class="edited-badge">معدّل</span>' : '';
+                
                 const expRefDisplay = expense.refNum ? `<span class="ref-num-badge">${expense.refNum}</span>` : '<span class="ref-num-empty">—</span>';
                 row.innerHTML = `
                     <td>${expRefDisplay}</td>
                     <td>${formatDate(expense.date)}</td>
                     <td>${expense.type || 'غير محدد'}</td>
                     <td class="amount">${parseFloat(expense.amount || 0).toFixed(3)} د.ك</td>
-                    <td>${expense.description || '-'}</td>
+                    <td>${editedBadge}${expense.description || '-'}</td>
                     <td>${expense.note || '-'}</td>
-                    <td>${deleteButton}</td>
+                    <td style="white-space:nowrap;">${editButton}<br>${historyButton}<br>${deleteButton}</td>
                 `;
                 tbody.appendChild(row);
             });
@@ -1561,6 +1734,184 @@
             if (!dateString) return '-';
             const date = new Date(dateString);
             return date.toLocaleDateString('en-GB');
+        }
+
+        // ==================== دوال نظام التعديل ====================
+        
+        let currentEditingId = null;
+        let currentEditingType = null;
+        let originalEditData = {};
+        
+        async function openEditModal(id, type) {
+            currentEditingId = id;
+            currentEditingType = type;
+            try {
+                let data;
+                if (type === 'driverPayment') {
+                    const doc = await db.collection('driverPayments').doc(id).get();
+                    data = { id: doc.id, ...doc.data() };
+                    document.getElementById('editTypeGroup').style.display = 'none';
+                } else {
+                    const doc = await db.collection('expenses').doc(id).get();
+                    data = { id: doc.id, ...doc.data() };
+                    document.getElementById('editTypeGroup').style.display = 'block';
+                }
+                originalEditData = {
+                    date: data.date,
+                    type: data.type,
+                    amount: data.amount,
+                    description: data.description || '',
+                    note: data.note || ''
+                };
+                document.getElementById('editDate').value = data.date;
+                document.getElementById('editType').value = data.type || '';
+                document.getElementById('editAmount').value = data.amount;
+                document.getElementById('editDescription').value = data.description || '';
+                document.getElementById('editNote').value = data.note || '';
+                document.getElementById('editReason').value = '';
+                document.getElementById('editExpenseModal').style.display = 'block';
+            } catch (error) {
+                console.error('خطأ في تحميل بيانات التعديل:', error);
+                alert('حدث خطأ في تحميل البيانات');
+            }
+        }
+        
+        function closeEditModal() {
+            document.getElementById('editExpenseModal').style.display = 'none';
+            currentEditingId = null;
+            currentEditingType = null;
+            originalEditData = {};
+        }
+        
+        async function saveExpenseEdit() {
+            const newDate = document.getElementById('editDate').value;
+            const newType = document.getElementById('editType').value;
+            const newAmount = parseFloat(document.getElementById('editAmount').value);
+            const newDescription = document.getElementById('editDescription').value.trim();
+            const newNote = document.getElementById('editNote').value.trim();
+            const editReason = document.getElementById('editReason').value.trim();
+            
+            if (!newDate || !newAmount || newAmount <= 0) {
+                alert('يرجى ملء جميع الحقول المطلوبة');
+                return;
+            }
+            if (!editReason) {
+                alert('يرجى إدخال سبب التعديل');
+                return;
+            }
+            try {
+                const userName = localStorage.getItem('userName') || 'غير محدد';
+                const userRole = localStorage.getItem('userRole') || 'unknown';
+                const timestamp = firebase.firestore.FieldValue.serverTimestamp();
+                const changes = [];
+                
+                if (originalEditData.date !== newDate)
+                    changes.push({ field: 'date', fieldLabel: 'التاريخ', oldValue: originalEditData.date, newValue: newDate });
+                if (currentEditingType !== 'driverPayment' && originalEditData.type !== newType)
+                    changes.push({ field: 'type', fieldLabel: 'النوع', oldValue: originalEditData.type, newValue: newType });
+                if (originalEditData.amount !== newAmount)
+                    changes.push({ field: 'amount', fieldLabel: 'المبلغ', oldValue: originalEditData.amount, newValue: newAmount });
+                if (originalEditData.description !== newDescription)
+                    changes.push({ field: 'description', fieldLabel: 'الوصف', oldValue: originalEditData.description, newValue: newDescription });
+                if (originalEditData.note !== newNote)
+                    changes.push({ field: 'note', fieldLabel: 'الملاحظة', oldValue: originalEditData.note, newValue: newNote });
+                
+                if (changes.length === 0) { alert('لم يتم إجراء أي تغييرات'); return; }
+                
+                const collection = currentEditingType === 'driverPayment' ? 'driverPayments' : 'expenses';
+                const updateData = {
+                    date: newDate, amount: newAmount,
+                    description: newDescription, note: newNote,
+                    isEdited: true,
+                    lastEditedAt: timestamp, lastEditedBy: userName
+                };
+                if (currentEditingType !== 'driverPayment') updateData.type = newType;
+                
+                await db.collection(collection).doc(currentEditingId).update(updateData);
+                
+                for (const change of changes) {
+                    await db.collection('editHistory').add({
+                        recordId: currentEditingId,
+                        recordType: currentEditingType === 'driverPayment' ? 'driverPayment' : 'expense',
+                        action: 'edit',
+                        field: change.field,
+                        fieldLabel: change.fieldLabel,
+                        oldValue: change.oldValue,
+                        newValue: change.newValue,
+                        editedBy: userName,
+                        editedByRole: userRole,
+                        editReason: editReason,
+                        timestamp: timestamp
+                    });
+                }
+                alert('✅ تم حفظ التعديل بنجاح!');
+                closeEditModal();
+                loadAllData();
+            } catch (error) {
+                console.error('خطأ في حفظ التعديل:', error);
+                alert('حدث خطأ في حفظ التعديل');
+            }
+        }
+        
+        async function openHistoryModal(recordId, recordType) {
+            try {
+                const snapshot = await db.collection('editHistory')
+                    .where('recordId', '==', recordId)
+                    .orderBy('timestamp', 'desc')
+                    .get();
+                const historyBody = document.getElementById('historyModalBody');
+                if (snapshot.empty) {
+                    historyBody.innerHTML = '<div class="no-data">لم يتم إجراء أي تعديلات على هذا السجل</div>';
+                } else {
+                    let html = '';
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        const timestamp = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleString('ar-EG') : 'غير محدد';
+                        const actionBadge = data.action === 'delete' ? 'history-action-delete' : 'history-action-edit';
+                        const actionText = data.action === 'delete' ? 'حذف' : 'تعديل';
+                        html += `
+                            <div class="history-item">
+                                <div class="history-item-header">
+                                    <span class="history-action-badge ${actionBadge}">${actionText}</span>
+                                    <span style="color:#888;font-size:12px;">${timestamp}</span>
+                                </div>
+                                <div class="history-item-body">
+                                    <div class="history-field"><div class="history-field-label">الحقل</div><div class="history-field-value">${data.fieldLabel || data.field}</div></div>
+                                    <div class="history-field"><div class="history-field-label">من قام بالتعديل</div><div class="history-field-value">${data.editedBy} (${data.editedByRole === 'admin' ? 'مدير' : 'محاسب'})</div></div>
+                                    ${data.action !== 'delete' ? `<div class="history-field"><div class="history-field-label">القيمة القديمة</div><div class="history-field-value history-old-value">${data.oldValue}</div></div><div class="history-field"><div class="history-field-label">القيمة الجديدة</div><div class="history-field-value history-new-value">${data.newValue}</div></div>` : ''}
+                                    ${data.editReason ? `<div class="history-field" style="grid-column:1/-1;"><div class="history-field-label">سبب التعديل</div><div class="history-field-value">${data.editReason}</div></div>` : ''}
+                                </div>
+                                ${data.action !== 'delete' ? `<div style="margin-top:10px;text-align:left;"><button class="btn-undo" onclick="undoEdit('${doc.id}', '${recordId}', '${recordType}')">&#x21a9;&#xfe0f; تراجع</button></div>` : ''}
+                            </div>`;
+                    });
+                    historyBody.innerHTML = html;
+                }
+                document.getElementById('historyModal').style.display = 'block';
+            } catch (error) {
+                console.error('خطأ في تحميل الهيستوري:', error);
+                alert('حدث خطأ في تحميل التعديلات');
+            }
+        }
+        
+        function closeHistoryModal() {
+            document.getElementById('historyModal').style.display = 'none';
+        }
+        
+        async function undoEdit(historyId, recordId, recordType) {
+            if (!confirm('هل أنت متأكد من التراجع عن هذا التعديل؟')) return;
+            try {
+                const historyDoc = await db.collection('editHistory').doc(historyId).get();
+                const historyData = historyDoc.data();
+                const collection = recordType === 'driverPayment' ? 'driverPayments' : 'expenses';
+                await db.collection(collection).doc(recordId).update({ [historyData.field]: historyData.oldValue });
+                await db.collection('editHistory').doc(historyId).delete();
+                alert('✅ تم التراجع عن التعديل بنجاح!');
+                closeHistoryModal();
+                loadAllData();
+            } catch (error) {
+                console.error('خطأ في التراجع:', error);
+                alert('حدث خطأ في التراجع عن التعديل');
+            }
         }
     </script>
 </body>

@@ -19,7 +19,7 @@ function canDeleteRevenue(itemDate, createdAt) {
         return true;
     }
     
-    // Manager يمكنه الحذف فقط خلال 24 ساعة
+    // Accountant يمكنه الحذف فقط خلال أسبوعين من تاريخ الإضافة
     if (userRole === 'accountant') {
         // استخدام تاريخ الإنشاء من Firebase إذا كان متاحاً
         let itemTime;
@@ -35,7 +35,7 @@ function canDeleteRevenue(itemDate, createdAt) {
         const now = new Date().getTime();
         const hoursPassed = (now - itemTime) / (1000 * 60 * 60);
         
-        return hoursPassed < 24;
+        return hoursPassed < 336; // أسبوعان = 14 يوم × 24 ساعة
     }
     
     // المستخدمون الآخرون لا يمكنهم الحذف
@@ -55,7 +55,7 @@ function getRevenueDeleteButton(itemId, itemDate, createdAt, deleteFunction, but
     if (canDeleteRevenue(itemDate, createdAt)) {
         return `<button class="${buttonClass}" onclick="${deleteFunction}('${itemId}')">حذف</button>`;
     } else {
-        return '<span class="no-permission" title="لا يمكن الحذف بعد 24 ساعة">🔒</span>';
+        return '<span class="no-permission" title="لا يمكن الحذف بعد أسبوعين من تاريخ الإضافة">🔒</span>';
     }
 }
 
