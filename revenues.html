@@ -749,6 +749,7 @@
                         driverName: driver ? driver.name : 'سائق غير محدد',
                         employeeNumber: driver ? driver.employeeNumber : null,
                         refNum: payment.refNum || null,
+                        isEdited: payment.isEdited || false,
                         source: 'driverPayment'
                     });
                 }
@@ -958,7 +959,8 @@
                 }
                 
                 // زر الهيستوري
-                const historyButton = `<button class="btn btn-secondary" style="padding:4px 8px;font-size:12px;margin-bottom:4px;" onclick="openHistoryModal('${revenue.id}', '${revenue.source === 'driverPayment' ? 'driverPayment' : 'revenue'}')">📜 التعديلات</button>`;
+                const historyRecordType = revenue.source === 'driverPayment' ? 'driverPayment' : 'revenue';
+                const historyButton = `<button class="btn btn-secondary" style="padding:4px 8px;font-size:12px;margin-bottom:4px;" onclick="openHistoryModal('${revenue.id}', '${historyRecordType}')">📜 التعديلات</button>`;
                 
                 // شارة التعديل
                 const editedBadge = isEdited ? '<span class="edited-badge">معدّل</span>' : '';
