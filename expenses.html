@@ -701,6 +701,71 @@
                 grid-template-columns: repeat(2, 1fr);
             }
         }
+
+        /* ==================== CSS حركات الحسابات ==================== */
+        .account-movements-modal {
+            display: none; position: fixed; z-index: 3000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); overflow-y: auto;
+        }
+        .account-movements-content {
+            background: #fff; margin: 20px auto; border-radius: 20px;
+            width: 95%; max-width: 1100px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden;
+        }
+        .movements-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff; padding: 25px 30px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .movements-header h2 { margin: 0; font-size: 22px; }
+        .movements-close { font-size: 28px; cursor: pointer; opacity: 0.8; transition: opacity 0.2s; }
+        .movements-close:hover { opacity: 1; }
+        .movements-body { padding: 25px; }
+        .movements-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: #f8f9fa; border-radius: 12px; padding: 15px; text-align: center; border: 2px solid #e9ecef; }
+        .stat-card.income { border-color: #28a745; background: #f0fff4; }
+        .stat-card.expense-stat { border-color: #dc3545; background: #fff5f5; }
+        .stat-card.net-positive { border-color: #28a745; background: #f0fff4; }
+        .stat-card.net-negative { border-color: #dc3545; background: #fff5f5; }
+        .stat-card.count { border-color: #667eea; background: #f0f4ff; }
+        .stat-label { font-size: 12px; color: #666; margin-bottom: 5px; }
+        .stat-value { font-size: 18px; font-weight: 700; }
+        .stat-value.green { color: #28a745; } .stat-value.red { color: #dc3545; } .stat-value.blue { color: #667eea; }
+        .movements-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+        .mov-filter-btn { padding: 8px 16px; border: 2px solid #dee2e6; border-radius: 20px; background: #fff; cursor: pointer; font-size: 13px; transition: all 0.2s; font-family: inherit; }
+        .mov-filter-btn:hover, .mov-filter-btn.active { background: #667eea; border-color: #667eea; color: #fff; }
+        .mov-date-range { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .mov-date-range input { padding: 6px 10px; border: 2px solid #dee2e6; border-radius: 8px; font-size: 13px; font-family: inherit; }
+        .mov-date-range button { padding: 6px 14px; background: #667eea; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; }
+        .movements-compare { background: #f8f9fa; border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 2px solid #e9ecef; display: none; }
+        .movements-compare h4 { margin: 0 0 12px; font-size: 15px; color: #444; }
+        .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 12px; }
+        .compare-period { display: flex; flex-direction: column; gap: 6px; }
+        .compare-period label { font-size: 12px; color: #666; font-weight: 600; }
+        .compare-period input { padding: 6px 10px; border: 2px solid #dee2e6; border-radius: 8px; font-size: 13px; font-family: inherit; }
+        .compare-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .compare-table th { background: #667eea; color: #fff; padding: 8px 12px; text-align: center; }
+        .compare-table td { padding: 8px 12px; text-align: center; border-bottom: 1px solid #e9ecef; }
+        .compare-table tr:last-child td { font-weight: 700; background: #f0f4ff; }
+        .diff-positive { color: #28a745; font-weight: 600; } .diff-negative { color: #dc3545; font-weight: 600; }
+        .movements-table-wrap { overflow-x: auto; }
+        .movements-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .movements-table th { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 12px 10px; text-align: center; }
+        .movements-table td { padding: 10px; text-align: center; border-bottom: 1px solid #f0f0f0; }
+        .movements-table tr:hover td { background: #f8f9fa; }
+        .mov-row-income td { background: #f0fff4; } .mov-row-expense td { background: #fff5f5; } .mov-row-transfer td { background: #f0f4ff; }
+        .mov-amount-positive { color: #28a745; font-weight: 700; } .mov-amount-negative { color: #dc3545; font-weight: 700; } .mov-amount-transfer { color: #667eea; font-weight: 700; }
+        .mov-balance-cell { font-weight: 700; color: #333; }
+        .mov-type-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .badge-income { background: #d4edda; color: #155724; } .badge-expense { background: #f8d7da; color: #721c24; }
+        .badge-transfer { background: #cce5ff; color: #004085; } .badge-salary { background: #fff3cd; color: #856404; }
+        .mov-view-btn { padding: 3px 10px; background: #667eea; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 11px; font-family: inherit; }
+        .mov-view-btn:hover { background: #5a6fd6; }
+        .movements-footer { display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; border-top: 2px solid #f0f0f0; background: #f8f9fa; flex-wrap: wrap; gap: 10px; }
+        .mov-opening-balance { background: #fff3cd; border: 2px solid #ffc107; border-radius: 10px; padding: 10px 15px; margin-bottom: 15px; font-size: 14px; color: #856404; }
+        .toggle-compare-btn { padding: 8px 16px; background: #6c757d; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; margin-bottom: 15px; }
+        .toggle-compare-btn:hover { background: #5a6268; }
+        .mov-export-btn { padding: 8px 16px; background: #28a745; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; }
+        .mov-export-btn:hover { background: #218838; }
     </style>
 </head>
 <body>
@@ -721,16 +786,16 @@
         <div class="balance-section">
             <h3>💰 الأرصدة الحالية</h3>
             <div class="balance-grid">
-                <div class="balance-item">
-                    <div class="balance-label">حساب الرواتب (د.ك)</div>
+                <div class="balance-item clickable" onclick="openAccountMovements('salary')" title="اضغط لعرض حركات رصيد الرواتب">
+                    <div class="balance-label">حساب الرواتب (د.ك) 📊</div>
                     <div class="balance-amount" id="salaryBalance">0.000 د.ك</div>
                 </div>
-                <div class="balance-item">
-                    <div class="balance-label">حساب رامي (د.ك)</div>
+                <div class="balance-item clickable" onclick="openAccountMovements('bank')" title="اضغط لعرض حركات حساب رامي">
+                    <div class="balance-label">حساب رامي (د.ك) 📊</div>
                     <div class="balance-amount" id="bankBalance">0.000 د.ك</div>
                 </div>
-                <div class="balance-item">
-                    <div class="balance-label">رصيد بنك وربه (د.ك)</div>
+                <div class="balance-item clickable" onclick="openAccountMovements('warba')" title="اضغط لعرض حركات بنك وربه">
+                    <div class="balance-label">رصيد بنك وربه (د.ك) 📊</div>
                     <div class="balance-amount" id="warbaBalance">0.000 د.ك</div>
                 </div>
                 <div class="balance-item">
@@ -999,6 +1064,90 @@
             </div>
             <div id="historyModalBody">
                 <div class="no-data">جاري تحميل التعديلات...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Movements Modal -->
+    <div id="accountMovementsModal" class="account-movements-modal">
+        <div class="account-movements-content">
+            <div class="movements-header">
+                <h2 id="movementsTitle">📊 حركات الحساب</h2>
+                <span class="movements-close" onclick="closeAccountMovements()">&times;</span>
+            </div>
+            <div class="movements-body">
+                <div class="movements-stats" id="movementsStats">
+                    <div class="stat-card income">
+                        <div class="stat-label">إجمالي الواردات</div>
+                        <div class="stat-value green" id="movTotalIn">0.000</div>
+                    </div>
+                    <div class="stat-card expense-stat">
+                        <div class="stat-label">إجمالي الصادرات</div>
+                        <div class="stat-value red" id="movTotalOut">0.000</div>
+                    </div>
+                    <div class="stat-card" id="movNetCard">
+                        <div class="stat-label">صافي الفترة</div>
+                        <div class="stat-value" id="movNet">0.000</div>
+                    </div>
+                    <div class="stat-card count">
+                        <div class="stat-label">عدد العمليات</div>
+                        <div class="stat-value blue" id="movCount">0</div>
+                    </div>
+                </div>
+                <div class="movements-filters">
+                    <button class="mov-filter-btn active" onclick="applyMovFilter('all', this)">الكل</button>
+                    <button class="mov-filter-btn" onclick="applyMovFilter('today', this)">اليوم</button>
+                    <button class="mov-filter-btn" onclick="applyMovFilter('week', this)">أسبوع</button>
+                    <button class="mov-filter-btn" onclick="applyMovFilter('month', this)">شهر</button>
+                    <div class="mov-date-range">
+                        <input type="date" id="movDateFrom" placeholder="من">
+                        <span>إلى</span>
+                        <input type="date" id="movDateTo" placeholder="إلى">
+                        <button onclick="applyMovFilter('custom', null)">تطبيق</button>
+                    </div>
+                </div>
+                <button class="toggle-compare-btn" onclick="toggleCompare()">📊 مقارنة بين فترتين</button>
+                <div class="movements-compare" id="movementsCompare">
+                    <h4>📊 مقارنة بين فترتين</h4>
+                    <div class="compare-grid">
+                        <div class="compare-period">
+                            <label>الفترة الأولى</label>
+                            <input type="date" id="cmpFrom1"> إلى <input type="date" id="cmpTo1">
+                        </div>
+                        <div class="compare-period">
+                            <label>الفترة الثانية</label>
+                            <input type="date" id="cmpFrom2"> إلى <input type="date" id="cmpTo2">
+                        </div>
+                    </div>
+                    <button style="display:inline-block;padding:8px 16px;background:#667eea;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;" onclick="runComparison()">تنفيذ المقارنة</button>
+                    <div id="compareResult" style="margin-top:15px;"></div>
+                </div>
+                <div class="mov-opening-balance" id="movOpeningBalance" style="display:none;">
+                    💰 الرصيد الافتتاحي قبل الفترة: <strong id="movOpeningBalanceValue">0.000 د.ك</strong>
+                </div>
+                <div class="movements-table-wrap">
+                    <table class="movements-table">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>النوع</th>
+                                <th>الوصف</th>
+                                <th>المبلغ</th>
+                                <th>الرصيد بعد العملية</th>
+                                <th>عرض</th>
+                            </tr>
+                        </thead>
+                        <tbody id="movementsTableBody">
+                            <tr><td colspan="6" class="no-data">جاري التحميل...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="movements-footer">
+                <div style="font-size:13px;color:#666;">
+                    الترتيب: <button class="mov-filter-btn" id="movSortBtn" onclick="toggleMovSort()" style="padding:4px 12px;font-size:12px;">الأحدث أولاً ↓</button>
+                </div>
+                <button class="mov-export-btn" onclick="exportMovementsCSV()">📅 تصدير CSV</button>
             </div>
         </div>
     </div>
@@ -1920,6 +2069,253 @@
                 alert('حدث خطأ في التراجع عن التعديل');
             }
         }
+
+        // ==================== حركات الحسابات ====================
+        let currentAccountType = null;
+        let allMovements = [];
+        let filteredMovements = [];
+        let movSortAsc = false;
+
+        function openAccountMovements(accountType) {
+            currentAccountType = accountType;
+            const titles = { bank: '🏦 حركات حساب رامي', warba: '🏦 حركات بنك وربه', salary: '💰 حركات حساب الرواتب' };
+            document.getElementById('movementsTitle').textContent = titles[accountType] || '📊 حركات الحساب';
+            document.getElementById('accountMovementsModal').style.display = 'block';
+            // إعادة تعيين الفلتر الافتراضي
+            document.querySelectorAll('.mov-filter-btn').forEach(b => b.classList.remove('active'));
+            const allBtn = document.querySelector('.movements-filters .mov-filter-btn');
+            if (allBtn) allBtn.classList.add('active');
+            document.getElementById('movementsCompare').style.display = 'none';
+            buildMovements(accountType);
+            applyMovFilter('all', null);
+        }
+
+        function closeAccountMovements() {
+            document.getElementById('accountMovementsModal').style.display = 'none';
+        }
+
+        function buildMovements(accountType) {
+            allMovements = [];
+            // إيرادات
+            revenues.forEach(r => {
+                const amount = parseFloat(r.amount || 0);
+                if (accountType === 'bank') {
+                    if (r.type === 'تحويل من حساب رامي إلى بنك وربه') {
+                        allMovements.push({ date: r.date, type: 'تحويل صادر', desc: r.description || r.type, amount: -amount, source: 'revenue', id: r.id, refNum: r.refNum });
+                    } else {
+                        allMovements.push({ date: r.date, type: 'إيراد', desc: r.description || r.type, amount: +amount, source: 'revenue', id: r.id, refNum: r.refNum });
+                    }
+                } else if (accountType === 'warba') {
+                    if (r.type === 'تحويل من حساب رامي إلى بنك وربه') {
+                        allMovements.push({ date: r.date, type: 'تحويل وارد', desc: r.description || r.type, amount: +amount, source: 'revenue', id: r.id, refNum: r.refNum });
+                    }
+                }
+            });
+            // مصروفات
+            expenses.forEach(e => {
+                const amount = parseFloat(e.amount || 0);
+                if (accountType === 'bank') {
+                    if (e.type === 'تحويل من بنك وربه إلى حساب رامي') {
+                        allMovements.push({ date: e.date, type: 'تحويل وارد', desc: e.description || e.type, amount: +amount, source: 'expense', id: e.id, refNum: e.refNum });
+                    } else if (e.type !== 'سحب فهد') {
+                        allMovements.push({ date: e.date, type: 'مصروف', desc: e.description || e.type, amount: -amount, source: 'expense', id: e.id, refNum: e.refNum });
+                    }
+                } else if (accountType === 'warba') {
+                    if (e.type === 'تحويل من بنك وربه إلى حساب رامي') {
+                        allMovements.push({ date: e.date, type: 'تحويل صادر', desc: e.description || e.type, amount: -amount, source: 'expense', id: e.id, refNum: e.refNum });
+                    } else if (e.type === 'سحب فهد') {
+                        allMovements.push({ date: e.date, type: 'سحب فهد', desc: e.description || e.type, amount: -amount, source: 'expense', id: e.id, refNum: e.refNum });
+                    }
+                } else if (accountType === 'salary') {
+                    if (e.type === 'مصاريف إيداعات الرواتب') {
+                        allMovements.push({ date: e.date, type: 'مصروف رواتب', desc: e.description || e.type, amount: -amount, source: 'expense', id: e.id, refNum: e.refNum });
+                    }
+                }
+            });
+            // دفعات السائقين
+            driverPayments.forEach(p => {
+                const amount = parseFloat(p.amount || 0);
+                const driverName = p.driverName || ('سائق ' + (p.driverId || ''));
+                const desc = (p.type || '') + (driverName ? ' - ' + driverName : '');
+                if (accountType === 'bank') {
+                    if (['أجرة يومية','تحصيل مخالفة','تحصيل رسوم إقامة','دين قديم'].includes(p.type)) {
+                        allMovements.push({ date: p.date, type: 'تحصيل سائق', desc, amount: +amount, source: 'driverPayment', id: p.id, refNum: p.refNum });
+                    } else if (['سداد مخالفة','سداد رسوم إقامة'].includes(p.type)) {
+                        allMovements.push({ date: p.date, type: 'سداد للسائق', desc, amount: -amount, source: 'driverPayment', id: p.id, refNum: p.refNum });
+                    } else if (['تحصيل رسوم رواتب','تحصيل رسوم إيداعات الرواتب'].includes(p.type)) {
+                        allMovements.push({ date: p.date, type: 'تحصيل رواتب', desc, amount: +amount, source: 'driverPayment', id: p.id, refNum: p.refNum });
+                    }
+                } else if (accountType === 'salary') {
+                    if (['تحصيل رسوم رواتب','تحصيل رسوم إيداعات الرواتب'].includes(p.type)) {
+                        allMovements.push({ date: p.date, type: 'تحصيل رواتب', desc, amount: +amount, source: 'driverPayment', id: p.id, refNum: p.refNum });
+                    } else if (p.type === 'سداد رواتب') {
+                        allMovements.push({ date: p.date, type: 'سداد رواتب', desc, amount: -amount, source: 'driverPayment', id: p.id, refNum: p.refNum });
+                    }
+                }
+            });
+            // ترتيب حسب التاريخ (الأقدم أولاً لحساب الرصيد التراكمي)
+            allMovements.sort((a, b) => new Date(a.date) - new Date(b.date));
+            // حساب الرصيد التراكمي
+            let running = 0;
+            allMovements.forEach(m => { running += m.amount; m.runningBalance = running; });
+        }
+
+        function applyMovFilter(period, btn) {
+            if (btn) {
+                document.querySelectorAll('.movements-filters .mov-filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+            const now = new Date();
+            let fromDate = null, toDate = null;
+            if (period === 'today') {
+                fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                toDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+            } else if (period === 'week') {
+                fromDate = new Date(now); fromDate.setDate(now.getDate() - 7);
+                toDate = now;
+            } else if (period === 'month') {
+                fromDate = new Date(now); fromDate.setDate(now.getDate() - 30);
+                toDate = now;
+            } else if (period === 'custom') {
+                const f = document.getElementById('movDateFrom').value;
+                const t = document.getElementById('movDateTo').value;
+                if (f) fromDate = new Date(f + 'T00:00:00');
+                if (t) toDate = new Date(t + 'T23:59:59');
+            }
+            filteredMovements = allMovements.filter(m => {
+                const d = new Date(m.date + 'T00:00:00');
+                if (fromDate && d < fromDate) return false;
+                if (toDate && d > toDate) return false;
+                return true;
+            });
+            // حساب الرصيد الافتتاحي
+            if (fromDate) {
+                const openingMovements = allMovements.filter(m => new Date(m.date + 'T00:00:00') < fromDate);
+                const openingBalance = openingMovements.reduce((s, m) => s + m.amount, 0);
+                document.getElementById('movOpeningBalance').style.display = 'block';
+                document.getElementById('movOpeningBalanceValue').textContent = openingBalance.toFixed(3) + ' د.ك';
+            } else {
+                document.getElementById('movOpeningBalance').style.display = 'none';
+            }
+            renderMovements();
+        }
+
+        function renderMovements() {
+            const sorted = movSortAsc ? [...filteredMovements] : [...filteredMovements].reverse();
+            const tbody = document.getElementById('movementsTableBody');
+            if (sorted.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="no-data">لا توجد حركات في هذه الفترة</td></tr>';
+                updateMovStats([]);
+                return;
+            }
+            const typeLabels = {
+                'إيراد': { badge: 'badge-income', label: 'إيراد' },
+                'مصروف': { badge: 'badge-expense', label: 'مصروف' },
+                'تحويل صادر': { badge: 'badge-transfer', label: 'تحويل صادر' },
+                'تحويل وارد': { badge: 'badge-transfer', label: 'تحويل وارد' },
+                'تحصيل سائق': { badge: 'badge-income', label: 'تحصيل' },
+                'سداد للسائق': { badge: 'badge-expense', label: 'سداد' },
+                'تحصيل رواتب': { badge: 'badge-salary', label: 'تحصيل رواتب' },
+                'سداد رواتب': { badge: 'badge-expense', label: 'سداد رواتب' },
+                'سحب فهد': { badge: 'badge-expense', label: 'سحب فهد' },
+                'مصروف رواتب': { badge: 'badge-expense', label: 'مصروف رواتب' }
+            };
+            let html = '';
+            sorted.forEach(m => {
+                const tl = typeLabels[m.type] || { badge: 'badge-income', label: m.type };
+                const isPos = m.amount >= 0;
+                const rowClass = isPos ? 'mov-row-income' : (m.type.includes('تحويل') ? 'mov-row-transfer' : 'mov-row-expense');
+                const amtClass = isPos ? 'mov-amount-positive' : (m.type.includes('تحويل') ? 'mov-amount-transfer' : 'mov-amount-negative');
+                const amtStr = (isPos ? '+' : '') + m.amount.toFixed(3) + ' د.ك';
+                const balStr = m.runningBalance.toFixed(3) + ' د.ك';
+                const balColor = m.runningBalance >= 0 ? '#28a745' : '#dc3545';
+                const srcPage = m.source === 'expense' ? 'expenses.html' : (m.source === 'driverPayment' ? 'driver-payments.html' : 'revenues.html');
+                html += `<tr class="${rowClass}">
+                    <td>${m.date || '—'}</td>
+                    <td><span class="mov-type-badge ${tl.badge}">${tl.label}</span></td>
+                    <td style="text-align:right;">${m.desc || '—'}${m.refNum ? '<br><small style="color:#999;font-family:monospace;">' + m.refNum + '</small>' : ''}</td>
+                    <td class="${amtClass}">${amtStr}</td>
+                    <td class="mov-balance-cell" style="color:${balColor};">${balStr}</td>
+                    <td><button class="mov-view-btn" onclick="window.open('${srcPage}','_blank')">عرض</button></td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+            updateMovStats(filteredMovements);
+        }
+
+        function updateMovStats(movs) {
+            let totalIn = 0, totalOut = 0;
+            movs.forEach(m => { if (m.amount > 0) totalIn += m.amount; else totalOut += m.amount; });
+            const net = totalIn + totalOut;
+            document.getElementById('movTotalIn').textContent = totalIn.toFixed(3) + ' د.ك';
+            document.getElementById('movTotalOut').textContent = Math.abs(totalOut).toFixed(3) + ' د.ك';
+            document.getElementById('movNet').textContent = (net >= 0 ? '+' : '') + net.toFixed(3) + ' د.ك';
+            document.getElementById('movNet').style.color = net >= 0 ? '#28a745' : '#dc3545';
+            const netCard = document.getElementById('movNetCard');
+            netCard.className = 'stat-card ' + (net >= 0 ? 'net-positive' : 'net-negative');
+            document.getElementById('movCount').textContent = movs.length;
+        }
+
+        function toggleMovSort() {
+            movSortAsc = !movSortAsc;
+            document.getElementById('movSortBtn').textContent = movSortAsc ? 'الأقدم أولاً ↑' : 'الأحدث أولاً ↓';
+            renderMovements();
+        }
+
+        function toggleCompare() {
+            const el = document.getElementById('movementsCompare');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function runComparison() {
+            const f1 = document.getElementById('cmpFrom1').value;
+            const t1 = document.getElementById('cmpTo1').value;
+            const f2 = document.getElementById('cmpFrom2').value;
+            const t2 = document.getElementById('cmpTo2').value;
+            if (!f1 || !t1 || !f2 || !t2) { alert('يرجى تحديد جميع التواريخ'); return; }
+            const calcPeriod = (from, to) => {
+                const fd = new Date(from + 'T00:00:00'), td = new Date(to + 'T23:59:59');
+                const movs = allMovements.filter(m => { const d = new Date(m.date + 'T00:00:00'); return d >= fd && d <= td; });
+                let totalIn = 0, totalOut = 0;
+                movs.forEach(m => { if (m.amount > 0) totalIn += m.amount; else totalOut += m.amount; });
+                return { totalIn, totalOut, net: totalIn + totalOut, count: movs.length };
+            };
+            const p1 = calcPeriod(f1, t1), p2 = calcPeriod(f2, t2);
+            const diffIn = p1.totalIn - p2.totalIn, diffOut = p1.totalOut - p2.totalOut, diffNet = p1.net - p2.net;
+            const diffClass = (v) => v > 0 ? 'diff-positive' : (v < 0 ? 'diff-negative' : '');
+            const diffStr = (v) => (v > 0 ? '+' : '') + v.toFixed(3);
+            document.getElementById('compareResult').innerHTML = `
+                <table class="compare-table">
+                    <thead><tr><th>البيان</th><th>الفترة الأولى (${f1} إلى ${t1})</th><th>الفترة الثانية (${f2} إلى ${t2})</th><th>الفرق</th></tr></thead>
+                    <tbody>
+                        <tr><td>إجمالي الواردات</td><td style="color:#28a745">${p1.totalIn.toFixed(3)}</td><td style="color:#28a745">${p2.totalIn.toFixed(3)}</td><td class="${diffClass(diffIn)}">${diffStr(diffIn)}</td></tr>
+                        <tr><td>إجمالي الصادرات</td><td style="color:#dc3545">${Math.abs(p1.totalOut).toFixed(3)}</td><td style="color:#dc3545">${Math.abs(p2.totalOut).toFixed(3)}</td><td class="${diffClass(-diffOut)}">${diffStr(-diffOut)}</td></tr>
+                        <tr><td>عدد العمليات</td><td>${p1.count}</td><td>${p2.count}</td><td class="${diffClass(p1.count - p2.count)}">${diffStr(p1.count - p2.count)}</td></tr>
+                        <tr><td>صافي الفترة</td><td style="color:${p1.net>=0?'#28a745':'#dc3545'}">${p1.net.toFixed(3)}</td><td style="color:${p2.net>=0?'#28a745':'#dc3545'}">${p2.net.toFixed(3)}</td><td class="${diffClass(diffNet)}">${diffStr(diffNet)}</td></tr>
+                    </tbody>
+                </table>`;
+        }
+
+        function exportMovementsCSV() {
+            if (!filteredMovements.length) { alert('لا توجد بيانات للتصدير'); return; }
+            const titles = { bank: 'حساب_رامي', warba: 'بنك_وربه', salary: 'حساب_الرواتب' };
+            let csv = '\uFEFFالتاريخ,النوع,الوصف,المبلغ,الرصيد بعد العملية\n';
+            const sorted = movSortAsc ? [...filteredMovements] : [...filteredMovements].reverse();
+            sorted.forEach(m => {
+                const row = [m.date, m.type, '"' + (m.desc || '').replace(/"/g, '""') + '"', m.amount.toFixed(3), m.runningBalance.toFixed(3)];
+                csv += row.join(',') + '\n';
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'حركات_' + (titles[currentAccountType] || 'الحساب') + '_' + new Date().toISOString().slice(0,10) + '.csv';
+            a.click(); URL.revokeObjectURL(url);
+        }
+
+        // إغلاق نافذة حركات الحسابات عند الضغط خارجها
+        document.getElementById('accountMovementsModal').addEventListener('click', function(e) {
+            if (e.target === this) closeAccountMovements();
+        });
     </script>
 </body>
 </html>
