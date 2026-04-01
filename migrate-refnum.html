@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ترقيم السجلات القديمة - نظام إدارة التاكسي</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #00d4ff; text-align: center; margin-bottom: 30px; }
+        .card { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); }
+        .btn { background: #00d4ff; color: #000; border: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        .btn:disabled { background: #555; color: #999; cursor: not-allowed; }
+        .btn-danger { background: #ff4444; color: #fff; }
+        .log { background: #000; border-radius: 8px; padding: 15px; max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 13px; line-height: 1.6; }
+        .log .success { color: #00ff88; }
+        .log .info { color: #00d4ff; }
+        .log .warn { color: #ffaa00; }
+        .log .error { color: #ff4444; }
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-box { background: rgba(0,212,255,0.1); border-radius: 10px; padding: 15px; text-align: center; border: 1px solid rgba(0,212,255,0.3); }
+        .stat-num { font-size: 28px; font-weight: bold; color: #00d4ff; }
+        .stat-label { font-size: 13px; color: #aaa; margin-top: 5px; }
+        .warning-box { background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.4); border-radius: 10px; padding: 15px; margin-bottom: 20px; color: #ffaa00; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🔢 ترقيم السجلات القديمة بأثر رجعي</h1>
+    
+    <div class="warning-box">
+        ⚠️ <strong>تحذير:</strong> هذه الصفحة ستضيف حقل <code>refNum</code> لجميع السجلات الموجودة في قاعدة البيانات.
+        يُنصح بعدم تشغيل هذه العملية أكثر من مرة واحدة.
+    </div>
+    
+    <div class="stats">
+        <div class="stat-box">
+            <div class="stat-num" id="revCount">-</div>
+            <div class="stat-label">إيرادات</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-num" id="expCount">-</div>
+            <div class="stat-label">مصروفات</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-num" id="payCount">-</div>
+            <div class="stat-label">دفعات سائقين</div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <button class="btn" id="scanBtn" onclick="scanData()">🔍 فحص البيانات أولاً</button>
+        <button class="btn btn-danger" id="migrateBtn" onclick="startMigration()" disabled>🚀 بدء الترقيم بأثر رجعي</button>
+    </div>
+    
+    <div class="card">
+        <h3 style="margin-bottom:10px; color:#00d4ff;">📋 سجل العمليات</h3>
+        <div class="log" id="logBox">
+            <span class="info">في انتظار بدء الفحص...</span>
+        </div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+        authDomain: "taxi-management-system-d8210.firebaseapp.com",
+        projectId: "taxi-management-system-d8210",
+        storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+        messagingSenderId: "720874424166",
+        appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+        measurementId: "G-GY8820W410"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let scannedData = { revenues: [], expenses: [], payments: [] };
+
+    function log(msg, type = 'info') {
+        const box = document.getElementById('logBox');
+        const line = document.createElement('div');
+        line.className = type;
+        const time = new Date().toLocaleTimeString('ar');
+        line.textContent = `[${time}] ${msg}`;
+        box.appendChild(line);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    // توليد رقم تسلسلي بالصيغة: PREFIX + YYYYMMDD + NNN (بدون فواصل)
+    function generateRefNum(prefix, date, seq) {
+        const d = new Date(date + 'T00:00:00');
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const num = String(seq).padStart(3, '0');
+        return `${prefix}${yyyy}${mm}${dd}${num}`;
+    }
+
+    async function scanData() {
+        document.getElementById('scanBtn').disabled = true;
+        document.getElementById('logBox').innerHTML = '';
+        log('بدء فحص قاعدة البيانات...', 'info');
+
+        try {
+            // فحص الإيرادات
+            log('جاري جلب الإيرادات...', 'info');
+            const revSnap = await db.collection('revenues').orderBy('date', 'asc').get();
+            scannedData.revenues = revSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const revWithRef = scannedData.revenues.filter(r => r.refNum).length;
+            document.getElementById('revCount').textContent = scannedData.revenues.length;
+            log(`✅ الإيرادات: ${scannedData.revenues.length} سجل (${revWithRef} لديها رقم مرجعي بالفعل)`, 'success');
+
+            // فحص المصروفات
+            log('جاري جلب المصروفات...', 'info');
+            const expSnap = await db.collection('expenses').orderBy('date', 'asc').get();
+            scannedData.expenses = expSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const expWithRef = scannedData.expenses.filter(r => r.refNum).length;
+            document.getElementById('expCount').textContent = scannedData.expenses.length;
+            log(`✅ المصروفات: ${scannedData.expenses.length} سجل (${expWithRef} لديها رقم مرجعي بالفعل)`, 'success');
+
+            // فحص دفعات السائقين
+            log('جاري جلب دفعات السائقين...', 'info');
+            const paySnap = await db.collection('driverPayments').orderBy('date', 'asc').get();
+            scannedData.payments = paySnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const payWithRef = scannedData.payments.filter(r => r.refNum).length;
+            document.getElementById('payCount').textContent = scannedData.payments.length;
+            log(`✅ دفعات السائقين: ${scannedData.payments.length} سجل (${payWithRef} لديها رقم مرجعي بالفعل)`, 'success');
+
+            const totalNew = (scannedData.revenues.length - revWithRef) + 
+                             (scannedData.expenses.length - expWithRef) + 
+                             (scannedData.payments.length - payWithRef);
+            log(`📊 إجمالي السجلات التي ستُرقَّم: ${totalNew} سجل`, 'warn');
+            log('الفحص اكتمل. اضغط "بدء الترقيم" للمتابعة.', 'success');
+            
+            document.getElementById('migrateBtn').disabled = false;
+        } catch (err) {
+            log(`❌ خطأ: ${err.message}`, 'error');
+            document.getElementById('scanBtn').disabled = false;
+        }
+    }
+
+    async function startMigration() {
+        document.getElementById('migrateBtn').disabled = true;
+        document.getElementById('scanBtn').disabled = true;
+        log('═══════════════════════════════════', 'info');
+        log('🚀 بدء عملية الترقيم...', 'warn');
+
+        try {
+            // ترقيم الإيرادات
+            log('--- ترقيم الإيرادات ---', 'info');
+            // تجميع السجلات حسب اليوم
+            const revByDay = {};
+            scannedData.revenues.forEach(r => {
+                const day = r.date || '1970-01-01';
+                if (!revByDay[day]) revByDay[day] = [];
+                revByDay[day].push(r);
+            });
+            let revUpdated = 0;
+            for (const day of Object.keys(revByDay).sort()) {
+                let seq = 1;
+                for (const rev of revByDay[day]) {
+                    if (!rev.refNum) {
+                        const refNum = generateRefNum('REV', day, seq);
+                        await db.collection('revenues').doc(rev.id).update({ refNum });
+                        log(`  REV: ${rev.id} → ${refNum}`, 'success');
+                        revUpdated++;
+                    }
+                    seq++;
+                }
+            }
+            log(`✅ تم ترقيم ${revUpdated} إيراد`, 'success');
+
+            // ترقيم المصروفات
+            log('--- ترقيم المصروفات ---', 'info');
+            const expByDay = {};
+            scannedData.expenses.forEach(e => {
+                const day = e.date || '1970-01-01';
+                if (!expByDay[day]) expByDay[day] = [];
+                expByDay[day].push(e);
+            });
+            let expUpdated = 0;
+            for (const day of Object.keys(expByDay).sort()) {
+                let seq = 1;
+                for (const exp of expByDay[day]) {
+                    if (!exp.refNum) {
+                        const refNum = generateRefNum('EXP', day, seq);
+                        await db.collection('expenses').doc(exp.id).update({ refNum });
+                        log(`  EXP: ${exp.id} → ${refNum}`, 'success');
+                        expUpdated++;
+                    }
+                    seq++;
+                }
+            }
+            log(`✅ تم ترقيم ${expUpdated} مصروف`, 'success');
+
+            // ترقيم دفعات السائقين
+            log('--- ترقيم دفعات السائقين ---', 'info');
+            const payByDay = {};
+            scannedData.payments.forEach(p => {
+                const day = p.date || '1970-01-01';
+                if (!payByDay[day]) payByDay[day] = [];
+                payByDay[day].push(p);
+            });
+            let payUpdated = 0;
+            for (const day of Object.keys(payByDay).sort()) {
+                let seq = 1;
+                for (const pay of payByDay[day]) {
+                    if (!pay.refNum) {
+                        const refNum = generateRefNum('PAY', day, seq);
+                        await db.collection('driverPayments').doc(pay.id).update({ refNum });
+                        log(`  PAY: ${pay.id} → ${refNum}`, 'success');
+                        payUpdated++;
+                    }
+                    seq++;
+                }
+            }
+            log(`✅ تم ترقيم ${payUpdated} دفعة سائق`, 'success');
+
+            log('═══════════════════════════════════', 'info');
+            log(`🎉 اكتملت العملية! تم ترقيم ${revUpdated + expUpdated + payUpdated} سجل بنجاح`, 'success');
+            log('يمكنك الآن إغلاق هذه الصفحة والعودة للنظام.', 'success');
+        } catch (err) {
+            log(`❌ خطأ أثناء الترقيم: ${err.message}`, 'error');
+            document.getElementById('migrateBtn').disabled = false;
+        }
+    }
+</script>
+</body>
+</html>

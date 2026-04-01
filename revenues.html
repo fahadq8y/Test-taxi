@@ -6,6 +6,25 @@
     <title>إدارة الإيرادات - نظام إدارة التاكسي</title>
     <link rel="stylesheet" href="style.css">
     <script src="revenues-permissions.js"></script>
+    <style>
+        .ref-num-badge {
+            display: inline-block;
+            background: rgba(0, 212, 255, 0.15);
+            color: #00d4ff;
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-family: monospace;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .ref-num-empty {
+            color: #555;
+            font-size: 14px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -94,7 +113,7 @@
             <div class="filter-grid">
                 <div class="form-group">
                     <label>🔍 البحث النصي</label>
-                    <input type="text" id="searchText" placeholder="ابحث في الوصف..." oninput="applyFilters()">
+                    <input type="text" id="searchText" placeholder="ابحث بالرقم المرجعي أو الرقم الوظيفي أو اسم السائق أو الوصف..." oninput="applyFilters()">
                 </div>
                 <div class="form-group">
                     <label>📋 نوع الإيراد</label>
@@ -188,6 +207,7 @@
             <table class="revenue-table">
                 <thead>
                     <tr>
+                        <th>الرقم المرجعي</th>
                         <th>التاريخ</th>
                         <th>النوع</th>
                         <th>المصدر</th>
@@ -198,7 +218,7 @@
                 </thead>
                 <tbody id="revenueTableBody">
                     <tr>
-                        <td colspan="6" class="no-data">جاري تحميل الإيرادات...</td>
+                        <td colspan="7" class="no-data">جاري تحميل الإيرادات...</td>
                     </tr>
                 </tbody>
             </table>
@@ -269,6 +289,46 @@
         });
 
         // Load all data from Firebase
+        // دالة توليد الرقم المرجعي التسلسلي التالي
+        // الصيغة: PREFIX + YYYYMMDD + NNN (بدون فواصل)
+        async function generateNextRefNum(collection, prefix, dateStr) {
+            try {
+                const d = new Date(dateStr + 'T00:00:00');
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const dateKey = `${yyyy}${mm}${dd}`;
+                const prefixDate = `${prefix}${dateKey}`;
+                
+                // جلب جميع سجلات نفس اليوم ونفس النوع
+                const snap = await db.collection(collection)
+                    .where('date', '==', dateStr)
+                    .get();
+                
+                // إيجاد أعلى رقم تسلسلي موجود لنفس اليوم
+                let maxSeq = 0;
+                snap.docs.forEach(doc => {
+                    const ref = doc.data().refNum || '';
+                    if (ref.startsWith(prefixDate)) {
+                        const seqStr = ref.substring(prefixDate.length);
+                        const seq = parseInt(seqStr) || 0;
+                        if (seq > maxSeq) maxSeq = seq;
+                    }
+                });
+                
+                const nextSeq = String(maxSeq + 1).padStart(3, '0');
+                return `${prefixDate}${nextSeq}`;
+            } catch (err) {
+                console.error('خطأ في توليد الرقم المرجعي:', err);
+                // في حالة الخطأ نولد رقماً عشوائياً مؤقتاً
+                const d = new Date(dateStr + 'T00:00:00');
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${prefix}${yyyy}${mm}${dd}${String(Date.now()).slice(-3)}`;
+            }
+        }
+
         async function loadAllData() {
             console.log('🔄 بدء تحميل البيانات في revenues.html...');
             try {
@@ -453,15 +513,20 @@
                 return;
             }
             
+            const revenueDate = document.getElementById('revenueDate').value;
+            
+            // توليد الرقم المرجعي للإيراد الجديد
+            const refNum = await generateNextRefNum('revenues', 'REV', revenueDate);
+            
             const revenueData = {
-                date: document.getElementById('revenueDate').value,
+                date: revenueDate,
                 type: type,
                 amount: parseFloat(document.getElementById('revenueAmount').value),
                 description: description,
+                refNum: refNum,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
-
             try {
                 await db.collection('revenues').add(revenueData);
                 alert('تم إضافة الإيراد بنجاح!');
@@ -515,7 +580,7 @@
             const tbody = document.getElementById('revenueTableBody');
             
             if (filteredRevenues.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="no-data">لا توجد إيرادات مسجلة</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="no-data">لا توجد إيرادات مسجلة</td></tr>';
                 updatePaginationInfo(0, 0, 0);
                 return;
             }
@@ -578,7 +643,9 @@
                 // (تم تعيينه بالفعل في السطر 456)
                 
                 // إنشاء صف الجدول
+                const refNumDisplay = revenue.refNum ? `<span class="ref-num-badge">${revenue.refNum}</span>` : '<span class="ref-num-empty">—</span>';
                 row.innerHTML = `
+                    <td>${refNumDisplay}</td>
                     <td>${formatDate(revenue.date)}</td>
                     <td><span class="type-badge ${revenue.source === 'driverPayment' ? 'driver-payment' : 'direct-revenue'}">${revenue.type || 'غير محدد'}</span></td>
                     <td>${source}</td>
@@ -597,6 +664,10 @@
                         <div class="mobile-card-amount">+${parseFloat(revenue.amount || 0).toFixed(3)} د.ك</div>
                     </div>
                     <div class="mobile-card-body">
+                        <div class="mobile-card-row">
+                            <div class="mobile-card-label">🔢 الرقم المرجعي</div>
+                            <div class="mobile-card-value">${revenue.refNum ? `<span class="ref-num-badge">${revenue.refNum}</span>` : '—'}</div>
+                        </div>
                         <div class="mobile-card-row">
                             <div class="mobile-card-label">🏷️ النوع</div>
                             <div class="mobile-card-value">
@@ -727,7 +798,7 @@
         }
 
         function applyFilters() {
-            const searchText = document.getElementById('searchText').value.toLowerCase();
+            const searchText = document.getElementById('searchText').value.toLowerCase().trim();
             const typeFilter = document.getElementById('revenueTypeFilter').value;
             const fromDate = document.getElementById('fromDate').value;
             const toDate = document.getElementById('toDate').value;
@@ -741,21 +812,35 @@
             
             driverPayments.forEach(payment => {
                 if (['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم', 'إجازة سنوية'].includes(payment.type)) {
-                    const driver = drivers.find(d => d.id === payment.driverId);
+                    const driverInfo = getDriverInfo(payment.driverId);
                     allRevenueItems.push({
                         id: payment.id,
                         date: payment.date,
                         type: payment.type,
                         amount: payment.amount,
-                        description: `${payment.type} - ${driver ? driver.name : 'سائق غير محدد'}`,
+                        description: `${payment.type} - ${driverInfo.name}`,
                         source: 'driverPayment',
-                        driverId: payment.driverId  // Fix: إضافة driverId لعرض اسم السائق بشكل صحيح عند الفلترة
+                        driverId: payment.driverId,
+                        refNum: payment.refNum || null,
+                        driverName: driverInfo.name,
+                        employeeNumber: driverInfo.employeeNumber
                     });
                 }
             });
             
             filteredRevenues = allRevenueItems.filter(revenue => {
+                // بحث متعدد الحقول: الرقم المرجعي + الرقم الوظيفي + اسم السائق + الوصف + النوع + التاريخ
+                let driverName = '';
+                let employeeNumber = '';
+                if (revenue.source === 'driverPayment') {
+                    const driverInfo = getDriverInfo(revenue.driverId);
+                    driverName = (driverInfo.name || '').toLowerCase();
+                    employeeNumber = (driverInfo.employeeNumber || '').toLowerCase();
+                }
                 const matchesSearch = !searchText || 
+                    (revenue.refNum && revenue.refNum.toLowerCase().includes(searchText)) ||
+                    (employeeNumber && employeeNumber.includes(searchText)) ||
+                    (driverName && driverName.includes(searchText)) ||
                     (revenue.description && revenue.description.toLowerCase().includes(searchText)) ||
                     (revenue.type && revenue.type.toLowerCase().includes(searchText)) ||
                     (revenue.date && revenue.date.includes(searchText));
@@ -870,12 +955,12 @@
             const min = amounts.length > 0 ? Math.min(...amounts) : 0;
             
             // Create CSV
-            let csv = 'التاريخ,النوع,المصدر,المبلغ,الوصف التفصيلي\n';
+            let csv = 'الرقم المرجعي,التاريخ,النوع,المصدر,المبلغ,الوصف التفصيلي\n';
             
             dataToExport.forEach(revenue => {
                 const source = revenue.source === 'driverPayment' ? 'دفعة سائق' : 'إيراد مباشر';
                 const detailedDesc = (revenue.description || '-').replace(/"/g, '""');
-                csv += `${revenue.date},${revenue.type},${source},${revenue.amount},"${detailedDesc}"\n`;
+                csv += `${revenue.refNum || ''},${revenue.date},${revenue.type},${source},${revenue.amount},"${detailedDesc}"\n`;
             });
             
             // Add statistics

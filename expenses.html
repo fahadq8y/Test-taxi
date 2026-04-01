@@ -7,6 +7,23 @@
     <link rel="stylesheet" href="style.css">
     <script src="expenses-permissions-simple.js"></script>
     <style>
+        .ref-num-badge {
+            display: inline-block;
+            background: rgba(255, 107, 107, 0.15);
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 107, 107, 0.4);
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-family: monospace;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .ref-num-empty {
+            color: #aaa;
+            font-size: 14px;
+        }
         * {
             margin: 0;
             padding: 0;
@@ -696,7 +713,7 @@
             <div class="filter-grid">
                 <div class="form-group">
                     <label>🔍 البحث النصي</label>
-                    <input type="text" id="searchText" placeholder="ابحث في الوصف أو الملاحظة..." oninput="applyFilters()">
+                    <input type="text" id="searchText" placeholder="ابحث بالرقم المرجعي أو الرقم الوظيفي أو اسم السائق أو الوصف..." oninput="applyFilters()">
                 </div>
                 <div class="form-group">
                     <label>📋 نوع المصروف</label>
@@ -803,6 +820,7 @@
             <table class="expense-table">
                 <thead>
                     <tr>
+                        <th>الرقم المرجعي</th>
                         <th>التاريخ</th>
                         <th>النوع</th>
                         <th>المبلغ</th>
@@ -813,7 +831,7 @@
                 </thead>
                 <tbody id="expenseTableBody">
                     <tr>
-                        <td colspan="6" class="no-data">جاري تحميل المصروفات...</td>
+                        <td colspan="7" class="no-data">جاري تحميل المصروفات...</td>
                     </tr>
                 </tbody>
             </table>
@@ -879,6 +897,45 @@
             document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
             loadAllData();
         });
+
+        // دالة توليد الرقم المرجعي التسلسلي التالي
+        // الصيغة: PREFIX + YYYYMMDD + NNN (بدون فواصل)
+        async function generateNextRefNum(collection, prefix, dateStr) {
+            try {
+                const d = new Date(dateStr + 'T00:00:00');
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const dateKey = `${yyyy}${mm}${dd}`;
+                const prefixDate = `${prefix}${dateKey}`;
+                
+                // جلب جميع سجلات نفس اليوم
+                const snap = await db.collection(collection)
+                    .where('date', '==', dateStr)
+                    .get();
+                
+                // إيجاد أعلى رقم تسلسلي موجود لنفس اليوم
+                let maxSeq = 0;
+                snap.docs.forEach(doc => {
+                    const ref = doc.data().refNum || '';
+                    if (ref.startsWith(prefixDate)) {
+                        const seqStr = ref.substring(prefixDate.length);
+                        const seq = parseInt(seqStr) || 0;
+                        if (seq > maxSeq) maxSeq = seq;
+                    }
+                });
+                
+                const nextSeq = String(maxSeq + 1).padStart(3, '0');
+                return `${prefixDate}${nextSeq}`;
+            } catch (err) {
+                console.error('خطأ في توليد الرقم المرجعي:', err);
+                const d = new Date(dateStr + 'T00:00:00');
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${prefix}${yyyy}${mm}${dd}${String(Date.now()).slice(-3)}`;
+            }
+        }
 
         // Load all data from Firebase
         async function loadAllData() {
@@ -957,7 +1014,7 @@
             } catch (error) {
                 console.error('خطأ في تحميل البيانات:', error);
                 document.getElementById('expenseTableBody').innerHTML = 
-                    '<tr><td colspan="6" class="no-data">خطأ في تحميل البيانات</td></tr>';
+                    '<tr><td colspan="7" class="no-data">خطأ في تحميل البيانات</td></tr>';
             }
         }
 
@@ -995,7 +1052,7 @@
 
         // Apply all filters
         function applyFilters() {
-            const searchText = document.getElementById('searchText').value.toLowerCase();
+            const searchText = document.getElementById('searchText').value.toLowerCase().trim();
             const typeFilter = document.getElementById('expenseTypeFilter').value;
             const fromDate = document.getElementById('fromDate').value;
             const toDate = document.getElementById('toDate').value;
@@ -1009,7 +1066,6 @@
             
             driverPayments.forEach(payment => {
                 if (['سداد مخالفة', 'سداد رسوم إقامة', 'إجازة سنوية'].includes(payment.type)) {
-                    // استخدام getDriverInfo للبحث في السائقين النشطين والمؤرشفين
                     const driverInfo = getDriverInfo(payment.driverId);
                     const driverDisplay = driverInfo.employeeNumber ? 
                         `${driverInfo.name} (${driverInfo.employeeNumber})` : 
@@ -1023,14 +1079,29 @@
                         amount: payment.amount,
                         description: `${payment.type} - ${driverDisplay}${archivedBadge}`,
                         note: payment.notes || '-',
-                        source: 'driverPayment'
+                        source: 'driverPayment',
+                        refNum: payment.refNum || null,
+                        driverId: payment.driverId,
+                        driverName: driverInfo.name,
+                        employeeNumber: driverInfo.employeeNumber
                     });
                 }
             });
             
             // Apply filters
             let filtered = allExpenseItems.filter(expense => {
+                // بحث متعدد الحقول: الرقم المرجعي + الرقم الوظيفي + اسم السائق + الوصف + الملاحظة + النوع
+                let driverName = '';
+                let employeeNumber = '';
+                if (expense.source === 'driverPayment' && expense.driverId) {
+                    const driverInfo = getDriverInfo(expense.driverId);
+                    driverName = (driverInfo.name || '').toLowerCase();
+                    employeeNumber = (driverInfo.employeeNumber || '').toLowerCase();
+                }
                 const matchesSearch = !searchText || 
+                    (expense.refNum && expense.refNum.toLowerCase().includes(searchText)) ||
+                    (employeeNumber && employeeNumber.includes(searchText)) ||
+                    (driverName && driverName.includes(searchText)) ||
                     (expense.description && expense.description.toLowerCase().includes(searchText)) ||
                     (expense.note && expense.note.toLowerCase().includes(searchText)) ||
                     (expense.type && expense.type.toLowerCase().includes(searchText)) ||
@@ -1215,12 +1286,18 @@
                 return;
             }
             
+            const expenseDate = document.getElementById('expenseDate').value;
+            
+            // توليد الرقم المرجعي للمصروف الجديد
+            const refNum = await generateNextRefNum('expenses', 'EXP', expenseDate);
+            
             const expenseData = {
-                date: document.getElementById('expenseDate').value,
+                date: expenseDate,
                 type: type,
                 amount: parseFloat(document.getElementById('expenseAmount').value),
                 description: description,
                 note: document.getElementById('expenseNote').value,
+                refNum: refNum,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
@@ -1299,7 +1376,7 @@
             const tbody = document.getElementById('expenseTableBody');
             
             if (filteredExpenses.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="no-data">لا توجد مصروفات مسجلة</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="no-data">لا توجد مصروفات مسجلة</td></tr>';
                 updatePaginationInfo(0, 0, 0);
                 updatePaginationControls();
                 return;
@@ -1317,7 +1394,9 @@
                     deleteButton = getExpenseDeleteButton(expense.id, expense.date, expense.createdAt, 'deleteExpense', 'delete-btn');
                 }
                 
+                const expRefDisplay = expense.refNum ? `<span class="ref-num-badge">${expense.refNum}</span>` : '<span class="ref-num-empty">—</span>';
                 row.innerHTML = `
+                    <td>${expRefDisplay}</td>
                     <td>${formatDate(expense.date)}</td>
                     <td>${expense.type || 'غير محدد'}</td>
                     <td class="amount">${parseFloat(expense.amount || 0).toFixed(3)} د.ك</td>

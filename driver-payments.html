@@ -5,6 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>دفعات السائق - نظام إدارة التاكسي</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .ref-num-badge-pay {
+            display: inline-block;
+            background: rgba(118, 75, 162, 0.15);
+            color: #764ba2;
+            border: 1px solid rgba(118, 75, 162, 0.4);
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-family: monospace;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .ref-num-empty {
+            color: #aaa;
+            font-size: 14px;
+        }
+    </style>
     <script src="driver-payments-permissions-simple.js"></script>
     <style>
         * {
@@ -484,6 +503,7 @@
             <table class="payments-table desktop-table">
                 <thead>
                     <tr>
+                        <th>الرقم المرجعي</th>
                         <th>التاريخ</th>
                         <th>النوع</th>
                         <th>المبلغ</th>
@@ -493,7 +513,7 @@
                 </thead>
                 <tbody id="paymentsTableBody">
                     <tr>
-                        <td colspan="5" class="loading">جاري تحميل تاريخ الدفعات...</td>
+                        <td colspan="6" class="loading">جاري تحميل تاريخ الدفعات...</td>
                     </tr>
                 </tbody>
             </table>
@@ -583,6 +603,45 @@
             return debt;
         }
 
+        // دالة توليد الرقم المرجعي التسلسلي التالي
+        // الصيغة: PREFIX + YYYYMMDD + NNN (بدون فواصل)
+        async function generateNextRefNum(collection, prefix, dateStr) {
+            try {
+                const d = new Date(dateStr + 'T00:00:00');
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const dateKey = `${yyyy}${mm}${dd}`;
+                const prefixDate = `${prefix}${dateKey}`;
+                
+                // جلب جميع سجلات نفس اليوم
+                const snap = await db.collection(collection)
+                    .where('date', '==', dateStr)
+                    .get();
+                
+                // إيجاد أعلى رقم تسلسلي موجود لنفس اليوم
+                let maxSeq = 0;
+                snap.docs.forEach(doc => {
+                    const ref = doc.data().refNum || '';
+                    if (ref.startsWith(prefixDate)) {
+                        const seqStr = ref.substring(prefixDate.length);
+                        const seq = parseInt(seqStr) || 0;
+                        if (seq > maxSeq) maxSeq = seq;
+                    }
+                });
+                
+                const nextSeq = String(maxSeq + 1).padStart(3, '0');
+                return `${prefixDate}${nextSeq}`;
+            } catch (err) {
+                console.error('خطأ في توليد الرقم المرجعي:', err);
+                const d = new Date(dateStr + 'T00:00:00');
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${prefix}${yyyy}${mm}${dd}${String(Date.now()).slice(-3)}`;
+            }
+        }
+
         // Load driver data
         async function loadDriverData() {
             try {
@@ -632,7 +691,7 @@
             } catch (error) {
                 console.error('Error loading driver payments:', error);
                 const tbody = document.getElementById('paymentsTableBody');
-                tbody.innerHTML = '<tr><td colspan="5" class="no-data">خطأ في تحميل تاريخ الدفعات</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="no-data">خطأ في تحميل تاريخ الدفعات</td></tr>';
             }
         }
 
@@ -642,7 +701,7 @@
             const mobileContainer = document.getElementById('mobilePaymentsContainer');
             
             if (driverPayments.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="no-data">لا توجد دفعات مسجلة</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="no-data">لا توجد دفعات مسجلة</td></tr>';
                 mobileContainer.innerHTML = '<div class="no-data">لا توجد دفعات مسجلة</div>';
                 return;
             }
@@ -658,7 +717,9 @@
                 // إنشاء زر الحذف بناءً على الصلاحيات
                 const deleteButton = getPaymentDeleteButton(payment.id, payment.date, payment.createdAt, 'deletePayment', 'delete-btn');
                 
+                const payRefDisplay = payment.refNum ? `<span class="ref-num-badge-pay">${payment.refNum}</span>` : '<span class="ref-num-empty">—</span>';
                 row.innerHTML = `
+                    <td>${payRefDisplay}</td>
                     <td>${formatDate(payment.date)}</td>
                     <td>${payment.type || 'غير محدد'}</td>
                     <td class="amount ${amountClass}">${amountSign}${parseFloat(payment.amount || 0).toFixed(3)} د.ك</td>
@@ -689,6 +750,10 @@
                         </div>
                     </div>
                     <div class="card-body">
+                        <div class="card-row">
+                            <span class="card-label">🔢 الرقم المرجعي:</span>
+                            <span class="card-value">${payment.refNum ? `<span class="ref-num-badge-pay">${payment.refNum}</span>` : '—'}</span>
+                        </div>
                         <div class="card-row">
                             <span class="card-label">🏷️ النوع:</span>
                             <span class="card-value type-badge">${payment.type || 'غير محدد'}</span>
@@ -817,6 +882,9 @@
             const description = document.getElementById('description').value;
             
             try {
+                // توليد الرقم المرجعي للدفعة الجديدة
+                const refNum = await generateNextRefNum('driverPayments', 'PAY', paymentDate);
+                
                 const paymentData = {
                     driverId: currentDriverId,
                     driverName: currentDriver.name,
@@ -825,6 +893,7 @@
                     amount: amount,
                     date: paymentDate,
                     description: description,
+                    refNum: refNum,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
                 
