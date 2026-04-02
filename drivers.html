@@ -169,6 +169,90 @@
         </div>
     </div>
 
+    <!-- Modal عقد جديد -->
+    <div id="newContractModal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width: 550px;">
+            <div class="modal-header">
+                <h2>📋 إنشاء عقد جديد</h2>
+                <span class="close" onclick="closeNewContractModal()">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <div id="newContractDriverInfo" style="background: #f0f9ff; border-radius: 10px; padding: 14px; margin-bottom: 18px; border-right: 4px solid #3b82f6;">
+                    <strong id="newContractDriverName"></strong>
+                    <div style="margin-top: 6px; font-size: 13px; color: #64748b;">
+                        <span>العقد الحالي: </span><span id="currentContractInfo"></span>
+                    </div>
+                </div>
+
+                <div style="background: #fff7ed; border-radius: 10px; padding: 14px; margin-bottom: 18px; border-right: 4px solid #f59e0b;">
+                    <div style="font-weight: 600; margin-bottom: 8px; color: #92400e;">💰 الرصيد المرحَّل من العقد الحالي</div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="flex: 1;">
+                            <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">الرصيد المحسوب تلقائياً (أجرة يومية فقط)</div>
+                            <div id="calculatedBalance" style="font-size: 18px; font-weight: 700; color: #dc2626;">0.000 د.ك</div>
+                            <div id="balanceNote" style="font-size: 11px; color: #64748b; margin-top: 2px;"></div>
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">تعديل يدوي (اختياري)</label>
+                            <input type="number" id="manualCarryOver" step="0.001" placeholder="0.000" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;" oninput="updateCarryOverPreview()">
+                        </div>
+                    </div>
+                    <div id="finalCarryOver" style="margin-top: 8px; font-size: 13px; font-weight: 600; color: #dc2626;"></div>
+                    <div style="font-size: 11px; color: #64748b; margin-top: 4px;">ℹ️ الرصيد الموجب = دين على السائق | السالب = رصيد زائد للسائق</div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">تاريخ بداية العقد الجديد *</label>
+                        <input type="date" id="newContractStart" required style="width: 100%; padding: 9px; border: 1px solid #d1d5db; border-radius: 8px;">
+                    </div>
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">تاريخ نهاية العقد الجديد *</label>
+                        <input type="date" id="newContractEnd" required style="width: 100%; padding: 9px; border: 1px solid #d1d5db; border-radius: 8px;">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">نوع العقد الجديد *</label>
+                        <select id="newContractType" required style="width: 100%; padding: 9px; border: 1px solid #d1d5db; border-radius: 8px;" onchange="toggleNewContractRateField()">
+                            <option value="daily">يومي</option>
+                            <option value="monthly">شهري</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;" id="newRateLabel">الأجرة اليومية (د.ك) *</label>
+                        <input type="number" id="newContractRate" step="0.001" required placeholder="0.000" style="width: 100%; padding: 9px; border: 1px solid #d1d5db; border-radius: 8px;">
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 14px;">
+                    <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">ملاحظة (اختياري)</label>
+                    <input type="text" id="newContractNote" placeholder="سبب تغيير العقد..." style="width: 100%; padding: 9px; border: 1px solid #d1d5db; border-radius: 8px;">
+                </div>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button onclick="closeNewContractModal()" style="padding: 10px 20px; border: 1px solid #d1d5db; border-radius: 8px; background: white; cursor: pointer; font-size: 14px;">إلغاء</button>
+                    <button onclick="saveNewContract()" style="padding: 10px 24px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">✅ حفظ العقد الجديد</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal سجل العقود -->
+    <div id="contractHistoryModal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width: 750px;">
+            <div class="modal-header">
+                <h2>📜 سجل العقود والتعديلات</h2>
+                <span class="close" onclick="closeContractHistoryModal()">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <div id="contractHistoryDriverName" style="font-weight: 700; font-size: 16px; margin-bottom: 16px; color: #1e293b;"></div>
+                <div id="contractHistoryContent"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
@@ -195,6 +279,7 @@
         let currentUser = null;
         let editingDriverId = null;
         let allDrivers = [];
+        let allPayments = [];
 
         // Check authentication
         onAuthStateChanged(auth, async (user) => {
@@ -395,6 +480,13 @@
                 driversSnapshot.forEach(doc => {
                     allDrivers.push({ id: doc.id, ...doc.data() });
                 });
+
+                // تحميل المدفوعات لحساب الرصيد المرحَّل في نافذة عقد جديد
+                const paymentsSnapshot = await getDocs(collection(db, 'driverPayments'));
+                allPayments = [];
+                paymentsSnapshot.forEach(doc => {
+                    allPayments.push({ id: doc.id, ...doc.data() });
+                });
             } catch (error) {
                 console.error('Error loading drivers:', error);
             }
@@ -554,8 +646,10 @@
                             ` : ''}
                             
                             <div class="driver-actions">
-                                <button class="action-btn edit-btn" onclick="editDriver('${driver.id}')">تعديل</button>
-                                <button class="action-btn delete-btn" onclick="deleteDriver('${driver.id}')">حذف</button>
+                                <button class="action-btn edit-btn" onclick="editDriver('${driver.id}')">✏️ تعديل</button>
+                                <button class="action-btn" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="openNewContractModal('${driver.id}')">📋 عقد جديد</button>
+                                <button class="action-btn" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="showContractHistory('${driver.id}')">📜 سجل العقود</button>
+                                <button class="action-btn delete-btn" onclick="deleteDriver('${driver.id}')">🗑️ حذف</button>
                             </div>
                         </div>
                     </div>
@@ -822,80 +916,8 @@
 
             try {
                 if (editingDriverId) {
-                    // Check if contract type changed - if yes, archive the driver with all data
-                    const oldDriver = allDrivers.find(d => d.id === editingDriverId);
-                    if (oldDriver && oldDriver.contractType && oldDriver.contractType !== contractType) {
-                        console.log('📦 تغيير نوع العقد - بدء الأرشفة الشاملة...');
-                        
-                        // Get all related data
-                        const paymentsQuery = query(collection(db, 'driverPayments'), where('driverId', '==', editingDriverId));
-                        const paymentsSnapshot = await getDocs(paymentsQuery);
-                        const driverPayments = [];
-                        paymentsSnapshot.forEach(doc => {
-                            driverPayments.push({ id: doc.id, ...doc.data() });
-                        });
-                        
-                        const expensesQuery = query(collection(db, 'expenses'), where('driverId', '==', editingDriverId));
-                        const expensesSnapshot = await getDocs(expensesQuery);
-                        const driverExpenses = [];
-                        expensesSnapshot.forEach(doc => {
-                            driverExpenses.push({ id: doc.id, ...doc.data() });
-                        });
-                        
-                        const revenuesQuery = query(collection(db, 'revenues'), where('driverId', '==', editingDriverId));
-                        const revenuesSnapshot = await getDocs(revenuesQuery);
-                        const driverRevenues = [];
-                        revenuesSnapshot.forEach(doc => {
-                            driverRevenues.push({ id: doc.id, ...doc.data() });
-                        });
-                        
-                        // Archive the old driver with all data
-                        const archiveData = {
-                            ...oldDriver,
-                            isArchived: true,
-                            archivedAt: new Date(),
-                            archivedBy: currentUser.name || currentUser.email,
-                            archiveReason: `تغيير نوع العقد من ${oldDriver.contractType === 'daily' ? 'يومي' : 'شهري'} إلى ${contractType === 'daily' ? 'يومي' : 'شهري'}`,
-                            
-                            // Related data
-                            payments: driverPayments,
-                            expenses: driverExpenses,
-                            revenues: driverRevenues,
-                            
-                            // Statistics
-                            totalPayments: driverPayments.length,
-                            totalExpenses: driverExpenses.length,
-                            totalRevenues: driverRevenues.length,
-                            
-                            // Financial summary
-                            totalPaymentsAmount: driverPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0),
-                            totalExpensesAmount: driverExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0),
-                            totalRevenuesAmount: driverRevenues.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
-                        };
-                        
-                        // إصلاح: استخدام employeeNumber كمعرف للأرشيف مع رقم تسلسلي لمنع التكرار
-                        const empNum = oldDriver.employeeNumber || editingDriverId;
-                        
-                        // البحث عن عدد الأرشيفات السابقة لنفس الرقم الوظيفي
-                        const existingArchive = await getDocs(
-                            query(collection(db, 'archivedDrivers'), 
-                                  where('employeeNumber', '==', empNum))
-                        );
-                        
-                        // إنشاء معرف تسلسلي: DRV001_archive_1, DRV001_archive_2, ...
-                        const archiveIndex = existingArchive.size + 1;
-                        const archiveDocId = `${empNum}_archive_${archiveIndex}`;
-                        
-                        // إضافة الرقم الوظيفي صريحاً في بيانات الأرشيف
-                        archiveData.employeeNumber = empNum;
-                        archiveData.archiveIndex = archiveIndex;
-                        
-                        await setDoc(doc(db, 'archivedDrivers', archiveDocId), archiveData);
-                        console.log('✅ تم حفظ الأرشيف الشامل بالمعرف:', archiveDocId);
-                        
-                        // Update the current driver with new contract type
-                        driverData.previousContractType = oldDriver.contractType;
-                    }
+                    // #004: تم حذف كود الأرشفة الشاملة عند تغيير نوع العقد - السائق يبقى نشطاً دائماً
+                    // لتجديد العقد استخدم زر "عقد جديد" بدلاً من هذا الزر
                     
                     // #003: تحديث contractHistory عند تعديل أي شيء في العقد
                     const oldDriver2 = allDrivers.find(d => d.id === editingDriverId);
@@ -930,7 +952,7 @@
                     
                     // تحديث السائق الموجود
                     await updateDoc(doc(db, 'drivers', editingDriverId), driverData);
-                    alert('تم تحديث السائق بنجاح' + (oldDriver && oldDriver.contractType && oldDriver.contractType !== contractType ? ' وتم أرشفة البيانات القديمة' : ''));
+                    alert('تم تحديث بيانات السائق بنجاح');
                 } else {
                     // إضافة سائق جديد - استخدام employeeNumber كـ Document ID
                     const employeeNum = driverData.employeeNumber;
@@ -967,6 +989,279 @@
                 console.error('Error saving driver:', error);
                 alert('حدث خطأ في حفظ البيانات');
             }
+        });
+
+        // ===== دوال عقد جديد =====
+        let newContractDriverId = null;
+        let calculatedCarryOver = 0;
+
+        window.openNewContractModal = async (driverId) => {
+            const driver = allDrivers.find(d => d.id === driverId);
+            if (!driver) return;
+
+            newContractDriverId = driverId;
+
+            // عرض معلومات السائق
+            document.getElementById('newContractDriverName').textContent = driver.name;
+            const contractTypeLabel = driver.contractType === 'daily' ? 'يومي' : 'شهري';
+            const rateLabel = driver.contractType === 'daily' ? `${driver.dailyRent || 0} د.ك/يوم` : `${driver.monthlyPayment || 0} د.ك/شهر`;
+            const startDate = driver.contractStartDate ? 
+                (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)).toLocaleDateString('en-GB') : 'غير محدد';
+            document.getElementById('currentContractInfo').textContent = `${contractTypeLabel} - ${rateLabel} - بداية: ${startDate}`;
+
+            // حساب الرصيد المرحَّل من الأجرة اليومية فقط
+            const payments = allPayments ? allPayments.filter(p => p.driverId === driverId) : [];
+            const today = new Date();
+            const contractStart = driver.contractStartDate ?
+                (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) : today;
+
+            let expectedRent = 0;
+            let paidRent = 0;
+
+            if (driver.contractType === 'daily') {
+                const dailyWage = parseFloat(driver.dailyRent || driver.dailyWage || 0);
+                const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+                expectedRent = daysSinceStart * dailyWage;
+                const rentPayments = payments.filter(p => p.type === 'أجرة يومية');
+                paidRent = rentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+            } else {
+                const monthlyPayment = parseFloat(driver.monthlyPayment || 0);
+                const monthsSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24) / 30);
+                expectedRent = monthsSinceStart * monthlyPayment;
+                const rentPayments = payments.filter(p => p.type === 'أجرة شهرية' || p.type === 'أجرة يومية');
+                paidRent = rentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+            }
+
+            calculatedCarryOver = expectedRent - paidRent;
+
+            const balanceEl = document.getElementById('calculatedBalance');
+            const noteEl = document.getElementById('balanceNote');
+            balanceEl.textContent = Math.abs(calculatedCarryOver).toFixed(3) + ' د.ك';
+            if (calculatedCarryOver > 0) {
+                balanceEl.style.color = '#dc2626';
+                noteEl.textContent = 'دين على السائق سيُضاف للديون القديمة';
+            } else if (calculatedCarryOver < 0) {
+                balanceEl.style.color = '#059669';
+                noteEl.textContent = 'رصيد زائد للسائق سيُخصم من الديون القديمة';
+            } else {
+                balanceEl.style.color = '#64748b';
+                noteEl.textContent = 'لا يوجد رصيد مرحَّل';
+            }
+
+            document.getElementById('finalCarryOver').textContent = '';
+            document.getElementById('manualCarryOver').value = '';
+
+            // ضبط نوع العقد الجديد بنفس نوع الحالي افتراضياً
+            document.getElementById('newContractType').value = driver.contractType || 'daily';
+            toggleNewContractRateField();
+
+            // ضبط الأجرة بنفس القيمة الحالية افتراضياً
+            document.getElementById('newContractRate').value = driver.contractType === 'daily' ? (driver.dailyRent || '') : (driver.monthlyPayment || '');
+
+            document.getElementById('newContractStart').value = '';
+            document.getElementById('newContractEnd').value = '';
+            document.getElementById('newContractNote').value = '';
+
+            document.getElementById('newContractModal').style.display = 'block';
+        };
+
+        window.closeNewContractModal = () => {
+            document.getElementById('newContractModal').style.display = 'none';
+            newContractDriverId = null;
+        };
+
+        window.toggleNewContractRateField = () => {
+            const type = document.getElementById('newContractType').value;
+            document.getElementById('newRateLabel').textContent = type === 'daily' ? 'الأجرة اليومية (د.ك) *' : 'المبلغ الشهري (د.ك) *';
+        };
+
+        window.updateCarryOverPreview = () => {
+            const manual = document.getElementById('manualCarryOver').value;
+            const finalVal = manual !== '' ? parseFloat(manual) : calculatedCarryOver;
+            const finalEl = document.getElementById('finalCarryOver');
+            if (manual !== '') {
+                finalEl.textContent = `الرصيد المعدَّل: ${Math.abs(finalVal).toFixed(3)} د.ك ${finalVal > 0 ? '(دين)' : finalVal < 0 ? '(زائد)' : '(صفر)'}`;
+            } else {
+                finalEl.textContent = '';
+            }
+        };
+
+        window.saveNewContract = async () => {
+            if (!newContractDriverId) return;
+
+            const newStart = document.getElementById('newContractStart').value;
+            const newEnd = document.getElementById('newContractEnd').value;
+            const newType = document.getElementById('newContractType').value;
+            const newRate = parseFloat(document.getElementById('newContractRate').value);
+            const note = document.getElementById('newContractNote').value;
+            const manualVal = document.getElementById('manualCarryOver').value;
+
+            if (!newStart || !newEnd || !newType || isNaN(newRate)) {
+                alert('يرجى ملء جميع الحقول المطلوبة');
+                return;
+            }
+
+            const finalCarryOver = manualVal !== '' ? parseFloat(manualVal) : calculatedCarryOver;
+            const carryOverLabel = finalCarryOver > 0 ? 'دين' : 'رصيد زائد';
+
+            // تأكيد قبل الحفظ
+            const confirmMsg = `سيتم إنشاء عقد جديد للسائق:\n\n` +
+                `• بداية: ${newStart}\n` +
+                `• نهاية: ${newEnd}\n` +
+                `• الأجرة: ${newRate.toFixed(3)} د.ك (${newType === 'daily' ? 'يومي' : 'شهري'})\n` +
+                `• الرصيد المرحَّل: ${Math.abs(finalCarryOver).toFixed(3)} د.ك (${carryOverLabel})\n\n` +
+                `هل تريد المتابعة؟`;
+
+            if (!confirm(confirmMsg)) return;
+
+            try {
+                const driver = allDrivers.find(d => d.id === newContractDriverId);
+                if (!driver) return;
+
+                // حفظ العقد القديم في contractHistory
+                const existingHistory = driver.contractHistory ? [...driver.contractHistory] : [];
+
+                // إضافة سجل العقد القديم بنوع "عقد جديد"
+                existingHistory.push({
+                    type: 'عقد جديد',
+                    contractType: driver.contractType,
+                    dailyRent: driver.dailyRent || 0,
+                    monthlyPayment: driver.monthlyPayment || 0,
+                    startDate: driver.contractStartDate || null,
+                    endDate: new Date(newStart),
+                    carryOver: finalCarryOver,
+                    carryOverType: carryOverLabel,
+                    archivedAt: new Date(),
+                    archivedBy: currentUser.name || currentUser.email,
+                    note: note || 'تجديد عقد'
+                });
+
+                // حساب الديون القديمة الجديدة
+                // الديون القديمة = الديون الحالية + الرصيد المرحَّل (إذا كان ديناً)
+                const currentOldDebts = parseFloat(driver.oldDebts || 0);
+                let newOldDebts = currentOldDebts;
+
+                if (finalCarryOver > 0) {
+                    // دين على السائق - يُضاف للديون القديمة
+                    newOldDebts = currentOldDebts + finalCarryOver;
+                } else if (finalCarryOver < 0) {
+                    // رصيد زائد للسائق - يُخصم من الديون القديمة
+                    newOldDebts = Math.max(0, currentOldDebts + finalCarryOver);
+                }
+
+                // تحديث بيانات السائق بالعقد الجديد
+                const updateData = {
+                    contractType: newType,
+                    contractStartDate: new Date(newStart),
+                    contractEndDate: new Date(newEnd),
+                    oldDebts: newOldDebts,
+                    contractHistory: existingHistory,
+                    updatedAt: new Date(),
+                    updatedBy: currentUser.name || currentUser.email
+                };
+
+                if (newType === 'daily') {
+                    updateData.dailyRent = newRate;
+                    updateData.dailyWage = newRate;
+                } else {
+                    updateData.monthlyPayment = newRate;
+                }
+
+                await updateDoc(doc(db, 'drivers', newContractDriverId), updateData);
+
+                alert(`✅ تم إنشاء العقد الجديد بنجاح!\n` +
+                    `الرصيد المرحَّل (${Math.abs(finalCarryOver).toFixed(3)} د.ك) تم إضافته للديون القديمة`);
+
+                closeNewContractModal();
+                await loadDrivers();
+                displayDrivers(allDrivers);
+            } catch (error) {
+                console.error('خطأ في حفظ العقد الجديد:', error);
+                alert('حدث خطأ: ' + error.message);
+            }
+        };
+
+        // ===== دوال سجل العقود =====
+        window.showContractHistory = (driverId) => {
+            const driver = allDrivers.find(d => d.id === driverId);
+            if (!driver) return;
+
+            document.getElementById('contractHistoryDriverName').textContent = `سجل عقود السائق: ${driver.name} (${driver.employeeNumber})`;
+
+            const history = driver.contractHistory || [];
+
+            if (history.length === 0) {
+                document.getElementById('contractHistoryContent').innerHTML = `
+                    <div style="text-align: center; padding: 30px; color: #64748b;">
+                        <div style="font-size: 40px; margin-bottom: 10px;">📜</div>
+                        <div>لا يوجد سجل عقود سابقة</div>
+                    </div>`;
+            } else {
+                const rows = history.map((h, i) => {
+                    const typeLabel = h.type === 'عقد جديد' ? '📋 عقد جديد' :
+                                     h.type === 'تعديل' ? '✏️ تعديل' :
+                                     h.note === 'عقد أولي' ? '🆕 عقد أولي' : '✏️ تعديل';
+
+                    const contractTypeLabel = h.contractType === 'daily' ? 'يومي' : 'شهري';
+                    const rate = h.contractType === 'daily' ? `${h.dailyRent || 0} د.ك/يوم` : `${h.monthlyPayment || 0} د.ك/شهر`;
+
+                    const startDate = h.startDate ? 
+                        (h.startDate.toDate ? h.startDate.toDate() : new Date(h.startDate)).toLocaleDateString('en-GB') : '-';
+                    const endDate = h.endDate ? 
+                        (h.endDate.toDate ? h.endDate.toDate() : new Date(h.endDate)).toLocaleDateString('en-GB') : '-';
+                    const archivedAt = h.archivedAt || h.createdAt ? 
+                        ((h.archivedAt || h.createdAt).toDate ? (h.archivedAt || h.createdAt).toDate() : new Date(h.archivedAt || h.createdAt)).toLocaleDateString('en-GB') : '-';
+
+                    const carryOverCell = h.carryOver !== undefined ? 
+                        `<span style="color: ${h.carryOver > 0 ? '#dc2626' : h.carryOver < 0 ? '#059669' : '#64748b'}; font-weight: 600;">${Math.abs(h.carryOver || 0).toFixed(3)} د.ك ${h.carryOver > 0 ? '(دين)' : h.carryOver < 0 ? '(زائد)' : ''}</span>` : '-';
+
+                    return `<tr style="background: ${i % 2 === 0 ? '#f8fafc' : 'white'};">
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">${i + 1}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${typeLabel}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${contractTypeLabel}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${rate}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${startDate}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${endDate}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${carryOverCell}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${h.archivedBy || h.createdBy || '-'}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px;">${archivedAt}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${h.note || '-'}</td>
+                    </tr>`;
+                }).join('');
+
+                document.getElementById('contractHistoryContent').innerHTML = `
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                            <thead>
+                                <tr style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">
+                                    <th style="padding: 10px; text-align: center;">#</th>
+                                    <th style="padding: 10px;">النوع</th>
+                                    <th style="padding: 10px;">نوع العقد</th>
+                                    <th style="padding: 10px;">الأجرة</th>
+                                    <th style="padding: 10px;">بداية</th>
+                                    <th style="padding: 10px;">نهاية</th>
+                                    <th style="padding: 10px;">الرصيد المرحَّل</th>
+                                    <th style="padding: 10px;">بواسطة</th>
+                                    <th style="padding: 10px;">تاريخ التسجيل</th>
+                                    <th style="padding: 10px;">ملاحظة</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>`;
+            }
+
+            document.getElementById('contractHistoryModal').style.display = 'block';
+        };
+
+        window.closeContractHistoryModal = () => {
+            document.getElementById('contractHistoryModal').style.display = 'none';
+        };
+
+        // إغلاق النوافذ عند الضغط خارجها
+        window.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('newContractModal')) closeNewContractModal();
+            if (e.target === document.getElementById('contractHistoryModal')) closeContractHistoryModal();
         });
 
         // Logout function
