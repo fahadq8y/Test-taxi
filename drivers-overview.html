@@ -322,6 +322,19 @@
     </div>
 
     <!-- Modal for Adding Driver -->
+    <!-- Modal تفاصيل الأعمدة -->
+    <div id="detailModal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width: 650px;">
+            <div class="modal-header">
+                <h2 id="detailModalTitle">تفاصيل</h2>
+                <span class="close" onclick="closeDetailModal()">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 20px; max-height: 70vh; overflow-y: auto;">
+                <div id="detailModalContent"></div>
+            </div>
+        </div>
+    </div>
+
     <div id="driverModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -886,13 +899,13 @@
                         <td>${formatDate(stats.contractStart)}</td>
                         <td>${formatDate(stats.lastPayment)}</td>
                         <td>${formatDate(stats.paidUntilDate)}</td>
-                        <td>${stats.daysLate}</td>
-                        <td class="amount ${stats.lateAmount > 0 ? 'negative' : 'zero'}">${stats.lateAmount.toFixed(3)} د.ك</td>
+                        <td style="cursor:pointer; text-decoration: underline dotted;" onclick="showLateDetails('${driver.id}')" title="اضغط للتفاصيل">${stats.daysLate}</td>
+                        <td class="amount ${stats.lateAmount > 0 ? 'negative' : 'zero'}" style="cursor:pointer;" onclick="showLateDetails('${driver.id}')" title="اضغط للتفاصيل">${stats.lateAmount.toFixed(3)} د.ك</td>
                         <td class="amount ${stats.driverBalance > 0 ? 'positive' : 'zero'}">${stats.driverBalance.toFixed(3)} د.ك</td>
-                        <td class="amount ${stats.violations > 0 ? 'negative' : 'zero'}">${stats.violations.toFixed(3)} د.ك</td>
-                        <td class="amount ${stats.residencyFees > 0 ? 'negative' : 'zero'}">${stats.residencyFees.toFixed(3)} د.ك</td>
-                        <td class="amount ${stats.oldDebts > 0 ? 'negative' : 'zero'}">${stats.oldDebts.toFixed(3)} د.ك</td>
-                        <td class="amount ${stats.totalDebt > 0 ? 'negative' : 'positive'}">${stats.totalDebt.toFixed(3)} د.ك</td>
+                        <td class="amount ${stats.violations > 0 ? 'negative' : 'zero'}" style="cursor:pointer;" onclick="showViolationsDetails('${driver.id}')" title="اضغط للتفاصيل">${stats.violations.toFixed(3)} د.ك 🔍</td>
+                        <td class="amount ${stats.residencyFees > 0 ? 'negative' : 'zero'}" style="cursor:pointer;" onclick="showResidencyDetails('${driver.id}')" title="اضغط للتفاصيل">${stats.residencyFees.toFixed(3)} د.ك 🔍</td>
+                        <td class="amount ${stats.oldDebts > 0 ? 'negative' : 'zero'}" style="cursor:pointer;" onclick="showOldDebtsDetails('${driver.id}')" title="اضغط للتفاصيل">${stats.oldDebts.toFixed(3)} د.ك 🔍</td>
+                        <td class="amount ${stats.totalDebt > 0 ? 'negative' : 'positive'}" style="cursor:pointer;" onclick="showTotalDebtDetails('${driver.id}')" title="اضغط للتفاصيل">${stats.totalDebt.toFixed(3)} د.ك 🔍</td>
                     </tr>
                 `;
             }).join('');
@@ -1603,14 +1616,213 @@
             }
         }
 
-        // Search and filter functionality
+         // Search and filter functionality
         document.getElementById('searchInput').addEventListener('input', displayDrivers);
         document.getElementById('statusFilter').addEventListener('change', displayDrivers);
         document.getElementById('historySearchInput')?.addEventListener('input', filterPaymentHistory);
         document.getElementById('historyTypeFilter')?.addEventListener('change', filterPaymentHistory);
-
         // Load data on page load
         document.addEventListener('DOMContentLoaded', loadData);
+
+        // ===== دوال نوافذ التفاصيل =====
+        function openDetailModal(title, content) {
+            document.getElementById('detailModalTitle').textContent = title;
+            document.getElementById('detailModalContent').innerHTML = content;
+            document.getElementById('detailModal').style.display = 'block';
+        }
+
+        window.closeDetailModal = () => {
+            document.getElementById('detailModal').style.display = 'none';
+        };
+
+        window.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('detailModal')) closeDetailModal();
+        });
+
+        function formatDetailDate(d) {
+            if (!d) return '-';
+            const dt = d.toDate ? d.toDate() : new Date(d);
+            return dt.toLocaleDateString('en-GB');
+        }
+
+        function buildTransactionTable(rows) {
+            if (!rows || rows.length === 0) return '<div style="text-align:center;padding:20px;color:#64748b;">لا توجد عمليات</div>';
+            const rowsHtml = rows.map((r, i) => `
+                <tr style="background:${i%2===0?'#f8fafc':'white'}">
+                    <td style="padding:9px;border-bottom:1px solid #e2e8f0;">${formatDetailDate(r.date || r.createdAt)}</td>
+                    <td style="padding:9px;border-bottom:1px solid #e2e8f0;">${r.type || '-'}</td>
+                    <td style="padding:9px;border-bottom:1px solid #e2e8f0;text-align:center;">
+                        <span style="background:${r.sign>0?'#fee2e2':'#dcfce7'};color:${r.sign>0?'#dc2626':'#059669'};padding:3px 10px;border-radius:12px;font-weight:600;">
+                            ${r.sign>0?'+':'-'}${Math.abs(r.amount).toFixed(3)} د.ك
+                        </span>
+                    </td>
+                    <td style="padding:9px;border-bottom:1px solid #e2e8f0;font-size:12px;color:#64748b;">${r.note || r.description || '-'}</td>
+                </tr>`).join('');
+            return `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead><tr style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;">
+                    <th style="padding:9px;">التاريخ</th>
+                    <th style="padding:9px;">النوع</th>
+                    <th style="padding:9px;text-align:center;">المبلغ</th>
+                    <th style="padding:9px;">ملاحظة</th>
+                </tr></thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>`;
+        }
+
+        // تفاصيل التأخير
+        window.showLateDetails = (driverId) => {
+            const driver = drivers.find(d => d.id === driverId);
+            if (!driver) return;
+            const stats = calculateDriverStats(driver);
+            const contractStart = formatDetailDate(driver.contractStartDate || driver.createdAt);
+            const today = new Date().toLocaleDateString('en-GB');
+            const contractType = driver.contractType === 'daily' ? 'يومي' : 'شهري';
+            const rate = driver.contractType === 'daily' ? `${driver.dailyRent || 0} د.ك/يوم` : `${driver.monthlyPayment || 0} د.ك/شهر`;
+            const content = `
+                <div style="background:#f0f9ff;border-radius:10px;padding:14px;margin-bottom:14px;border-right:4px solid #3b82f6;">
+                    <div style="font-weight:700;margin-bottom:8px;">📅 تفاصيل التأخير</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">
+                        <div>نوع العقد: <strong>${contractType}</strong></div>
+                        <div>الأجرة: <strong>${rate}</strong></div>
+                        <div>بداية العقد: <strong>${contractStart}</strong></div>
+                        <div>اليوم: <strong>${today}</strong></div>
+                        <div>سداد حتى: <strong>${formatDetailDate(stats.paidUntilDate)}</strong></div>
+                        <div>أيام التأخير: <strong style="color:#dc2626;">${stats.daysLate} يوم</strong></div>
+                    </div>
+                </div>
+                <div style="background:#fef2f2;border-radius:10px;padding:14px;border-right:4px solid #dc2626;">
+                    <div style="font-size:14px;font-weight:600;color:#dc2626;">قيمة التأخير: ${stats.lateAmount.toFixed(3)} د.ك</div>
+                </div>`;
+            openDetailModal(`تفاصيل التأخير - ${driver.name}`, content);
+        };
+
+        // تفاصيل المخالفات
+        window.showViolationsDetails = (driverId) => {
+            const driver = drivers.find(d => d.id === driverId);
+            if (!driver) return;
+            const payments = driverPayments.filter(p => p.driverId === driverId &&
+                (p.type === 'سداد مخالفة' || p.type === 'تحصيل مخالفة'));
+            const rows = payments.map(p => ({
+                date: p.date || p.createdAt,
+                type: p.type,
+                amount: parseFloat(p.amount || 0),
+                sign: p.type === 'سداد مخالفة' ? 1 : -1,
+                note: p.note || p.description
+            }));
+            const total = rows.reduce((s, r) => s + (r.sign * r.amount), 0);
+            const content = buildTransactionTable(rows) +
+                `<div style="margin-top:12px;padding:10px;background:#f8fafc;border-radius:8px;font-weight:600;text-align:left;">
+                    إجمالي: <span style="color:${total>0?'#dc2626':'#059669'};">${total.toFixed(3)} د.ك</span>
+                </div>`;
+            openDetailModal(`تفاصيل المخالفات - ${driver.name}`, content);
+        };
+
+        // تفاصيل مصاريف الإقامة
+        window.showResidencyDetails = (driverId) => {
+            const driver = drivers.find(d => d.id === driverId);
+            if (!driver) return;
+            const payments = driverPayments.filter(p => p.driverId === driverId &&
+                (p.type === 'سداد رسوم إقامة' || p.type === 'تحصيل رسوم إقامة'));
+            const rows = payments.map(p => ({
+                date: p.date || p.createdAt,
+                type: p.type,
+                amount: parseFloat(p.amount || 0),
+                sign: p.type === 'سداد رسوم إقامة' ? 1 : -1,
+                note: p.note || p.description
+            }));
+            const total = rows.reduce((s, r) => s + (r.sign * r.amount), 0);
+            const content = buildTransactionTable(rows) +
+                `<div style="margin-top:12px;padding:10px;background:#f8fafc;border-radius:8px;font-weight:600;text-align:left;">
+                    إجمالي: <span style="color:${total>0?'#dc2626':'#059669'};">${total.toFixed(3)} د.ك</span>
+                </div>`;
+            openDetailModal(`تفاصيل مصاريف الإقامة - ${driver.name}`, content);
+        };
+
+        // تفاصيل الديون القديمة
+        window.showOldDebtsDetails = (driverId) => {
+            const driver = drivers.find(d => d.id === driverId);
+            if (!driver) return;
+
+            const oldDebtsInitial = parseFloat(driver.oldDebts || 0);
+            const oldDebtPayments = driverPayments.filter(p => p.driverId === driverId && p.type === 'دين قديم');
+            const oldDebtsPaid = oldDebtPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+
+            // الرصيد المرحَّل من عقود سابقة
+            const contractHistory = driver.contractHistory || [];
+            const carryOvers = contractHistory.filter(h => h.type === 'عقد جديد' && h.carryOver && h.carryOver !== 0);
+
+            let content = `<div style="margin-bottom:14px;">`;
+
+            // قسم 1: الدين اليدوي
+            content += `<div style="background:#fff7ed;border-radius:10px;padding:12px;margin-bottom:12px;border-right:4px solid #f59e0b;">
+                <div style="font-weight:600;margin-bottom:6px;">📝 دين يدوي مسجّل</div>
+                <div style="font-size:14px;">المبلغ المسجّل: <strong>${oldDebtsInitial.toFixed(3)} د.ك</strong></div>
+            </div>`;
+
+            // قسم 2: الرصيد المرحَّل من عقود سابقة
+            if (carryOvers.length > 0) {
+                content += `<div style="background:#f0f9ff;border-radius:10px;padding:12px;margin-bottom:12px;border-right:4px solid #3b82f6;">
+                    <div style="font-weight:600;margin-bottom:8px;">📊 رصيد مرحَّل من عقود سابقة</div>`;
+                carryOvers.forEach(h => {
+                    const startDate = h.startDate ? formatDetailDate(h.startDate) : '-';
+                    const endDate = h.endDate ? formatDetailDate(h.endDate) : '-';
+                    content += `<div style="font-size:13px;margin-bottom:4px;">
+                        مرحَّل من عقد (${startDate} – ${endDate}): 
+                        <strong style="color:${h.carryOver>0?'#dc2626':'#059669'};">${Math.abs(h.carryOver).toFixed(3)} د.ك ${h.carryOver>0?'(دين)':'(زائد)'}</strong>
+                    </div>`;
+                });
+                content += `</div>`;
+            }
+
+            // قسم 3: المدفوعات مقابل الديون القديمة
+            if (oldDebtPayments.length > 0) {
+                content += `<div style="background:#f0fdf4;border-radius:10px;padding:12px;margin-bottom:12px;border-right:4px solid #10b981;">
+                    <div style="font-weight:600;margin-bottom:8px;">✅ مدفوعات مقابل الديون القديمة</div>`;
+                oldDebtPayments.forEach(p => {
+                    content += `<div style="font-size:13px;margin-bottom:4px;">${formatDetailDate(p.date||p.createdAt)}: <strong style="color:#059669;">-${parseFloat(p.amount||0).toFixed(3)} د.ك</strong></div>`;
+                });
+                content += `</div>`;
+            }
+
+            const stats = calculateDriverStats(driver);
+            content += `<div style="background:#fef2f2;border-radius:10px;padding:12px;border-right:4px solid #dc2626;">
+                <div style="font-weight:700;color:#dc2626;">صافي الديون القديمة: ${stats.oldDebts.toFixed(3)} د.ك</div>
+            </div></div>`;
+
+            openDetailModal(`تفاصيل الديون القديمة - ${driver.name}`, content);
+        };
+
+        // تفاصيل إجمالي الدين
+        window.showTotalDebtDetails = (driverId) => {
+            const driver = drivers.find(d => d.id === driverId);
+            if (!driver) return;
+            const stats = calculateDriverStats(driver);
+            const content = `
+                <div style="display:grid;gap:10px;">
+                    <div style="background:#f8fafc;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+                        <span>⏰ قيمة التأخير (${stats.daysLate} يوم)</span>
+                        <strong style="color:${stats.lateAmount>0?'#dc2626':'#64748b'}">${stats.lateAmount.toFixed(3)} د.ك</strong>
+                    </div>
+                    <div style="background:#f8fafc;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+                        <span>🚨 المخالفات</span>
+                        <strong style="color:${stats.violations>0?'#dc2626':'#059669'}">${stats.violations.toFixed(3)} د.ك</strong>
+                    </div>
+                    <div style="background:#f8fafc;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+                        <span>🏠 مصاريف الإقامة</span>
+                        <strong style="color:${stats.residencyFees>0?'#dc2626':'#059669'}">${stats.residencyFees.toFixed(3)} د.ك</strong>
+                    </div>
+                    <div style="background:#f8fafc;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+                        <span>💼 ديون قديمة</span>
+                        <strong style="color:${stats.oldDebts>0?'#dc2626':'#64748b'}">${stats.oldDebts.toFixed(3)} د.ك</strong>
+                    </div>
+                    <div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border-radius:10px;padding:14px;display:flex;justify-content:space-between;align-items:center;border:2px solid #dc2626;">
+                        <span style="font-weight:700;font-size:15px;">📊 إجمالي الدين</span>
+                        <strong style="color:#dc2626;font-size:18px;">${stats.totalDebt.toFixed(3)} د.ك</strong>
+                    </div>
+                </div>`;
+            openDetailModal(`ملخص الدين - ${driver.name}`, content);
+        };
+
     </script>
 </body>
 </html>
