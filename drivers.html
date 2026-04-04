@@ -925,7 +925,8 @@
                     
                     // تحديث تاريخ انتهاء آخر عقد في التاريخ
                     if (existingHistory.length > 0) {
-                        existingHistory[existingHistory.length - 1].endDate = new Date();
+                        // #008: استخدام تاريخ نهاية العقد المدخول بدلاً من تاريخ اليوم
+                        existingHistory[existingHistory.length - 1].endDate = driverData.contractEndDate || new Date();
                         existingHistory[existingHistory.length - 1].endedBy = currentUser.name || currentUser.email;
                     }
                     
