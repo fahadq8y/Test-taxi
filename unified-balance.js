@@ -78,6 +78,7 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
             switch(payment.type) {
                 // دفعات تزيد الرصيد البنكي (تحصيل من السائق)
                 case 'أجرة يومية':
+                case 'أجرة شهرية':
                 case 'تحصيل مخالفة':
                 case 'تحصيل رسوم إقامة':
                 case 'دين قديم':
@@ -429,8 +430,8 @@ function calculateDriverBalance(driverId, driverPayments, dailyRate) {
     payments.forEach(payment => {
         const amount = parseFloat(payment.amount) || 0;
         
-        // فقط دفعات الأجرة اليومية تؤثر على الرصيد
-        if (payment.type === 'أجرة يومية') {
+        // فقط دفعات الأجرة تؤثر على الرصيد
+        if (payment.type === 'أجرة يومية' || payment.type === 'أجرة شهرية') {
             currentBalance += amount;
             
             // تطبيق قاعدة الحد الأقصى (لا يتعدى الأجرة اليومية)
@@ -449,7 +450,7 @@ function calculatePaidDaysFromBalance(driverId, driverPayments, dailyRate) {
     if (!driverPayments || !dailyRate) return 0;
     
     const payments = driverPayments.filter(payment => 
-        payment.driverId === driverId && payment.type === 'أجرة يومية'
+        payment.driverId === driverId && (payment.type === 'أجرة يومية' || payment.type === 'أجرة شهرية')
     );
     
     const totalPaid = payments.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);

@@ -2138,7 +2138,7 @@
                 const driverName = p.driverName || ('سائق ' + (p.driverId || ''));
                 const desc = (p.type || '') + (driverName ? ' - ' + driverName : '');
                 if (accountType === 'bank') {
-                    if (['أجرة يومية','تحصيل مخالفة','تحصيل رسوم إقامة','دين قديم'].includes(p.type)) {
+                    if (['أجرة يومية','أجرة شهرية','تحصيل مخالفة','تحصيل رسوم إقامة','دين قديم'].includes(p.type)) {
                         allMovements.push({ date: p.date, type: 'تحصيل سائق', desc, amount: +amount, source: 'driverPayment', id: p.id, refNum: p.refNum });
                     } else if (['سداد مخالفة','سداد رسوم إقامة'].includes(p.type)) {
                         allMovements.push({ date: p.date, type: 'سداد للسائق', desc, amount: -amount, source: 'driverPayment', id: p.id, refNum: p.refNum });

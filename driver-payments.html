@@ -463,6 +463,7 @@
                             <select id="paymentType" required onchange="showPaymentNote()">
                                 <option value="">اختر نوع الدفعة</option>
                                 <option value="أجرة يومية">أجرة يومية</option>
+                                <option value="أجرة شهرية">أجرة شهرية</option>
                                 <option value="سداد مخالفة">سداد مخالفة</option>
                                 <option value="تحصيل مخالفة">تحصيل مخالفة</option>
                                 <option value="سداد رسوم إقامة">سداد رسوم إقامة</option>
@@ -577,6 +578,7 @@
                 
                 switch(payment.type) {
                     case 'أجرة يومية':
+                    case 'أجرة شهرية':
                         debt -= amount; // ينقص الدين
                         break;
                     case 'سداد مخالفة':
@@ -710,7 +712,7 @@
             tbody.innerHTML = '';
             driverPayments.forEach(payment => {
                 const row = document.createElement('tr');
-                const isPositive = ['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم'].includes(payment.type);
+                const isPositive = ['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم'].includes(payment.type);
                 const amountClass = isPositive ? 'positive' : 'negative';
                 const amountSign = isPositive ? '+' : '-';
                 
@@ -732,7 +734,7 @@
             // Mobile cards view
             mobileContainer.innerHTML = '';
             driverPayments.forEach(payment => {
-                const isPositive = ['أجرة يومية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم'].includes(payment.type);
+                const isPositive = ['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم'].includes(payment.type);
                 const amountClass = isPositive ? 'positive' : 'negative';
                 const amountSign = isPositive ? '+' : '';
                 const borderClass = isPositive ? 'positive-border' : 'negative-border';
@@ -796,6 +798,7 @@
             
             const notes = {
                 'أجرة يومية': 'يزيد الرصيد البنكي، ينقص دين السائق',
+                'أجرة شهرية': 'يزيد الرصيد البنكي، ينقص دين السائق (عقد شهري)',
                 'سداد مخالفة': 'ينقص الرصيد البنكي، يزيد دين السائق، يزيد ديون السائقين',
                 'تحصيل مخالفة': 'يزيد الرصيد البنكي، ينقص دين السائق، ينقص ديون السائقين',
                 'سداد رسوم إقامة': 'ينقص الرصيد البنكي، يزيد دين السائق، يزيد ديون السائقين',
