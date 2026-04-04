@@ -3222,22 +3222,32 @@ table {
 }
 
 .driver-actions {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem;
 }
 
 .driver-actions .action-btn {
-    flex: 1;
-    padding: 0.75rem;
+    padding: 0.6rem 0.4rem;
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 600;
     transition: all 0.2s;
-    min-height: auto;
-    max-width: none;
-    width: auto;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* زر الحذف يأخذ العرض الكامل في الصف الأخير */
+.driver-actions .delete-btn {
+    grid-column: 1 / -1;
 }
 
 .edit-btn {
@@ -3283,6 +3293,41 @@ table {
 
     .drivers-grid {
         grid-template-columns: 1fr;
+    }
+
+    /* الهاتف: عمودان لكل صف */
+    .driver-actions {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* زر سجل العقود يأخذ عرض كامل على الهاتف */
+    .driver-actions .action-btn[onclick*="showContractHistory"] {
+        grid-column: 1 / -1;
+    }
+
+    .driver-actions .action-btn {
+        font-size: 0.75rem;
+        padding: 0.55rem 0.3rem;
+        min-height: 40px;
+    }
+}
+
+/* التابلت: 3 أعمدة */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .driver-actions {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* الكمبيوتر: 4 أزرار في الصف الأول */
+@media (min-width: 1025px) {
+    .driver-actions {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    /* زر سجل العقود يأخذ عرض كامل في الصف الثاني */
+    .driver-actions .action-btn[onclick*="showContractHistory"] {
+        grid-column: auto;
     }
 }
 
