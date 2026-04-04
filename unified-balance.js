@@ -157,6 +157,9 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
     // #005: إذا كان لدى السائق contractHistory، نحسب كل فترة بعقدها
     if (driver.contractHistory && driver.contractHistory.length > 0) {
         driver.contractHistory.forEach((contract, index) => {
+            // #009: تجاهل سجلات التعديل - تُحسب فقط سجلات "عقد جديد" و"عقد أولي"
+            if (contract.note === 'تعديل عقد' || contract.type === 'تعديل') return;
+            
             const periodStart = contract.startDate ?
                 (contract.startDate.toDate ? contract.startDate.toDate() : new Date(contract.startDate)) : null;
             

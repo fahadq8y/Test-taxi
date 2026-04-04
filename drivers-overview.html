@@ -753,13 +753,22 @@
                 const monthsSinceStart = Math.floor(daysSinceStart / 30);
                 expectedTotal = monthsSinceStart * monthlyPayment;
                 
-                // Get only rent-related payments for monthly contracts (exclude violations, fees, etc.)
-                const payments = driverPayments.filter(payment => 
-                    payment.driverId === driver.id &&
-                    !['سداد مخالفة', 'تحصيل مخالفة', 'سداد رسوم إقامة', 
+                // #009: تصفية المدفوعات حسب تاريخ بداية العقد الشهري
+                // عند وجود contractHistory، نحسب فقط المدفوعات بعد تاريخ بداية العقد الشهري الحالي
+                const hasContractHistory = driver.contractHistory && driver.contractHistory.length > 0;
+                const payments = driverPayments.filter(payment => {
+                    if (payment.driverId !== driver.id) return false;
+                    if (['سداد مخالفة', 'تحصيل مخالفة', 'سداد رسوم إقامة', 
                       'تحصيل رسوم إقامة', 'سداد رسوم رواتب', 'تحصيل رسوم رواتب',
-                      'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'سداد رواتب'].includes(payment.type)
-                );
+                      'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'سداد رواتب'].includes(payment.type)) return false;
+                    // #009: إذا كان هناك contractHistory، نصفي المدفوعات لتشمل فقط ما بعد تاريخ بداية العقد الشهري
+                    if (hasContractHistory) {
+                        const paymentDate = payment.date ? 
+                            (payment.date.toDate ? payment.date.toDate() : new Date(payment.date)) : null;
+                        if (paymentDate && paymentDate < contractStart) return false;
+                    }
+                    return true;
+                });
                 totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
                 
                 // Calculate COMPLETE months only (not partial balance)

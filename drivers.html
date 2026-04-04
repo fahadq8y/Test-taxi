@@ -253,6 +253,40 @@
         </div>
     </div>
 
+    <!-- Modal تعديل الديون القديمة -->
+    <div id="editOldDebtsModal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h2>💼 تعديل الديون القديمة</h2>
+                <span class="close" onclick="closeEditOldDebtsModal()">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <div id="editOldDebtsDriverInfo" style="background: #f0f9ff; border-radius: 10px; padding: 14px; margin-bottom: 18px; border-right: 4px solid #3b82f6;">
+                    <strong id="editOldDebtsDriverName"></strong>
+                    <div style="margin-top: 6px; font-size: 13px; color: #64748b;">
+                        الديون القديمة الحالية: <strong id="currentOldDebtsDisplay" style="color: #dc2626;">0.000 د.ك</strong>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">القيمة الجديدة للديون القديمة (د.ك) *</label>
+                    <input type="number" id="newOldDebtsValue" step="0.001" min="0" placeholder="0.000" style="width: 100%; padding: 9px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">سبب التعديل (إلزامي) *</label>
+                    <textarea id="oldDebtsEditNote" rows="3" placeholder="اكتب سبب تعديل الديون القديمة..." style="width: 100%; padding: 9px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box; resize: vertical;"></textarea>
+                    <div style="font-size: 11px; color: #dc2626; margin-top: 4px;">⚠️ يجب كتابة سبب واضح لتعديل الديون القديمة</div>
+                </div>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button onclick="closeEditOldDebtsModal()" style="padding: 10px 20px; border: 1px solid #d1d5db; border-radius: 8px; background: white; cursor: pointer; font-size: 14px;">إلغاء</button>
+                    <button onclick="saveOldDebtsEdit()" style="padding: 10px 24px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">💾 حفظ التعديل</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
@@ -649,6 +683,7 @@
                                 <button class="action-btn edit-btn" onclick="editDriver('${driver.id}')">✏️ تعديل</button>
                                 <button class="action-btn" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="openNewContractModal('${driver.id}')">📋 عقد جديد</button>
                                 <button class="action-btn" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="showContractHistory('${driver.id}')">📜 سجل العقود</button>
+                                <button class="action-btn" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="openEditOldDebtsModal('${driver.id}')">💼 تعديل ديون قديمة</button>
                                 <button class="action-btn delete-btn" onclick="deleteDriver('${driver.id}')">🗑️ حذف</button>
                             </div>
                         </div>
@@ -1199,9 +1234,30 @@
                     </div>`;
             } else {
                 const rows = history.map((h, i) => {
+                    // #009: تحديد نوع السجل
+                    const isOldDebtsEdit = h.note === 'تعديل ديون قديمة';
                     const typeLabel = h.type === 'عقد جديد' ? '📋 عقد جديد' :
-                                     h.type === 'تعديل' ? '✏️ تعديل' :
+                                     isOldDebtsEdit ? '💼 تعديل ديون قديمة' :
+                                     h.type === 'تعديل' ? '✏️ تعديل عقد' :
                                      h.note === 'عقد أولي' ? '🆕 عقد أولي' : '✏️ تعديل';
+
+                    // بيانات خاصة بتعديل الديون القديمة
+                    if (isOldDebtsEdit) {
+                        const editedAt = h.editedAt ? new Date(h.editedAt).toLocaleDateString('en-GB') : '-';
+                        const oldVal = parseFloat(h.oldValue || 0).toFixed(3);
+                        const newVal = parseFloat(h.newValue || 0).toFixed(3);
+                        return `<tr style="background: ${i % 2 === 0 ? '#fff7ed' : '#fffbeb'}; border-right: 3px solid #f59e0b;">
+                            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">${i + 1}</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${typeLabel}</td>
+                            <td colspan="5" style="padding: 10px; border-bottom: 1px solid #e2e8f0; color: #92400e;">
+                                من: <strong>${oldVal} د.ك</strong> → إلى: <strong>${newVal} د.ك</strong>
+                                <div style="font-size: 11px; color: #64748b; margin-top: 3px;">السبب: ${h.reason || '-'}</div>
+                            </td>
+                            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${h.editedBy || '-'}</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px;">${editedAt}</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${h.note || '-'}</td>
+                        </tr>`;
+                    }
 
                     const contractTypeLabel = h.contractType === 'daily' ? 'يومي' : 'شهري';
                     const rate = h.contractType === 'daily' ? `${h.dailyRent || 0} د.ك/يوم` : `${h.monthlyPayment || 0} د.ك/شهر`;
@@ -1259,10 +1315,84 @@
             document.getElementById('contractHistoryModal').style.display = 'none';
         };
 
+        // ===== دوال تعديل الديون القديمة =====
+        let editOldDebtsDriverId = null;
+
+        window.openEditOldDebtsModal = (driverId) => {
+            const driver = allDrivers.find(d => d.id === driverId);
+            if (!driver) return;
+            editOldDebtsDriverId = driverId;
+
+            document.getElementById('editOldDebtsDriverName').textContent = `${driver.name} (${driver.employeeNumber})`;
+            const currentDebts = parseFloat(driver.oldDebts || 0);
+            document.getElementById('currentOldDebtsDisplay').textContent = `${currentDebts.toFixed(3)} د.ك`;
+            document.getElementById('newOldDebtsValue').value = currentDebts.toFixed(3);
+            document.getElementById('oldDebtsEditNote').value = '';
+            document.getElementById('editOldDebtsModal').style.display = 'block';
+        };
+
+        window.closeEditOldDebtsModal = () => {
+            document.getElementById('editOldDebtsModal').style.display = 'none';
+            editOldDebtsDriverId = null;
+        };
+
+        window.saveOldDebtsEdit = async () => {
+            if (!editOldDebtsDriverId) return;
+
+            const newValue = parseFloat(document.getElementById('newOldDebtsValue').value);
+            const note = document.getElementById('oldDebtsEditNote').value.trim();
+
+            if (isNaN(newValue) || newValue < 0) {
+                alert('⚠️ يرجى إدخال قيمة صحيحة للديون القديمة');
+                return;
+            }
+
+            if (!note || note.length < 5) {
+                alert('⚠️ يجب كتابة سبب واضح لتعديل الديون القديمة (على الأقل 5 حروف)');
+                document.getElementById('oldDebtsEditNote').focus();
+                return;
+            }
+
+            const driver = allDrivers.find(d => d.id === editOldDebtsDriverId);
+            if (!driver) return;
+
+            const oldValue = parseFloat(driver.oldDebts || 0);
+
+            try {
+                // إضافة سجل التعديل إلى contractHistory
+                const historyEntry = {
+                    type: 'تعديل',
+                    note: 'تعديل ديون قديمة',
+                    oldValue: oldValue,
+                    newValue: newValue,
+                    reason: note,
+                    editedBy: currentUser ? (currentUser.name || currentUser.email || 'مستخدم') : 'مستخدم',
+                    editedAt: new Date().toISOString()
+                };
+
+                const currentHistory = driver.contractHistory || [];
+                const updatedHistory = [...currentHistory, historyEntry];
+
+                await updateDoc(doc(db, 'drivers', editOldDebtsDriverId), {
+                    oldDebts: newValue,
+                    contractHistory: updatedHistory
+                });
+
+                alert(`✅ تم تعديل الديون القديمة بنجاح!\nمن: ${oldValue.toFixed(3)} د.ك → إلى: ${newValue.toFixed(3)} د.ك`);
+                closeEditOldDebtsModal();
+                await loadDrivers();
+                displayDrivers(allDrivers);
+            } catch (error) {
+                console.error('خطأ في تعديل الديون القديمة:', error);
+                alert('حدث خطأ: ' + error.message);
+            }
+        };
+
         // إغلاق النوافذ عند الضغط خارجها
         window.addEventListener('click', (e) => {
             if (e.target === document.getElementById('newContractModal')) closeNewContractModal();
             if (e.target === document.getElementById('contractHistoryModal')) closeContractHistoryModal();
+            if (e.target === document.getElementById('editOldDebtsModal')) closeEditOldDebtsModal();
         });
 
         // Logout function
