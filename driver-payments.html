@@ -655,6 +655,9 @@
                     document.getElementById('driverName').textContent = currentDriver.name || 'غير محدد';
                     document.getElementById('driverIdNumber').textContent = currentDriver.idNumber || currentDriver.civilId || 'غير محدد';
                     document.getElementById('driverPhone').textContent = currentDriver.phone || currentDriver.phoneNumber || 'غير محدد';
+                    
+                    // تصفية خيارات الدفعة حسب نوع العقد
+                    filterPaymentTypes(currentDriver.contractType);
                 } else {
                     console.error('Driver not found');
                     alert('السائق غير موجود');
@@ -788,6 +791,22 @@
                 document.getElementById('lastPayment').textContent = formatDate(lastPayment.date);
             } else {
                 document.getElementById('lastPayment').textContent = 'لا توجد دفعات';
+            }
+        }
+
+        // تصفية خيارات الدفعة حسب نوع عقد السائق
+        function filterPaymentTypes(contractType) {
+            const dailyOption = document.querySelector('#paymentType option[value="أجرة يومية"]');
+            const monthlyOption = document.querySelector('#paymentType option[value="أجرة شهرية"]');
+            
+            if (contractType === 'monthly') {
+                // عقد شهري: أخفي أجرة يومية
+                if (dailyOption) dailyOption.style.display = 'none';
+                if (monthlyOption) monthlyOption.style.display = '';
+            } else {
+                // عقد يومي: أخفي أجرة شهرية
+                if (dailyOption) dailyOption.style.display = '';
+                if (monthlyOption) monthlyOption.style.display = 'none';
             }
         }
 
