@@ -188,7 +188,7 @@
                     <div style="font-weight: 600; margin-bottom: 8px; color: #92400e;">💰 الرصيد المرحَّل من العقد الحالي</div>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <div style="flex: 1;">
-                            <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">الرصيد المحسوب تلقائياً (أجرة يومية فقط)</div>
+                            <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">الرصيد المحسوب تلقائياً (من العقد الحالي)</div>
                             <div id="calculatedBalance" style="font-size: 18px; font-weight: 700; color: #dc2626;">0.000 د.ك</div>
                             <div id="balanceNote" style="font-size: 11px; color: #64748b; margin-top: 2px;"></div>
                         </div>
@@ -1045,7 +1045,7 @@
                 (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)).toLocaleDateString('en-GB') : 'غير محدد';
             document.getElementById('currentContractInfo').textContent = `${contractTypeLabel} - ${rateLabel} - بداية: ${startDate}`;
 
-            // حساب الرصيد المرحَّل من الأجرة اليومية فقط
+            // حساب الرصيد المرحَّل (#013: دعم التحويل من شهري إلى يومي)
             const payments = allPayments ? allPayments.filter(p => p.driverId === driverId) : [];
             const today = new Date();
             const contractStart = driver.contractStartDate ?
@@ -1055,16 +1055,24 @@
             let paidRent = 0;
 
             if (driver.contractType === 'daily') {
+                // عقد يومي: احسب الأيام × الأجرة اليومية
                 const dailyWage = parseFloat(driver.dailyRent || driver.dailyWage || 0);
                 const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
                 expectedRent = daysSinceStart * dailyWage;
                 const rentPayments = payments.filter(p => p.type === 'أجرة يومية');
                 paidRent = rentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
             } else {
+                // عقد شهري: احسب الأشهر الكاملة المنقضية × المبلغ الشهري
                 const monthlyPayment = parseFloat(driver.monthlyPayment || 0);
-                const monthsSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24) / 30);
-                expectedRent = monthsSinceStart * monthlyPayment;
-                const rentPayments = payments.filter(p => p.type === 'أجرة شهرية' || p.type === 'أجرة يومية');
+                const diffDays = (today - contractStart) / (1000 * 60 * 60 * 24);
+                const fullMonths = Math.floor(diffDays / 30.44);
+                expectedRent = fullMonths * monthlyPayment;
+                // الدفعات الشهرية فقط بعد تاريخ بداية العقد الشهري
+                const rentPayments = payments.filter(p => {
+                    if (p.type !== 'أجرة شهرية' && p.type !== 'أجرة يومية') return false;
+                    const pDate = p.date ? (p.date.toDate ? p.date.toDate() : new Date(p.date)) : null;
+                    return pDate && pDate >= contractStart;
+                });
                 paidRent = rentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
             }
 
