@@ -2096,21 +2096,33 @@
                 
                 await db.collection(collection).doc(currentEditingId).update(updateData);
                 
-                for (const change of changes) {
-                    await db.collection('editHistory').add({
-                        recordId: currentEditingId,
-                        recordType: currentEditingType === 'driverPayment' ? 'driverPayment' : 'expense',
-                        action: 'edit',
-                        field: change.field,
-                        fieldLabel: change.fieldLabel,
-                        oldValue: change.oldValue,
-                        newValue: change.newValue,
-                        editedBy: userName,
-                        editedByRole: userRole,
-                        editReason: editReason,
-                        timestamp: timestamp
-                    });
-                }
+                // جلب البيانات الكاملة للسجل بعد التعديل
+                const updatedDoc = await db.collection(collection).doc(currentEditingId).get();
+                const snapshotAfter = { id: currentEditingId, ...updatedDoc.data() };
+                const snapshotBefore = { id: currentEditingId, ...originalEditData, ...Object.fromEntries(changes.map(c => [c.field, c.oldValue])) };
+
+                // حفظ سجل تعديل واحد شامل لجميع التغييرات
+                await db.collection('editHistory').add({
+                    recordId: currentEditingId,
+                    recordType: currentEditingType === 'driverPayment' ? 'driverPayment' : 'expense',
+                    action: 'edit',
+                    refNum: snapshotAfter.refNum || snapshotBefore.refNum || null,
+                    description: snapshotAfter.description || snapshotAfter.type || null,
+                    driverName: snapshotAfter.driverName || null,
+                    changes: changes,
+                    changesCount: changes.length,
+                    // للتوافق مع الكود القديم - أول تغيير
+                    field: changes[0].field,
+                    fieldLabel: changes[0].fieldLabel,
+                    oldValue: changes[0].oldValue,
+                    newValue: changes[0].newValue,
+                    fullSnapshotBefore: snapshotBefore,
+                    fullSnapshotAfter: snapshotAfter,
+                    editedBy: userName,
+                    editedByRole: userRole,
+                    editReason: editReason,
+                    timestamp: timestamp
+                });
                 alert('✅ تم حفظ التعديل بنجاح!');
                 closeEditModal();
                 loadAllData();
