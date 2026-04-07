@@ -6,404 +6,482 @@
     <title>تاريخ التعديلات - نظام إدارة التاكسي</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .history-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+        /* ======== تعريفات خاصة بصفحة التعديلات ======== */
 
-        .history-header {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .history-header h1 {
-            font-size: 28px;
-            color: #fff;
-            margin-bottom: 8px;
-        }
-
-        .history-header p {
-            color: rgba(255,255,255,0.7);
-        }
-
-        .nav-buttons {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-top: 15px;
-        }
-
-        .nav-btn {
-            background: rgba(255,255,255,0.2);
-            color: #fff;
-            padding: 8px 16px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-
-        .nav-btn:hover {
-            background: rgba(255,255,255,0.35);
-        }
-
-        .filter-section {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .filter-section h3 {
-            color: #fff;
-            margin-bottom: 15px;
-            font-size: 18px;
-        }
-
-        .filter-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            color: rgba(255,255,255,0.8);
-            font-size: 13px;
-            margin-bottom: 6px;
-        }
-
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 10px;
-            background: rgba(255,255,255,0.15);
-            border: 1px solid rgba(255,255,255,0.3);
-            border-radius: 8px;
-            color: #fff;
-            font-size: 14px;
-        }
-
-        .form-group input::placeholder {
-            color: rgba(255,255,255,0.5);
-        }
-
-        .form-group select option {
-            background: #333;
-            color: #fff;
-        }
-
-        .filter-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-
-        .btn-secondary {
-            background: rgba(255,255,255,0.2);
-            color: #fff;
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255,255,255,0.35);
-        }
-
-        .stats-bar {
-            background: rgba(255,255,255,0.1);
-            border-radius: 10px;
-            padding: 15px 20px;
-            margin-bottom: 20px;
-            display: flex;
-            gap: 30px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        .stat-item {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .stat-label {
-            color: rgba(255,255,255,0.7);
-            font-size: 13px;
-        }
-
-        .stat-value {
-            color: #fff;
-            font-weight: 700;
-            font-size: 15px;
-        }
-
-        .history-list {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .history-card {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            padding: 20px;
-            border: 1px solid rgba(255,255,255,0.2);
-            transition: all 0.3s;
-        }
-
-        .history-card:hover {
-            background: rgba(255,255,255,0.15);
-            transform: translateY(-2px);
-        }
-
-        .history-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .history-card-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
+        /* شارات نوع العملية */
         .action-badge {
             display: inline-block;
-            padding: 5px 12px;
-            border-radius: 6px;
-            font-size: 13px;
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-size: 12px;
             font-weight: 700;
+            white-space: nowrap;
         }
-
         .action-edit {
-            background: rgba(255,193,7,0.25);
-            color: #ffc107;
-            border: 1px solid rgba(255,193,7,0.5);
+            background: rgba(255, 193, 7, 0.18);
+            color: #e6a800;
+            border: 1px solid rgba(255, 193, 7, 0.5);
         }
-
         .action-delete {
-            background: rgba(244,67,54,0.25);
+            background: rgba(244, 67, 54, 0.15);
             color: #f44336;
-            border: 1px solid rgba(244,67,54,0.5);
+            border: 1px solid rgba(244, 67, 54, 0.4);
         }
 
+        /* شارات نوع السجل */
         .record-type-badge {
             display: inline-block;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .type-revenue {
-            background: rgba(0,212,255,0.2);
-            color: #00d4ff;
-            border: 1px solid rgba(0,212,255,0.4);
-        }
-
-        .type-expense {
-            background: rgba(255,107,107,0.2);
-            color: #ff6b6b;
-            border: 1px solid rgba(255,107,107,0.4);
-        }
-
-        .type-driver {
-            background: rgba(76,175,80,0.2);
-            color: #4caf50;
-            border: 1px solid rgba(76,175,80,0.4);
-        }
-
-        .history-timestamp {
-            color: rgba(255,255,255,0.6);
-            font-size: 12px;
-        }
-
-        .history-card-body {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 12px;
-        }
-
-        .history-field {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .history-field-label {
-            color: rgba(255,255,255,0.5);
+            padding: 3px 9px;
+            border-radius: 5px;
             font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .history-field-value {
-            color: #fff;
             font-weight: 600;
-            font-size: 14px;
+            white-space: nowrap;
+        }
+        .type-revenue {
+            background: rgba(0, 212, 255, 0.12);
+            color: #0099cc;
+            border: 1px solid rgba(0, 212, 255, 0.35);
+        }
+        .type-expense {
+            background: rgba(255, 107, 107, 0.12);
+            color: #cc3333;
+            border: 1px solid rgba(255, 107, 107, 0.35);
+        }
+        .type-driver {
+            background: rgba(76, 175, 80, 0.12);
+            color: #2e7d32;
+            border: 1px solid rgba(76, 175, 80, 0.35);
         }
 
-        .old-value {
-            color: #f44336;
-            text-decoration: line-through;
-            font-size: 13px;
-        }
-
-        .new-value {
-            color: #4caf50;
-            font-size: 13px;
-        }
-
-        .value-arrow {
-            color: rgba(255,255,255,0.4);
-            margin: 0 4px;
-        }
-
-        .history-card-footer {
-            margin-top: 15px;
-            padding-top: 12px;
-            border-top: 1px solid rgba(255,255,255,0.15);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .edit-reason {
-            color: rgba(255,255,255,0.7);
-            font-size: 13px;
-            font-style: italic;
-        }
-
-        .btn-undo {
-            background: linear-gradient(135deg, #ff9800, #f57c00);
-            color: #fff;
-            padding: 7px 16px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-
-        .btn-undo:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(255,152,0,0.4);
-        }
-
-        .no-data {
-            text-align: center;
-            color: rgba(255,255,255,0.5);
-            padding: 60px 20px;
-            font-size: 18px;
-        }
-
-        .loading {
-            text-align: center;
-            color: rgba(255,255,255,0.7);
-            padding: 40px;
-            font-size: 16px;
-        }
-
-        .pagination-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 20px;
-            padding: 15px 20px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 10px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .pagination-info {
-            color: rgba(255,255,255,0.7);
-            font-size: 13px;
-        }
-
-        .pagination-buttons {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .pagination-buttons button {
-            background: rgba(255,255,255,0.2);
-            color: #fff;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.3s;
-        }
-
-        .pagination-buttons button:hover:not(:disabled) {
-            background: rgba(255,255,255,0.35);
-        }
-
-        .pagination-buttons button:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
+        /* شارة الرقم المرجعي */
         .ref-num-badge {
             display: inline-block;
-            background: rgba(0,212,255,0.15);
-            color: #00d4ff;
-            border: 1px solid rgba(0,212,255,0.4);
+            background: rgba(0, 212, 255, 0.12);
+            color: #0077aa;
+            border: 1px solid rgba(0, 212, 255, 0.35);
             border-radius: 5px;
             padding: 2px 8px;
             font-family: monospace;
             font-size: 11px;
             font-weight: 600;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
         }
 
-        @media (max-width: 600px) {
-            .history-card-body {
-                grid-template-columns: 1fr 1fr;
+        /* صف التعديل (أصفر) وصف الحذف (أحمر) */
+        .row-edit td {
+            background-color: rgba(255, 193, 7, 0.06) !important;
+        }
+        .row-delete td {
+            background-color: rgba(244, 67, 54, 0.06) !important;
+        }
+        .row-edit:hover td {
+            background-color: rgba(255, 193, 7, 0.14) !important;
+        }
+        .row-delete:hover td {
+            background-color: rgba(244, 67, 54, 0.12) !important;
+        }
+
+        /* خلية التغيير (قبل/بعد) */
+        .old-value {
+            color: #c62828;
+            text-decoration: line-through;
+            font-size: 12px;
+        }
+        .new-value {
+            color: #2e7d32;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .value-arrow {
+            color: #999;
+            margin: 0 3px;
+            font-size: 11px;
+        }
+
+        /* خلية السبب */
+        .reason-cell {
+            color: #555;
+            font-size: 12px;
+            font-style: italic;
+            max-width: 160px;
+            word-break: break-word;
+        }
+
+        /* خلية الوصف/السائق */
+        .desc-cell {
+            color: #444;
+            font-size: 12px;
+            max-width: 140px;
+            word-break: break-word;
+        }
+
+        /* زر عرض التفاصيل */
+        .btn-details {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.25s;
+            white-space: nowrap;
+        }
+        .btn-details:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
+        }
+
+        /* ======== نافذة التفاصيل ======== */
+        .details-modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(4px);
+            overflow-y: auto;
+        }
+        .details-modal-content {
+            background: #fff;
+            margin: 30px auto;
+            padding: 30px;
+            border-radius: 16px;
+            width: 92%;
+            max-width: 700px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+        }
+        .details-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .details-modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+        }
+        .details-close {
+            font-size: 28px;
+            cursor: pointer;
+            color: #888;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        .details-close:hover { color: #333; }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .details-field {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+        .details-field-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 4px;
+        }
+        .details-field-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            word-break: break-word;
+        }
+        .details-snapshot {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 10px;
+        }
+        .details-snapshot h4 {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 8px;
+        }
+        .snapshot-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+        }
+        .snapshot-row:last-child { border-bottom: none; }
+        .snapshot-key { color: #777; font-size: 12px; }
+        .snapshot-val { color: #333; font-weight: 600; }
+
+        /* ======== إحصائيات ======== */
+        .filter-stats {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+        .filter-stats .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 4px;
+        }
+        .filter-stats .stat-label {
+            color: #666;
+            font-size: 12px;
+        }
+        .filter-stats .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+        }
+        .filter-stats .stat-value.edits { color: #e6a800; }
+        .filter-stats .stat-value.deletes { color: #f44336; }
+        .filter-stats .stat-value.filtered { color: #667eea; }
+
+        /* ======== تصميم الجدول الرئيسي ======== */
+        .history-table-wrap {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .history-table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .history-table-header h3 {
+            color: #333;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #555;
+        }
+        .pagination-controls select {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+            min-width: 900px;
+        }
+        .history-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+        .history-table th {
+            color: white;
+            padding: 14px 12px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        }
+        .history-table td {
+            padding: 13px 11px;
+            text-align: center;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 13px;
+            color: #333;
+            vertical-align: middle;
+        }
+        .history-table tbody tr {
+            background-color: white;
+            transition: all 0.2s;
+        }
+        .history-table tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .history-table tbody tr:hover td {
+            background-color: #e8f0fe !important;
+            cursor: pointer;
+        }
+        .history-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* بطاقات الهاتف */
+        .mobile-history-cards {
+            display: none;
+        }
+        .mobile-history-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            border-right: 4px solid #667eea;
+        }
+        .mobile-history-card.card-delete {
+            border-right-color: #f44336;
+        }
+        .mobile-history-card.card-edit {
+            border-right-color: #ffc107;
+        }
+        .mhc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .mhc-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .mhc-time {
+            font-size: 11px;
+            color: #888;
+        }
+        .mhc-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .mhc-field label {
+            font-size: 10px;
+            color: #999;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .mhc-field span {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+        }
+        .mhc-footer {
+            border-top: 1px solid #f0f0f0;
+            padding-top: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .mhc-reason {
+            font-size: 12px;
+            color: #666;
+            font-style: italic;
+        }
+
+        /* ======== التذييل (Pagination) ======== */
+        .pagination-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding: 10px 0;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .pagination-info {
+            color: #666;
+            font-size: 13px;
+        }
+        .pagination-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .pagination-buttons button {
+            background: #667eea;
+            color: #fff;
+            border: none;
+            padding: 7px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .pagination-buttons button:hover:not(:disabled) {
+            background: #5568d3;
+        }
+        .pagination-buttons button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .pagination-buttons span {
+            color: #555;
+            font-size: 13px;
+        }
+
+        /* ======== Responsive ======== */
+        @media (max-width: 768px) {
+            .history-table-wrap {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .history-table {
+                display: none;
+            }
+            .mobile-history-cards {
+                display: block;
+            }
+            .filter-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
+            .pagination-footer {
+                flex-direction: column;
+                align-items: center;
             }
         }
     </style>
 </head>
 <body>
-    <div class="history-container">
+    <div class="container">
         <!-- Header -->
-        <div class="history-header">
+        <div class="header">
             <h1>📜 تاريخ التعديلات</h1>
-            <p>سجل كامل لجميع التعديلات والحذوفات على الإيرادات والمصروفات</p>
+            <p>سجل كامل لجميع التعديلات والحذوفات على الإيرادات والمصروفات ودفعات السائقين</p>
             <div class="nav-buttons">
                 <a href="admin-dashboard.html" class="nav-btn">🏠 لوحة التحكم</a>
                 <a href="revenues.html" class="nav-btn">💰 الإيرادات</a>
                 <a href="expenses.html" class="nav-btn">💸 المصروفات</a>
+                <a href="driver-payments.html" class="nav-btn">👤 دفعات السائقين</a>
             </div>
         </div>
 
@@ -413,7 +491,7 @@
             <div class="filter-grid">
                 <div class="form-group">
                     <label>🔍 بحث نصي</label>
-                    <input type="text" id="searchText" placeholder="ابحث باسم المستخدم أو سبب التعديل..." oninput="applyFilters()">
+                    <input type="text" id="searchText" placeholder="ابحث باسم المستخدم أو السبب أو الوصف..." oninput="applyFilters()">
                 </div>
                 <div class="form-group">
                     <label>⚡ نوع العملية</label>
@@ -433,7 +511,7 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>👤 من قام بالتعديل</label>
+                    <label>👤 من قام بالعملية</label>
                     <select id="roleFilter" onchange="applyFilters()">
                         <option value="">الجميع</option>
                         <option value="admin">المدير</option>
@@ -455,40 +533,92 @@
         </div>
 
         <!-- Stats Bar -->
-        <div class="stats-bar">
+        <div class="filter-stats">
             <div class="stat-item">
-                <span class="stat-label">إجمالي التعديلات:</span>
+                <span class="stat-label">إجمالي السجلات</span>
                 <span class="stat-value" id="totalCount">0</span>
             </div>
             <div class="stat-item">
-                <span class="stat-label">تعديلات:</span>
-                <span class="stat-value" id="editCount">0</span>
+                <span class="stat-label">تعديلات</span>
+                <span class="stat-value edits" id="editCount">0</span>
             </div>
             <div class="stat-item">
-                <span class="stat-label">حذوفات:</span>
-                <span class="stat-value" id="deleteCount">0</span>
+                <span class="stat-label">حذوفات</span>
+                <span class="stat-value deletes" id="deleteCount">0</span>
             </div>
             <div class="stat-item">
-                <span class="stat-label">النتائج الحالية:</span>
-                <span class="stat-value" id="filteredCount">0</span>
+                <span class="stat-label">النتائج الحالية</span>
+                <span class="stat-value filtered" id="filteredCount">0</span>
             </div>
         </div>
 
-        <!-- History List -->
-        <div id="historyList" class="history-list">
-            <div class="loading">⏳ جاري تحميل سجل التعديلات...</div>
-        </div>
+        <!-- History Table -->
+        <div class="history-table-wrap">
+            <div class="history-table-header">
+                <h3>📋 سجل التعديلات</h3>
+                <div class="pagination-controls">
+                    <label>عرض:</label>
+                    <select id="itemsPerPageSelect" onchange="changeItemsPerPage()">
+                        <option value="20" selected>20 سجل</option>
+                        <option value="50">50 سجل</option>
+                        <option value="100">100 سجل</option>
+                    </select>
+                </div>
+            </div>
 
-        <!-- Pagination -->
-        <div class="pagination-footer">
-            <div class="pagination-info">
-                <span id="paginationInfo">عرض 0 من 0</span>
+            <!-- Desktop Table -->
+            <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>العملية</th>
+                            <th>نوع السجل</th>
+                            <th>الرقم المرجعي</th>
+                            <th>الوصف / السائق</th>
+                            <th>الحقل المعدَّل</th>
+                            <th>التغيير (قبل ← بعد)</th>
+                            <th>من قام بالعملية</th>
+                            <th>التاريخ والوقت</th>
+                            <th>السبب</th>
+                            <th>التفاصيل</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <tr>
+                            <td colspan="11" class="no-data">⏳ جاري تحميل سجل التعديلات...</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-            <div class="pagination-buttons">
-                <button id="prevPage" onclick="changePage(-1)" disabled>السابق</button>
-                <span id="pageNumbers" style="color:#fff;font-size:13px;"></span>
-                <button id="nextPage" onclick="changePage(1)" disabled>التالي</button>
+
+            <!-- Mobile Cards -->
+            <div class="mobile-history-cards" id="mobileHistoryCards">
+                <div class="no-data">⏳ جاري تحميل سجل التعديلات...</div>
             </div>
+
+            <!-- Pagination -->
+            <div class="pagination-footer">
+                <div class="pagination-info">
+                    <span id="paginationInfo">عرض 0 من 0</span>
+                </div>
+                <div class="pagination-buttons">
+                    <button id="prevPage" onclick="changePage(-1)" disabled>السابق</button>
+                    <span id="pageNumbers">صفحة 1 من 1</span>
+                    <button id="nextPage" onclick="changePage(1)" disabled>التالي</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Details Modal -->
+    <div id="detailsModal" class="details-modal" onclick="closeDetailsModal(event)">
+        <div class="details-modal-content" onclick="event.stopPropagation()">
+            <div class="details-modal-header">
+                <span class="details-modal-title" id="detailsModalTitle">📋 تفاصيل السجل</span>
+                <span class="details-close" onclick="closeDetailsModal()">&times;</span>
+            </div>
+            <div id="detailsModalBody"></div>
         </div>
     </div>
 
@@ -511,10 +641,10 @@
         let allHistory = [];
         let filteredHistory = [];
         let currentPage = 1;
-        const itemsPerPage = 20;
+        let itemsPerPage = 20;
         let totalPages = 1;
 
-        // تحميل البيانات
+        // ======== تحميل البيانات ========
         async function loadHistory() {
             try {
                 const snapshot = await db.collection('editHistory')
@@ -530,11 +660,14 @@
                 applyFilters();
             } catch (error) {
                 console.error('خطأ في تحميل الهيستوري:', error);
-                document.getElementById('historyList').innerHTML = '<div class="no-data">❌ حدث خطأ في تحميل البيانات</div>';
+                document.getElementById('historyTableBody').innerHTML =
+                    '<tr><td colspan="11" class="no-data">❌ حدث خطأ في تحميل البيانات</td></tr>';
+                document.getElementById('mobileHistoryCards').innerHTML =
+                    '<div class="no-data">❌ حدث خطأ في تحميل البيانات</div>';
             }
         }
 
-        // تحديث الإحصائيات
+        // ======== تحديث الإحصائيات ========
         function updateStats() {
             const editCount = allHistory.filter(h => h.action === 'edit').length;
             const deleteCount = allHistory.filter(h => h.action === 'delete').length;
@@ -543,7 +676,7 @@
             document.getElementById('deleteCount').textContent = deleteCount;
         }
 
-        // تطبيق الفلاتر
+        // ======== تطبيق الفلاتر ========
         function applyFilters() {
             const searchText = document.getElementById('searchText').value.toLowerCase().trim();
             const actionFilter = document.getElementById('actionFilter').value;
@@ -553,35 +686,29 @@
             const toDate = document.getElementById('toDate').value;
 
             filteredHistory = allHistory.filter(item => {
-                // فلتر البحث النصي
                 if (searchText) {
                     const searchFields = [
                         item.editedBy || '',
                         item.editReason || '',
+                        item.deleteReason || '',
                         item.fieldLabel || item.field || '',
                         String(item.oldValue || ''),
-                        String(item.newValue || '')
+                        String(item.newValue || ''),
+                        item.description || '',
+                        item.driverName || '',
+                        item.refNum || ''
                     ].join(' ').toLowerCase();
                     if (!searchFields.includes(searchText)) return false;
                 }
-
-                // فلتر نوع العملية
                 if (actionFilter && item.action !== actionFilter) return false;
-
-                // فلتر نوع السجل
                 if (recordTypeFilter && item.recordType !== recordTypeFilter) return false;
-
-                // فلتر الدور
                 if (roleFilter && item.editedByRole !== roleFilter) return false;
-
-                // فلتر التاريخ
                 if (fromDate || toDate) {
                     const itemDate = item.timestamp?.toDate ? item.timestamp.toDate() : new Date(item.timestamp);
                     const itemDateStr = itemDate.toISOString().split('T')[0];
                     if (fromDate && itemDateStr < fromDate) return false;
                     if (toDate && itemDateStr > toDate) return false;
                 }
-
                 return true;
             });
 
@@ -590,12 +717,14 @@
             displayHistory();
         }
 
-        // عرض الهيستوري
+        // ======== عرض الجدول ========
         function displayHistory() {
-            const container = document.getElementById('historyList');
+            const tbody = document.getElementById('historyTableBody');
+            const mobileContainer = document.getElementById('mobileHistoryCards');
 
             if (filteredHistory.length === 0) {
-                container.innerHTML = '<div class="no-data">📭 لا توجد تعديلات تطابق البحث</div>';
+                tbody.innerHTML = '<tr><td colspan="11" class="no-data">📭 لا توجد سجلات تطابق البحث</td></tr>';
+                mobileContainer.innerHTML = '<div class="no-data">📭 لا توجد سجلات تطابق البحث</div>';
                 updatePagination(0, 0, 0);
                 return;
             }
@@ -605,137 +734,149 @@
             const endIndex = Math.min(startIndex + itemsPerPage, filteredHistory.length);
             const pageData = filteredHistory.slice(startIndex, endIndex);
 
-            container.innerHTML = '';
+            tbody.innerHTML = '';
+            mobileContainer.innerHTML = '';
 
-            pageData.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'history-card';
+            pageData.forEach((item, idx) => {
+                const rowNum = startIndex + idx + 1;
 
-                // تحديد نوع العملية
+                // نوع العملية
                 const actionBadge = item.action === 'delete'
                     ? '<span class="action-badge action-delete">🗑️ حذف</span>'
                     : '<span class="action-badge action-edit">✏️ تعديل</span>';
 
-                // تحديد نوع السجل
-                let recordTypeBadge = '';
-                let recordTypeLabel = '';
-                if (item.recordType === 'revenue') {
-                    recordTypeBadge = 'type-revenue';
-                    recordTypeLabel = '💰 إيراد مباشر';
-                } else if (item.recordType === 'expense') {
-                    recordTypeBadge = 'type-expense';
-                    recordTypeLabel = '💸 مصروف مباشر';
-                } else if (item.recordType === 'driverPayment') {
-                    recordTypeBadge = 'type-driver';
-                    recordTypeLabel = '👤 دفعة سائق';
+                // نوع السجل
+                let rtClass = '', rtLabel = '';
+                if (item.recordType === 'revenue') { rtClass = 'type-revenue'; rtLabel = '💰 إيراد'; }
+                else if (item.recordType === 'expense') { rtClass = 'type-expense'; rtLabel = '💸 مصروف'; }
+                else if (item.recordType === 'driverPayment') { rtClass = 'type-driver'; rtLabel = '👤 دفعة سائق'; }
+                const typeBadge = `<span class="record-type-badge ${rtClass}">${rtLabel}</span>`;
+
+                // الرقم المرجعي
+                const refNum = item.refNum
+                    ? `<span class="ref-num-badge">${item.refNum}</span>`
+                    : '<span style="color:#ccc;">—</span>';
+
+                // الوصف / السائق
+                const desc = item.driverName
+                    ? `<span style="color:#2e7d32;font-weight:600;">👤 ${item.driverName}</span>`
+                    : (item.description
+                        ? `<span class="desc-cell">${item.description}</span>`
+                        : '<span style="color:#ccc;">—</span>');
+
+                // الحقل والتغيير
+                let fieldCell = '—';
+                let changeCell = '—';
+                if (item.action === 'edit') {
+                    fieldCell = item.fieldLabel || item.field || '—';
+                    const oldVal = item.oldValue !== undefined && item.oldValue !== null ? item.oldValue : '—';
+                    const newVal = item.newValue !== undefined && item.newValue !== null ? item.newValue : '—';
+                    changeCell = `<span class="old-value">${oldVal}</span><span class="value-arrow">←</span><span class="new-value">${newVal}</span>`;
+                } else if (item.action === 'delete') {
+                    fieldCell = '<span style="color:#f44336;">حذف كامل</span>';
+                    const snap = item.fullSnapshot || {};
+                    if (snap.amount !== undefined) {
+                        changeCell = `<span class="old-value">${parseFloat(snap.amount||0).toFixed(3)} د.ك</span>`;
+                    } else {
+                        changeCell = '<span style="color:#f44336;">تم الحذف</span>';
+                    }
                 }
+
+                // المستخدم
+                const roleText = item.editedByRole === 'admin' ? '(مدير)' : '(محاسب)';
+                const userCell = `${item.editedBy || 'غير محدد'} <span style="color:#999;font-size:11px;">${roleText}</span>`;
 
                 // الوقت
                 const timestamp = item.timestamp?.toDate
                     ? item.timestamp.toDate().toLocaleString('ar-EG')
                     : 'غير محدد';
 
-                // الدور
-                const roleText = item.editedByRole === 'admin' ? 'مدير' : 'محاسب';
-
-                // رقم المرجع
-                const refNumHtml = item.refNum
-                    ? `<span class="ref-num-badge">${item.refNum}</span>`
-                    : '';
-
-                // اسم السائق أو الوصف
-                const descHtml = item.driverName
-                    ? `<span style="color:#4caf50;font-size:13px;">👤 ${item.driverName}</span>`
-                    : (item.description ? `<span style="color:rgba(255,255,255,0.7);font-size:13px;">${item.description}</span>` : '');
-
-                // قسم التغيير أو الحذف
-                let changeSection = '';
-                if (item.action === 'delete') {
-                    const snap = item.fullSnapshot || {};
-                    const snapFields = [];
-                    if (snap.amount !== undefined) snapFields.push(`<div class="history-field"><div class="history-field-label">المبلغ</div><div class="history-field-value" style="color:#f44336;">${parseFloat(snap.amount||0).toFixed(3)} د.ك</div></div>`);
-                    if (snap.date) snapFields.push(`<div class="history-field"><div class="history-field-label">التاريخ</div><div class="history-field-value">${snap.date}</div></div>`);
-                    if (snap.type) snapFields.push(`<div class="history-field"><div class="history-field-label">النوع</div><div class="history-field-value">${snap.type}</div></div>`);
-                    if (snap.description || snap.notes) snapFields.push(`<div class="history-field"><div class="history-field-label">الوصف</div><div class="history-field-value">${snap.description || snap.notes}</div></div>`);
-                    if (snap.bankAccount) snapFields.push(`<div class="history-field"><div class="history-field-label">الحساب</div><div class="history-field-value">${snap.bankAccount}</div></div>`);
-                    changeSection = snapFields.length > 0 ? snapFields.join('') : `<div class="history-field"><div class="history-field-label">بيانات السجل</div><div class="history-field-value" style="color:#f44336;">تم حذف السجل</div></div>`;
-                } else {
-                    changeSection = `
-                        <div class="history-field">
-                            <div class="history-field-label">الحقل المعدَّل</div>
-                            <div class="history-field-value">${item.fieldLabel || item.field || '-'}</div>
-                        </div>
-                        <div class="history-field">
-                            <div class="history-field-label">التغيير</div>
-                            <div class="history-field-value">
-                                <span class="old-value">${item.oldValue ?? '-'}</span>
-                                <span class="value-arrow">←</span>
-                                <span class="new-value">${item.newValue ?? '-'}</span>
-                            </div>
-                        </div>
-                    `;
-                    if (item.fullSnapshotBefore) {
-                        const sb = item.fullSnapshotBefore;
-                        if (sb.amount !== undefined) changeSection += `<div class="history-field"><div class="history-field-label">المبلغ قبل</div><div class="history-field-value" style="color:#f44336;">${parseFloat(sb.amount||0).toFixed(3)} د.ك</div></div>`;
-                        if (sb.date) changeSection += `<div class="history-field"><div class="history-field-label">التاريخ قبل</div><div class="history-field-value">${sb.date}</div></div>`;
-                    }
-                }
-
-                // زر التراجع (للتعديلات فقط)
-                const undoBtn = item.action !== 'delete'
-                    ? `<button class="btn-undo" onclick="undoEdit('${item.id}', '${item.recordId}', '${item.recordType}')">↩️ تراجع</button>`
-                    : '';
-
-                // سبب الحذف أو التعديل
-                const reasonText = item.action === 'delete'
+                // السبب
+                const reason = item.action === 'delete'
                     ? (item.deleteReason || item.editReason || '')
                     : (item.editReason || '');
+                const reasonCell = reason
+                    ? `<span class="reason-cell">💬 ${reason}</span>`
+                    : '<span style="color:#ccc;">—</span>';
 
-                card.innerHTML = `
-                    <div class="history-card-header">
-                        <div class="history-card-left">
+                // صنف الصف
+                const rowClass = item.action === 'delete' ? 'row-delete' : 'row-edit';
+
+                // ======== صف الجدول ========
+                const tr = document.createElement('tr');
+                tr.className = rowClass;
+                tr.innerHTML = `
+                    <td style="color:#999;font-size:12px;">${rowNum}</td>
+                    <td>${actionBadge}</td>
+                    <td>${typeBadge}</td>
+                    <td>${refNum}</td>
+                    <td>${desc}</td>
+                    <td style="font-size:12px;color:#555;">${fieldCell}</td>
+                    <td>${changeCell}</td>
+                    <td style="font-size:12px;">${userCell}</td>
+                    <td style="font-size:12px;color:#555;white-space:nowrap;">${timestamp}</td>
+                    <td>${reasonCell}</td>
+                    <td><button class="btn-details" onclick="showDetails('${item.id}')">🔍 تفاصيل</button></td>
+                `;
+                tbody.appendChild(tr);
+
+                // ======== بطاقة الهاتف ========
+                const cardDiv = document.createElement('div');
+                const cardClass = item.action === 'delete' ? 'card-delete' : 'card-edit';
+                cardDiv.className = `mobile-history-card ${cardClass}`;
+                cardDiv.innerHTML = `
+                    <div class="mhc-header">
+                        <div class="mhc-badges">
                             ${actionBadge}
-                            <span class="record-type-badge ${recordTypeBadge}">${recordTypeLabel}</span>
-                            ${refNumHtml}
-                            ${descHtml}
+                            ${typeBadge}
+                            ${item.refNum ? `<span class="ref-num-badge">${item.refNum}</span>` : ''}
                         </div>
-                        <div class="history-timestamp">🕐 ${timestamp}</div>
+                        <span class="mhc-time">${timestamp}</span>
                     </div>
-                    <div class="history-card-body">
-                        <div class="history-field">
-                            <div class="history-field-label">من قام بالعملية</div>
-                            <div class="history-field-value">${item.editedBy || 'غير محدد'} <span style="color:rgba(255,255,255,0.5);font-size:12px;">(${roleText})</span></div>
+                    <div class="mhc-body">
+                        <div class="mhc-field">
+                            <label>من قام بالعملية</label>
+                            <span>${item.editedBy || 'غير محدد'} <small style="color:#999;">${roleText}</small></span>
                         </div>
-                        ${changeSection}
+                        <div class="mhc-field">
+                            <label>الوصف / السائق</label>
+                            <span>${item.driverName || item.description || '—'}</span>
+                        </div>
+                        ${item.action === 'edit' ? `
+                        <div class="mhc-field">
+                            <label>الحقل المعدَّل</label>
+                            <span>${item.fieldLabel || item.field || '—'}</span>
+                        </div>
+                        <div class="mhc-field">
+                            <label>التغيير</label>
+                            <span><span class="old-value">${item.oldValue ?? '—'}</span> ← <span class="new-value">${item.newValue ?? '—'}</span></span>
+                        </div>` : `
+                        <div class="mhc-field">
+                            <label>المبلغ المحذوف</label>
+                            <span style="color:#f44336;font-weight:700;">${item.fullSnapshot?.amount !== undefined ? parseFloat(item.fullSnapshot.amount||0).toFixed(3) + ' د.ك' : '—'}</span>
+                        </div>`}
                     </div>
-                    <div class="history-card-footer">
-                        <div class="edit-reason">
-                            ${reasonText ? `💬 السبب: ${reasonText}` : ''}
-                        </div>
-                        ${undoBtn}
+                    <div class="mhc-footer">
+                        <span class="mhc-reason">${reason ? '💬 ' + reason : ''}</span>
+                        <button class="btn-details" onclick="showDetails('${item.id}')">🔍 تفاصيل</button>
                     </div>
                 `;
-
-                container.appendChild(card);
+                mobileContainer.appendChild(cardDiv);
             });
 
             updatePagination(startIndex + 1, endIndex, filteredHistory.length);
         }
 
-        // تحديث معلومات الصفحات
+        // ======== تحديث معلومات الصفحات ========
         function updatePagination(start, end, total) {
-            document.getElementById('paginationInfo').textContent = `عرض ${start} إلى ${end} من ${total}`;
-
-            const prevBtn = document.getElementById('prevPage');
-            const nextBtn = document.getElementById('nextPage');
-            const pageNumbers = document.getElementById('pageNumbers');
-
-            prevBtn.disabled = currentPage <= 1;
-            nextBtn.disabled = currentPage >= totalPages;
-            pageNumbers.textContent = `صفحة ${currentPage} من ${totalPages}`;
+            document.getElementById('paginationInfo').textContent =
+                total > 0 ? `عرض ${start} إلى ${end} من ${total} سجل` : 'لا توجد سجلات';
+            document.getElementById('prevPage').disabled = currentPage <= 1;
+            document.getElementById('nextPage').disabled = currentPage >= totalPages;
+            document.getElementById('pageNumbers').textContent = `صفحة ${currentPage} من ${totalPages || 1}`;
         }
 
-        // تغيير الصفحة
+        // ======== تغيير الصفحة ========
         function changePage(direction) {
             currentPage += direction;
             if (currentPage < 1) currentPage = 1;
@@ -744,7 +885,14 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // مسح الفلاتر
+        // ======== تغيير عدد العناصر ========
+        function changeItemsPerPage() {
+            itemsPerPage = parseInt(document.getElementById('itemsPerPageSelect').value);
+            currentPage = 1;
+            displayHistory();
+        }
+
+        // ======== مسح الفلاتر ========
         function clearFilters() {
             document.getElementById('searchText').value = '';
             document.getElementById('actionFilter').value = '';
@@ -755,30 +903,148 @@
             applyFilters();
         }
 
-        // التراجع عن تعديل
-        async function undoEdit(historyId, recordId, recordType) {
-            if (!confirm('هل أنت متأكد من التراجع عن هذا التعديل؟ سيتم استرجاع القيمة القديمة.')) return;
+        // ======== عرض التفاصيل ========
+        function showDetails(historyId) {
+            const item = allHistory.find(h => h.id === historyId);
+            if (!item) return;
 
-            try {
-                const historyDoc = await db.collection('editHistory').doc(historyId).get();
-                const historyData = historyDoc.data();
+            const modal = document.getElementById('detailsModal');
+            const title = document.getElementById('detailsModalTitle');
+            const body = document.getElementById('detailsModalBody');
 
-                const collection = recordType === 'driverPayment' ? 'driverPayments'
-                    : recordType === 'revenue' ? 'revenues' : 'expenses';
+            const actionLabel = item.action === 'delete' ? '🗑️ حذف' : '✏️ تعديل';
+            let rtLabel = '';
+            if (item.recordType === 'revenue') rtLabel = '💰 إيراد مباشر';
+            else if (item.recordType === 'expense') rtLabel = '💸 مصروف مباشر';
+            else if (item.recordType === 'driverPayment') rtLabel = '👤 دفعة سائق';
 
-                // استرجاع القيمة القديمة
-                await db.collection(collection).doc(recordId).update({
-                    [historyData.field]: historyData.oldValue
-                });
+            const timestamp = item.timestamp?.toDate
+                ? item.timestamp.toDate().toLocaleString('ar-EG')
+                : 'غير محدد';
+            const roleText = item.editedByRole === 'admin' ? 'مدير' : 'محاسب';
+            const reason = item.action === 'delete'
+                ? (item.deleteReason || item.editReason || '—')
+                : (item.editReason || '—');
 
-                // حذف سجل الهيستوري
-                await db.collection('editHistory').doc(historyId).delete();
+            title.textContent = `${actionLabel} — ${rtLabel}`;
 
-                alert('✅ تم التراجع عن التعديل بنجاح!');
-                loadHistory();
-            } catch (error) {
-                console.error('خطأ في التراجع:', error);
-                alert('حدث خطأ في التراجع عن التعديل');
+            let changeHtml = '';
+            if (item.action === 'edit') {
+                changeHtml = `
+                    <div class="details-field">
+                        <div class="details-field-label">الحقل المعدَّل</div>
+                        <div class="details-field-value">${item.fieldLabel || item.field || '—'}</div>
+                    </div>
+                    <div class="details-field">
+                        <div class="details-field-label">التغيير</div>
+                        <div class="details-field-value">
+                            <span class="old-value" style="font-size:14px;">${item.oldValue ?? '—'}</span>
+                            <span class="value-arrow" style="font-size:14px;"> ← </span>
+                            <span class="new-value" style="font-size:14px;">${item.newValue ?? '—'}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // بناء لقطة البيانات
+            let snapshotHtml = '';
+            const snap = item.action === 'delete' ? (item.fullSnapshot || {}) : (item.fullSnapshotAfter || item.fullSnapshotBefore || {});
+            const snapLabel = item.action === 'delete' ? 'لقطة البيانات المحذوفة' : 'لقطة البيانات (بعد التعديل)';
+            const snapKeys = Object.keys(snap);
+            if (snapKeys.length > 0) {
+                const keyLabels = {
+                    amount: 'المبلغ', date: 'التاريخ', type: 'النوع',
+                    description: 'الوصف', notes: 'الملاحظات', bankAccount: 'الحساب البنكي',
+                    driverName: 'اسم السائق', paymentType: 'نوع الدفعة', contractType: 'نوع العقد',
+                    refNum: 'الرقم المرجعي', source: 'المصدر', createdAt: 'تاريخ الإنشاء'
+                };
+                const rows = snapKeys.map(k => {
+                    let val = snap[k];
+                    if (val === null || val === undefined) val = '—';
+                    if (typeof val === 'object' && val.toDate) val = val.toDate().toLocaleString('ar-EG');
+                    if (k === 'amount') val = parseFloat(val || 0).toFixed(3) + ' د.ك';
+                    const label = keyLabels[k] || k;
+                    return `<div class="snapshot-row"><span class="snapshot-key">${label}</span><span class="snapshot-val">${val}</span></div>`;
+                }).join('');
+                snapshotHtml = `
+                    <div class="details-snapshot">
+                        <h4>📦 ${snapLabel}</h4>
+                        ${rows}
+                    </div>
+                `;
+            }
+
+            // لقطة قبل التعديل (للتعديلات فقط)
+            let snapshotBeforeHtml = '';
+            if (item.action === 'edit' && item.fullSnapshotBefore) {
+                const sb = item.fullSnapshotBefore;
+                const sbKeys = Object.keys(sb);
+                if (sbKeys.length > 0) {
+                    const keyLabels = {
+                        amount: 'المبلغ', date: 'التاريخ', type: 'النوع',
+                        description: 'الوصف', notes: 'الملاحظات', bankAccount: 'الحساب البنكي',
+                        driverName: 'اسم السائق', paymentType: 'نوع الدفعة', contractType: 'نوع العقد',
+                        refNum: 'الرقم المرجعي', source: 'المصدر'
+                    };
+                    const rows = sbKeys.map(k => {
+                        let val = sb[k];
+                        if (val === null || val === undefined) val = '—';
+                        if (typeof val === 'object' && val.toDate) val = val.toDate().toLocaleString('ar-EG');
+                        if (k === 'amount') val = parseFloat(val || 0).toFixed(3) + ' د.ك';
+                        const label = keyLabels[k] || k;
+                        return `<div class="snapshot-row"><span class="snapshot-key">${label}</span><span class="snapshot-val" style="color:#c62828;">${val}</span></div>`;
+                    }).join('');
+                    snapshotBeforeHtml = `
+                        <div class="details-snapshot" style="margin-top:12px;border:1px solid #ffcdd2;">
+                            <h4 style="color:#c62828;">📦 لقطة البيانات (قبل التعديل)</h4>
+                            ${rows}
+                        </div>
+                    `;
+                }
+            }
+
+            body.innerHTML = `
+                <div class="details-grid">
+                    <div class="details-field">
+                        <div class="details-field-label">نوع العملية</div>
+                        <div class="details-field-value">${actionLabel}</div>
+                    </div>
+                    <div class="details-field">
+                        <div class="details-field-label">نوع السجل</div>
+                        <div class="details-field-value">${rtLabel}</div>
+                    </div>
+                    <div class="details-field">
+                        <div class="details-field-label">الرقم المرجعي</div>
+                        <div class="details-field-value">${item.refNum || '—'}</div>
+                    </div>
+                    <div class="details-field">
+                        <div class="details-field-label">الوصف / السائق</div>
+                        <div class="details-field-value">${item.driverName || item.description || '—'}</div>
+                    </div>
+                    <div class="details-field">
+                        <div class="details-field-label">من قام بالعملية</div>
+                        <div class="details-field-value">${item.editedBy || 'غير محدد'} <span style="color:#888;font-size:12px;">(${roleText})</span></div>
+                    </div>
+                    <div class="details-field">
+                        <div class="details-field-label">التاريخ والوقت</div>
+                        <div class="details-field-value">${timestamp}</div>
+                    </div>
+                    ${changeHtml}
+                    <div class="details-field" style="grid-column: 1 / -1;">
+                        <div class="details-field-label">السبب</div>
+                        <div class="details-field-value" style="color:#555;font-style:italic;">${reason}</div>
+                    </div>
+                </div>
+                ${snapshotBeforeHtml}
+                ${snapshotHtml}
+            `;
+
+            modal.style.display = 'block';
+        }
+
+        function closeDetailsModal(event) {
+            if (!event || event.target === document.getElementById('detailsModal')) {
+                document.getElementById('detailsModal').style.display = 'none';
             }
         }
 
