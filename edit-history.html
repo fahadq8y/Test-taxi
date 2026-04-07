@@ -638,9 +638,28 @@
                 // الدور
                 const roleText = item.editedByRole === 'admin' ? 'مدير' : 'محاسب';
 
-                // قسم التغيير
+                // رقم المرجع
+                const refNumHtml = item.refNum
+                    ? `<span class="ref-num-badge">${item.refNum}</span>`
+                    : '';
+
+                // اسم السائق أو الوصف
+                const descHtml = item.driverName
+                    ? `<span style="color:#4caf50;font-size:13px;">👤 ${item.driverName}</span>`
+                    : (item.description ? `<span style="color:rgba(255,255,255,0.7);font-size:13px;">${item.description}</span>` : '');
+
+                // قسم التغيير أو الحذف
                 let changeSection = '';
-                if (item.action !== 'delete') {
+                if (item.action === 'delete') {
+                    const snap = item.fullSnapshot || {};
+                    const snapFields = [];
+                    if (snap.amount !== undefined) snapFields.push(`<div class="history-field"><div class="history-field-label">المبلغ</div><div class="history-field-value" style="color:#f44336;">${parseFloat(snap.amount||0).toFixed(3)} د.ك</div></div>`);
+                    if (snap.date) snapFields.push(`<div class="history-field"><div class="history-field-label">التاريخ</div><div class="history-field-value">${snap.date}</div></div>`);
+                    if (snap.type) snapFields.push(`<div class="history-field"><div class="history-field-label">النوع</div><div class="history-field-value">${snap.type}</div></div>`);
+                    if (snap.description || snap.notes) snapFields.push(`<div class="history-field"><div class="history-field-label">الوصف</div><div class="history-field-value">${snap.description || snap.notes}</div></div>`);
+                    if (snap.bankAccount) snapFields.push(`<div class="history-field"><div class="history-field-label">الحساب</div><div class="history-field-value">${snap.bankAccount}</div></div>`);
+                    changeSection = snapFields.length > 0 ? snapFields.join('') : `<div class="history-field"><div class="history-field-label">بيانات السجل</div><div class="history-field-value" style="color:#f44336;">تم حذف السجل</div></div>`;
+                } else {
                     changeSection = `
                         <div class="history-field">
                             <div class="history-field-label">الحقل المعدَّل</div>
@@ -655,6 +674,11 @@
                             </div>
                         </div>
                     `;
+                    if (item.fullSnapshotBefore) {
+                        const sb = item.fullSnapshotBefore;
+                        if (sb.amount !== undefined) changeSection += `<div class="history-field"><div class="history-field-label">المبلغ قبل</div><div class="history-field-value" style="color:#f44336;">${parseFloat(sb.amount||0).toFixed(3)} د.ك</div></div>`;
+                        if (sb.date) changeSection += `<div class="history-field"><div class="history-field-label">التاريخ قبل</div><div class="history-field-value">${sb.date}</div></div>`;
+                    }
                 }
 
                 // زر التراجع (للتعديلات فقط)
@@ -662,11 +686,18 @@
                     ? `<button class="btn-undo" onclick="undoEdit('${item.id}', '${item.recordId}', '${item.recordType}')">↩️ تراجع</button>`
                     : '';
 
+                // سبب الحذف أو التعديل
+                const reasonText = item.action === 'delete'
+                    ? (item.deleteReason || item.editReason || '')
+                    : (item.editReason || '');
+
                 card.innerHTML = `
                     <div class="history-card-header">
                         <div class="history-card-left">
                             ${actionBadge}
                             <span class="record-type-badge ${recordTypeBadge}">${recordTypeLabel}</span>
+                            ${refNumHtml}
+                            ${descHtml}
                         </div>
                         <div class="history-timestamp">🕐 ${timestamp}</div>
                     </div>
@@ -679,7 +710,7 @@
                     </div>
                     <div class="history-card-footer">
                         <div class="edit-reason">
-                            ${item.editReason ? `💬 السبب: ${item.editReason}` : ''}
+                            ${reasonText ? `💬 السبب: ${reasonText}` : ''}
                         </div>
                         ${undoBtn}
                     </div>

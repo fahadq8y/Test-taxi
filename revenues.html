@@ -275,6 +275,109 @@
             box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
         }
         
+        /* نافذة تأكيد الحذف */
+        .delete-confirm-modal {
+            display: none;
+            position: fixed;
+            z-index: 20000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+        }
+        .delete-confirm-content {
+            background: #1a1a1a;
+            margin: 8% auto;
+            padding: 30px;
+            border: 2px solid #f44336;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 480px;
+            box-shadow: 0 4px 30px rgba(244, 67, 54, 0.4);
+            text-align: center;
+        }
+        .delete-confirm-icon { font-size: 48px; margin-bottom: 12px; }
+        .delete-confirm-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #f44336;
+            margin-bottom: 8px;
+        }
+        .delete-confirm-subtitle {
+            font-size: 13px;
+            color: #aaa;
+            margin-bottom: 15px;
+        }
+        .delete-confirm-info {
+            background: rgba(244, 67, 54, 0.08);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            text-align: right;
+            font-size: 13px;
+            color: #ccc;
+        }
+        .delete-confirm-info div { margin-bottom: 4px; }
+        .delete-confirm-info span { color: #fff; font-weight: 600; }
+        .delete-reason-group {
+            text-align: right;
+            margin-bottom: 20px;
+        }
+        .delete-reason-group label {
+            display: block;
+            color: #ddd;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .delete-reason-group textarea {
+            width: 100%;
+            padding: 10px;
+            background: #2a2a2a;
+            border: 1px solid #f44336;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 13px;
+            resize: vertical;
+            min-height: 65px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        .delete-reason-group textarea:focus { outline: none; border-color: #ff6659; }
+        .delete-confirm-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .btn-delete-confirm {
+            background: linear-gradient(135deg, #f44336, #c62828);
+            color: #fff;
+            padding: 12px 28px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .btn-delete-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(244, 67, 54, 0.5);
+        }
+        .btn-delete-cancel {
+            background: #444;
+            color: #fff;
+            padding: 12px 28px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .btn-delete-cancel:hover { background: #555; }
+
         /* تعريف محلي لـ btn-secondary ليتطابق مع صفحة المصروفات */
         .btn.btn-secondary {
             background: #6c757d;
@@ -787,6 +890,26 @@
         </div>
     </div>
 
+    <!-- نافذة تأكيد الحذف -->
+    <div id="deleteConfirmModal" class="delete-confirm-modal">
+        <div class="delete-confirm-content">
+            <div class="delete-confirm-icon">⚠️</div>
+            <div class="delete-confirm-title">تأكيد الحذف</div>
+            <div class="delete-confirm-subtitle">هذا الإجراء لا يمكن التراجع عنه</div>
+            <div class="delete-confirm-info" id="deleteConfirmInfo">
+                <!-- يتم تعبئتها ديناميكياً -->
+            </div>
+            <div class="delete-reason-group">
+                <label>سبب الحذف <span style="color:#f44336;">*</span></label>
+                <textarea id="deleteReasonInput" placeholder="اكتب سبب الحذف (إلزامي)..."></textarea>
+            </div>
+            <div class="delete-confirm-actions">
+                <button class="btn-delete-confirm" onclick="confirmDeleteAction()">&#128465;&#65039; تأكيد الحذف</button>
+                <button class="btn-delete-cancel" onclick="closeDeleteConfirmModal()">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Account Movements Modal -->
     <div id="accountMovementsModal" class="account-movements-modal">
         <div class="account-movements-content">
@@ -1187,33 +1310,104 @@
         });
 
         // Delete revenue
+        // متغيرات نافذة الحذف
+        let pendingDeleteId = null;
+        let pendingDeleteType = null;
+        let pendingDeleteSnapshot = null;
+
         async function deleteRevenue(id) {
-            if (confirm('هل أنت متأكد من حذف هذا الإيراد؟')) {
-                try {
-                    await db.collection('revenues').doc(id).delete();
-                    alert('تم حذف الإيراد بنجاح!');
-                    loadAllData();
-                } catch (error) {
-                    console.error('خطأ في حذف الإيراد:', error);
-                    alert('حدث خطأ في حذف الإيراد');
-                }
+            try {
+                const doc = await db.collection('revenues').doc(id).get();
+                if (!doc.exists) return;
+                const data = doc.data();
+                pendingDeleteId = id;
+                pendingDeleteType = 'revenue';
+                pendingDeleteSnapshot = { id, ...data };
+                document.getElementById('deleteConfirmInfo').innerHTML = `
+                    <div>رقم المرجع: <span>${data.refNum || 'غير محدد'}</span></div>
+                    <div>النوع: <span>${data.type || 'غير محدد'}</span></div>
+                    <div>المبلغ: <span>${parseFloat(data.amount || 0).toFixed(3)} د.ك</span></div>
+                    <div>التاريخ: <span>${data.date || 'غير محدد'}</span></div>
+                    ${data.description ? `<div>الوصف: <span>${data.description}</span></div>` : ''}
+                `;
+                document.getElementById('deleteReasonInput').value = '';
+                document.getElementById('deleteConfirmModal').style.display = 'block';
+            } catch (error) {
+                console.error('خطأ:', error);
+                alert('حدث خطأ في تحميل بيانات السجل');
             }
         }
 
         // Delete driver payment from revenues page
         async function deleteDriverPayment(id) {
-            if (confirm('هل أنت متأكد من حذف دفعة السائق هذه؟')) {
-                try {
-                    await db.collection('driverPayments').doc(id).delete();
-                    alert('تم حذف دفعة السائق بنجاح!');
-                    loadAllData();
-                } catch (error) {
-                    console.error('خطأ في حذف دفعة السائق:', error);
-                    alert('حدث خطأ في حذف دفعة السائق');
-                }
+            try {
+                const doc = await db.collection('driverPayments').doc(id).get();
+                if (!doc.exists) return;
+                const data = doc.data();
+                pendingDeleteId = id;
+                pendingDeleteType = 'driverPayment';
+                pendingDeleteSnapshot = { id, ...data };
+                document.getElementById('deleteConfirmInfo').innerHTML = `
+                    <div>رقم المرجع: <span>${data.refNum || 'غير محدد'}</span></div>
+                    <div>السائق: <span>${data.driverName || 'غير محدد'}</span></div>
+                    <div>نوع الدفعة: <span>${data.type || 'غير محدد'}</span></div>
+                    <div>المبلغ: <span>${parseFloat(data.amount || 0).toFixed(3)} د.ك</span></div>
+                    <div>التاريخ: <span>${data.date || 'غير محدد'}</span></div>
+                `;
+                document.getElementById('deleteReasonInput').value = '';
+                document.getElementById('deleteConfirmModal').style.display = 'block';
+            } catch (error) {
+                console.error('خطأ:', error);
+                alert('حدث خطأ في تحميل بيانات الدفعة');
             }
         }
 
+        function closeDeleteConfirmModal() {
+            document.getElementById('deleteConfirmModal').style.display = 'none';
+            pendingDeleteId = null;
+            pendingDeleteType = null;
+            pendingDeleteSnapshot = null;
+        }
+
+        async function confirmDeleteAction() {
+            const reason = document.getElementById('deleteReasonInput').value.trim();
+            if (!reason || reason.length < 3) {
+                alert('يرجى كتابة سبب الحذف (حد أدنى 3 حروف)');
+                return;
+            }
+            try {
+                const userName = localStorage.getItem('userName') || 'غير محدد';
+                const userRole = localStorage.getItem('userRole') || 'unknown';
+                const collection = pendingDeleteType === 'driverPayment' ? 'driverPayments' : 'revenues';
+
+                // حفظ سجل الحذف في editHistory
+                await db.collection('editHistory').add({
+                    recordId: pendingDeleteId,
+                    recordType: pendingDeleteType,
+                    action: 'delete',
+                    refNum: pendingDeleteSnapshot.refNum || null,
+                    description: pendingDeleteSnapshot.description || pendingDeleteSnapshot.driverName || pendingDeleteSnapshot.type || null,
+                    driverName: pendingDeleteSnapshot.driverName || null,
+                    deleteReason: reason,
+                    fullSnapshot: pendingDeleteSnapshot,
+                    deletedBy: userName,
+                    deletedByRole: userRole,
+                    editedBy: userName,
+                    editedByRole: userRole,
+                    editReason: reason,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // تنفيذ الحذف
+                await db.collection(collection).doc(pendingDeleteId).delete();
+
+                closeDeleteConfirmModal();
+                loadAllData();
+            } catch (error) {
+                console.error('خطأ في الحذف:', error);
+                 alert('حدث خطأ في تنفيذ الحذف');
+            }
+        }
         // Display revenues with pagination
         function displayRevenues() {
             const tbody = document.getElementById('revenueTableBody');
@@ -1870,22 +2064,33 @@
                 
                 await db.collection(collection).doc(currentEditingId).update(updateData);
                 
-                // حفظ التعديلات في editHistory
-                for (const change of changes) {
-                    await db.collection('editHistory').add({
-                        recordId: currentEditingId,
-                        recordType: currentEditingType === 'driverPayment' ? 'driverPayment' : 'revenue',
-                        action: 'edit',
-                        field: change.field,
-                        fieldLabel: change.fieldLabel,
-                        oldValue: change.oldValue,
-                        newValue: change.newValue,
-                        editedBy: userName,
-                        editedByRole: userRole,
-                        editReason: editReason,
-                        timestamp: timestamp
-                    });
-                }
+                // جلب البيانات الكاملة للسجل بعد التعديل
+                const updatedDoc = await db.collection(collection).doc(currentEditingId).get();
+                const snapshotAfter = { id: currentEditingId, ...updatedDoc.data() };
+                const snapshotBefore = { id: currentEditingId, ...originalEditData, ...Object.fromEntries(changes.map(c => [c.field, c.oldValue])) };
+
+                // حفظ سجل تعديل واحد شامل لجميع التغييرات
+                await db.collection('editHistory').add({
+                    recordId: currentEditingId,
+                    recordType: currentEditingType === 'driverPayment' ? 'driverPayment' : 'revenue',
+                    action: 'edit',
+                    refNum: snapshotAfter.refNum || snapshotBefore.refNum || null,
+                    description: snapshotAfter.description || snapshotAfter.driverName || snapshotAfter.type || null,
+                    driverName: snapshotAfter.driverName || null,
+                    changes: changes,
+                    changesCount: changes.length,
+                    // للتوافق مع الكود القديم - أول تغيير
+                    field: changes[0].field,
+                    fieldLabel: changes[0].fieldLabel,
+                    oldValue: changes[0].oldValue,
+                    newValue: changes[0].newValue,
+                    fullSnapshotBefore: snapshotBefore,
+                    fullSnapshotAfter: snapshotAfter,
+                    editedBy: userName,
+                    editedByRole: userRole,
+                    editReason: editReason,
+                    timestamp: timestamp
+                });
                 
                 alert('✅ تم حفظ التعديل بنجاح!');
                 closeEditModal();
