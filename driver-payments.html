@@ -515,6 +515,8 @@
                                 <option value="تحصيل رسوم إيداعات الرواتب">تحصيل رسوم إيداعات الرواتب</option>
                                 <option value="دين قديم">دين قديم</option>
                                 <option value="إجازة سنوية">إجازة سنوية</option>
+                                <option value="سلفة إلى السائق">سلفة إلى السائق</option>
+                                <option value="تحصيل سلفة من السائق">تحصيل سلفة من السائق</option>
                             </select>
                             <div id="paymentNote" class="payment-note"></div>
                         </div>
@@ -866,7 +868,9 @@
                 'تحصيل مخالفة': 'يزيد الرصيد البنكي، ينقص دين السائق، ينقص ديون السائقين',
                 'سداد رسوم إقامة': 'ينقص الرصيد البنكي، يزيد دين السائق، يزيد ديون السائقين',
                 'تحصيل رسوم إقامة': 'يزيد الرصيد البنكي، ينقص دين السائق، ينقص ديون السائقين',
-                'دين قديم': 'يزيد الرصيد البنكي، ينقص دين السائق'
+                'دين قديم': 'يزيد الرصيد البنكي، ينقص دين السائق',
+                'سلفة إلى السائق': 'ينقص حساب رامي، يزيد دين السائق، يظهر في المصروفات',
+                'تحصيل سلفة من السائق': 'يزيد حساب رامي، ينقص دين السائق، يظهر في الإيرادات'
             };
             
             if (notes[paymentType]) {
@@ -995,6 +999,39 @@
             const amount = parseFloat(document.getElementById('amount').value);
             const paymentDate = document.getElementById('paymentDate').value;
             const description = document.getElementById('description').value;
+            
+            // تحقق من رصيد السلفة عند تحصيل سلفة من السائق
+            if (paymentType === 'تحصيل سلفة من السائق') {
+                // جلب جميع دفعات السائق لحساب رصيد السلفة
+                const allPaymentsSnap = await db.collection('driverPayments')
+                    .where('driverId', '==', currentDriverId)
+                    .get();
+                const allPayments = allPaymentsSnap.docs.map(d => d.data());
+                const totalAdvanceGiven = allPayments
+                    .filter(p => p.type === 'سلفة إلى السائق')
+                    .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                const totalAdvanceCollected = allPayments
+                    .filter(p => p.type === 'تحصيل سلفة من السائق')
+                    .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+                const currentAdvanceBalance = totalAdvanceGiven - totalAdvanceCollected;
+                
+                if (currentAdvanceBalance <= 0) {
+                    alert('⚠️ خطأ: لا توجد سلفة مستحقة على هذا السائق. يجب تسجيل سلفة أولاً قبل تحصيلها.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                    return;
+                }
+                if (amount > currentAdvanceBalance) {
+                    const confirm = window.confirm(
+                        `⚠️ تحذير: مبلغ التحصيل (${amount.toFixed(3)} د.ك) أكبر من رصيد السلفة المستحقة (${currentAdvanceBalance.toFixed(3)} د.ك).\n\nهل تريد المتابعة على أي حال?`
+                    );
+                    if (!confirm) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = originalText;
+                        return;
+                    }
+                }
+            }
             
             try {
                 // توليد الرقم المرجعي للدفعة الجديدة

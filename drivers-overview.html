@@ -723,6 +723,16 @@
                     case 'إجازة سنوية':
                         totalDebt -= amount;
                         break;
+                    
+                    // سلفة إلى السائق: تزيد الدين
+                    case 'سلفة إلى السائق':
+                        totalDebt += amount;
+                        break;
+                    
+                    // تحصيل سلفة من السائق: تنقص الدين
+                    case 'تحصيل سلفة من السائق':
+                        totalDebt -= amount;
+                        break;
                 }
             });
             
@@ -856,9 +866,19 @@
             const oldDebtsPaid = oldDebtPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
             const oldDebts = Math.max(0, oldDebtsInitial - oldDebtsPaid);
             
+            // حساب السلف المستحقة
+            const advancePaymentsDriver = driverPayments.filter(p =>
+                p.driverId === driver.id && (p.type === 'سلفة إلى السائق' || p.type === 'تحصيل سلفة من السائق')
+            );
+            const advanceBalance = advancePaymentsDriver.reduce((sum, p) => {
+                const amount = parseFloat(p.amount || 0);
+                return p.type === 'سلفة إلى السائق' ? sum + amount : sum - amount;
+            }, 0);
+            const netAdvance = Math.max(0, advanceBalance);
+            
             // Calculate total debt
             // Note: driverBalance is NOT subtracted - it's a separate credit, not a debt reduction
-            const totalDebt = lateAmount + violations + residencyFees + oldDebts;
+            const totalDebt = lateAmount + violations + residencyFees + oldDebts + netAdvance;
             
             // Determine status
             let status = 'منتظم';
@@ -879,6 +899,7 @@
                 violations,
                 residencyFees,
                 oldDebts,
+                netAdvance,
                 totalDebt: Math.max(0, totalDebt),
                 status
             };
@@ -1826,6 +1847,10 @@
                     <div style="background:#f8fafc;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
                         <span>💼 ديون قديمة</span>
                         <strong style="color:${stats.oldDebts>0?'#dc2626':'#64748b'}">${stats.oldDebts.toFixed(3)} د.ك</strong>
+                    </div>
+                    <div style="background:#f8fafc;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+                        <span>💵 سلف مستحقة</span>
+                        <strong style="color:${stats.netAdvance>0?'#dc2626':'#64748b'}">${(stats.netAdvance||0).toFixed(3)} د.ك</strong>
                     </div>
                     <div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border-radius:10px;padding:14px;display:flex;justify-content:space-between;align-items:center;border:2px solid #dc2626;">
                         <span style="font-weight:700;font-size:15px;">📊 إجمالي الدين</span>

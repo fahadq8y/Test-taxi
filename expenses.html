@@ -1432,7 +1432,7 @@
             let allExpenseItems = [...expenses];
             
             driverPayments.forEach(payment => {
-                if (['سداد مخالفة', 'سداد رسوم إقامة', 'إجازة سنوية'].includes(payment.type)) {
+                if (['سداد مخالفة', 'سداد رسوم إقامة', 'إجازة سنوية', 'سلفة إلى السائق'].includes(payment.type)) {
                     const driverInfo = getDriverInfo(payment.driverId);
                     const driverDisplay = driverInfo.employeeNumber ? 
                         `${driverInfo.name} (${driverInfo.employeeNumber})` : 
@@ -1555,7 +1555,7 @@
             let allExpenseItems = [...expenses];
             
             driverPayments.forEach(payment => {
-                if (['سداد مخالفة', 'سداد رسوم إقامة', 'إجازة سنوية'].includes(payment.type)) {
+                if (['سداد مخالفة', 'سداد رسوم إقامة', 'إجازة سنوية', 'سلفة إلى السائق'].includes(payment.type)) {
                     const driverInfo = getDriverInfo(payment.driverId);
                     const driverDisplay = driverInfo.employeeNumber ? 
                         `${driverInfo.name} (${driverInfo.employeeNumber})` : 
@@ -2274,6 +2274,10 @@
                         allMovements.push({ date: p.date, type: 'سداد للسائق', desc, amount: -amount, source: 'driverPayment', id: p.id, refNum: p.refNum });
                     } else if (['تحصيل رسوم رواتب','تحصيل رسوم إيداعات الرواتب'].includes(p.type)) {
                         allMovements.push({ date: p.date, type: 'تحصيل رواتب', desc, amount: +amount, source: 'driverPayment', id: p.id, refNum: p.refNum });
+                    } else if (p.type === 'سلفة إلى السائق') {
+                        allMovements.push({ date: p.date, type: 'سداد للسائق', desc, amount: -amount, source: 'driverPayment', id: p.id, refNum: p.refNum });
+                    } else if (p.type === 'تحصيل سلفة من السائق') {
+                        allMovements.push({ date: p.date, type: 'تحصيل سائق', desc, amount: +amount, source: 'driverPayment', id: p.id, refNum: p.refNum });
                     }
                 } else if (accountType === 'salary') {
                     if (['تحصيل رسوم رواتب','تحصيل رسوم إيداعات الرواتب'].includes(p.type)) {

@@ -64,8 +64,12 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
             const amount = parseFloat(payment.amount) || 0;
             
             // المصروفات التي يجب احتسابها في إجمالي المصروفات
-            if (payment.type === 'سداد مخالفة' || payment.type === 'سداد رسوم إقامة') {
+            if (payment.type === 'سداد مخالفة' || payment.type === 'سداد رسوم إقامة' || payment.type === 'سلفة إلى السائق') {
                 totalExpenses += amount;
+            }
+            // الإيرادات من دفعات السائقين التي تُحتسب في إجمالي الإيرادات
+            if (payment.type === 'تحصيل سلفة من السائق') {
+                totalRevenues += amount;
             }
         });
     }
@@ -94,6 +98,16 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
                 case 'سداد مخالفة':
                 case 'سداد رسوم إقامة':
                     bankBalance -= amount;
+                    break;
+                
+                // سلفة إلى السائق: تنقص حساب رامي
+                case 'سلفة إلى السائق':
+                    bankBalance -= amount;
+                    break;
+                
+                // تحصيل سلفة من السائق: تزيد حساب رامي
+                case 'تحصيل سلفة من السائق':
+                    bankBalance += amount;
                     break;
                 
                 // رسوم الرواتب (نظام منفصل)
@@ -266,8 +280,21 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
     const annualLeavePayments = payments.filter(p => p.type === 'إجازة سنوية');
     const annualLeaveTotal = annualLeavePayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
     
-    // 6. حساب إجمالي الدين
-    totalDebt = lateAmount + violations + residencyFees + oldDebts - driverBalance - annualLeaveTotal;
+    // 6. حساب السلف المستحقة (positive = سلفة مفتوحة, negative = تحصيل أكثر من السلفة)
+    const advancePayments = payments.filter(p =>
+        p.type === 'سلفة إلى السائق' || p.type === 'تحصيل سلفة من السائق'
+    );
+    const advanceBalance = advancePayments.reduce((sum, p) => {
+        const amount = parseFloat(p.amount || 0);
+        // سلفة إلى السائق = الشركة دفعت (يزيد الدين)
+        // تحصيل سلفة من السائق = السائق دفع (ينقص الدين)
+        return p.type === 'سلفة إلى السائق' ? sum + amount : sum - amount;
+    }, 0);
+    // رصيد السلف المستحق: لا يمكن أن يكون سالباً (التحقق يتم في نموذج الإدخال)
+    const netAdvance = Math.max(0, advanceBalance);
+    
+    // 7. حساب إجمالي الدين
+    totalDebt = lateAmount + violations + residencyFees + oldDebts + netAdvance - driverBalance - annualLeaveTotal;
     
     // الدين لا يمكن أن يكون سالب
     return Math.max(0, totalDebt);

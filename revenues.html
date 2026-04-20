@@ -1195,7 +1195,7 @@
 
             // Add driver payments that should appear in revenues
             driverPayments.forEach(payment => {
-                if (['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'إجازة سنوية'].includes(payment.type)) {
+                if (['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'إجازة سنوية', 'تحصيل سلفة من السائق'].includes(payment.type)) {
                     const driver = drivers.find(d => d.id === payment.driverId);
                     allRevenueItems.push({
                         id: payment.id,
@@ -1239,7 +1239,7 @@
             // حساب إجمالي دفعات السائقين التي تُعتبر إيرادات
             console.log('💰 دفعات السائقين:', driverPayments.length);
             driverPayments.forEach(payment => {
-                if (['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'إجازة سنوية'].includes(payment.type)) {
+                if (['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'إجازة سنوية', 'تحصيل سلفة من السائق'].includes(payment.type)) {
                     totalRevenues += payment.amount || 0;
                     console.log('💰 دفعة سائق:', payment.type, payment.amount, 'الإجمالي الحالي:', totalRevenues);
                 }
@@ -1666,7 +1666,7 @@
             let allRevenueItems = [...revenues];
             
             driverPayments.forEach(payment => {
-                if (['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'إجازة سنوية'].includes(payment.type)) {
+                if (['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'إجازة سنوية', 'تحصيل سلفة من السائق'].includes(payment.type)) {
                     const driverInfo = getDriverInfo(payment.driverId);
                     allRevenueItems.push({
                         id: payment.id,
@@ -1777,7 +1777,7 @@
             let allRevenueItems = [...revenues];
             
             driverPayments.forEach(payment => {
-                if (['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم', 'إجازة سنوية'].includes(payment.type)) {
+                if (['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم', 'إجازة سنوية', 'تحصيل سلفة من السائق'].includes(payment.type)) {
                     const driver = drivers.find(d => d.id === payment.driverId);
                     allRevenueItems.push({
                         id: payment.id,
