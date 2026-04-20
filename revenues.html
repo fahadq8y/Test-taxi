@@ -1666,7 +1666,7 @@
             let allRevenueItems = [...revenues];
             
             driverPayments.forEach(payment => {
-                if (['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم', 'إجازة سنوية'].includes(payment.type)) {
+                if (['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'إجازة سنوية'].includes(payment.type)) {
                     const driverInfo = getDriverInfo(payment.driverId);
                     allRevenueItems.push({
                         id: payment.id,
