@@ -5,389 +5,495 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>التقارير - نظام إدارة التاكسي</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#667eea">
     <link rel="stylesheet" href="style.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f8fafc;
-            direction: rtl;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .header h1 {
-            font-size: 1.5rem;
-        }
-
-        .nav-buttons {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .nav-btn {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: background 0.3s;
-        }
-
-        .nav-btn:hover {
-            background: rgba(255,255,255,0.3);
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-
-        .report-controls {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
-        }
-
-        .controls-grid {
+        /* ===== بطاقات أنواع التقارير ===== */
+        .report-types-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1rem;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
         }
 
-        .control-group {
+        .report-type-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 14px;
+            padding: 1.2rem 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+
+        .report-type-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(102,126,234,0.25);
+            border-color: rgba(102,126,234,0.4);
+        }
+
+        .report-type-card.active {
+            border-color: #667eea;
+            background: #eff6ff;
+            box-shadow: 0 6px 18px rgba(102,126,234,0.3);
+        }
+
+        .report-type-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .report-type-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+
+        .report-type-desc {
+            font-size: 0.78rem;
+            color: #6b7280;
+        }
+
+        /* ===== منطقة الفلاتر ===== */
+        .filters-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 1.25rem 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 0.4rem;
+            flex: 1;
+            min-width: 160px;
         }
 
-        .control-group label {
-            font-weight: 500;
+        .filter-group label {
+            font-weight: 600;
+            font-size: 0.85rem;
             color: #374151;
         }
 
-        .control-input {
-            padding: 0.75rem;
+        .filter-input {
+            padding: 0.65rem 0.9rem;
             border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 1rem;
+            border-radius: 9px;
+            font-size: 0.95rem;
             direction: rtl;
+            transition: border-color 0.2s;
+            font-family: inherit;
         }
 
-        .control-input:focus {
+        .filter-input:focus {
             outline: none;
-            border-color: #2563eb;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
         }
 
         .generate-btn {
-            background: linear-gradient(135deg, #059669, #047857);
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
             border: none;
-            padding: 0.75rem 1.5rem;
+            padding: 0.65rem 1.5rem;
             border-radius: 10px;
             cursor: pointer;
-            font-weight: 600;
-            transition: transform 0.2s;
-            justify-self: start;
+            font-weight: 700;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+            white-space: nowrap;
+            font-family: inherit;
         }
 
         .generate-btn:hover {
             transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102,126,234,0.4);
         }
 
-        .report-types {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .report-type-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            cursor: pointer;
-            transition: transform 0.3s;
-            border: 2px solid transparent;
-        }
-
-        .report-type-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .report-type-card.active {
-            border-color: #2563eb;
-            background: #eff6ff;
-        }
-
-        .report-type-title {
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #1f2937;
-            margin-bottom: 0.5rem;
-        }
-
-        .report-type-description {
-            color: #6b7280;
-            font-size: 0.9rem;
-        }
-
+        /* ===== منطقة نتائج التقرير ===== */
         .report-results {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            background: rgba(255,255,255,0.95);
+            border-radius: 18px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
             overflow: hidden;
             display: none;
         }
 
-        .report-header {
-            background: #f8fafc;
+        .report-header-bar {
+            background: linear-gradient(135deg, #667eea, #764ba2);
             padding: 1rem 1.5rem;
-            border-bottom: 1px solid #e5e7eb;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
         }
 
-        .report-title {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #1f2937;
+        .report-header-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .report-header-period {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.85);
         }
 
         .export-btn {
-            background: #6b7280;
+            background: rgba(255,255,255,0.2);
             color: white;
-            border: none;
-            padding: 0.5rem 1rem;
+            border: 1px solid rgba(255,255,255,0.4);
+            padding: 0.45rem 1rem;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 0.9rem;
+            font-size: 0.88rem;
             font-weight: 600;
+            transition: all 0.2s;
+            font-family: inherit;
         }
 
         .export-btn:hover {
-            background: #4b5563;
+            background: rgba(255,255,255,0.3);
         }
 
-        .report-content {
+        .report-body {
             padding: 1.5rem;
         }
 
-        .summary-cards {
+        /* ===== بطاقات الملخص ===== */
+        .summary-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 1rem;
-            margin-bottom: 2rem;
+            margin-bottom: 1.75rem;
         }
 
         .summary-card {
             background: #f8fafc;
+            border-radius: 12px;
             padding: 1rem;
-            border-radius: 10px;
             text-align: center;
+            border: 1px solid #e5e7eb;
+            transition: all 0.2s;
         }
 
-        .summary-title {
-            font-size: 0.9rem;
+        .summary-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .summary-card-title {
+            font-size: 0.82rem;
             color: #6b7280;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.4rem;
+            font-weight: 500;
         }
 
-        .summary-value {
-            font-size: 1.5rem;
-            font-weight: bold;
+        .summary-card-value {
+            font-size: 1.35rem;
+            font-weight: 800;
             color: #1f2937;
         }
 
-        .summary-value.positive {
-            color: #059669;
+        .summary-card-value.positive { color: #059669; }
+        .summary-card-value.negative { color: #dc2626; }
+        .summary-card-value.warning  { color: #d97706; }
+        .summary-card-value.info     { color: #2563eb; }
+
+        /* ===== قسم الجدول ===== */
+        .report-section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #374151;
+            margin: 1.5rem 0 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
-        .summary-value.negative {
-            color: #dc2626;
+        .report-table-wrap {
+            overflow-x: auto;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            margin-bottom: 1rem;
         }
 
-        .data-table {
+        .report-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 1rem;
+            min-width: 600px;
+            background: white;
         }
 
-        .data-table th,
-        .data-table td {
-            padding: 0.75rem;
-            text-align: right;
-            border-bottom: 1px solid #e5e7eb;
+        .report-table thead {
+            background: linear-gradient(135deg, #667eea, #764ba2);
         }
 
-        .data-table th {
-            background: #f8fafc;
+        .report-table th {
+            color: white;
+            padding: 12px 14px;
+            text-align: center;
             font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .report-table td {
+            padding: 11px 14px;
+            text-align: center;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
             color: #374151;
         }
 
-        .data-table tr:hover {
-            background: #f8fafc;
+        .report-table tbody tr:nth-child(even) {
+            background: #f9fafb;
         }
 
-        .loading {
+        .report-table tbody tr:hover {
+            background: #eff6ff;
+        }
+
+        .report-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .amount-positive { color: #059669; font-weight: 700; }
+        .amount-negative { color: #dc2626; font-weight: 700; }
+        .amount-neutral  { color: #6b7280; }
+
+        /* ===== الرسم البياني ===== */
+        .chart-container {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .bar-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .bar-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .bar-label {
+            font-size: 0.82rem;
+            color: #374151;
+            width: 160px;
+            text-align: right;
+            flex-shrink: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .bar-track {
+            flex: 1;
+            background: #e5e7eb;
+            border-radius: 6px;
+            height: 22px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 6px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.8s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-left: 6px;
+        }
+
+        .bar-fill.expense-bar {
+            background: linear-gradient(90deg, #f87171, #dc2626);
+        }
+
+        .bar-value {
+            font-size: 0.78rem;
+            color: #374151;
+            width: 90px;
+            text-align: left;
+            flex-shrink: 0;
+            font-weight: 600;
+        }
+
+        /* ===== تحميل ===== */
+        .loading-overlay {
             text-align: center;
-            padding: 2rem;
+            padding: 3rem;
+            display: none;
         }
 
         .spinner {
-            border: 3px solid #f3f4f6;
-            border-top: 3px solid #2563eb;
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
+            width: 44px;
+            height: 44px;
+            animation: spin 0.8s linear infinite;
             margin: 0 auto 1rem;
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
+            0%   { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
 
         .no-data {
             text-align: center;
             padding: 2rem;
-            color: #6b7280;
+            color: #9ca3af;
+            font-size: 0.95rem;
         }
 
+        /* ===== الهاتف ===== */
         @media (max-width: 768px) {
-            .header {
-                padding: 1rem;
+            .filters-card {
                 flex-direction: column;
-                gap: 1rem;
             }
-
-            .container {
-                margin: 1rem auto;
-                padding: 0 0.5rem;
+            .filter-group { min-width: 100%; }
+            .report-types-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
-
-            .controls-grid {
-                grid-template-columns: 1fr;
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
+            .bar-label { width: 100px; }
+        }
 
-            .report-types {
-                grid-template-columns: 1fr;
-            }
-
-            .summary-cards {
-                grid-template-columns: 1fr;
-            }
-
-            .data-table {
-                font-size: 0.8rem;
-            }
-
-            .data-table th,
-            .data-table td {
-                padding: 0.5rem;
+        @media (max-width: 480px) {
+            .report-types-grid {
+                grid-template-columns: 1fr 1fr;
             }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>📊 التقارير</h1>
-        <div class="nav-buttons">
-            <a href="admin-dashboard.html" class="nav-btn">العودة للوحة التحكم</a>
-            <button class="nav-btn" onclick="logout()">تسجيل الخروج</button>
-        </div>
-    </div>
-
     <div class="container">
-        <div class="report-controls">
-            <div class="controls-grid">
-                <div class="control-group">
-                    <label>من تاريخ</label>
-                    <input type="date" class="control-input" id="fromDate">
-                </div>
-                <div class="control-group">
-                    <label>إلى تاريخ</label>
-                    <input type="date" class="control-input" id="toDate">
-                </div>
-                <div class="control-group">
-                    <label>نوع التقرير</label>
-                    <select class="control-input" id="reportType">
-                        <option value="">اختر نوع التقرير</option>
-                        <option value="financial">التقرير المالي</option>
-                        <option value="drivers">تقرير السائقين</option>
-                        <option value="cars">تقرير السيارات</option>
-                        <option value="expenses">تقرير المصروفات</option>
-                        <option value="revenues">تقرير الإيرادات</option>
-                    </select>
-                </div>
-                <div class="control-group">
-                    <label>&nbsp;</label>
-                    <button class="generate-btn" onclick="generateReport()">إنشاء التقرير</button>
-                </div>
+        <!-- الرأس -->
+        <div class="header">
+            <h1>📊 التقارير</h1>
+            <p>تقارير مالية شاملة وتحليلات متقدمة</p>
+            <div class="nav-buttons">
+                <a href="admin-dashboard.html" class="nav-btn">🏠 لوحة التحكم</a>
+                <a href="revenues.html" class="nav-btn">💰 الإيرادات</a>
+                <a href="expenses.html" class="nav-btn">💸 المصروفات</a>
+                <button class="nav-btn" onclick="logout()">🚪 تسجيل الخروج</button>
             </div>
         </div>
 
-        <div class="report-types">
-            <div class="report-type-card" onclick="selectReportType('financial')">
-                <div class="report-type-title">💰 التقرير المالي الشامل</div>
-                <div class="report-type-description">تقرير شامل للإيرادات والمصروفات والأرباح</div>
+        <!-- بطاقات أنواع التقارير -->
+        <div class="report-types-grid">
+            <div class="report-type-card" onclick="selectType('financial')">
+                <div class="report-type-icon">💰</div>
+                <div class="report-type-title">التقرير المالي الشامل</div>
+                <div class="report-type-desc">إيرادات + مصروفات + صافي الربح</div>
             </div>
-            <div class="report-type-card" onclick="selectReportType('drivers')">
-                <div class="report-type-title">👨‍💼 تقرير السائقين</div>
-                <div class="report-type-description">تفاصيل السائقين ومدفوعاتهم والتحذيرات</div>
+            <div class="report-type-card" onclick="selectType('monthly')">
+                <div class="report-type-icon">📅</div>
+                <div class="report-type-title">الملخص الشهري</div>
+                <div class="report-type-desc">مقارنة شهر بشهر</div>
             </div>
-            <div class="report-type-card" onclick="selectReportType('cars')">
-                <div class="report-type-title">🚗 تقرير السيارات</div>
-                <div class="report-type-description">حالة السيارات وتكاليف الصيانة</div>
+            <div class="report-type-card" onclick="selectType('drivers')">
+                <div class="report-type-icon">👨‍💼</div>
+                <div class="report-type-title">تقرير السائقين</div>
+                <div class="report-type-desc">مدفوعات وديون السائقين</div>
             </div>
-            <div class="report-type-card" onclick="selectReportType('expenses')">
-                <div class="report-type-title">💸 تقرير المصروفات</div>
-                <div class="report-type-description">تفصيل المصروفات حسب النوع والفترة</div>
+            <div class="report-type-card" onclick="selectType('cars')">
+                <div class="report-type-icon">🚗</div>
+                <div class="report-type-title">تقرير السيارات</div>
+                <div class="report-type-desc">حالة السيارات والصيانة</div>
             </div>
-            <div class="report-type-card" onclick="selectReportType('revenues')">
-                <div class="report-type-title">💵 تقرير الإيرادات</div>
-                <div class="report-type-description">إيرادات السائقين والمصادر الأخرى</div>
+            <div class="report-type-card" onclick="selectType('expenses')">
+                <div class="report-type-icon">💸</div>
+                <div class="report-type-title">تقرير المصروفات</div>
+                <div class="report-type-desc">تفصيل حسب النوع والفترة</div>
+            </div>
+            <div class="report-type-card" onclick="selectType('revenues')">
+                <div class="report-type-icon">💵</div>
+                <div class="report-type-title">تقرير الإيرادات</div>
+                <div class="report-type-desc">إيرادات من جميع المصادر</div>
+            </div>
+            <div class="report-type-card" onclick="selectType('salary')">
+                <div class="report-type-icon">💳</div>
+                <div class="report-type-title">تقرير رصيد الرواتب</div>
+                <div class="report-type-desc">رسوم الرواتب والإيداعات</div>
+            </div>
+            <div class="report-type-card" onclick="selectType('advances')">
+                <div class="report-type-icon">🤝</div>
+                <div class="report-type-title">تقرير السلف</div>
+                <div class="report-type-desc">سلف السائقين والتحصيل</div>
+            </div>
+            <div class="report-type-card" onclick="selectType('rami')">
+                <div class="report-type-icon">🏦</div>
+                <div class="report-type-title">تقرير حساب رامي</div>
+                <div class="report-type-desc">حركات الحساب في الفترة</div>
             </div>
         </div>
 
-        <div class="loading" id="loading" style="display: none;">
+        <!-- الفلاتر -->
+        <div class="filters-card">
+            <div class="filter-group">
+                <label>من تاريخ</label>
+                <input type="date" class="filter-input" id="fromDate">
+            </div>
+            <div class="filter-group">
+                <label>إلى تاريخ</label>
+                <input type="date" class="filter-input" id="toDate">
+            </div>
+            <div class="filter-group">
+                <label>نوع التقرير</label>
+                <select class="filter-input" id="reportTypeSelect">
+                    <option value="">اختر نوع التقرير</option>
+                    <option value="financial">التقرير المالي الشامل</option>
+                    <option value="monthly">الملخص الشهري</option>
+                    <option value="drivers">تقرير السائقين</option>
+                    <option value="cars">تقرير السيارات</option>
+                    <option value="expenses">تقرير المصروفات</option>
+                    <option value="revenues">تقرير الإيرادات</option>
+                    <option value="salary">تقرير رصيد الرواتب</option>
+                    <option value="advances">تقرير السلف</option>
+                    <option value="rami">تقرير حساب رامي</option>
+                </select>
+            </div>
+            <button class="generate-btn" onclick="generateReport()">📊 إنشاء التقرير</button>
+        </div>
+
+        <!-- تحميل -->
+        <div class="loading-overlay" id="loading">
             <div class="spinner"></div>
-            <p>جاري إنشاء التقرير...</p>
+            <p style="color:#667eea;font-weight:600;">جاري إنشاء التقرير...</p>
         </div>
 
+        <!-- نتائج التقرير -->
         <div class="report-results" id="reportResults">
-            <div class="report-header">
-                <div class="report-title" id="reportTitle">التقرير المالي</div>
-                <button class="export-btn" onclick="exportReport()">تصدير PDF</button>
+            <div class="report-header-bar">
+                <div>
+                    <div class="report-header-title" id="reportTitle">التقرير</div>
+                    <div class="report-header-period" id="reportPeriod"></div>
+                </div>
+                <button class="export-btn" onclick="exportReport()">🖨️ طباعة / PDF</button>
             </div>
-            <div class="report-content" id="reportContent">
-                <!-- سيتم ملء محتوى التقرير هنا -->
-            </div>
+            <div class="report-body" id="reportBody"></div>
         </div>
     </div>
 
@@ -395,17 +501,15 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, getDocs, doc, getDoc, query, where, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
             authDomain: "taxi-management-system-d8210.firebaseapp.com",
             projectId: "taxi-management-system-d8210",
             storageBucket: "taxi-management-system-d8210.firebasestorage.app",
             messagingSenderId: "720874424166",
-            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
-            measurementId: "G-GY8820W410"
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -413,435 +517,717 @@
         const db = getFirestore(app);
 
         let currentUser = null;
-        let selectedReportType = '';
+        let selectedType = '';
 
-        // Check authentication
+        // ===== المصادقة =====
         onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                window.location.href = 'index.html';
-                return;
-            }
-            
+            if (!user) { window.location.href = 'index.html'; return; }
             try {
-                // Get user data from Firestore
                 const userDoc = await getDoc(doc(db, 'users', user.uid));
-                if (!userDoc.exists()) {
-                    console.error('User document not found');
-                    window.location.href = 'index.html';
-                    return;
-                }
-                
+                if (!userDoc.exists()) { window.location.href = 'index.html'; return; }
                 const userData = userDoc.data();
-                if (!['admin', 'accountant'].includes(userData.role)) {
-                    console.error('User does not have required role');
-                    window.location.href = 'index.html';
-                    return;
-                }
-                
-                // Store user data
+                if (!['admin', 'accountant'].includes(userData.role)) { window.location.href = 'index.html'; return; }
                 currentUser = { uid: user.uid, ...userData };
-                
-                // Set default dates
                 setDefaultDates();
-            } catch (error) {
-                console.error('Error checking user role:', error);
-                window.location.href = 'index.html';
-            }
+            } catch (e) { window.location.href = 'index.html'; }
         });
 
-        // Set default dates (current month)
         function setDefaultDates() {
             const today = new Date();
             const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-            
             document.getElementById('fromDate').value = firstDay.toISOString().split('T')[0];
             document.getElementById('toDate').value = today.toISOString().split('T')[0];
         }
 
-        // Select report type
-        window.selectReportType = (type) => {
-            selectedReportType = type;
-            document.getElementById('reportType').value = type;
-            
-            // Update UI
-            document.querySelectorAll('.report-type-card').forEach(card => {
-                card.classList.remove('active');
-            });
+        // ===== اختيار نوع التقرير =====
+        window.selectType = (type) => {
+            selectedType = type;
+            document.getElementById('reportTypeSelect').value = type;
+            document.querySelectorAll('.report-type-card').forEach(c => c.classList.remove('active'));
             event.target.closest('.report-type-card').classList.add('active');
         };
 
-        // Generate report
+        // ===== إنشاء التقرير =====
         window.generateReport = async () => {
-            const reportType = document.getElementById('reportType').value || selectedReportType;
-            const fromDate = document.getElementById('fromDate').value;
-            const toDate = document.getElementById('toDate').value;
+            const type = document.getElementById('reportTypeSelect').value || selectedType;
+            const from = document.getElementById('fromDate').value;
+            const to = document.getElementById('toDate').value;
 
-            if (!reportType) {
-                alert('يرجى اختيار نوع التقرير');
-                return;
-            }
-
-            if (!fromDate || !toDate) {
-                alert('يرجى تحديد الفترة الزمنية');
-                return;
-            }
+            if (!type) { alert('يرجى اختيار نوع التقرير'); return; }
+            if (!from || !to) { alert('يرجى تحديد الفترة الزمنية'); return; }
 
             document.getElementById('loading').style.display = 'block';
             document.getElementById('reportResults').style.display = 'none';
 
             try {
-                let reportData;
-                switch (reportType) {
-                    case 'financial':
-                        reportData = await generateFinancialReport(fromDate, toDate);
-                        break;
-                    case 'drivers':
-                        reportData = await generateDriversReport(fromDate, toDate);
-                        break;
-                    case 'cars':
-                        reportData = await generateCarsReport(fromDate, toDate);
-                        break;
-                    case 'expenses':
-                        reportData = await generateExpensesReport(fromDate, toDate);
-                        break;
-                    case 'revenues':
-                        reportData = await generateRevenuesReport(fromDate, toDate);
-                        break;
-                    default:
-                        throw new Error('نوع تقرير غير مدعوم');
+                let html = '';
+                const title = getReportTitle(type);
+                const period = `${formatDate(from)} — ${formatDate(to)}`;
+
+                switch (type) {
+                    case 'financial': html = await buildFinancialReport(from, to); break;
+                    case 'monthly':   html = await buildMonthlyReport(from, to); break;
+                    case 'drivers':   html = await buildDriversReport(from, to); break;
+                    case 'cars':      html = await buildCarsReport(from, to); break;
+                    case 'expenses':  html = await buildExpensesReport(from, to); break;
+                    case 'revenues':  html = await buildRevenuesReport(from, to); break;
+                    case 'salary':    html = await buildSalaryReport(from, to); break;
+                    case 'advances':  html = await buildAdvancesReport(from, to); break;
+                    case 'rami':      html = await buildRamiReport(from, to); break;
+                    default: html = '<div class="no-data">نوع تقرير غير مدعوم</div>';
                 }
 
-                displayReport(reportData);
-            } catch (error) {
-                console.error('Error generating report:', error);
-                alert('حدث خطأ في إنشاء التقرير');
+                document.getElementById('reportTitle').textContent = title;
+                document.getElementById('reportPeriod').textContent = period;
+                document.getElementById('reportBody').innerHTML = html;
+                document.getElementById('reportResults').style.display = 'block';
+            } catch (e) {
+                console.error(e);
+                alert('حدث خطأ في إنشاء التقرير: ' + e.message);
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
         };
 
-        // Generate financial report
-        async function generateFinancialReport(fromDate, toDate) {
-            const [revenues, expenses] = await Promise.all([
-                getDataInRange('revenues', fromDate, toDate),
-                getDataInRange('expenses', fromDate, toDate)
+        // ===== جلب البيانات في نطاق تاريخ =====
+        async function fetchInRange(collectionName, from, to, dateField = null) {
+            const start = new Date(from); start.setHours(0,0,0,0);
+            const end   = new Date(to);   end.setHours(23,59,59,999);
+            const snap  = await getDocs(collection(db, collectionName));
+            const result = [];
+            snap.forEach(d => {
+                const item = { id: d.id, ...d.data() };
+                const dateFields = dateField ? [dateField] : ['date', 'expenseDate', 'paymentDate', 'createdAt'];
+                let itemDate = null;
+                for (const f of dateFields) {
+                    if (item[f]) {
+                        itemDate = item[f].seconds ? new Date(item[f].seconds * 1000) : new Date(item[f]);
+                        break;
+                    }
+                }
+                if (itemDate && itemDate >= start && itemDate <= end) result.push(item);
+            });
+            return result;
+        }
+
+        async function fetchAll(collectionName) {
+            const snap = await getDocs(collection(db, collectionName));
+            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        }
+
+        // ===== أنواع دفعات السائقين التي تُحسب إيراداً =====
+        const REVENUE_PAYMENT_TYPES = [
+            'أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة',
+            'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم',
+            'إجازة سنوية', 'تحصيل سلفة من السائق'
+        ];
+
+        // ===== أنواع دفعات السائقين التي تُحسب مصروفاً =====
+        const EXPENSE_PAYMENT_TYPES = [
+            'سداد مخالفة', 'سداد رسوم إقامة', 'سلفة إلى السائق'
+        ];
+
+        // ===== أنواع رصيد الرواتب =====
+        const SALARY_INCOME_TYPES  = ['تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب'];
+        const SALARY_EXPENSE_TYPES = ['سداد رواتب'];
+
+        // ===== أنواع السلف =====
+        const ADVANCE_GIVEN_TYPES  = ['سلفة إلى السائق'];
+        const ADVANCE_COLLECT_TYPES = ['تحصيل سلفة من السائق'];
+
+        // ===== مساعدات =====
+        function formatDate(d) {
+            if (!d) return '—';
+            const date = d.seconds ? new Date(d.seconds * 1000) : new Date(d);
+            return date.toLocaleDateString('ar-KW', { year:'numeric', month:'short', day:'numeric' });
+        }
+
+        function formatAmount(n) {
+            return (n || 0).toFixed(3) + ' د.ك';
+        }
+
+        function getItemDate(item) {
+            const fields = ['date','expenseDate','paymentDate','createdAt'];
+            for (const f of fields) {
+                if (item[f]) return item[f].seconds ? new Date(item[f].seconds * 1000) : new Date(item[f]);
+            }
+            return null;
+        }
+
+        function getMonthKey(date) {
+            return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+        }
+
+        function getMonthLabel(key) {
+            const [y, m] = key.split('-');
+            return new Date(y, m-1, 1).toLocaleDateString('ar-KW', { year:'numeric', month:'long' });
+        }
+
+        function getReportTitle(type) {
+            const titles = {
+                financial: 'التقرير المالي الشامل',
+                monthly:   'الملخص الشهري المقارن',
+                drivers:   'تقرير السائقين',
+                cars:      'تقرير السيارات',
+                expenses:  'تقرير المصروفات',
+                revenues:  'تقرير الإيرادات',
+                salary:    'تقرير رصيد الرواتب',
+                advances:  'تقرير السلف',
+                rami:      'تقرير حساب رامي'
+            };
+            return titles[type] || 'التقرير';
+        }
+
+        function summaryCards(items) {
+            return `<div class="summary-grid">${items.map(i => `
+                <div class="summary-card">
+                    <div class="summary-card-title">${i.title}</div>
+                    <div class="summary-card-value ${i.cls||''}">${i.value}</div>
+                </div>`).join('')}</div>`;
+        }
+
+        function buildTable(headers, rows, emptyMsg = 'لا توجد بيانات') {
+            if (!rows.length) return `<div class="no-data">${emptyMsg}</div>`;
+            return `<div class="report-table-wrap"><table class="report-table">
+                <thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+                <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
+            </table></div>`;
+        }
+
+        function buildBarChart(items, maxVal, isExpense = false) {
+            if (!items.length) return '';
+            return `<div class="chart-container"><div class="bar-chart">${
+                items.map(item => {
+                    const pct = maxVal > 0 ? (item.value / maxVal * 100).toFixed(1) : 0;
+                    return `<div class="bar-row">
+                        <div class="bar-label">${item.label}</div>
+                        <div class="bar-track">
+                            <div class="bar-fill ${isExpense?'expense-bar':''}" style="width:${pct}%"></div>
+                        </div>
+                        <div class="bar-value">${formatAmount(item.value)}</div>
+                    </div>`;
+                }).join('')
+            }</div></div>`;
+        }
+
+        // ===== 1. التقرير المالي الشامل =====
+        async function buildFinancialReport(from, to) {
+            const [revenues, expenses, driverPayments] = await Promise.all([
+                fetchInRange('revenues', from, to),
+                fetchInRange('expenses', from, to),
+                fetchInRange('driverPayments', from, to)
             ]);
 
-            const totalRevenues = revenues.reduce((sum, item) => sum + item.amount, 0);
-            const totalExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
+            // إيرادات من revenues collection
+            const revTotal = revenues.reduce((s,i) => s + (i.amount||0), 0);
+
+            // إيرادات من driverPayments
+            const dpRevItems = driverPayments.filter(p => REVENUE_PAYMENT_TYPES.includes(p.type));
+            const dpRevTotal = dpRevItems.reduce((s,i) => s + (i.amount||0), 0);
+
+            // مصروفات من expenses collection
+            const expTotal = expenses.reduce((s,i) => s + (i.amount||0), 0);
+
+            // مصروفات من driverPayments
+            const dpExpItems = driverPayments.filter(p => EXPENSE_PAYMENT_TYPES.includes(p.type));
+            const dpExpTotal = dpExpItems.reduce((s,i) => s + (i.amount||0), 0);
+
+            const totalRevenues = revTotal + dpRevTotal;
+            const totalExpenses = expTotal + dpExpTotal;
             const netProfit = totalRevenues - totalExpenses;
 
-            return {
-                title: 'التقرير المالي الشامل',
-                summary: [
-                    { title: 'إجمالي الإيرادات', value: totalRevenues.toFixed(3) + ' د.ك', class: 'positive' },
-                    { title: 'إجمالي المصروفات', value: totalExpenses.toFixed(3) + ' د.ك', class: 'negative' },
-                    { title: 'صافي الربح', value: netProfit.toFixed(3) + ' د.ك', class: netProfit >= 0 ? 'positive' : 'negative' },
-                    { title: 'عدد المعاملات', value: (revenues.length + expenses.length).toString() }
-                ],
-                tables: [
-                    {
-                        title: 'الإيرادات',
-                        headers: ['التاريخ', 'المصدر', 'المبلغ', 'الوصف'],
-                        data: revenues.map(item => [
-                            new Date(item.date?.seconds * 1000 || item.createdAt?.seconds * 1000).toLocaleDateString('ar'),
-                            item.source || 'غير محدد',
-                            item.amount.toFixed(3) + ' د.ك',
-                            item.description || 'لا يوجد وصف'
-                        ])
-                    },
-                    {
-                        title: 'المصروفات',
-                        headers: ['التاريخ', 'النوع', 'المبلغ', 'الوصف'],
-                        data: expenses.map(item => [
-                            new Date(item.expenseDate?.seconds * 1000 || item.createdAt?.seconds * 1000).toLocaleDateString('ar'),
-                            getExpenseTypeName(item.type),
-                            item.amount.toFixed(3) + ' د.ك',
-                            item.description || 'لا يوجد وصف'
-                        ])
-                    }
-                ]
-            };
+            // تجميع مصروفات حسب النوع
+            const expByType = {};
+            expenses.forEach(e => {
+                const t = e.type || 'أخرى';
+                expByType[t] = (expByType[t]||0) + (e.amount||0);
+            });
+            dpExpItems.forEach(e => {
+                expByType[e.type] = (expByType[e.type]||0) + (e.amount||0);
+            });
+
+            const expTypeItems = Object.entries(expByType).map(([k,v]) => ({ label: k, value: v }))
+                .sort((a,b) => b.value - a.value);
+            const maxExp = Math.max(...expTypeItems.map(i=>i.value), 1);
+
+            let html = summaryCards([
+                { title: 'إجمالي الإيرادات',  value: formatAmount(totalRevenues), cls: 'positive' },
+                { title: 'إجمالي المصروفات',  value: formatAmount(totalExpenses), cls: 'negative' },
+                { title: 'صافي الربح',         value: formatAmount(netProfit),     cls: netProfit >= 0 ? 'positive' : 'negative' },
+                { title: 'عدد المعاملات',      value: (revenues.length + expenses.length + driverPayments.length).toString(), cls: 'info' }
+            ]);
+
+            html += `<div class="report-section-title">📊 توزيع المصروفات حسب النوع</div>`;
+            html += buildBarChart(expTypeItems, maxExp, true);
+
+            html += `<div class="report-section-title">💰 مصادر الإيرادات</div>`;
+            html += summaryCards([
+                { title: 'إيرادات مباشرة',       value: formatAmount(revTotal),   cls: 'positive' },
+                { title: 'تحصيل من السائقين',    value: formatAmount(dpRevTotal), cls: 'positive' },
+                { title: 'مصروفات مباشرة',       value: formatAmount(expTotal),   cls: 'negative' },
+                { title: 'سداد للسائقين',        value: formatAmount(dpExpTotal), cls: 'negative' }
+            ]);
+
+            return html;
         }
 
-        // Generate drivers report
-        async function generateDriversReport(fromDate, toDate) {
-            const drivers = await getDocs(collection(db, 'drivers'));
-            const driversData = [];
-            
-            drivers.forEach(doc => {
-                const data = doc.data();
-                driversData.push({
-                    name: data.name,
-                    phone: data.phone,
-                    dailyRent: data.dailyRent || 0,
-                    status: data.contractStatus === 'active' ? 'نشط' : 'غير نشط',
-                    lastPayment: data.lastPaymentDate ? new Date(data.lastPaymentDate.seconds * 1000).toLocaleDateString('ar') : 'لا توجد'
+        // ===== 2. الملخص الشهري المقارن =====
+        async function buildMonthlyReport(from, to) {
+            const [revenues, expenses, driverPayments] = await Promise.all([
+                fetchInRange('revenues', from, to),
+                fetchInRange('expenses', from, to),
+                fetchInRange('driverPayments', from, to)
+            ]);
+
+            const months = {};
+
+            const addToMonth = (item, type) => {
+                const d = getItemDate(item);
+                if (!d) return;
+                const key = getMonthKey(d);
+                if (!months[key]) months[key] = { rev: 0, exp: 0 };
+                months[key][type] += (item.amount || 0);
+            };
+
+            revenues.forEach(i => addToMonth(i, 'rev'));
+            driverPayments.filter(p => REVENUE_PAYMENT_TYPES.includes(p.type)).forEach(i => addToMonth(i, 'rev'));
+            expenses.forEach(i => addToMonth(i, 'exp'));
+            driverPayments.filter(p => EXPENSE_PAYMENT_TYPES.includes(p.type)).forEach(i => addToMonth(i, 'exp'));
+
+            const sortedMonths = Object.keys(months).sort();
+            if (!sortedMonths.length) return '<div class="no-data">لا توجد بيانات في هذه الفترة</div>';
+
+            const totalRev = sortedMonths.reduce((s,k) => s + months[k].rev, 0);
+            const totalExp = sortedMonths.reduce((s,k) => s + months[k].exp, 0);
+
+            let html = summaryCards([
+                { title: 'إجمالي الإيرادات',  value: formatAmount(totalRev), cls: 'positive' },
+                { title: 'إجمالي المصروفات',  value: formatAmount(totalExp), cls: 'negative' },
+                { title: 'صافي الفترة',        value: formatAmount(totalRev - totalExp), cls: (totalRev-totalExp)>=0?'positive':'negative' },
+                { title: 'عدد الأشهر',         value: sortedMonths.length.toString(), cls: 'info' }
+            ]);
+
+            const rows = sortedMonths.map(k => {
+                const net = months[k].rev - months[k].exp;
+                return [
+                    getMonthLabel(k),
+                    `<span class="amount-positive">${formatAmount(months[k].rev)}</span>`,
+                    `<span class="amount-negative">${formatAmount(months[k].exp)}</span>`,
+                    `<span class="${net>=0?'amount-positive':'amount-negative'}">${formatAmount(net)}</span>`
+                ];
+            });
+
+            html += `<div class="report-section-title">📅 تفصيل شهري</div>`;
+            html += buildTable(['الشهر','الإيرادات','المصروفات','صافي الربح'], rows);
+
+            // رسم بياني للإيرادات
+            const barItems = sortedMonths.map(k => ({ label: getMonthLabel(k), value: months[k].rev }));
+            const maxRev = Math.max(...barItems.map(i=>i.value), 1);
+            html += `<div class="report-section-title">📈 رسم بياني — الإيرادات الشهرية</div>`;
+            html += buildBarChart(barItems, maxRev, false);
+
+            return html;
+        }
+
+        // ===== 3. تقرير السائقين =====
+        async function buildDriversReport(from, to) {
+            const [drivers, driverPayments] = await Promise.all([
+                fetchAll('drivers'),
+                fetchInRange('driverPayments', from, to)
+            ]);
+
+            const driverMap = {};
+            drivers.forEach(d => { driverMap[d.id] = d; });
+
+            // حساب الإجماليات لكل سائق
+            const stats = {};
+            driverPayments.forEach(p => {
+                const did = p.driverId;
+                if (!did) return;
+                if (!stats[did]) stats[did] = { paid: 0, received: 0, advances: 0 };
+                if (REVENUE_PAYMENT_TYPES.includes(p.type)) stats[did].paid += (p.amount||0);
+                if (EXPENSE_PAYMENT_TYPES.includes(p.type)) stats[did].received += (p.amount||0);
+                if (ADVANCE_GIVEN_TYPES.includes(p.type)) stats[did].advances += (p.amount||0);
+                if (ADVANCE_COLLECT_TYPES.includes(p.type)) stats[did].advances -= (p.amount||0);
+            });
+
+            const totalDrivers = drivers.length;
+            const activeDrivers = drivers.filter(d => d.contractStatus === 'active').length;
+            const totalPaid = Object.values(stats).reduce((s,v) => s+v.paid, 0);
+
+            let html = summaryCards([
+                { title: 'إجمالي السائقين',  value: totalDrivers.toString(),  cls: 'info' },
+                { title: 'السائقين النشطين', value: activeDrivers.toString(),  cls: 'positive' },
+                { title: 'إجمالي التحصيل',   value: formatAmount(totalPaid),  cls: 'positive' },
+                { title: 'السائقين غير النشطين', value: (totalDrivers - activeDrivers).toString(), cls: 'warning' }
+            ]);
+
+            const rows = drivers.map(d => {
+                const s = stats[d.id] || { paid: 0, received: 0, advances: 0 };
+                const status = d.contractStatus === 'active' ? '<span style="color:#059669;font-weight:700;">نشط</span>' : '<span style="color:#dc2626;">غير نشط</span>';
+                return [
+                    d.name || '—',
+                    d.phone || '—',
+                    formatAmount(d.dailyRent || 0),
+                    status,
+                    `<span class="amount-positive">${formatAmount(s.paid)}</span>`,
+                    `<span class="amount-negative">${formatAmount(s.received)}</span>`,
+                    s.advances > 0 ? `<span class="amount-negative">${formatAmount(s.advances)}</span>` : `<span class="amount-neutral">—</span>`
+                ];
+            });
+
+            html += `<div class="report-section-title">👨‍💼 قائمة السائقين</div>`;
+            html += buildTable(['الاسم','الهاتف','الأجرة اليومية','الحالة','التحصيل','السداد','السلف المستحقة'], rows);
+
+            return html;
+        }
+
+        // ===== 4. تقرير السيارات =====
+        async function buildCarsReport(from, to) {
+            const [cars, expenses] = await Promise.all([
+                fetchAll('cars'),
+                fetchInRange('expenses', from, to)
+            ]);
+
+            const maintenanceByPlate = {};
+            expenses.filter(e => e.type === 'car_maintenance' || e.type === 'صيانة سيارة').forEach(e => {
+                const plate = e.carPlate || e.plateNumber || 'غير محدد';
+                maintenanceByPlate[plate] = (maintenanceByPlate[plate]||0) + (e.amount||0);
+            });
+
+            const totalValue = cars.reduce((s,c) => s + (c.purchasePrice||0), 0);
+            const totalMaintenance = Object.values(maintenanceByPlate).reduce((s,v) => s+v, 0);
+            const available = cars.filter(c => c.status === 'available').length;
+            const rented = cars.filter(c => c.status === 'rented').length;
+
+            let html = summaryCards([
+                { title: 'إجمالي السيارات',     value: cars.length.toString(),       cls: 'info' },
+                { title: 'متاحة',               value: available.toString(),          cls: 'positive' },
+                { title: 'مؤجرة',               value: rented.toString(),             cls: 'warning' },
+                { title: 'تكاليف الصيانة',      value: formatAmount(totalMaintenance), cls: 'negative' },
+                { title: 'إجمالي قيمة الأسطول', value: formatAmount(totalValue),      cls: 'info' }
+            ]);
+
+            const statusMap = { available:'متاحة', rented:'مؤجرة', maintenance:'صيانة' };
+
+            const rows = cars.map(c => {
+                const maintenance = maintenanceByPlate[c.plateNumber] || 0;
+                const status = statusMap[c.status] || c.status || '—';
+                return [
+                    c.plateNumber || '—',
+                    c.brand || '—',
+                    c.model || '—',
+                    c.year || '—',
+                    status,
+                    formatAmount(c.purchasePrice||0),
+                    maintenance > 0 ? `<span class="amount-negative">${formatAmount(maintenance)}</span>` : `<span class="amount-neutral">—</span>`
+                ];
+            });
+
+            html += `<div class="report-section-title">🚗 قائمة السيارات</div>`;
+            html += buildTable(['رقم اللوحة','الماركة','الموديل','السنة','الحالة','سعر الشراء','صيانة الفترة'], rows);
+
+            return html;
+        }
+
+        // ===== 5. تقرير المصروفات =====
+        async function buildExpensesReport(from, to) {
+            const [expenses, driverPayments] = await Promise.all([
+                fetchInRange('expenses', from, to),
+                fetchInRange('driverPayments', from, to)
+            ]);
+
+            const dpExpItems = driverPayments.filter(p => EXPENSE_PAYMENT_TYPES.includes(p.type));
+
+            const expTotal = expenses.reduce((s,i) => s+(i.amount||0), 0);
+            const dpExpTotal = dpExpItems.reduce((s,i) => s+(i.amount||0), 0);
+            const total = expTotal + dpExpTotal;
+
+            // تجميع حسب النوع
+            const byType = {};
+            expenses.forEach(e => {
+                const t = e.type || 'أخرى';
+                byType[t] = (byType[t]||0) + (e.amount||0);
+            });
+            dpExpItems.forEach(e => {
+                byType[e.type] = (byType[e.type]||0) + (e.amount||0);
+            });
+
+            const typeItems = Object.entries(byType).map(([k,v]) => ({ label: k, value: v }))
+                .sort((a,b) => b.value - a.value);
+            const maxVal = Math.max(...typeItems.map(i=>i.value), 1);
+
+            let html = summaryCards([
+                { title: 'إجمالي المصروفات',    value: formatAmount(total),    cls: 'negative' },
+                { title: 'مصروفات مباشرة',      value: formatAmount(expTotal),  cls: 'negative' },
+                { title: 'سداد للسائقين',       value: formatAmount(dpExpTotal), cls: 'negative' },
+                { title: 'عدد المصروفات',       value: (expenses.length + dpExpItems.length).toString(), cls: 'info' }
+            ]);
+
+            html += `<div class="report-section-title">📊 توزيع المصروفات حسب النوع</div>`;
+            html += buildBarChart(typeItems, maxVal, true);
+
+            const typeRows = typeItems.map(i => [
+                i.label,
+                `<span class="amount-negative">${formatAmount(i.value)}</span>`,
+                `${((i.value/total)*100).toFixed(1)}%`
+            ]);
+            html += `<div class="report-section-title">📋 ملخص حسب النوع</div>`;
+            html += buildTable(['نوع المصروف','المبلغ','النسبة'], typeRows);
+
+            const detailRows = [
+                ...expenses.map(e => [
+                    formatDate(getItemDate(e)),
+                    e.type || '—',
+                    `<span class="amount-negative">${formatAmount(e.amount)}</span>`,
+                    e.description || '—',
+                    '—'
+                ]),
+                ...dpExpItems.map(e => [
+                    formatDate(getItemDate(e)),
+                    e.type,
+                    `<span class="amount-negative">${formatAmount(e.amount)}</span>`,
+                    e.description || '—',
+                    e.driverName || '—'
+                ])
+            ].sort((a,b) => a[0].localeCompare(b[0]));
+
+            html += `<div class="report-section-title">📄 تفاصيل المصروفات</div>`;
+            html += buildTable(['التاريخ','النوع','المبلغ','الوصف','السائق'], detailRows);
+
+            return html;
+        }
+
+        // ===== 6. تقرير الإيرادات =====
+        async function buildRevenuesReport(from, to) {
+            const [revenues, driverPayments] = await Promise.all([
+                fetchInRange('revenues', from, to),
+                fetchInRange('driverPayments', from, to)
+            ]);
+
+            const dpRevItems = driverPayments.filter(p => REVENUE_PAYMENT_TYPES.includes(p.type));
+            const revTotal   = revenues.reduce((s,i) => s+(i.amount||0), 0);
+            const dpRevTotal = dpRevItems.reduce((s,i) => s+(i.amount||0), 0);
+            const total = revTotal + dpRevTotal;
+
+            // تجميع حسب النوع
+            const byType = {};
+            revenues.forEach(r => {
+                const t = r.source || r.type || 'إيراد مباشر';
+                byType[t] = (byType[t]||0) + (r.amount||0);
+            });
+            dpRevItems.forEach(p => {
+                byType[p.type] = (byType[p.type]||0) + (p.amount||0);
+            });
+
+            const typeItems = Object.entries(byType).map(([k,v]) => ({ label: k, value: v }))
+                .sort((a,b) => b.value - a.value);
+            const maxVal = Math.max(...typeItems.map(i=>i.value), 1);
+
+            let html = summaryCards([
+                { title: 'إجمالي الإيرادات',     value: formatAmount(total),    cls: 'positive' },
+                { title: 'إيرادات مباشرة',       value: formatAmount(revTotal),  cls: 'positive' },
+                { title: 'تحصيل من السائقين',    value: formatAmount(dpRevTotal), cls: 'positive' },
+                { title: 'عدد الإيرادات',        value: (revenues.length + dpRevItems.length).toString(), cls: 'info' }
+            ]);
+
+            html += `<div class="report-section-title">📊 توزيع الإيرادات حسب المصدر</div>`;
+            html += buildBarChart(typeItems, maxVal, false);
+
+            const detailRows = [
+                ...revenues.map(r => [
+                    formatDate(getItemDate(r)),
+                    r.source || r.type || '—',
+                    `<span class="amount-positive">${formatAmount(r.amount)}</span>`,
+                    r.description || '—',
+                    '—'
+                ]),
+                ...dpRevItems.map(p => [
+                    formatDate(getItemDate(p)),
+                    p.type,
+                    `<span class="amount-positive">${formatAmount(p.amount)}</span>`,
+                    p.description || '—',
+                    p.driverName || '—'
+                ])
+            ].sort((a,b) => a[0].localeCompare(b[0]));
+
+            html += `<div class="report-section-title">📄 تفاصيل الإيرادات</div>`;
+            html += buildTable(['التاريخ','المصدر / النوع','المبلغ','الوصف','السائق'], detailRows);
+
+            return html;
+        }
+
+        // ===== 7. تقرير رصيد الرواتب =====
+        async function buildSalaryReport(from, to) {
+            const driverPayments = await fetchInRange('driverPayments', from, to);
+
+            const incomeItems  = driverPayments.filter(p => SALARY_INCOME_TYPES.includes(p.type));
+            const expenseItems = driverPayments.filter(p => SALARY_EXPENSE_TYPES.includes(p.type));
+
+            const totalIncome  = incomeItems.reduce((s,i) => s+(i.amount||0), 0);
+            const totalExpense = expenseItems.reduce((s,i) => s+(i.amount||0), 0);
+            const balance = totalIncome - totalExpense;
+
+            let html = summaryCards([
+                { title: 'إجمالي الرسوم المحصَّلة', value: formatAmount(totalIncome),  cls: 'positive' },
+                { title: 'إجمالي الإيداعات',         value: formatAmount(totalExpense), cls: 'negative' },
+                { title: 'رصيد الرواتب',             value: formatAmount(balance),      cls: balance >= 0 ? 'positive' : 'negative' },
+                { title: 'عدد العمليات',              value: (incomeItems.length + expenseItems.length).toString(), cls: 'info' }
+            ]);
+
+            const incomeRows = incomeItems.map(p => [
+                formatDate(getItemDate(p)),
+                p.type,
+                `<span class="amount-positive">${formatAmount(p.amount)}</span>`,
+                p.driverName || '—',
+                p.description || '—'
+            ]);
+            html += `<div class="report-section-title">💳 رسوم الرواتب المحصَّلة</div>`;
+            html += buildTable(['التاريخ','النوع','المبلغ','السائق','الوصف'], incomeRows, 'لا توجد رسوم رواتب في هذه الفترة');
+
+            const expenseRows = expenseItems.map(p => [
+                formatDate(getItemDate(p)),
+                p.type,
+                `<span class="amount-negative">${formatAmount(p.amount)}</span>`,
+                p.description || '—'
+            ]);
+            html += `<div class="report-section-title">💸 إيداعات الرواتب</div>`;
+            html += buildTable(['التاريخ','النوع','المبلغ','الوصف'], expenseRows, 'لا توجد إيداعات رواتب في هذه الفترة');
+
+            return html;
+        }
+
+        // ===== 8. تقرير السلف =====
+        async function buildAdvancesReport(from, to) {
+            const driverPayments = await fetchInRange('driverPayments', from, to);
+
+            const givenItems   = driverPayments.filter(p => ADVANCE_GIVEN_TYPES.includes(p.type));
+            const collectItems = driverPayments.filter(p => ADVANCE_COLLECT_TYPES.includes(p.type));
+
+            const totalGiven   = givenItems.reduce((s,i) => s+(i.amount||0), 0);
+            const totalCollect = collectItems.reduce((s,i) => s+(i.amount||0), 0);
+            const outstanding  = totalGiven - totalCollect;
+
+            let html = summaryCards([
+                { title: 'إجمالي السلف المعطاة',  value: formatAmount(totalGiven),   cls: 'negative' },
+                { title: 'إجمالي السلف المحصَّلة', value: formatAmount(totalCollect), cls: 'positive' },
+                { title: 'السلف المستحقة',         value: formatAmount(outstanding),  cls: outstanding > 0 ? 'warning' : 'positive' },
+                { title: 'عدد السلف',              value: givenItems.length.toString(), cls: 'info' }
+            ]);
+
+            const givenRows = givenItems.map(p => [
+                formatDate(getItemDate(p)),
+                p.driverName || '—',
+                `<span class="amount-negative">${formatAmount(p.amount)}</span>`,
+                p.description || '—'
+            ]);
+            html += `<div class="report-section-title">💰 سلف مُعطاة للسائقين</div>`;
+            html += buildTable(['التاريخ','السائق','المبلغ','الوصف'], givenRows, 'لا توجد سلف في هذه الفترة');
+
+            const collectRows = collectItems.map(p => [
+                formatDate(getItemDate(p)),
+                p.driverName || '—',
+                `<span class="amount-positive">${formatAmount(p.amount)}</span>`,
+                p.description || '—'
+            ]);
+            html += `<div class="report-section-title">✅ سلف مُحصَّلة من السائقين</div>`;
+            html += buildTable(['التاريخ','السائق','المبلغ','الوصف'], collectRows, 'لا توجد تحصيلات سلف في هذه الفترة');
+
+            return html;
+        }
+
+        // ===== 9. تقرير حساب رامي =====
+        async function buildRamiReport(from, to) {
+            const [revenues, expenses, driverPayments] = await Promise.all([
+                fetchInRange('revenues', from, to),
+                fetchInRange('expenses', from, to),
+                fetchInRange('driverPayments', from, to)
+            ]);
+
+            const movements = [];
+
+            // إيرادات مباشرة → تزيد حساب رامي
+            revenues.forEach(r => {
+                movements.push({
+                    date: getItemDate(r),
+                    type: 'إيراد مباشر',
+                    description: r.source || r.description || '—',
+                    amount: r.amount || 0,
+                    direction: 'in'
                 });
             });
 
-            return {
-                title: 'تقرير السائقين',
-                summary: [
-                    { title: 'إجمالي السائقين', value: driversData.length.toString() },
-                    { title: 'السائقين النشطين', value: driversData.filter(d => d.status === 'نشط').length.toString() },
-                    { title: 'متوسط الأجرة اليومية', value: (driversData.reduce((sum, d) => sum + d.dailyRent, 0) / driversData.length || 0).toFixed(3) + ' د.ك' }
-                ],
-                tables: [
-                    {
-                        title: 'قائمة السائقين',
-                        headers: ['الاسم', 'رقم الهاتف', 'الأجرة اليومية', 'الحالة', 'آخر دفعة'],
-                        data: driversData.map(driver => [
-                            driver.name,
-                            driver.phone || 'غير محدد',
-                            driver.dailyRent.toFixed(3) + ' د.ك',
-                            driver.status,
-                            driver.lastPayment
-                        ])
-                    }
-                ]
-            };
-        }
-
-        // Generate cars report
-        async function generateCarsReport(fromDate, toDate) {
-            const cars = await getDocs(collection(db, 'cars'));
-            const carsData = [];
-            
-            cars.forEach(doc => {
-                const data = doc.data();
-                carsData.push({
-                    plateNumber: data.plateNumber,
-                    brand: data.brand,
-                    model: data.model,
-                    year: data.year,
-                    status: getCarStatusName(data.status),
-                    purchasePrice: data.purchasePrice || 0
+            // مصروفات مباشرة → تنقص حساب رامي
+            expenses.forEach(e => {
+                movements.push({
+                    date: getItemDate(e),
+                    type: e.type || 'مصروف',
+                    description: e.description || '—',
+                    amount: e.amount || 0,
+                    direction: 'out'
                 });
             });
 
-            const totalValue = carsData.reduce((sum, car) => sum + car.purchasePrice, 0);
-
-            return {
-                title: 'تقرير السيارات',
-                summary: [
-                    { title: 'إجمالي السيارات', value: carsData.length.toString() },
-                    { title: 'السيارات المتاحة', value: carsData.filter(c => c.status === 'متاحة').length.toString() },
-                    { title: 'السيارات المؤجرة', value: carsData.filter(c => c.status === 'مؤجرة').length.toString() },
-                    { title: 'إجمالي قيمة الأسطول', value: totalValue.toFixed(3) + ' د.ك' }
-                ],
-                tables: [
-                    {
-                        title: 'قائمة السيارات',
-                        headers: ['رقم اللوحة', 'الماركة', 'الموديل', 'السنة', 'الحالة', 'سعر الشراء'],
-                        data: carsData.map(car => [
-                            car.plateNumber,
-                            car.brand || 'غير محدد',
-                            car.model || 'غير محدد',
-                            car.year?.toString() || 'غير محدد',
-                            car.status,
-                            car.purchasePrice.toFixed(3) + ' د.ك'
-                        ])
-                    }
-                ]
-            };
-        }
-
-        // Generate expenses report
-        async function generateExpensesReport(fromDate, toDate) {
-            const expenses = await getDataInRange('expenses', fromDate, toDate);
-            const totalExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
-
-            // Group by type
-            const expensesByType = {};
-            expenses.forEach(expense => {
-                const type = getExpenseTypeName(expense.type);
-                if (!expensesByType[type]) {
-                    expensesByType[type] = { count: 0, total: 0 };
+            // دفعات السائقين
+            driverPayments.forEach(p => {
+                if (REVENUE_PAYMENT_TYPES.includes(p.type)) {
+                    movements.push({
+                        date: getItemDate(p),
+                        type: p.type,
+                        description: p.driverName || p.description || '—',
+                        amount: p.amount || 0,
+                        direction: 'in'
+                    });
+                } else if (EXPENSE_PAYMENT_TYPES.includes(p.type)) {
+                    movements.push({
+                        date: getItemDate(p),
+                        type: p.type,
+                        description: p.driverName || p.description || '—',
+                        amount: p.amount || 0,
+                        direction: 'out'
+                    });
                 }
-                expensesByType[type].count++;
-                expensesByType[type].total += expense.amount;
             });
 
-            return {
-                title: 'تقرير المصروفات',
-                summary: [
-                    { title: 'إجمالي المصروفات', value: totalExpenses.toFixed(3) + ' د.ك', class: 'negative' },
-                    { title: 'عدد المصروفات', value: expenses.length.toString() },
-                    { title: 'متوسط المصروف', value: (totalExpenses / expenses.length || 0).toFixed(3) + ' د.ك' }
-                ],
-                tables: [
-                    {
-                        title: 'المصروفات حسب النوع',
-                        headers: ['نوع المصروف', 'العدد', 'إجمالي المبلغ', 'النسبة'],
-                        data: Object.entries(expensesByType).map(([type, data]) => [
-                            type,
-                            data.count.toString(),
-                            data.total.toFixed(3) + ' د.ك',
-                            ((data.total / totalExpenses) * 100).toFixed(1) + '%'
-                        ])
-                    },
-                    {
-                        title: 'تفاصيل المصروفات',
-                        headers: ['التاريخ', 'النوع', 'المبلغ', 'الوصف'],
-                        data: expenses.map(expense => [
-                            new Date(expense.expenseDate?.seconds * 1000).toLocaleDateString('ar'),
-                            getExpenseTypeName(expense.type),
-                            expense.amount.toFixed(3) + ' د.ك',
-                            expense.description || 'لا يوجد وصف'
-                        ])
-                    }
-                ]
-            };
+            movements.sort((a,b) => (a.date||0) - (b.date||0));
+
+            const totalIn  = movements.filter(m=>m.direction==='in').reduce((s,m) => s+m.amount, 0);
+            const totalOut = movements.filter(m=>m.direction==='out').reduce((s,m) => s+m.amount, 0);
+            const net = totalIn - totalOut;
+
+            let html = summaryCards([
+                { title: 'إجمالي الدخول',   value: formatAmount(totalIn),  cls: 'positive' },
+                { title: 'إجمالي الخروج',   value: formatAmount(totalOut), cls: 'negative' },
+                { title: 'صافي الفترة',     value: formatAmount(net),      cls: net>=0?'positive':'negative' },
+                { title: 'عدد الحركات',     value: movements.length.toString(), cls: 'info' }
+            ]);
+
+            const rows = movements.map(m => [
+                formatDate(m.date),
+                m.type,
+                m.description,
+                m.direction === 'in'
+                    ? `<span class="amount-positive">+${formatAmount(m.amount)}</span>`
+                    : `<span class="amount-negative">-${formatAmount(m.amount)}</span>`
+            ]);
+
+            html += `<div class="report-section-title">🏦 حركات حساب رامي</div>`;
+            html += buildTable(['التاريخ','النوع','الوصف / السائق','المبلغ'], rows, 'لا توجد حركات في هذه الفترة');
+
+            return html;
         }
 
-        // Generate revenues report
-        async function generateRevenuesReport(fromDate, toDate) {
-            const revenues = await getDataInRange('revenues', fromDate, toDate);
-            const totalRevenues = revenues.reduce((sum, item) => sum + item.amount, 0);
+        // ===== تصدير =====
+        window.exportReport = () => { window.print(); };
 
-            return {
-                title: 'تقرير الإيرادات',
-                summary: [
-                    { title: 'إجمالي الإيرادات', value: totalRevenues.toFixed(3) + ' د.ك', class: 'positive' },
-                    { title: 'عدد الإيرادات', value: revenues.length.toString() },
-                    { title: 'متوسط الإيراد', value: (totalRevenues / revenues.length || 0).toFixed(3) + ' د.ك' }
-                ],
-                tables: [
-                    {
-                        title: 'تفاصيل الإيرادات',
-                        headers: ['التاريخ', 'المصدر', 'المبلغ', 'الوصف'],
-                        data: revenues.map(revenue => [
-                            new Date(revenue.date?.seconds * 1000 || revenue.createdAt?.seconds * 1000).toLocaleDateString('ar'),
-                            revenue.source || 'غير محدد',
-                            revenue.amount.toFixed(3) + ' د.ك',
-                            revenue.description || 'لا يوجد وصف'
-                        ])
-                    }
-                ]
-            };
-        }
-
-        // Get data in date range
-        async function getDataInRange(collection_name, fromDate, toDate) {
-            const startDate = new Date(fromDate);
-            const endDate = new Date(toDate);
-            endDate.setHours(23, 59, 59, 999);
-
-            const snapshot = await getDocs(collection(db, collection_name));
-            const data = [];
-            
-            snapshot.forEach(doc => {
-                const item = doc.data();
-                const itemDate = new Date(
-                    item.date?.seconds * 1000 || 
-                    item.expenseDate?.seconds * 1000 || 
-                    item.createdAt?.seconds * 1000
-                );
-                
-                if (itemDate >= startDate && itemDate <= endDate) {
-                    data.push(item);
-                }
-            });
-
-            return data;
-        }
-
-        // Helper functions
-        function getExpenseTypeName(type) {
-            const types = {
-                'rent': 'الإيجارات',
-                'salaries': 'رواتب الموظفين',
-                'salary_deposits': 'مصاريف إيداعات الرواتب',
-                'buffet': 'بوفيه',
-                'cleaning': 'نظافة',
-                'car_purchase': 'شراء سيارات',
-                'meter_purchase': 'شراء عداد',
-                'meter_installation': 'تركيب عداد',
-                'car_painting': 'صبغ سيارة',
-                'car_maintenance': 'صيانة سيارة',
-                'administrative': 'مصاريف إدارية',
-                'other': 'أخرى'
-            };
-            return types[type] || type;
-        }
-
-        function getCarStatusName(status) {
-            const statuses = {
-                'available': 'متاحة',
-                'rented': 'مؤجرة',
-                'maintenance': 'صيانة'
-            };
-            return statuses[status] || status;
-        }
-
-        // Display report
-        function displayReport(reportData) {
-            document.getElementById('reportTitle').textContent = reportData.title;
-            
-            let content = '';
-
-            // Summary cards
-            if (reportData.summary) {
-                content += '<div class="summary-cards">';
-                reportData.summary.forEach(item => {
-                    content += `
-                        <div class="summary-card">
-                            <div class="summary-title">${item.title}</div>
-                            <div class="summary-value ${item.class || ''}">${item.value}</div>
-                        </div>
-                    `;
-                });
-                content += '</div>';
-            }
-
-            // Tables
-            if (reportData.tables) {
-                reportData.tables.forEach(table => {
-                    content += `<h3 style="margin: 1.5rem 0 1rem 0; color: #374151;">${table.title}</h3>`;
-                    
-                    if (table.data.length === 0) {
-                        content += '<div class="no-data">لا توجد بيانات للعرض</div>';
-                    } else {
-                        content += '<table class="data-table">';
-                        content += '<thead><tr>';
-                        table.headers.forEach(header => {
-                            content += `<th>${header}</th>`;
-                        });
-                        content += '</tr></thead><tbody>';
-                        
-                        table.data.forEach(row => {
-                            content += '<tr>';
-                            row.forEach(cell => {
-                                content += `<td>${cell}</td>`;
-                            });
-                            content += '</tr>';
-                        });
-                        content += '</tbody></table>';
-                    }
-                });
-            }
-
-            document.getElementById('reportContent').innerHTML = content;
-            document.getElementById('reportResults').style.display = 'block';
-        }
-
-        // Export report
-        window.exportReport = () => {
-            window.print();
-        };
-
-        // Logout function
+        // ===== تسجيل الخروج =====
         window.logout = async () => {
             try {
                 await signOut(auth);
                 localStorage.clear();
                 window.location.href = 'index.html';
-            } catch (error) {
-                console.error('Logout error:', error);
-            }
+            } catch (e) { console.error(e); }
         };
     </script>
 </body>
 </html>
-
