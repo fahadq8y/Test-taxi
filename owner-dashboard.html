@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة المالك — نظام إدارة التاكسي</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            background: #0f0f1a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            direction: rtl;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid #e94560;
+            box-shadow: 0 4px 20px rgba(233,69,96,0.3);
+        }
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .header-icon {
+            width: 48px; height: 48px;
+            background: linear-gradient(135deg, #e94560, #c62a47);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 4px 15px rgba(233,69,96,0.4);
+        }
+        .header h1 { font-size: 22px; color: #fff; font-weight: 700; }
+        .header p  { font-size: 12px; color: #aaa; margin-top: 2px; }
+        .header-meta {
+            display: flex; align-items: center; gap: 12px;
+        }
+        .last-update {
+            font-size: 12px; color: #888;
+            background: rgba(255,255,255,0.05);
+            padding: 6px 12px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .refresh-btn {
+            background: linear-gradient(135deg, #e94560, #c62a47);
+            color: #fff; border: none; padding: 8px 18px;
+            border-radius: 20px; cursor: pointer; font-size: 13px;
+            font-weight: 600; transition: all 0.2s;
+        }
+        .refresh-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(233,69,96,0.5); }
+
+        /* ===== LOADING ===== */
+        .loading-overlay {
+            position: fixed; inset: 0;
+            background: rgba(15,15,26,0.95);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 9999;
+        }
+        .loading-spinner {
+            width: 60px; height: 60px;
+            border: 4px solid rgba(233,69,96,0.2);
+            border-top-color: #e94560;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { color: #aaa; font-size: 14px; }
+
+        /* ===== ACCESS DENIED ===== */
+        .access-denied {
+            display: none;
+            position: fixed; inset: 0;
+            background: #0f0f1a;
+            align-items: center; justify-content: center;
+            flex-direction: column; gap: 16px;
+            z-index: 9998;
+        }
+        .access-denied .icon { font-size: 64px; }
+        .access-denied h2 { color: #e94560; font-size: 24px; }
+        .access-denied p  { color: #888; font-size: 14px; }
+        .access-denied a  {
+            color: #e94560; text-decoration: none;
+            background: rgba(233,69,96,0.1);
+            padding: 10px 24px; border-radius: 20px;
+            border: 1px solid rgba(233,69,96,0.3);
+            margin-top: 8px; display: inline-block;
+        }
+
+        /* ===== MAIN CONTENT ===== */
+        .main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+
+        /* ===== SECTION TITLE ===== */
+        .section-title {
+            display: flex; align-items: center; gap: 10px;
+            margin: 28px 0 16px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid rgba(255,255,255,0.08);
+        }
+        .section-title .icon {
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .section-title h2 { font-size: 18px; color: #fff; font-weight: 700; }
+        .section-title .count-badge {
+            background: rgba(233,69,96,0.2);
+            color: #e94560; font-size: 12px; font-weight: 700;
+            padding: 2px 10px; border-radius: 20px;
+            border: 1px solid rgba(233,69,96,0.3);
+        }
+
+        /* ===== ALERTS GRID ===== */
+        .alerts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 12px;
+        }
+        .alert-card {
+            background: rgba(255,255,255,0.04);
+            border-radius: 12px;
+            padding: 16px;
+            border-right: 4px solid;
+            display: flex; align-items: flex-start; gap: 12px;
+            transition: transform 0.2s;
+        }
+        .alert-card:hover { transform: translateY(-2px); }
+        .alert-card.red    { border-color: #e94560; background: rgba(233,69,96,0.08); }
+        .alert-card.orange { border-color: #ff8c00; background: rgba(255,140,0,0.08); }
+        .alert-card.yellow { border-color: #ffd700; background: rgba(255,215,0,0.06); }
+        .alert-card.green  { border-color: #00c853; background: rgba(0,200,83,0.06); }
+        .alert-icon { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+        .alert-body {}
+        .alert-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .alert-desc  { font-size: 12px; color: #aaa; line-height: 1.5; }
+        .alert-amount {
+            font-size: 16px; font-weight: 700; margin-top: 6px;
+        }
+        .alert-card.red    .alert-amount { color: #e94560; }
+        .alert-card.orange .alert-amount { color: #ff8c00; }
+        .alert-card.yellow .alert-amount { color: #ffd700; }
+        .alert-card.green  .alert-amount { color: #00c853; }
+
+        .no-alerts {
+            background: rgba(0,200,83,0.06);
+            border: 1px solid rgba(0,200,83,0.2);
+            border-radius: 12px; padding: 20px;
+            text-align: center; color: #00c853;
+            font-size: 14px;
+        }
+
+        /* ===== WEEKLY COMMITMENT TABLE ===== */
+        .commitment-wrapper {
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            overflow: hidden;
+        }
+        .commitment-table-wrap { overflow-x: auto; }
+        table.commitment-table {
+            width: 100%; border-collapse: collapse;
+            min-width: 700px;
+        }
+        .commitment-table th {
+            background: rgba(255,255,255,0.06);
+            padding: 12px 10px;
+            font-size: 12px; color: #aaa; font-weight: 600;
+            text-align: center; white-space: nowrap;
+        }
+        .commitment-table th.name-col { text-align: right; padding-right: 16px; }
+        .commitment-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            text-align: center; font-size: 13px;
+        }
+        .commitment-table td.name-col {
+            text-align: right; padding-right: 16px;
+            font-weight: 600; color: #fff;
+            white-space: nowrap;
+        }
+        .commitment-table tr:hover td { background: rgba(255,255,255,0.03); }
+
+        /* Week cells */
+        .week-cell { font-size: 18px; cursor: default; }
+        .week-cell.paid     { color: #00c853; }
+        .week-cell.late     { color: #ffd700; }
+        .week-cell.missed   { color: #e94560; }
+        .week-cell.no-data  { color: #444; }
+
+        /* Score badge */
+        .score-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 44px; height: 24px; border-radius: 12px;
+            font-size: 12px; font-weight: 700;
+        }
+        .score-badge.excellent { background: rgba(0,200,83,0.2);  color: #00c853; }
+        .score-badge.good      { background: rgba(255,215,0,0.2);  color: #ffd700; }
+        .score-badge.bad       { background: rgba(233,69,96,0.2);  color: #e94560; }
+
+        /* Trend */
+        .trend { font-size: 13px; font-weight: 700; white-space: nowrap; }
+        .trend.up   { color: #e94560; }
+        .trend.down { color: #00c853; }
+        .trend.flat { color: #ffd700; }
+
+        /* Debt badge */
+        .debt-badge {
+            font-size: 12px; font-weight: 700;
+            padding: 3px 10px; border-radius: 20px;
+            white-space: nowrap;
+        }
+        .debt-badge.high   { background: rgba(233,69,96,0.2);  color: #e94560; border: 1px solid rgba(233,69,96,0.3); }
+        .debt-badge.medium { background: rgba(255,140,0,0.2);  color: #ff8c00; border: 1px solid rgba(255,140,0,0.3); }
+        .debt-badge.low    { background: rgba(0,200,83,0.2);   color: #00c853; border: 1px solid rgba(0,200,83,0.3); }
+        .debt-badge.zero   { background: rgba(100,100,100,0.2);color: #888;    border: 1px solid rgba(100,100,100,0.3); }
+
+        /* ===== MONTHLY COMMITMENT ===== */
+        .monthly-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 14px;
+        }
+        .driver-month-card {
+            background: rgba(255,255,255,0.04);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 16px;
+        }
+        .driver-month-card .driver-name {
+            font-size: 15px; font-weight: 700; color: #fff;
+            margin-bottom: 12px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .months-row {
+            display: flex; gap: 6px; flex-wrap: wrap;
+        }
+        .month-chip {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 4px; min-width: 44px;
+        }
+        .month-chip .month-label { font-size: 10px; color: #888; }
+        .month-chip .month-icon  { font-size: 20px; }
+        .month-chip.paid   .month-icon { color: #00c853; }
+        .month-chip.late   .month-icon { color: #ffd700; }
+        .month-chip.missed .month-icon { color: #e94560; }
+        .month-chip.future .month-icon { color: #444; }
+
+        /* ===== ACCOUNTANT MONITOR ===== */
+        .monitor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .monitor-stat {
+            background: rgba(255,255,255,0.04);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 18px;
+            text-align: center;
+        }
+        .monitor-stat .stat-val {
+            font-size: 32px; font-weight: 800;
+            margin: 8px 0 4px;
+        }
+        .monitor-stat .stat-label { font-size: 12px; color: #888; }
+        .monitor-stat.danger .stat-val  { color: #e94560; }
+        .monitor-stat.warning .stat-val { color: #ff8c00; }
+        .monitor-stat.info .stat-val    { color: #4fc3f7; }
+        .monitor-stat.success .stat-val { color: #00c853; }
+
+        .monitor-table-wrap {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            overflow: hidden;
+        }
+        table.monitor-table {
+            width: 100%; border-collapse: collapse;
+        }
+        .monitor-table th {
+            background: rgba(255,255,255,0.06);
+            padding: 11px 14px;
+            font-size: 12px; color: #aaa; font-weight: 600;
+            text-align: right;
+        }
+        .monitor-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 13px; color: #ccc;
+        }
+        .monitor-table tr:last-child td { border-bottom: none; }
+        .monitor-table tr:hover td { background: rgba(255,255,255,0.03); }
+        .action-badge {
+            display: inline-block; padding: 2px 10px;
+            border-radius: 20px; font-size: 11px; font-weight: 700;
+        }
+        .action-badge.delete { background: rgba(233,69,96,0.2); color: #e94560; }
+        .action-badge.edit   { background: rgba(255,140,0,0.2);  color: #ff8c00; }
+        .suspicious-badge {
+            background: rgba(233,69,96,0.15);
+            color: #e94560; font-size: 11px;
+            padding: 2px 8px; border-radius: 20px;
+            border: 1px solid rgba(233,69,96,0.3);
+        }
+
+        /* ===== SCORE TABLE ===== */
+        .score-table-wrap {
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            overflow: hidden;
+        }
+        table.score-table {
+            width: 100%; border-collapse: collapse;
+        }
+        .score-table th {
+            background: rgba(255,255,255,0.06);
+            padding: 12px 14px;
+            font-size: 12px; color: #aaa; font-weight: 600;
+            text-align: right;
+        }
+        .score-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 13px;
+        }
+        .score-table tr:last-child td { border-bottom: none; }
+        .score-table tr:hover td { background: rgba(255,255,255,0.03); }
+        .score-bar-wrap {
+            display: flex; align-items: center; gap: 8px;
+        }
+        .score-bar {
+            flex: 1; height: 6px; background: rgba(255,255,255,0.08);
+            border-radius: 3px; overflow: hidden;
+        }
+        .score-bar-fill {
+            height: 100%; border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+        .score-bar-fill.excellent { background: #00c853; }
+        .score-bar-fill.good      { background: #ffd700; }
+        .score-bar-fill.bad       { background: #e94560; }
+        .score-num { font-size: 13px; font-weight: 700; min-width: 32px; text-align: left; }
+        .score-num.excellent { color: #00c853; }
+        .score-num.good      { color: #ffd700; }
+        .score-num.bad       { color: #e94560; }
+        .rank-num {
+            font-size: 16px; font-weight: 800; color: #555;
+            min-width: 28px; text-align: center;
+        }
+        .rank-num.gold   { color: #ffd700; }
+        .rank-num.silver { color: #aaa; }
+        .rank-num.bronze { color: #cd7f32; }
+
+        /* ===== SUMMARY CARDS ===== */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+        .summary-card {
+            background: rgba(255,255,255,0.04);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 18px;
+            text-align: center;
+        }
+        .summary-card .s-icon { font-size: 28px; margin-bottom: 8px; }
+        .summary-card .s-val  {
+            font-size: 28px; font-weight: 800; color: #fff;
+            margin-bottom: 4px;
+        }
+        .summary-card .s-label { font-size: 12px; color: #888; }
+
+        /* ===== TABS ===== */
+        .tabs {
+            display: flex; gap: 4px; margin-bottom: 20px;
+            background: rgba(255,255,255,0.04);
+            padding: 4px; border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            overflow-x: auto;
+        }
+        .tab-btn {
+            flex: 1; min-width: 120px;
+            padding: 10px 16px; border: none;
+            background: transparent; color: #888;
+            border-radius: 8px; cursor: pointer;
+            font-size: 13px; font-weight: 600;
+            transition: all 0.2s; white-space: nowrap;
+        }
+        .tab-btn.active {
+            background: linear-gradient(135deg, #e94560, #c62a47);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(233,69,96,0.3);
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ===== TOOLTIP ===== */
+        [data-tooltip] { position: relative; }
+        [data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute; bottom: calc(100% + 6px); left: 50%;
+            transform: translateX(-50%);
+            background: #1a1a2e; color: #fff;
+            padding: 5px 10px; border-radius: 6px;
+            font-size: 11px; white-space: nowrap;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 100; pointer-events: none;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .header { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .main { padding: 16px; }
+            .summary-cards { grid-template-columns: repeat(2, 1fr); }
+            .monitor-grid  { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">جاري تحميل البيانات...</div>
+</div>
+
+<!-- Access Denied -->
+<div class="access-denied" id="accessDenied">
+    <div class="icon">🔒</div>
+    <h2>غير مصرح بالوصول</h2>
+    <p>هذه الصفحة مخصصة للمالك فقط</p>
+    <a href="index.html">العودة لتسجيل الدخول</a>
+</div>
+
+<!-- Header -->
+<div class="header">
+    <div class="header-title">
+        <div class="header-icon">👑</div>
+        <div>
+            <h1>لوحة المالك</h1>
+            <p>مراقبة الأداء والالتزام — للمالك فقط</p>
+        </div>
+    </div>
+    <div class="header-meta">
+        <div class="last-update" id="lastUpdateTime">—</div>
+        <button class="refresh-btn" onclick="loadAllData()">🔄 تحديث</button>
+    </div>
+</div>
+
+<!-- Main -->
+<div class="main" id="mainContent" style="display:none;">
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('alerts')">🚨 التحذيرات</button>
+        <button class="tab-btn" onclick="switchTab('weekly')">📊 الالتزام الأسبوعي</button>
+        <button class="tab-btn" onclick="switchTab('monthly')">📅 الالتزام الشهري</button>
+        <button class="tab-btn" onclick="switchTab('monitor')">🕵️ رقابة المحاسب</button>
+        <button class="tab-btn" onclick="switchTab('score')">💯 نقاط الأداء</button>
+    </div>
+
+    <!-- ===== TAB: ALERTS ===== -->
+    <div class="tab-content active" id="tab-alerts">
+        <div class="section-title">
+            <div class="icon" style="background:rgba(233,69,96,0.15);">🚨</div>
+            <h2>التحذيرات الفورية</h2>
+            <span class="count-badge" id="alertsCount">0</span>
+        </div>
+        <div class="alerts-grid" id="alertsGrid">
+            <div style="color:#888;padding:20px;">جاري التحميل...</div>
+        </div>
+
+        <!-- Summary cards -->
+        <div class="section-title" style="margin-top:32px;">
+            <div class="icon" style="background:rgba(79,195,247,0.15);">📈</div>
+            <h2>ملخص سريع</h2>
+        </div>
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="s-icon">👥</div>
+                <div class="s-val" id="totalDrivers">—</div>
+                <div class="s-label">إجمالي السائقين</div>
+            </div>
+            <div class="summary-card">
+                <div class="s-icon">⚠️</div>
+                <div class="s-val" id="overdueCount" style="color:#e94560;">—</div>
+                <div class="s-label">سائق دينه فوق 500 KD</div>
+            </div>
+            <div class="summary-card">
+                <div class="s-icon">🔴</div>
+                <div class="s-val" id="stoppedCount" style="color:#e94560;">—</div>
+                <div class="s-label">توقف عن الدفع +14 يوم</div>
+            </div>
+            <div class="summary-card">
+                <div class="s-icon">✅</div>
+                <div class="s-val" id="excellentCount" style="color:#00c853;">—</div>
+                <div class="s-label">سائق ممتاز (نقاط 85+)</div>
+            </div>
+            <div class="summary-card">
+                <div class="s-icon">💰</div>
+                <div class="s-val" id="totalDebt" style="color:#ff8c00;">—</div>
+                <div class="s-label">إجمالي الديون (KD)</div>
+            </div>
+            <div class="summary-card">
+                <div class="s-icon">📝</div>
+                <div class="s-val" id="monthEdits" style="color:#4fc3f7;">—</div>
+                <div class="s-label">تعديلات المحاسب هذا الشهر</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== TAB: WEEKLY ===== -->
+    <div class="tab-content" id="tab-weekly">
+        <div class="section-title">
+            <div class="icon" style="background:rgba(79,195,247,0.15);">📊</div>
+            <h2>الالتزام الأسبوعي — السائقون اليوميون</h2>
+        </div>
+        <div class="commitment-wrapper">
+            <div class="commitment-table-wrap">
+                <table class="commitment-table" id="weeklyTable">
+                    <thead id="weeklyHead"></thead>
+                    <tbody id="weeklyBody">
+                        <tr><td colspan="15" style="text-align:center;padding:30px;color:#888;">جاري التحميل...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:#888;">
+            <span>✅ دفع يوم الاثنين</span>
+            <span>🟡 دفع متأخر (ثلاثاء-أربعاء)</span>
+            <span>❌ لم يدفع</span>
+            <span>⬜ لا يوجد بيانات (قبل التعاقد)</span>
+        </div>
+    </div>
+
+    <!-- ===== TAB: MONTHLY ===== -->
+    <div class="tab-content" id="tab-monthly">
+        <div class="section-title">
+            <div class="icon" style="background:rgba(0,200,83,0.15);">📅</div>
+            <h2>الالتزام الشهري — السائقون الشهريون</h2>
+        </div>
+        <div class="monthly-grid" id="monthlyGrid">
+            <div style="color:#888;padding:20px;">جاري التحميل...</div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:#888;">
+            <span>✅ دفع في الموعد</span>
+            <span>🟡 دفع متأخر</span>
+            <span>❌ لم يدفع</span>
+            <span>⬜ شهر مستقبلي</span>
+        </div>
+    </div>
+
+    <!-- ===== TAB: MONITOR ===== -->
+    <div class="tab-content" id="tab-monitor">
+        <div class="section-title">
+            <div class="icon" style="background:rgba(233,69,96,0.15);">🕵️</div>
+            <h2>رقابة المحاسب</h2>
+        </div>
+
+        <!-- Stats -->
+        <div class="monitor-grid" id="monitorStats">
+            <div class="monitor-stat danger">
+                <div>🗑️</div>
+                <div class="stat-val" id="mDeleteCount">—</div>
+                <div class="stat-label">حذوفات هذا الشهر</div>
+            </div>
+            <div class="monitor-stat warning">
+                <div>✏️</div>
+                <div class="stat-val" id="mEditCount">—</div>
+                <div class="stat-label">تعديلات هذا الشهر</div>
+            </div>
+            <div class="monitor-stat danger">
+                <div>📉</div>
+                <div class="stat-val" id="mDownEditCount">—</div>
+                <div class="stat-label">تعديلات نزولية للمبالغ</div>
+            </div>
+            <div class="monitor-stat info">
+                <div>⏰</div>
+                <div class="stat-val" id="mLateRegCount">—</div>
+                <div class="stat-label">دفعات مسجلة بتأخير 3+ أيام</div>
+            </div>
+            <div class="monitor-stat warning">
+                <div>🌙</div>
+                <div class="stat-val" id="mNightCount">—</div>
+                <div class="stat-label">عمليات بعد 10 مساءً</div>
+            </div>
+            <div class="monitor-stat danger">
+                <div>💸</div>
+                <div class="stat-val" id="mTotalDownEdit">—</div>
+                <div class="stat-label">إجمالي المبالغ المخفَّضة (KD)</div>
+            </div>
+        </div>
+
+        <!-- Recent suspicious activity -->
+        <div class="section-title">
+            <div class="icon" style="background:rgba(233,69,96,0.15);">⚠️</div>
+            <h2>آخر العمليات المشبوهة</h2>
+        </div>
+        <div class="monitor-table-wrap">
+            <table class="monitor-table">
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>النوع</th>
+                        <th>السجل</th>
+                        <th>المبلغ القديم</th>
+                        <th>المبلغ الجديد</th>
+                        <th>الفرق</th>
+                        <th>بواسطة</th>
+                        <th>السبب</th>
+                        <th>ملاحظة</th>
+                    </tr>
+                </thead>
+                <tbody id="monitorTableBody">
+                    <tr><td colspan="9" style="text-align:center;padding:20px;color:#888;">جاري التحميل...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- All edits this month -->
+        <div class="section-title" style="margin-top:24px;">
+            <div class="icon" style="background:rgba(255,140,0,0.15);">📋</div>
+            <h2>كل عمليات المحاسب هذا الشهر</h2>
+        </div>
+        <div class="monitor-table-wrap">
+            <table class="monitor-table">
+                <thead>
+                    <tr>
+                        <th>التاريخ والوقت</th>
+                        <th>النوع</th>
+                        <th>السجل</th>
+                        <th>التفاصيل</th>
+                        <th>بواسطة</th>
+                        <th>السبب</th>
+                    </tr>
+                </thead>
+                <tbody id="allEditsBody">
+                    <tr><td colspan="6" style="text-align:center;padding:20px;color:#888;">جاري التحميل...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ===== TAB: SCORE ===== -->
+    <div class="tab-content" id="tab-score">
+        <div class="section-title">
+            <div class="icon" style="background:rgba(255,215,0,0.15);">💯</div>
+            <h2>نقاط الأداء — كل السائقين</h2>
+        </div>
+        <div class="score-table-wrap">
+            <table class="score-table">
+                <thead>
+                    <tr>
+                        <th style="width:40px;text-align:center;">#</th>
+                        <th>السائق</th>
+                        <th>نوع العقد</th>
+                        <th>نقاط الأداء</th>
+                        <th>الانتظام</th>
+                        <th>اتجاه الدين</th>
+                        <th>الدين الحالي</th>
+                        <th>آخر دفعة</th>
+                        <th>التصنيف</th>
+                    </tr>
+                </thead>
+                <tbody id="scoreTableBody">
+                    <tr><td colspan="9" style="text-align:center;padding:30px;color:#888;">جاري التحميل...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:#888;">
+            <span style="color:#00c853;">⭐ 85-100: ممتاز</span>
+            <span style="color:#ffd700;">👍 60-84: جيد</span>
+            <span style="color:#e94560;">⚠️ أقل من 60: يحتاج متابعة</span>
+        </div>
+    </div>
+
+</div><!-- /main -->
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+<script>
+// ===== FIREBASE CONFIG =====
+const firebaseConfig = {
+    apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+    authDomain: "taxi-management-system-d8210.firebaseapp.com",
+    projectId: "taxi-management-system-d8210",
+    storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+    messagingSenderId: "720874424166",
+    appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7"
+};
+firebase.initializeApp(firebaseConfig);
+const db    = firebase.firestore();
+const auth  = firebase.auth();
+
+// ===== CONSTANTS =====
+const DEBT_THRESHOLD = 500;   // حد التحذير للدين
+const STOP_DAYS      = 14;    // أيام التوقف عن الدفع
+const LATE_REG_DAYS  = 3;     // أيام تأخير التسجيل
+
+const RENT_TYPES     = ['أجرة يومية', 'أجرة شهرية'];
+const REVENUE_TYPES  = ['أجرة يومية','أجرة شهرية','تحصيل مخالفة','تحصيل رسوم إقامة',
+                        'تحصيل رسوم رواتب','تحصيل رسوم إيداعات الرواتب','دين قديم',
+                        'إجازة سنوية','تحصيل سلفة من السائق'];
+const EXPENSE_TYPES  = ['سداد مخالفة','سداد رسوم إقامة','سلفة إلى السائق'];
+
+// ===== GLOBAL DATA =====
+let gDrivers = [], gPayments = [], gEditHistory = [];
+let gDriverMap = {};
+
+// ===== AUTH CHECK =====
+auth.onAuthStateChanged(async (user) => {
+    if (!user) {
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('accessDenied').style.display  = 'flex';
+        return;
+    }
+    let role = localStorage.getItem('userRole');
+    if (!role) {
+        try {
+            const snap = await db.collection('users').doc(user.uid).get();
+            if (snap.exists) {
+                role = snap.data().role;
+                localStorage.setItem('userRole', role);
+            }
+        } catch(e) {}
+    }
+    if (role !== 'admin') {
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('accessDenied').style.display  = 'flex';
+        return;
+    }
+    await loadAllData();
+});
+
+// ===== TABS =====
+function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach((b,i) => {
+        const tabs = ['alerts','weekly','monthly','monitor','score'];
+        b.classList.toggle('active', tabs[i] === name);
+    });
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ===== LOAD ALL DATA =====
+async function loadAllData() {
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    try {
+        // Fetch drivers
+        const dSnap = await db.collection('drivers').get();
+        gDrivers = dSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        gDriverMap = {};
+        gDrivers.forEach(d => { gDriverMap[d.id] = d; });
+
+        // Fetch all driverPayments
+        const pSnap = await db.collection('driverPayments').get();
+        gPayments = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Fetch editHistory (last 200)
+        const eSnap = await db.collection('editHistory').orderBy('timestamp','desc').limit(200).get();
+        gEditHistory = eSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Build all sections
+        buildAlerts();
+        buildWeeklyTable();
+        buildMonthlyGrid();
+        buildMonitorSection();
+        buildScoreTable();
+
+        // Update time
+        document.getElementById('lastUpdateTime').textContent =
+            'آخر تحديث: ' + new Date().toLocaleTimeString('ar-KW');
+
+        document.getElementById('mainContent').style.display = 'block';
+    } catch(e) {
+        console.error(e);
+        alert('خطأ في تحميل البيانات: ' + e.message);
+    }
+    document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+// ===== HELPERS =====
+function toDate(val) {
+    if (!val) return null;
+    if (val && val.toDate) return val.toDate();
+    if (val instanceof Date) return val;
+    const d = new Date(String(val).substring(0,10));
+    return isNaN(d) ? null : d;
+}
+
+function formatDate(d) {
+    if (!d) return '—';
+    return d.toLocaleDateString('ar-KW', { year:'numeric', month:'2-digit', day:'2-digit' });
+}
+
+function getMondayOfWeek(date) {
+    const d = new Date(date);
+    const day = d.getDay(); // 0=Sun
+    const diff = (day === 0) ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    d.setHours(0,0,0,0);
+    return d;
+}
+
+function calcDriverDebt(driverId, driver) {
+    const payments = gPayments.filter(p => p.driverId === driverId);
+    const today = new Date();
+    let expectedRent = 0;
+
+    if (driver.contractHistory && driver.contractHistory.length > 0) {
+        driver.contractHistory.forEach((contract, idx) => {
+            if (contract.note === 'تعديل عقد' || contract.type === 'تعديل') return;
+            const pStart = toDate(contract.startDate);
+            if (!pStart) return;
+            let pEnd;
+            if (idx < driver.contractHistory.length - 1) {
+                pEnd = toDate(driver.contractHistory[idx+1].startDate) || today;
+            } else {
+                pEnd = today;
+            }
+            if (pStart > today) return;
+            if (pEnd > today) pEnd = today;
+
+            if (contract.contractType === 'daily') {
+                const days = Math.floor((pEnd - pStart) / 86400000);
+                expectedRent += days * parseFloat(contract.dailyRent || 0);
+            } else {
+                const rate = parseFloat(contract.monthlyPayment || 0);
+                const months = (pEnd.getFullYear()-pStart.getFullYear())*12 + (pEnd.getMonth()-pStart.getMonth());
+                expectedRent += months * rate;
+            }
+        });
+    } else {
+        const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt) || today;
+        if (driver.contractType === 'monthly') {
+            const rate = parseFloat(driver.monthlyPayment || 0);
+            const months = (today.getFullYear()-cStart.getFullYear())*12 + (today.getMonth()-cStart.getMonth());
+            expectedRent = months * rate;
+        } else {
+            const days = Math.floor((today - cStart) / 86400000);
+            expectedRent = days * parseFloat(driver.dailyRent || driver.dailyWage || 0);
+        }
+    }
+
+    const rentPaid = payments.filter(p => RENT_TYPES.includes(p.type))
+                             .reduce((s,p) => s + parseFloat(p.amount||0), 0);
+    const lateRent = Math.max(0, expectedRent - rentPaid);
+
+    const fines = payments.filter(p => p.type === 'تحصيل مخالفة').reduce((s,p)=>s+parseFloat(p.amount||0),0);
+    const finesPaid = payments.filter(p => p.type === 'سداد مخالفة').reduce((s,p)=>s+parseFloat(p.amount||0),0);
+    const residency = payments.filter(p => p.type === 'تحصيل رسوم إقامة').reduce((s,p)=>s+parseFloat(p.amount||0),0);
+    const residencyPaid = payments.filter(p => p.type === 'سداد رسوم إقامة').reduce((s,p)=>s+parseFloat(p.amount||0),0);
+    const oldDebt = payments.filter(p => p.type === 'دين قديم').reduce((s,p)=>s+parseFloat(p.amount||0),0);
+    const advances = payments.filter(p => p.type === 'سلفة إلى السائق').reduce((s,p)=>s+parseFloat(p.amount||0),0);
+    const advancesPaid = payments.filter(p => p.type === 'تحصيل سلفة من السائق').reduce((s,p)=>s+parseFloat(p.amount||0),0);
+    const vacation = payments.filter(p => p.type === 'إجازة سنوية').reduce((s,p)=>s+parseFloat(p.amount||0),0);
+
+    const totalDebt = lateRent
+        + Math.max(0, fines - finesPaid)
+        + Math.max(0, residency - residencyPaid)
+        + oldDebt
+        + Math.max(0, advances - advancesPaid)
+        - vacation;
+
+    return Math.max(0, totalDebt);
+}
+
+function getLastPaymentDate(driverId) {
+    const payments = gPayments
+        .filter(p => p.driverId === driverId && RENT_TYPES.includes(p.type))
+        .map(p => toDate(p.date))
+        .filter(Boolean)
+        .sort((a,b) => b-a);
+    return payments.length > 0 ? payments[0] : null;
+}
+
+// ===== SECTION 1: ALERTS =====
+function buildAlerts() {
+    const today = new Date();
+    const alerts = [];
+    let overdueCount = 0, stoppedCount = 0, excellentCount = 0;
+    let totalDebt = 0;
+
+    gDrivers.filter(d => !d.isArchived).forEach(driver => {
+        const debt = calcDriverDebt(driver.id, driver);
+        totalDebt += debt;
+        const lastPay = getLastPaymentDate(driver.id);
+        const daysSincePay = lastPay ? Math.floor((today - lastPay) / 86400000) : 999;
+
+        // دين فوق 500
+        if (debt > DEBT_THRESHOLD) {
+            overdueCount++;
+            alerts.push({
+                level: debt > 1500 ? 'red' : 'orange',
+                icon: '💰',
+                title: `دين ${driver.name || driver.id} تجاوز ${DEBT_THRESHOLD} KD`,
+                desc: `الدين الحالي: ${debt.toFixed(3)} KD`,
+                amount: debt.toFixed(3) + ' KD'
+            });
+        }
+
+        // توقف عن الدفع
+        if (daysSincePay > STOP_DAYS) {
+            stoppedCount++;
+            alerts.push({
+                level: 'red',
+                icon: '🛑',
+                title: `${driver.name || driver.id} توقف عن الدفع`,
+                desc: `آخر دفعة منذ ${daysSincePay} يوماً`,
+                amount: daysSincePay + ' يوم'
+            });
+        }
+    });
+
+    // حساب نقاط الأداء للممتازين
+    const scores = computeAllScores();
+    scores.forEach(s => { if (s.score >= 85) excellentCount++; });
+
+    // تحذيرات المحاسب
+    const thisMonth = today.getMonth();
+    const thisYear  = today.getFullYear();
+    const monthEdits = gEditHistory.filter(e => {
+        const ts = toDate(e.timestamp);
+        return ts && ts.getMonth() === thisMonth && ts.getFullYear() === thisYear
+            && e.editedByRole === 'accountant';
+    });
+    const deleteCount = monthEdits.filter(e => e.action === 'delete').length;
+    const downEdits   = monthEdits.filter(e => {
+        if (e.action !== 'edit') return false;
+        const changes = e.changes || [];
+        return changes.some(c => c.field === 'amount' && parseFloat(c.newValue||0) < parseFloat(c.oldValue||0));
+    });
+
+    if (deleteCount >= 3) {
+        alerts.push({
+            level: 'orange',
+            icon: '🗑️',
+            title: 'المحاسب حذف سجلات متعددة هذا الشهر',
+            desc: `عدد الحذوفات: ${deleteCount} — يُنصح بالمراجعة`,
+            amount: deleteCount + ' حذف'
+        });
+    }
+    if (downEdits.length >= 2) {
+        const totalDown = downEdits.reduce((s,e) => {
+            const c = (e.changes||[]).find(c => c.field==='amount');
+            if (c) return s + (parseFloat(c.oldValue||0) - parseFloat(c.newValue||0));
+            return s;
+        }, 0);
+        alerts.push({
+            level: 'orange',
+            icon: '📉',
+            title: 'تعديلات نزولية متعددة من المحاسب',
+            desc: `${downEdits.length} تعديل خفّض مبالغ بإجمالي ${totalDown.toFixed(3)} KD`,
+            amount: totalDown.toFixed(3) + ' KD'
+        });
+    }
+
+    // تحديث الملخص
+    document.getElementById('totalDrivers').textContent  = gDrivers.filter(d=>!d.isArchived).length;
+    document.getElementById('overdueCount').textContent  = overdueCount;
+    document.getElementById('stoppedCount').textContent  = stoppedCount;
+    document.getElementById('excellentCount').textContent = excellentCount;
+    document.getElementById('totalDebt').textContent     = totalDebt.toFixed(0);
+    document.getElementById('monthEdits').textContent    = monthEdits.length;
+    document.getElementById('alertsCount').textContent   = alerts.length;
+
+    const grid = document.getElementById('alertsGrid');
+    if (alerts.length === 0) {
+        grid.innerHTML = '<div class="no-alerts">✅ لا توجد تحذيرات حالياً — كل شيء على ما يرام!</div>';
+        return;
+    }
+
+    // ترتيب: red أولاً ثم orange ثم yellow
+    const order = { red:0, orange:1, yellow:2, green:3 };
+    alerts.sort((a,b) => (order[a.level]||9) - (order[b.level]||9));
+
+    grid.innerHTML = alerts.map(a => `
+        <div class="alert-card ${a.level}">
+            <div class="alert-icon">${a.icon}</div>
+            <div class="alert-body">
+                <div class="alert-title">${a.title}</div>
+                <div class="alert-desc">${a.desc}</div>
+                <div class="alert-amount">${a.amount}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ===== SECTION 2: WEEKLY TABLE =====
+function buildWeeklyTable() {
+    const today = new Date();
+    const WEEKS = 8;
+
+    // بناء قائمة الأسابيع (آخر 8 أسابيع)
+    const weeks = [];
+    for (let i = WEEKS - 1; i >= 0; i--) {
+        const monday = getMondayOfWeek(today);
+        monday.setDate(monday.getDate() - i * 7);
+        const sunday = new Date(monday);
+        sunday.setDate(sunday.getDate() + 6);
+        weeks.push({ monday: new Date(monday), sunday: new Date(sunday) });
+    }
+
+    // رأس الجدول
+    const thead = document.getElementById('weeklyHead');
+    thead.innerHTML = `<tr>
+        <th class="name-col">السائق</th>
+        <th>الدين</th>
+        <th>الاتجاه</th>
+        ${weeks.map((w,i) => `<th title="${formatDate(w.monday)}">${i===WEEKS-1?'هذا الأسبوع':('أ'+(i+1))}</th>`).join('')}
+        <th>الانتظام</th>
+        <th>نقاط</th>
+    </tr>`;
+
+    const dailyDrivers = gDrivers.filter(d => !d.isArchived && d.contractType === 'daily');
+
+    const tbody = document.getElementById('weeklyBody');
+    if (dailyDrivers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:30px;color:#888;">لا يوجد سائقون يوميون</td></tr>';
+        return;
+    }
+
+    const scores = computeAllScores();
+    const scoreMap = {};
+    scores.forEach(s => { scoreMap[s.id] = s; });
+
+    const rows = dailyDrivers.map(driver => {
+        const debt = calcDriverDebt(driver.id, driver);
+        const driverPayments = gPayments.filter(p => p.driverId === driver.id && RENT_TYPES.includes(p.type));
+
+        // حساب الاتجاه (مقارنة آخر أسبوعين)
+        const prevWeekDebt = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
+        const trend = debt - prevWeekDebt;
+
+        // فحص كل أسبوع
+        const weekCells = weeks.map(w => {
+            const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt);
+            if (cStart && w.sunday < cStart) return { status: 'no-data', icon: '⬜' };
+
+            const paidInWeek = driverPayments.filter(p => {
+                const d = toDate(p.date);
+                return d && d >= w.monday && d <= w.sunday;
+            });
+
+            if (paidInWeek.length === 0) return { status: 'missed', icon: '❌' };
+
+            const paidOnMonday = paidInWeek.some(p => {
+                const d = toDate(p.date);
+                return d && d.getDay() === 1; // 1 = Monday
+            });
+
+            return paidOnMonday
+                ? { status: 'paid',   icon: '✅' }
+                : { status: 'late',   icon: '🟡' };
+        });
+
+        // حساب الانتظام
+        const validWeeks = weekCells.filter(w => w.status !== 'no-data');
+        const paidWeeks  = weekCells.filter(w => w.status === 'paid' || w.status === 'late').length;
+        const regularity = validWeeks.length > 0 ? Math.round(paidWeeks / validWeeks.length * 100) : 0;
+
+        const sc = scoreMap[driver.id];
+        const scoreVal  = sc ? sc.score : 0;
+        const scoreClass = scoreVal >= 85 ? 'excellent' : scoreVal >= 60 ? 'good' : 'bad';
+
+        const debtClass = debt > 1500 ? 'high' : debt > 500 ? 'medium' : debt > 0 ? 'low' : 'zero';
+        const trendClass = trend > 20 ? 'up' : trend < -20 ? 'down' : 'flat';
+        const trendIcon  = trend > 20 ? '↑' : trend < -20 ? '↓' : '→';
+        const trendText  = `${trendIcon} ${Math.abs(trend).toFixed(0)} KD`;
+
+        return { driver, debt, debtClass, trendClass, trendText, weekCells, regularity, scoreVal, scoreClass };
+    });
+
+    // ترتيب: الأسوأ أولاً (دين أعلى)
+    rows.sort((a,b) => b.debt - a.debt);
+
+    tbody.innerHTML = rows.map(r => `
+        <tr>
+            <td class="name-col">${r.driver.name || r.driver.id}</td>
+            <td><span class="debt-badge ${r.debtClass}">${r.debt.toFixed(3)}</span></td>
+            <td><span class="trend ${r.trendClass}">${r.trendText}</span></td>
+            ${r.weekCells.map(w => `<td class="week-cell ${w.status}" data-tooltip="${w.status==='paid'?'دفع الاثنين':w.status==='late'?'دفع متأخر':w.status==='missed'?'لم يدفع':'قبل التعاقد'}">${w.icon}</td>`).join('')}
+            <td style="color:${r.regularity>=80?'#00c853':r.regularity>=50?'#ffd700':'#e94560'};font-weight:700;">${r.regularity}%</td>
+            <td>
+                <div class="score-bar-wrap">
+                    <div class="score-bar"><div class="score-bar-fill ${r.scoreClass}" style="width:${r.scoreVal}%"></div></div>
+                    <span class="score-num ${r.scoreClass}">${r.scoreVal}</span>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// حساب الدين في تاريخ معين (تقريبي للاتجاه)
+function calcDebtAtDate(driver, date) {
+    const payments = gPayments.filter(p => {
+        const d = toDate(p.date);
+        return p.driverId === driver.id && d && d <= date;
+    });
+    const rentPaid = payments.filter(p => RENT_TYPES.includes(p.type))
+                             .reduce((s,p) => s + parseFloat(p.amount||0), 0);
+    // تقدير بسيط للاتجاه
+    const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt) || date;
+    const days = Math.max(0, Math.floor((date - cStart) / 86400000));
+    const rate = parseFloat(driver.dailyRent || driver.dailyWage || 0);
+    const expected = days * rate;
+    return Math.max(0, expected - rentPaid);
+}
+
+// ===== SECTION 3: MONTHLY GRID =====
+function buildMonthlyGrid() {
+    const today = new Date();
+    const MONTHS = 6;
+
+    // بناء قائمة آخر 6 أشهر
+    const months = [];
+    for (let i = MONTHS - 1; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        months.push({
+            year: d.getFullYear(),
+            month: d.getMonth(),
+            label: d.toLocaleDateString('ar-KW', { month: 'short', year: 'numeric' }),
+            firstMonday: getFirstMondayOfMonth(d.getFullYear(), d.getMonth())
+        });
+    }
+
+    const monthlyDrivers = gDrivers.filter(d => !d.isArchived && d.contractType === 'monthly');
+    const grid = document.getElementById('monthlyGrid');
+
+    if (monthlyDrivers.length === 0) {
+        grid.innerHTML = '<div style="color:#888;padding:20px;">لا يوجد سائقون شهريون</div>';
+        return;
+    }
+
+    const scores = computeAllScores();
+    const scoreMap = {};
+    scores.forEach(s => { scoreMap[s.id] = s; });
+
+    grid.innerHTML = monthlyDrivers.map(driver => {
+        const debt = calcDriverDebt(driver.id, driver);
+        const debtClass = debt > 1500 ? 'high' : debt > 500 ? 'medium' : debt > 0 ? 'low' : 'zero';
+        const sc = scoreMap[driver.id];
+        const scoreVal = sc ? sc.score : 0;
+        const scoreClass = scoreVal >= 85 ? 'excellent' : scoreVal >= 60 ? 'good' : 'bad';
+
+        const driverPayments = gPayments.filter(p =>
+            p.driverId === driver.id && RENT_TYPES.includes(p.type)
+        );
+
+        const monthChips = months.map(m => {
+            const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt);
+            const monthStart = new Date(m.year, m.month, 1);
+            const monthEnd   = new Date(m.year, m.month + 1, 0);
+
+            // شهر مستقبلي
+            if (monthStart > today) return `<div class="month-chip future"><span class="month-label">${m.label}</span><span class="month-icon">⬜</span></div>`;
+
+            // قبل تاريخ التعاقد
+            if (cStart && monthEnd < cStart) return `<div class="month-chip future"><span class="month-label">${m.label}</span><span class="month-icon">⬜</span></div>`;
+
+            // هل دفع في هذا الشهر؟
+            const paidInMonth = driverPayments.filter(p => {
+                const d = toDate(p.date);
+                return d && d.getFullYear() === m.year && d.getMonth() === m.month;
+            });
+
+            if (paidInMonth.length === 0) {
+                // الشهر الحالي لم ينته بعد
+                if (m.year === today.getFullYear() && m.month === today.getMonth() && today.getDate() <= 7) {
+                    return `<div class="month-chip future"><span class="month-label">${m.label}</span><span class="month-icon">⬜</span></div>`;
+                }
+                return `<div class="month-chip missed"><span class="month-label">${m.label}</span><span class="month-icon">❌</span></div>`;
+            }
+
+            // هل دفع في أول اثنين من الشهر؟
+            const paidOnFirstMonday = paidInMonth.some(p => {
+                const d = toDate(p.date);
+                return d && d <= new Date(m.year, m.month, m.firstMonday + 3);
+            });
+
+            return paidOnFirstMonday
+                ? `<div class="month-chip paid"><span class="month-label">${m.label}</span><span class="month-icon">✅</span></div>`
+                : `<div class="month-chip late"><span class="month-label">${m.label}</span><span class="month-icon">🟡</span></div>`;
+        }).join('');
+
+        return `
+            <div class="driver-month-card">
+                <div class="driver-name">
+                    <span>${driver.name || driver.id}</span>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <span class="debt-badge ${debtClass}">${debt.toFixed(3)} KD</span>
+                        <span class="score-badge ${scoreClass}">${scoreVal}</span>
+                    </div>
+                </div>
+                <div class="months-row">${monthChips}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function getFirstMondayOfMonth(year, month) {
+    for (let d = 1; d <= 7; d++) {
+        if (new Date(year, month, d).getDay() === 1) return d;
+    }
+    return 1;
+}
+
+// ===== SECTION 4: MONITOR =====
+function buildMonitorSection() {
+    const today = new Date();
+    const thisMonth = today.getMonth();
+    const thisYear  = today.getFullYear();
+
+    const monthHistory = gEditHistory.filter(e => {
+        const ts = toDate(e.timestamp);
+        return ts && ts.getMonth() === thisMonth && ts.getFullYear() === thisYear;
+    });
+
+    const accountantHistory = monthHistory.filter(e => e.editedByRole === 'accountant');
+    const deleteCount = accountantHistory.filter(e => e.action === 'delete').length;
+    const editCount   = accountantHistory.filter(e => e.action === 'edit').length;
+
+    // تعديلات نزولية
+    const downEdits = accountantHistory.filter(e => {
+        if (e.action !== 'edit') return false;
+        const changes = e.changes || [];
+        return changes.some(c => c.field === 'amount' && parseFloat(c.newValue||0) < parseFloat(c.oldValue||0));
+    });
+    const totalDown = downEdits.reduce((s,e) => {
+        const c = (e.changes||[]).find(c => c.field==='amount');
+        return c ? s + (parseFloat(c.oldValue||0) - parseFloat(c.newValue||0)) : s;
+    }, 0);
+
+    // تأخير التسجيل
+    const lateReg = gPayments.filter(p => {
+        const payDate = toDate(p.date);
+        const regDate = toDate(p.createdAt);
+        if (!payDate || !regDate) return false;
+        return Math.floor((regDate - payDate) / 86400000) >= LATE_REG_DAYS;
+    });
+
+    // نشاط ليلي
+    const nightActivity = gEditHistory.filter(e => {
+        const ts = toDate(e.timestamp);
+        return ts && ts.getHours() >= 22 && e.editedByRole === 'accountant';
+    });
+
+    document.getElementById('mDeleteCount').textContent   = deleteCount;
+    document.getElementById('mEditCount').textContent     = editCount;
+    document.getElementById('mDownEditCount').textContent = downEdits.length;
+    document.getElementById('mLateRegCount').textContent  = lateReg.length;
+    document.getElementById('mNightCount').textContent    = nightActivity.length;
+    document.getElementById('mTotalDownEdit').textContent = totalDown.toFixed(3);
+
+    // جدول العمليات المشبوهة
+    const suspicious = [
+        ...downEdits.map(e => ({ ...e, _flag: 'تعديل نزولي' })),
+        ...accountantHistory.filter(e => e.action === 'delete').map(e => ({ ...e, _flag: 'حذف' })),
+        ...nightActivity.slice(0,10).map(e => ({ ...e, _flag: 'نشاط ليلي' }))
+    ].sort((a,b) => {
+        const ta = toDate(a.timestamp), tb = toDate(b.timestamp);
+        return (tb||0) - (ta||0);
+    }).slice(0, 20);
+
+    const monitorBody = document.getElementById('monitorTableBody');
+    if (suspicious.length === 0) {
+        monitorBody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:#00c853;">✅ لا توجد عمليات مشبوهة</td></tr>';
+    } else {
+        monitorBody.innerHTML = suspicious.map(e => {
+            const ts = toDate(e.timestamp);
+            const dateStr = ts ? ts.toLocaleString('ar-KW') : '—';
+            const actionBadge = e.action === 'delete'
+                ? '<span class="action-badge delete">🗑️ حذف</span>'
+                : '<span class="action-badge edit">✏️ تعديل</span>';
+            const changes = e.changes || [];
+            const amountChange = changes.find(c => c.field === 'amount');
+            const oldAmt = amountChange ? parseFloat(amountChange.oldValue||0).toFixed(3) : '—';
+            const newAmt = amountChange ? parseFloat(amountChange.newValue||0).toFixed(3) : '—';
+            const diff   = amountChange
+                ? `<span style="color:${parseFloat(amountChange.newValue||0)<parseFloat(amountChange.oldValue||0)?'#e94560':'#00c853'};font-weight:700;">${(parseFloat(amountChange.newValue||0)-parseFloat(amountChange.oldValue||0)).toFixed(3)}</span>`
+                : '—';
+            const snap = e.fullSnapshot || {};
+            const desc = e.description || snap.description || snap.type || '—';
+            return `<tr>
+                <td style="white-space:nowrap;font-size:12px;">${dateStr}</td>
+                <td>${actionBadge}</td>
+                <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${desc}</td>
+                <td>${oldAmt}</td>
+                <td>${newAmt}</td>
+                <td>${diff}</td>
+                <td>${e.editedBy || '—'}</td>
+                <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#aaa;">${e.editReason || e.deleteReason || '—'}</td>
+                <td><span class="suspicious-badge">${e._flag}</span></td>
+            </tr>`;
+        }).join('');
+    }
+
+    // كل عمليات المحاسب هذا الشهر
+    const allEditsBody = document.getElementById('allEditsBody');
+    if (accountantHistory.length === 0) {
+        allEditsBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#888;">لا توجد عمليات هذا الشهر</td></tr>';
+    } else {
+        allEditsBody.innerHTML = accountantHistory.slice(0,50).map(e => {
+            const ts = toDate(e.timestamp);
+            const dateStr = ts ? ts.toLocaleString('ar-KW') : '—';
+            const actionBadge = e.action === 'delete'
+                ? '<span class="action-badge delete">🗑️ حذف</span>'
+                : '<span class="action-badge edit">✏️ تعديل</span>';
+            const snap = e.fullSnapshot || {};
+            const desc = e.description || snap.description || snap.type || '—';
+            const changes = e.changes || [];
+            const changesText = changes.map(c =>
+                `${c.fieldLabel||c.field}: ${c.oldValue} → ${c.newValue}`
+            ).join(' | ') || (e.action==='delete' ? 'حذف السجل' : '—');
+            return `<tr>
+                <td style="white-space:nowrap;font-size:12px;">${dateStr}</td>
+                <td>${actionBadge}</td>
+                <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${desc}</td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#aaa;">${changesText}</td>
+                <td>${e.editedBy || '—'}</td>
+                <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#aaa;">${e.editReason || e.deleteReason || '—'}</td>
+            </tr>`;
+        }).join('');
+    }
+}
+
+// ===== SECTION 5: SCORE =====
+function computeAllScores() {
+    const today = new Date();
+    const WEEKS = 8;
+
+    const weeks = [];
+    for (let i = WEEKS - 1; i >= 0; i--) {
+        const monday = getMondayOfWeek(today);
+        monday.setDate(monday.getDate() - i * 7);
+        const sunday = new Date(monday);
+        sunday.setDate(sunday.getDate() + 6);
+        weeks.push({ monday: new Date(monday), sunday: new Date(sunday) });
+    }
+
+    return gDrivers.filter(d => !d.isArchived).map(driver => {
+        const debt = calcDriverDebt(driver.id, driver);
+        const lastPay = getLastPaymentDate(driver.id);
+        const daysSincePay = lastPay ? Math.floor((today - lastPay) / 86400000) : 999;
+
+        const driverPayments = gPayments.filter(p =>
+            p.driverId === driver.id && RENT_TYPES.includes(p.type)
+        );
+
+        // 1. الانتظام (40%)
+        let paidCount = 0, validCount = 0;
+        const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt);
+        weeks.forEach(w => {
+            if (cStart && w.sunday < cStart) return;
+            validCount++;
+            const paid = driverPayments.some(p => {
+                const d = toDate(p.date);
+                return d && d >= w.monday && d <= w.sunday;
+            });
+            if (paid) paidCount++;
+        });
+        const regularityScore = validCount > 0 ? (paidCount / validCount) * 40 : 0;
+
+        // 2. اتجاه الدين (30%)
+        const prevDebt = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
+        const trend = debt - prevDebt;
+        let trendScore = 15; // محايد
+        if (trend < -10) trendScore = 30;      // ينزل = ممتاز
+        else if (trend < 0) trendScore = 22;
+        else if (trend < 10) trendScore = 15;  // ثابت
+        else if (trend < 50) trendScore = 8;
+        else trendScore = 0;                   // يرتفع بسرعة
+
+        // 3. سرعة الدفع (20%)
+        const mondayPayments = driverPayments.filter(p => {
+            const d = toDate(p.date);
+            return d && d.getDay() === 1;
+        });
+        const speedScore = driverPayments.length > 0
+            ? (mondayPayments.length / driverPayments.length) * 20
+            : 0;
+
+        // 4. حجم الدين النسبي (10%)
+        const weeklyRate = driver.contractType === 'monthly'
+            ? parseFloat(driver.monthlyPayment||0) / 4
+            : parseFloat(driver.dailyRent||driver.dailyWage||0) * 7;
+        let debtScore = 10;
+        if (weeklyRate > 0) {
+            const debtWeeks = debt / weeklyRate;
+            if (debtWeeks <= 1) debtScore = 10;
+            else if (debtWeeks <= 4) debtScore = 7;
+            else if (debtWeeks <= 8) debtScore = 4;
+            else debtScore = 0;
+        }
+
+        const score = Math.round(regularityScore + trendScore + speedScore + debtScore);
+
+        return {
+            id: driver.id,
+            name: driver.name || driver.id,
+            contractType: driver.contractType || 'daily',
+            score: Math.min(100, Math.max(0, score)),
+            regularity: validCount > 0 ? Math.round(paidCount/validCount*100) : 0,
+            trend,
+            debt,
+            lastPay,
+            daysSincePay
+        };
+    });
+}
+
+function buildScoreTable() {
+    const scores = computeAllScores();
+    scores.sort((a,b) => b.score - a.score);
+
+    const tbody = document.getElementById('scoreTableBody');
+    tbody.innerHTML = scores.map((s, idx) => {
+        const rank = idx + 1;
+        const rankClass = rank===1?'gold':rank===2?'silver':rank===3?'bronze':'';
+        const rankIcon  = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':rank;
+        const scoreClass = s.score >= 85 ? 'excellent' : s.score >= 60 ? 'good' : 'bad';
+        const debtClass  = s.debt > 1500 ? 'high' : s.debt > 500 ? 'medium' : s.debt > 0 ? 'low' : 'zero';
+        const trendIcon  = s.trend > 20 ? '↑' : s.trend < -20 ? '↓' : '→';
+        const trendClass = s.trend > 20 ? 'up' : s.trend < -20 ? 'down' : 'flat';
+        const classification = s.score >= 85
+            ? '<span style="color:#00c853;">⭐ ممتاز</span>'
+            : s.score >= 60
+                ? '<span style="color:#ffd700;">👍 جيد</span>'
+                : '<span style="color:#e94560;">⚠️ يحتاج متابعة</span>';
+        const lastPayStr = s.lastPay ? formatDate(s.lastPay) : '<span style="color:#e94560;">لا يوجد</span>';
+        const ctLabel = s.contractType === 'monthly'
+            ? '<span style="color:#4fc3f7;">شهري</span>'
+            : '<span style="color:#aaa;">يومي</span>';
+
+        return `<tr>
+            <td class="rank-num ${rankClass}" style="text-align:center;">${rankIcon}</td>
+            <td style="font-weight:700;color:#fff;">${s.name}</td>
+            <td>${ctLabel}</td>
+            <td>
+                <div class="score-bar-wrap">
+                    <div class="score-bar"><div class="score-bar-fill ${scoreClass}" style="width:${s.score}%"></div></div>
+                    <span class="score-num ${scoreClass}">${s.score}</span>
+                </div>
+            </td>
+            <td style="color:${s.regularity>=80?'#00c853':s.regularity>=50?'#ffd700':'#e94560'};font-weight:700;">${s.regularity}%</td>
+            <td><span class="trend ${trendClass}">${trendIcon} ${Math.abs(s.trend).toFixed(0)} KD</span></td>
+            <td><span class="debt-badge ${debtClass}">${s.debt.toFixed(3)}</span></td>
+            <td style="font-size:12px;color:#aaa;">${lastPayStr}</td>
+            <td>${classification}</td>
+        </tr>`;
+    }).join('');
+}
+</script>
+</body>
+</html>
