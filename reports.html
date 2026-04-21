@@ -401,6 +401,9 @@
             </div>
         </div>
 
+        <!-- لوحة الملخص الفوري -->
+        <div id="quickStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;"></div>
+
         <!-- بطاقات أنواع التقارير -->
         <div class="report-types-grid">
             <div class="report-type-card" onclick="selectType('financial')">
@@ -448,6 +451,21 @@
                 <div class="report-type-title">تقرير حساب رامي</div>
                 <div class="report-type-desc">حركات الحساب في الفترة</div>
             </div>
+            <div class="report-type-card" onclick="selectType('individual')">
+                <div class="report-type-icon">👤</div>
+                <div class="report-type-title">أداء السائق الفردي</div>
+                <div class="report-type-desc">تاريخ مالي كامل لسائق</div>
+            </div>
+            <div class="report-type-card" onclick="selectType('overdue')">
+                <div class="report-type-icon">⚠️</div>
+                <div class="report-type-title">السائقون المتأخرون</div>
+                <div class="report-type-desc">ديون مرتبة تنازلياً</div>
+            </div>
+            <div class="report-type-card" onclick="selectType('expense_dist')">
+                <div class="report-type-icon">🥧</div>
+                <div class="report-type-title">توزيع المصروفات</div>
+                <div class="report-type-desc">رسم دائري حسب النوع</div>
+            </div>
         </div>
 
         <!-- الفلاتر -->
@@ -473,6 +491,9 @@
                     <option value="salary">تقرير رصيد الرواتب</option>
                     <option value="advances">تقرير السلف</option>
                     <option value="rami">تقرير حساب رامي</option>
+                    <option value="individual">أداء السائق الفردي</option>
+                    <option value="overdue">السائقون المتأخرون</option>
+                    <option value="expense_dist">توزيع المصروفات (رسم دائري)</option>
                 </select>
             </div>
             <button class="generate-btn" onclick="generateReport()">📊 إنشاء التقرير</button>
@@ -491,7 +512,10 @@
                     <div class="report-header-title" id="reportTitle">التقرير</div>
                     <div class="report-header-period" id="reportPeriod"></div>
                 </div>
-                <button class="export-btn" onclick="exportReport()">🖨️ طباعة / PDF</button>
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                    <button class="export-btn" onclick="exportReport()">🖨️ طباعة / PDF</button>
+                    <button class="export-btn" onclick="exportCSV()" style="background:rgba(16,185,129,0.25);">📥 تصدير Excel</button>
+                </div>
             </div>
             <div class="report-body" id="reportBody"></div>
         </div>
@@ -529,6 +553,7 @@
                 if (!['admin', 'accountant'].includes(userData.role)) { window.location.href = 'index.html'; return; }
                 currentUser = { uid: user.uid, ...userData };
                 setDefaultDates();
+                loadQuickStats();
             } catch (e) { window.location.href = 'index.html'; }
         });
 
@@ -573,7 +598,10 @@
                     case 'revenues':  html = await buildRevenuesReport(from, to); break;
                     case 'salary':    html = await buildSalaryReport(from, to); break;
                     case 'advances':  html = await buildAdvancesReport(from, to); break;
-                    case 'rami':      html = await buildRamiReport(from, to); break;
+                    case 'rami':         html = await buildRamiReport(from, to); break;
+                    case 'individual':   html = await buildIndividualDriverReport(from, to); break;
+                    case 'overdue':      html = await buildOverdueDriversReport(from, to); break;
+                    case 'expense_dist': html = await buildExpenseDistReport(from, to); break;
                     default: html = '<div class="no-data">نوع تقرير غير مدعوم</div>';
                 }
 
@@ -673,7 +701,10 @@
                 revenues:  'تقرير الإيرادات',
                 salary:    'تقرير رصيد الرواتب',
                 advances:  'تقرير السلف',
-                rami:      'تقرير حساب رامي'
+                rami:         'تقرير حساب رامي',
+                individual:   'أداء السائق الفردي',
+                overdue:      'السائقون المتأخرون',
+                expense_dist: 'توزيع المصروفات'
             };
             return titles[type] || 'التقرير';
         }
@@ -790,7 +821,8 @@
             };
 
             revenues.forEach(i => addToMonth(i, 'rev'));
-            driverPayments.filter(p => REVENUE_PAYMENT_TYPES.includes(p.type)).forEach(i => addToMonth(i, 'rev'));
+            // إجازة سنوية تُستثنى من الإيرادات لأنها تُلغي نفسها ولا تؤثر على حساب رامي
+            driverPayments.filter(p => REVENUE_PAYMENT_TYPES.includes(p.type) && p.type !== 'إجازة سنوية').forEach(i => addToMonth(i, 'rev'));
             expenses.forEach(i => addToMonth(i, 'exp'));
             driverPayments.filter(p => EXPENSE_PAYMENT_TYPES.includes(p.type)).forEach(i => addToMonth(i, 'exp'));
 
@@ -1217,8 +1249,247 @@
             return html;
         }
 
+        // ===== لوحة الملخص الفوري =====
+        async function loadQuickStats() {
+            try {
+                const [allRevenues, allExpenses, allDP, allDrivers] = await Promise.all([
+                    fetchAll('revenues'), fetchAll('expenses'),
+                    fetchAll('driverPayments'), fetchAll('drivers')
+                ]);
+                let bankBalance = 0;
+                allRevenues.forEach(r => bankBalance += (r.amount||0));
+                allExpenses.forEach(e => bankBalance -= (e.amount||0));
+                allDP.forEach(p => {
+                    if (REVENUE_PAYMENT_TYPES.includes(p.type)) bankBalance += (p.amount||0);
+                    if (EXPENSE_PAYMENT_TYPES.includes(p.type)) bankBalance -= (p.amount||0);
+                });
+                let totalDebt = 0;
+                allDrivers.forEach(d => {
+                    const dp = allDP.filter(p => p.driverId === d.id);
+                    const debt = calcDriverDebtSimple(dp);
+                    if (debt > 0) totalDebt += debt;
+                });
+                let salaryBalance = 0;
+                allDP.forEach(p => {
+                    if (SALARY_INCOME_TYPES.includes(p.type)) salaryBalance += (p.amount||0);
+                    if (SALARY_EXPENSE_TYPES.includes(p.type)) salaryBalance -= (p.amount||0);
+                });
+                const now = new Date();
+                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+                const today = now.toISOString().split('T')[0];
+                const [mRevs, mExps, mDP] = await Promise.all([
+                    fetchInRange('revenues', monthStart, today),
+                    fetchInRange('expenses', monthStart, today),
+                    fetchInRange('driverPayments', monthStart, today)
+                ]);
+                let monthRev = mRevs.reduce((s,r)=>s+(r.amount||0),0);
+                let monthExp = mExps.reduce((s,e)=>s+(e.amount||0),0);
+                mDP.forEach(p => {
+                    if (REVENUE_PAYMENT_TYPES.includes(p.type) && p.type !== 'إجازة سنوية') monthRev += (p.amount||0);
+                    if (EXPENSE_PAYMENT_TYPES.includes(p.type)) monthExp += (p.amount||0);
+                });
+                const monthNet = monthRev - monthExp;
+                const cards = [
+                    { title: '💰 حساب رامي الكلي',        value: formatAmount(bankBalance), color: bankBalance >= 0 ? '#059669' : '#dc2626' },
+                    { title: '⚠️ إجمالي ديون السائقين',   value: formatAmount(totalDebt),   color: '#d97706' },
+                    { title: '💳 رصيد الرواتب',           value: formatAmount(salaryBalance), color: salaryBalance >= 0 ? '#2563eb' : '#dc2626' },
+                    { title: '📈 صافي الشهر الحالي',      value: formatAmount(monthNet),    color: monthNet >= 0 ? '#059669' : '#dc2626' }
+                ];
+                document.getElementById('quickStats').innerHTML = cards.map(c => `
+                    <div style="background:white;border-radius:14px;padding:1.25rem;box-shadow:0 4px 15px rgba(0,0,0,0.08);text-align:center;border-top:4px solid ${c.color};">
+                        <div style="font-size:0.82rem;color:#6b7280;margin-bottom:0.4rem;font-weight:600;">${c.title}</div>
+                        <div style="font-size:1.35rem;font-weight:800;color:${c.color};">${c.value}</div>
+                    </div>`).join('');
+            } catch(e) { console.error('quickStats error:', e); }
+        }
+
+        // حساب دين السائق المبسط
+        function calcDriverDebtSimple(payments) {
+            let debt = 0;
+            payments.forEach(p => {
+                if (['أجرة يومية','أجرة شهرية','سداد مخالفة','سداد رسوم إقامة','دين قديم','سلفة إلى السائق'].includes(p.type)) debt += (p.amount||0);
+                if (['تحصيل مخالفة','تحصيل رسوم إقامة','إجازة سنوية','تحصيل سلفة من السائق'].includes(p.type)) debt -= (p.amount||0);
+            });
+            return debt;
+        }
+
+        // ===== 10. تقرير أداء السائق الفردي =====
+        async function buildIndividualDriverReport(from, to) {
+            const [drivers, allDP] = await Promise.all([
+                fetchAll('drivers'),
+                fetchInRange('driverPayments', from, to)
+            ]);
+            const driverSelect = document.getElementById('individualDriverSelect');
+            let selectedDriverId = driverSelect ? driverSelect.value : '';
+            if (!selectedDriverId) {
+                const options = drivers.sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(d => `<option value="${d.id}">${d.name || d.id}</option>`).join('');
+                return `<div style="padding:1.5rem;">
+                    <div class="report-section-title">👤 اختر السائق</div>
+                    <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
+                        <select id="individualDriverSelect" class="filter-input" style="flex:1;min-width:200px;">
+                            <option value="">-- اختر سائقاً --</option>${options}
+                        </select>
+                        <button class="generate-btn" onclick="generateReport()">📊 عرض التقرير</button>
+                    </div></div>`;
+            }
+            const driver = drivers.find(d => d.id === selectedDriverId);
+            if (!driver) return '<div class="no-data">السائق غير موجود</div>';
+            const dPayments = allDP.filter(p => p.driverId === selectedDriverId);
+            let totalPaid = 0, totalReceived = 0, netAdvances = 0;
+            dPayments.forEach(p => {
+                if (REVENUE_PAYMENT_TYPES.filter(t=>t!=='إجازة سنوية').includes(p.type)) totalPaid += (p.amount||0);
+                if (EXPENSE_PAYMENT_TYPES.includes(p.type)) totalReceived += (p.amount||0);
+                if (p.type === 'سلفة إلى السائق') netAdvances += (p.amount||0);
+                if (p.type === 'تحصيل سلفة من السائق') netAdvances -= (p.amount||0);
+            });
+            const netDebt = calcDriverDebtSimple(dPayments);
+            let html = `<div style="background:#f0f9ff;border-radius:12px;padding:1.25rem;margin-bottom:1.5rem;border-right:4px solid #2563eb;">
+                <div style="font-size:1.1rem;font-weight:800;color:#1e40af;margin-bottom:0.5rem;">👤 ${driver.name||'—'}</div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.5rem;font-size:0.85rem;color:#374151;">
+                    <div>📱 ${driver.phone||'—'}</div>
+                    <div>🚗 ${driver.carPlate||driver.assignedCar||'—'}</div>
+                    <div>📋 ${driver.contractType==='daily'?'يومي':'شهري'}</div>
+                    <div>💰 أجرة: ${formatAmount(driver.dailyRent||driver.monthlyRent||0)}</div>
+                    <div>${driver.contractStatus==='active'?'🟢 نشط':'🔴 غير نشط'}</div>
+                </div></div>`;
+            html += summaryCards([
+                { title: 'إجمالي التحصيل',  value: formatAmount(totalPaid),     cls: 'positive' },
+                { title: 'إجمالي السداد',    value: formatAmount(totalReceived), cls: 'negative' },
+                { title: 'السلف المستحقة',   value: formatAmount(netAdvances),   cls: netAdvances>0?'warning':'positive' },
+                { title: 'صافي الدين',       value: formatAmount(netDebt),       cls: netDebt>0?'negative':'positive' }
+            ]);
+            const rows = dPayments.sort((a,b)=>(getItemDate(a)||0)-(getItemDate(b)||0)).map(p => [
+                formatDate(getItemDate(p)), p.type,
+                REVENUE_PAYMENT_TYPES.includes(p.type)
+                    ? `<span class="amount-positive">+${formatAmount(p.amount)}</span>`
+                    : `<span class="amount-negative">-${formatAmount(p.amount)}</span>`,
+                p.description||p.note||'—', p.editedBy||'—'
+            ]);
+            html += `<div class="report-section-title">📋 سجل الحركات</div>`;
+            html += buildTable(['التاريخ','النوع','المبلغ','الوصف','بواسطة'], rows, 'لا توجد حركات لهذا السائق في الفترة المحددة');
+            return html;
+        }
+
+        // ===== 11. تقرير السائقين المتأخرين =====
+        async function buildOverdueDriversReport(from, to) {
+            const [drivers, allDP] = await Promise.all([
+                fetchAll('drivers'), fetchAll('driverPayments')
+            ]);
+            const debtList = [];
+            drivers.forEach(d => {
+                const dp = allDP.filter(p => p.driverId === d.id);
+                const debt = calcDriverDebtSimple(dp);
+                if (debt > 0) debtList.push({ driver: d, debt });
+            });
+            debtList.sort((a,b) => b.debt - a.debt);
+            const totalDebt = debtList.reduce((s,i)=>s+i.debt, 0);
+            let html = summaryCards([
+                { title: 'عدد السائقين المتأخرين', value: debtList.length.toString(),                           cls: debtList.length>0?'negative':'positive' },
+                { title: 'إجمالي الديون',          value: formatAmount(totalDebt),                              cls: 'negative' },
+                { title: 'متوسط الدين',             value: formatAmount(debtList.length?totalDebt/debtList.length:0), cls: 'warning' },
+                { title: 'أعلى دين',               value: debtList.length?formatAmount(debtList[0].debt):'—', cls: 'negative' }
+            ]);
+            if (!debtList.length) return html + '<div class="no-data">✅ لا يوجد سائقون متأخرون — جميع الحسابات مسوَّاة</div>';
+            const rows = debtList.map((item,idx) => [
+                `<strong>${idx+1}</strong>`,
+                item.driver.name||'—', item.driver.phone||'—',
+                item.driver.contractType==='daily'?'يومي':'شهري',
+                item.driver.contractStatus==='active'
+                    ? '<span style="color:#059669;font-weight:700;">نشط</span>'
+                    : '<span style="color:#dc2626;">غير نشط</span>',
+                `<span class="amount-negative" style="font-size:1.05rem;">${formatAmount(item.debt)}</span>`
+            ]);
+            html += `<div class="report-section-title">⚠️ السائقون المتأخرون (مرتبون تنازلياً)</div>`;
+            html += buildTable(['#','الاسم','الهاتف','نوع العقد','الحالة','إجمالي الدين'], rows);
+            const barItems = debtList.slice(0,10).map(i=>({ label: i.driver.name||'—', value: i.debt }));
+            const maxDebt = Math.max(...barItems.map(i=>i.value), 1);
+            html += `<div class="report-section-title">📊 أعلى 10 ديون</div>`;
+            html += buildBarChart(barItems, maxDebt, true);
+            return html;
+        }
+
+        // ===== 12. تقرير توزيع المصروفات (رسم دائري) =====
+        async function buildExpenseDistReport(from, to) {
+            const [expenses, driverPayments] = await Promise.all([
+                fetchInRange('expenses', from, to),
+                fetchInRange('driverPayments', from, to)
+            ]);
+            const dpExpItems = driverPayments.filter(p => EXPENSE_PAYMENT_TYPES.includes(p.type));
+            const byType = {};
+            expenses.forEach(e => { const t=e.type||'أخرى'; byType[t]=(byType[t]||0)+(e.amount||0); });
+            dpExpItems.forEach(e => { byType[e.type]=(byType[e.type]||0)+(e.amount||0); });
+            const total = Object.values(byType).reduce((s,v)=>s+v,0);
+            const typeItems = Object.entries(byType).map(([k,v])=>({ label:k, value:v, pct:total>0?(v/total*100).toFixed(1):0 })).sort((a,b)=>b.value-a.value);
+            const colors = ['#667eea','#764ba2','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316'];
+            let html = summaryCards([
+                { title: 'إجمالي المصروفات', value: formatAmount(total),       cls: 'negative' },
+                { title: 'عدد الأنواع',      value: typeItems.length.toString(), cls: 'info' }
+            ]);
+            if (typeItems.length > 0) {
+                let svgPaths = '', legendItems = '';
+                let startAngle = -90;
+                const cx=150, cy=150, r=120;
+                typeItems.forEach((item,idx) => {
+                    const angle = (item.value/total)*360;
+                    const endAngle = startAngle + angle;
+                    const x1=cx+r*Math.cos(startAngle*Math.PI/180), y1=cy+r*Math.sin(startAngle*Math.PI/180);
+                    const x2=cx+r*Math.cos(endAngle*Math.PI/180),   y2=cy+r*Math.sin(endAngle*Math.PI/180);
+                    const largeArc = angle>180?1:0;
+                    const color = colors[idx%colors.length];
+                    svgPaths += `<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${largeArc},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${color}" stroke="white" stroke-width="2"/>`;
+                    legendItems += `<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;">
+                        <div style="width:14px;height:14px;border-radius:3px;background:${color};flex-shrink:0;"></div>
+                        <span style="font-size:0.82rem;color:#374151;flex:1;">${item.label}</span>
+                        <span style="font-size:0.82rem;color:#6b7280;">${item.pct}%</span>
+                        <span style="font-size:0.82rem;font-weight:700;color:#1f2937;margin-right:0.5rem;">${formatAmount(item.value)}</span>
+                    </div>`;
+                    startAngle = endAngle;
+                });
+                html += `<div class="report-section-title">🥧 الرسم الدائري</div>
+                <div style="display:flex;gap:2rem;align-items:center;flex-wrap:wrap;background:#f9fafb;border-radius:12px;padding:1.5rem;">
+                    <svg width="300" height="300" viewBox="0 0 300 300" style="flex-shrink:0;">${svgPaths}</svg>
+                    <div style="flex:1;min-width:200px;">${legendItems}</div>
+                </div>`;
+            }
+            const rows = typeItems.map(i=>[
+                i.label,
+                `<span class="amount-negative">${formatAmount(i.value)}</span>`,
+                `<div style="display:flex;align-items:center;gap:0.5rem;">
+                    <div style="flex:1;background:#e5e7eb;border-radius:4px;height:10px;overflow:hidden;">
+                        <div style="width:${i.pct}%;background:#dc2626;height:100%;border-radius:4px;"></div>
+                    </div>
+                    <span style="font-size:0.82rem;font-weight:700;">${i.pct}%</span>
+                </div>`
+            ]);
+            html += `<div class="report-section-title">📋 جدول التوزيع</div>`;
+            html += buildTable(['نوع المصروف','المبلغ','النسبة'], rows);
+            return html;
+        }
+
         // ===== تصدير =====
         window.exportReport = () => { window.print(); };
+
+        window.exportCSV = () => {
+            const body = document.getElementById('reportBody');
+            if (!body || !body.innerHTML.trim()) { alert('لا يوجد تقرير لتصديره'); return; }
+            const tables = body.querySelectorAll('table');
+            if (!tables.length) { alert('لا توجد بيانات جدولية للتصدير'); return; }
+            let csvContent = '\uFEFF';
+            tables.forEach(table => {
+                table.querySelectorAll('tr').forEach(row => {
+                    const cells = Array.from(row.querySelectorAll('th,td')).map(c => `"${c.textContent.trim().replace(/,/g,'،')}"`);
+                    csvContent += cells.join(',') + '\n';
+                });
+                csvContent += '\n';
+            });
+            const title = document.getElementById('reportTitle').textContent || 'تقرير';
+            const period = document.getElementById('reportPeriod').textContent || '';
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `${title} - ${period}.csv`; a.click();
+            URL.revokeObjectURL(url);
+        };
 
         // ===== تسجيل الخروج =====
         window.logout = async () => {
