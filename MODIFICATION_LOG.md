@@ -1042,3 +1042,61 @@ allRevenueItems.push({
 
 **آخر تحديث**: 25 أبريل 2026
 **إجمالي التعديلات الموثقة**: 23 تعديلاً
+
+---
+
+## ✅ Commit #024 — إصلاحات لوحة المالك (v3.0.1 → v3.2)
+
+**📅 التاريخ**: 25 أبريل 2026
+**الملف المعدَّل**: `owner-dashboard.html`
+**الإصدار**: v3.2.0
+**Commit ID**: `d4069e4`
+
+### 📋 الهدف
+إصلاح مشكلة التحميل اللانهائي (Infinite Loading) التي ظهرت في لوحة المالك بعد التحديث إلى v3.0، والتي كانت تمنع عرض البيانات.
+
+### 🎯 المشاكل التي تم تشخيصها
+
+#### 1. مشكلة `orderBy` في استعلام `editHistory`
+- **السبب**: استخدام `orderBy('timestamp', 'desc')` مع `where('timestamp', '>=', startOfMonth)` يتطلب إنشاء Composite Index في Firebase.
+- **النتيجة**: فشل الاستعلام وتوقف تحميل الصفحة.
+- **الحل**: إزالة `orderBy` من الاستعلام، وجلب البيانات أولاً، ثم ترتيبها برمجياً في الذاكرة (Client-side sorting) باستخدام `sort((a, b) => b.timestamp - a.timestamp)`.
+
+#### 2. مشكلة WebChannel Error (تعارض SDK)
+- **السبب**: استخدام Firebase SDK v10 (Modular) في `owner-dashboard.html` كان يسبب خطأ `WebChannel` على شبكة المستخدم، مما يؤدي إلى فشل الاتصال بقاعدة البيانات.
+- **النتيجة**: تعليق الصفحة في حالة التحميل.
+- **الحل**: الرجوع إلى استخدام Firebase SDK v9 (Compat) الذي يعتمد على اتصالات HTTP/1.1 العادية بدلاً من WebSockets، وهو أكثر استقراراً على بعض الشبكات.
+
+#### 3. مشكلة تأخير `onAuthStateChanged`
+- **السبب**: الاعتماد على `onAuthStateChanged` للتحقق من صلاحيات المستخدم كان يتأثر بمشكلة الاتصال (WebChannel)، مما يؤدي إلى تأخير أو فشل التحقق.
+- **الحل**: الاعتماد على `localStorage` مباشرة للتحقق من الصلاحية. بما أن `index.html` يحفظ `userRole` و `userName` في `localStorage` عند تسجيل الدخول بنجاح، يمكننا قراءتها فوراً في `owner-dashboard.html` بدون انتظار Firebase Auth.
+
+### ✨ التعديلات المُطبَّقة (الإصلاح الجذري v3.2)
+
+1. **تغيير استيراد Firebase SDK**:
+   - من: `https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js`
+   - إلى: `https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js` (وكذلك لـ firestore).
+
+2. **تعديل طريقة تهيئة Firebase**:
+   - استخدام `firebase.initializeApp(firebaseConfig)` بدلاً من `initializeApp(firebaseConfig)`.
+   - استخدام `firebase.firestore()` بدلاً من `getFirestore()`.
+
+3. **تعديل التحقق من الصلاحية (Auth)**:
+   - إزالة `onAuthStateChanged`.
+   - قراءة `userRole` من `localStorage` مباشرة.
+   - إذا كان `userRole !== 'admin'`، يتم التوجيه فوراً إلى `index.html`.
+
+4. **تعديل استعلامات Firestore**:
+   - تحويل جميع الاستعلامات من الصيغة الحديثة (Modular) إلى الصيغة القديمة (Compat).
+   - مثال: `db.collection('drivers').get()` بدلاً من `getDocs(collection(db, 'drivers'))`.
+   - إزالة أي استخدام لـ `orderBy` مع `where` لتجنب الحاجة إلى Composite Index.
+
+### 📊 النتيجة
+- ✅ اختفاء مشكلة التحميل اللانهائي.
+- ✅ تحميل الصفحة والبيانات بشكل فوري.
+- ✅ التحقق من الصلاحية يعمل بشكل صحيح وآمن.
+
+---
+
+**آخر تحديث**: 25 أبريل 2026
+**إجمالي التعديلات الموثقة**: 24 تعديلاً
