@@ -609,7 +609,13 @@
 <!-- Loading -->
 <div class="loading-overlay" id="loadingOverlay">
     <div class="loading-spinner"></div>
-    <div class="loading-text">جاري تحميل بيانات المالك...</div>
+    <div class="loading-text" id="loadingText">جاري تحميل بيانات المالك...</div>
+    <div style="width:320px;margin-top:18px;">
+        <div style="background:#1a1a2e;border-radius:8px;height:10px;overflow:hidden;">
+            <div id="loadingBar" style="height:100%;width:0%;background:linear-gradient(90deg,#e94560,#f5a623);border-radius:8px;transition:width 0.4s ease;"></div>
+        </div>
+        <div id="loadingStep" style="color:#888;font-size:13px;margin-top:10px;text-align:center;">جاري الاتصال...</div>
+    </div>
 </div>
 
 <!-- Access Denied -->
@@ -630,7 +636,7 @@
         </div>
     </div>
     <div class="header-meta">
-        <span class="version-badge">v3.0.1</span>
+        <span class="version-badge">v3.0.2</span>
         <span class="last-update" id="lastUpdateTime">—</span>
         <button class="print-btn" onclick="printWeeklyReport()">🖨️ تقرير الأسبوع</button>
         <button class="refresh-btn" onclick="loadAllData()">🔄 تحديث</button>
@@ -1031,34 +1037,61 @@ function switchModalTab(name) {
     if (el) el.classList.add('active');
 }
 
+// ===== LOAD PROGRESS HELPER =====
+function setProgress(pct, step) {
+    const bar = document.getElementById('loadingBar');
+    const txt = document.getElementById('loadingStep');
+    if (bar) bar.style.width = pct + '%';
+    if (txt) txt.textContent = step;
+}
+
 // ===== LOAD ALL DATA =====
 async function loadAllData() {
     document.getElementById('loadingOverlay').style.display = 'flex';
+    setProgress(5, 'جاري التحقق من الصلاحية...');
     try {
+        setProgress(15, 'جاري تحميل بيانات السائقين...');
         const dSnap = await db.collection('drivers').get();
         gDrivers = dSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         gDriverMap = {};
         gDrivers.forEach(d => { gDriverMap[d.id] = d; });
+        setProgress(35, `تم تحميل ${gDrivers.length} سائق ✔️ — جاري تحميل الدفعات...`);
 
         const pSnap = await db.collection('driverPayments').get();
         gPayments = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setProgress(60, `تم تحميل ${gPayments.length} دفعة ✔️ — جاري تحميل سجل التعديلات...`);
 
         const eSnap = await db.collection('editHistory').limit(500).get();
         gEditHistory = eSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setProgress(75, `تم تحميل ${gEditHistory.length} سجل ✔️ — جاري معالجة البيانات...`);
 
+        setProgress(80, 'جاري حساب التحذيرات...');
         buildAlerts();
+        setProgress(84, 'جاري بناء جدول الالتزام الأسبوعي...');
         buildWeeklyTable();
+        setProgress(88, 'جاري بناء جدول الالتزام الشهري...');
         buildMonthlyGrid();
+        setProgress(91, 'جاري بناء لوحة متابعة الأسبوع...');
         buildFollowupTable();
+        setProgress(94, 'جاري بناء مقارنة الأشهر...');
         buildMonthlyCompare();
+        setProgress(96, 'جاري بناء رقابة المحاسب...');
         buildMonitorSection();
+        setProgress(98, 'جاري بناء جدول التصنيف...');
         buildClassifTable();
+        setProgress(100, 'تم التحميل بنجاح ✔️');
 
         document.getElementById('lastUpdateTime').textContent =
             'آخر تحديث: ' + new Date().toLocaleTimeString('ar-KW');
-        document.getElementById('mainContent').style.display = 'block';
+        setTimeout(() => {
+            document.getElementById('mainContent').style.display = 'block';
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }, 400);
+        return;
     } catch(e) {
         console.error(e);
+        setProgress(0, 'خطأ: ' + e.message);
+        document.getElementById('loadingStep').style.color = '#e94560';
         alert('خطأ في تحميل البيانات: ' + e.message);
     }
     document.getElementById('loadingOverlay').style.display = 'none';
