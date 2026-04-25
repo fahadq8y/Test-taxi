@@ -2189,11 +2189,16 @@ function printWeeklyReport() {
         ${table.outerHTML.replace(/class="paid-status"/g, 'class="paid"').replace(/class="unpaid-status"/g, 'class="unpaid"').replace(/class="partial-status"/g, 'class="partial"')}
         </body></html>
     `);
-    printWin.document.close();
+      printWin.document.close();
     printWin.print();
 }
 
-
+// ===== EXPOSE FUNCTIONS TO WINDOW (required for type="module") =====
+window.switchTab       = switchTab;
+window.loadAllData     = loadAllData;
+window.openDriverModal = openDriverModal;
+window.closeModal      = closeModal;
+window.printWeeklyReport = printWeeklyReport;
 </script>
 </body>
 </html>
