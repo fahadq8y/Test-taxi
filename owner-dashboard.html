@@ -1047,6 +1047,8 @@ function switchTab(name) {
     });
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
+    // تبويب مقارنة الأشهر يُبنى عند الفتح
+    if (name === 'compare') buildMonthlyCompare();
 }
 
 // ===== LOAD ALL DATA =====
@@ -2192,12 +2194,6 @@ function printWeeklyReport() {
     printWin.print();
 }
 
-// تشغيل buildMonthlyCompare عند فتح التبويب
-const _origSwitchTab = switchTab;
-function switchTab(name) {
-    _origSwitchTab(name);
-    if (name === 'compare') buildMonthlyCompare();
-}
 
 </script>
 </body>
