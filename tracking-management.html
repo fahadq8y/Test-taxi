@@ -315,11 +315,13 @@
             onSnapshot(driversRef, (snapshot) => {
                 snapshot.forEach((doc) => {
                     const data = doc.data();
-                    driversInfo[data.employeeId] = {
-                        name: data.name,
-                        employeeId: data.employeeId,
-                        phone: data.phone
-                    };
+                    driversInfo[doc.id] = {
+                          // FIX: use doc.id ("DRV001") as key — driver docs have NO employeeId field
+                          name: data.name,
+                          employeeNumber: data.employeeNumber || doc.id,
+                          driverId: doc.id,
+                          phone: data.phone
+                      };
                 });
                 console.log('Drivers info loaded:', driversInfo);
             });
