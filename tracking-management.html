@@ -1,508 +1,1014 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إدارة التتبع - نظام إدارة التاكسي</title>
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f5f5;
-            direction: rtl;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
-            color: white;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .header h1 {
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-        
-        .header p {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-        
-        .nav-buttons {
-            margin-top: 15px;
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        .nav-btn {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            padding: 8px 16px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            text-decoration: none;
-            font-size: 14px;
-            transition: background 0.3s;
-        }
-        
-        .nav-btn:hover {
-            background: rgba(255,255,255,0.3);
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 30px auto;
-            padding: 0 20px;
-        }
-        
-        .actions-bar {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            display: flex;
-            gap: 10px;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        
-        .action-btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-        
-        .btn-refresh {
-            background: #3b82f6;
-            color: white;
-        }
-        
-        .btn-refresh:hover {
-            background: #2563eb;
-        }
-        
-        .btn-delete-all {
-            background: #dc2626;
-            color: white;
-        }
-        
-        .btn-delete-all:hover {
-            background: #991b1b;
-        }
-        
-        .stats {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        
-        .stat-badge {
-            background: #f3f4f6;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: bold;
-        }
-        
-        .drivers-table {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        thead {
-            background: #f9fafb;
-        }
-        
-        th {
-            padding: 15px;
-            text-align: right;
-            font-weight: bold;
-            color: #374151;
-            border-bottom: 2px solid #e5e7eb;
-        }
-        
-        td {
-            padding: 15px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        
-        tbody tr:hover {
-            background: #f9fafb;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        
-        .status-online {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        
-        .status-offline {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        
-        .btn-delete {
-            background: #dc2626;
-            color: white;
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: background 0.3s;
-        }
-        
-        .btn-delete:hover {
-            background: #991b1b;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #6b7280;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #6b7280;
-        }
-        
-        .empty-state-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
-        }
-        
-        @media (max-width: 768px) {
-            .actions-bar {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            
-            .stats {
-                justify-content: center;
-            }
-            
-            table {
-                font-size: 12px;
-            }
-            
-            th, td {
-                padding: 10px 5px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إدارة التتبع - نظام إدارة التاكسي</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['IBM Plex Sans Arabic', 'Segoe UI', 'Tahoma', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    body { font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif; }
+    [dir="rtl"] .ltr { direction: ltr; display: inline-block; }
+    .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+    /* hide scrollbar on tab strip but keep functional */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    /* prevent flash of unstyled content */
+    [x-cloak] { display: none !important; }
+  </style>
 </head>
-<body>
-    <div class="header">
-        <h1>🗑️ إدارة التتبع</h1>
-        <p>إدارة بيانات تتبع السائقين - حذف وتنظيف البيانات</p>
-        <div class="nav-buttons">
-            <a href="tracking.html" class="nav-btn">📍 صفحة التتبع</a>
-            <a href="admin-dashboard.html" class="nav-btn">🏠 الرئيسية</a>
-            <button class="nav-btn" onclick="logout()">تسجيل الخروج</button>
+
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+
+  <!-- ============== TOP NAV ============== -->
+  <header class="bg-gradient-to-l from-red-700 to-red-900 text-white shadow">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
+          <i data-lucide="map-pinned" class="h-5 w-5"></i>
         </div>
+        <div>
+          <h1 class="text-lg md:text-xl font-bold leading-tight">إدارة التتبع</h1>
+          <p class="text-xs text-white/75">إدارة بيانات التتبع وحالة السائقين</p>
+        </div>
+      </div>
+      <nav class="flex items-center gap-1.5 text-sm">
+        <a href="tracking.html" class="rounded-md bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">📍 صفحة التتبع</a>
+        <a href="admin-dashboard.html" class="rounded-md bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">🏠 الرئيسية</a>
+        <button onclick="logout()" class="rounded-md bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">تسجيل الخروج</button>
+      </nav>
     </div>
 
-    <div class="container">
-        <div class="actions-bar">
-            <div class="stats">
-                <div class="stat-badge">
-                    📊 إجمالي السائقين: <span id="totalCount">0</span>
-                </div>
-                <div class="stat-badge">
-                    🟢 نشط: <span id="activeCount">0</span>
-                </div>
-                <div class="stat-badge">
-                    🔴 غير نشط: <span id="inactiveCount">0</span>
-                </div>
-            </div>
-            <div style="display: flex; gap: 10px;">
-                <button class="action-btn btn-refresh" onclick="loadDrivers()">
-                    🔄 تحديث
-                </button>
-                <button class="action-btn btn-delete-all" onclick="deleteAllDrivers()">
-                    🗑️ مسح الكل
-                </button>
-            </div>
+    <!-- View switcher tabs -->
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex gap-1 overflow-x-auto no-scrollbar -mb-px">
+        <button data-view-tab="health" class="view-tab whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-white/70 hover:text-white transition">
+          <i data-lucide="activity" class="inline-block h-4 w-4 -mt-0.5"></i>
+          لوحة الصحة
+        </button>
+        <button data-view-tab="table" class="view-tab whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-white/70 hover:text-white transition">
+          <i data-lucide="table" class="inline-block h-4 w-4 -mt-0.5"></i>
+          جدول اكسل
+        </button>
+        <button data-view-tab="cards" class="view-tab whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-white/70 hover:text-white transition">
+          <i data-lucide="layout-grid" class="inline-block h-4 w-4 -mt-0.5"></i>
+          بطاقات السائقين
+        </button>
+        <div class="flex-1"></div>
+        <div class="hidden md:flex items-center gap-1.5 text-xs text-white/70 px-2">
+          <span class="inline-flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="liveStatus">آخر تحديث: قبل لحظات</span>
         </div>
-
-        <div class="drivers-table">
-            <div id="loading" class="loading">
-                <p>⏳ جاري تحميل البيانات...</p>
-            </div>
-            
-            <div id="emptyState" class="empty-state" style="display: none;">
-                <div class="empty-state-icon">📭</div>
-                <h3>لا توجد بيانات تتبع</h3>
-                <p>لم يتم العثور على أي سائقين في نظام التتبع</p>
-            </div>
-            
-            <table id="driversTable" style="display: none;">
-                <thead>
-                    <tr>
-                        <th>الرقم الوظيفي</th>
-                        <th>اسم السائق</th>
-                        <th>آخر موقع</th>
-                        <th>السرعة</th>
-                        <th>الدقة</th>
-                        <th>آخر تحديث</th>
-                        <th>الحالة</th>
-                        <th>الإجراءات</th>
-                    </tr>
-                </thead>
-                <tbody id="driversTableBody">
-                </tbody>
-            </table>
-        </div>
+      </div>
     </div>
+  </header>
 
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-        import { getFirestore, collection, getDocs, deleteDoc, doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+  <!-- ============== LOADING / EMPTY ============== -->
+  <div id="loadingState" class="max-w-7xl mx-auto px-4 py-16 text-center text-slate-500">
+    <i data-lucide="loader-2" class="inline-block h-8 w-8 animate-spin"></i>
+    <p class="mt-3">جاري تحميل البيانات...</p>
+  </div>
 
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
-            authDomain: "taxi-management-system-d8210.firebaseapp.com",
-            projectId: "taxi-management-system-d8210",
-            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
-            messagingSenderId: "720874424166",
-            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
-            measurementId: "G-GY8820W410"
-        };
+  <div id="emptyState" class="max-w-7xl mx-auto px-4 py-16 text-center text-slate-500 hidden">
+    <div class="text-5xl mb-3">📭</div>
+    <h3 class="text-lg font-bold text-slate-700">لا توجد بيانات تتبع</h3>
+    <p class="mt-1 text-sm">لم يتم العثور على أي سائقين في نظام التتبع</p>
+  </div>
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+  <!-- ============== VIEWS ============== -->
+  <main id="viewHealth" class="view-container max-w-7xl mx-auto px-4 py-6 hidden"></main>
+  <main id="viewTable"  class="view-container max-w-7xl mx-auto px-4 py-6 hidden"></main>
+  <main id="viewCards"  class="view-container max-w-7xl mx-auto px-4 py-6 hidden"></main>
 
-        let driversInfo = {};
-        let driversData = [];
+  <!-- ============== SCRIPT ============== -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getFirestore, collection, doc, deleteDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
-        // Load drivers info
-        function loadDriversInfo() {
-            const driversRef = collection(db, 'drivers');
-            onSnapshot(driversRef, (snapshot) => {
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    driversInfo[doc.id] = {
-                          // FIX: use doc.id ("DRV001") as key — driver docs have NO employeeId field
-                          name: data.name,
-                          employeeNumber: data.employeeNumber || doc.id,
-                          driverId: doc.id,
-                          phone: data.phone
-                      };
-                });
-                console.log('Drivers info loaded:', driversInfo);
-            });
-        }
+    // ---- Firebase ----
+    const firebaseConfig = {
+      apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+      authDomain: "taxi-management-system-d8210.firebaseapp.com",
+      projectId: "taxi-management-system-d8210",
+      storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+      messagingSenderId: "720874424166",
+      appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+      measurementId: "G-GY8820W410"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-        // Get driver name
-        function getDriverName(driverId) {
-            if (driversInfo[driverId]) {
-                return driversInfo[driverId].name;
-            }
-            return 'غير معروف';
-        }
+    // ---- State ----
+    let driversInfo = {};       // doc.id -> { name, phone, employeeNumber, ... }
+    let drivers = [];           // normalized Driver[]
+    let activeView = localStorage.getItem('tm:view') || 'health';
+    let searchQuery = '';
+    let activeFilter = 'all';
+    let sortKey = 'lastUpdate';
+    let sortDir = 'asc';
+    const selected = new Set();
 
-        // Load drivers from tracking with real-time updates
-        function loadDrivers() {
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('emptyState').style.display = 'none';
-            document.getElementById('driversTable').style.display = 'none';
+    // ---- Helpers ----
+    function relativeTime(date) {
+      if (!date) return '—';
+      const diff = (Date.now() - date.getTime()) / 1000;
+      if (diff < 60) return 'قبل لحظات';
+      const mins = Math.floor(diff / 60);
+      if (mins < 60) return mins === 1 ? 'قبل دقيقة' : mins === 2 ? 'قبل دقيقتين' : `قبل ${mins} دقائق`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return hrs === 1 ? 'قبل ساعة' : hrs === 2 ? 'قبل ساعتين' : `قبل ${hrs} ساعات`;
+      const days = Math.floor(hrs / 24);
+      return days === 1 ? 'قبل يوم' : `قبل ${days} أيام`;
+    }
+    function ageMinutes(date) {
+      if (!date) return Infinity;
+      return (Date.now() - date.getTime()) / 60000;
+    }
+    function computeStatus(d) {
+      const age = ageMinutes(d._lastUpdate);
+      if (age <= 5 && d._isActive) return 'active';
+      if (age <= 30) return 'warning';
+      return 'stale';
+    }
+    function statusLabel(s) {
+      return { active: 'نشط', warning: 'تحذير', stale: 'متوقف' }[s];
+    }
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+    function approxArea(lat, lng) {
+      // Rough Kuwait area zones (very approximate, just to give context)
+      if (!lat || !lng) return '—';
+      if (lat >= 29.30 && lat <= 29.36 && lng >= 47.95 && lng <= 48.05) return 'حولي / السالمية';
+      if (lat >= 29.18 && lat <= 29.30) return 'الفحيحيل / المنطقة الجنوبية';
+      if (lat >= 29.36 && lat <= 29.45) return 'الفروانية / الجهراء';
+      return `${lat.toFixed(2)}, ${lng.toFixed(2)}`;
+    }
 
-            try {
-                console.log('🔊 بدء الاستماع للتحديثات في الوقت الفعلي...');
-                
-                // Setup real-time listener for drivers collection
-                const driversRef = collection(db, 'drivers');
-                onSnapshot(driversRef, (snapshot) => {
-                    driversData = [];
-                    
-                    snapshot.forEach((doc) => {
-                        const data = doc.data();
-                        // Only include drivers with location data
-                        if (data.location && data.location.latitude && data.location.longitude) {
-                            driversData.push({
-                                id: doc.id,
-                                driverId: doc.id, // Use document ID as driverId
-                                latitude: data.location.latitude,
-                                longitude: data.location.longitude,
-                                speed: data.location.speed || 0,
-                                accuracy: data.location.accuracy || 0,
-                                localTime: data.lastUpdate ? (data.lastUpdate.toDate ? data.lastUpdate.toDate().toISOString() : data.lastUpdate) : new Date().toISOString(),
-                                isActive: data.isActive || false,
-                                ...data
-                            });
-                        }
-                    });
+    // Normalize Firebase doc into the unified Driver shape
+    function normalizeDriver(docId, data) {
+      const lastUpdate = data.lastUpdate && data.lastUpdate.toDate
+        ? data.lastUpdate.toDate()
+        : (data.lastUpdate ? new Date(data.lastUpdate) : null);
+      const info = driversInfo[docId] || {};
+      const loc = data.location || {};
+      const speedKmh = loc.speed != null ? Math.round(loc.speed * 3.6) : 0;
+      const d = {
+        id: docId,
+        name: info.name || data.name || 'غير معروف',
+        phone: info.phone || data.phone || '',
+        employeeNumber: info.employeeNumber || data.employeeNumber || docId,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        speed: speedKmh,
+        accuracy: Math.round(loc.accuracy ?? 0),
+        area: approxArea(loc.latitude, loc.longitude),
+        lastUpdate: relativeTime(lastUpdate),
+        battery: data.battery != null ? Math.round(data.battery) : undefined,
+        tokenStatus: data.fcmToken ? 'ok' : 'missing',
+        _lastUpdate: lastUpdate,
+        _isActive: data.isActive || false,
+      };
+      d.status = computeStatus(d);
+      return d;
+    }
 
-                    console.log(`✅ تم تحديث بيانات ${driversData.length} سائق`);
-                    displayDrivers();
-                    document.getElementById('loading').style.display = 'none';
-                }, (error) => {
-                    console.error('Error loading drivers:', error);
-                    alert('حدث خطأ أثناء تحميل البيانات');
-                    document.getElementById('loading').style.display = 'none';
-                });
-            } catch (error) {
-                console.error('Error setting up listener:', error);
-                alert('حدث خطأ أثناء إعداد الاستماع');
-                document.getElementById('loading').style.display = 'none';
-            }
-        }
-
-        // Display drivers in table
-        function displayDrivers() {
-            const tbody = document.getElementById('driversTableBody');
-            tbody.innerHTML = '';
-
-            if (driversData.length === 0) {
-                document.getElementById('emptyState').style.display = 'block';
-                document.getElementById('driversTable').style.display = 'none';
-                updateStats(0, 0, 0);
-                return;
-            }
-
-            document.getElementById('driversTable').style.display = 'table';
-            
-            let activeCount = 0;
-            let inactiveCount = 0;
-
-            driversData.forEach((driver) => {
-                const lastUpdate = new Date(driver.localTime);
-                const isOnline = driver.isActive || false; // Use isActive from Firestore
-
-                if (isOnline) activeCount++;
-                else inactiveCount++;
-
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td><strong>${driver.driverId}</strong></td>
-                    <td>${getDriverName(driver.driverId)}</td>
-                    <td style="font-size: 11px;">
-                        ${driver.latitude.toFixed(6)}, ${driver.longitude.toFixed(6)}
-                    </td>
-                    <td>${(driver.speed * 3.6).toFixed(1)} كم/س</td>
-                    <td>${driver.accuracy.toFixed(0)} م</td>
-                    <td>${lastUpdate.toLocaleString('ar-SA')}</td>
-                    <td>
-                        <span class="status-badge ${isOnline ? 'status-online' : 'status-offline'}">
-                            ${isOnline ? '🟢 نشط' : '🔴 غير نشط'}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn-delete" onclick="window.deleteDriver('${driver.id}', '${driver.driverId}')">
-                            🗑️ مسح
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-
-            updateStats(driversData.length, activeCount, inactiveCount);
-        }
-
-        // Update stats
-        function updateStats(total, active, inactive) {
-            document.getElementById('totalCount').textContent = total;
-            document.getElementById('activeCount').textContent = active;
-            document.getElementById('inactiveCount').textContent = inactive;
-        }
-
-        // Delete single driver
-        window.deleteDriver = async function(docId, driverId) {
-            if (!confirm(`هل أنت متأكد من حذف بيانات السائق ${driverId}؟\n\nسيتم حذف جميع بيانات التتبع الخاصة به.`)) {
-                return;
-            }
-
-            try {
-                await deleteDoc(doc(db, 'driverLocations', docId));
-                alert('✅ تم حذف بيانات السائق بنجاح');
-                loadDrivers();
-            } catch (error) {
-                console.error('Error deleting driver:', error);
-                alert('❌ حدث خطأ أثناء الحذف');
-            }
-        };
-
-        // Delete all drivers
-        window.deleteAllDrivers = async function() {
-            if (driversData.length === 0) {
-                alert('لا توجد بيانات للحذف');
-                return;
-            }
-
-            if (!confirm(`⚠️ تحذير!\n\nهل أنت متأكد من حذف جميع بيانات التتبع؟\n\nسيتم حذف ${driversData.length} سائق\n\nهذا الإجراء لا يمكن التراجع عنه!`)) {
-                return;
-            }
-
-            if (!confirm('تأكيد نهائي: هل أنت متأكد 100%؟')) {
-                return;
-            }
-
-            try {
-                const deletePromises = driversData.map(driver => 
-                    deleteDoc(doc(db, 'driverLocations', driver.id))
-                );
-                
-                await Promise.all(deletePromises);
-                alert('✅ تم حذف جميع بيانات التتبع بنجاح');
-                loadDrivers();
-            } catch (error) {
-                console.error('Error deleting all drivers:', error);
-                alert('❌ حدث خطأ أثناء الحذف');
-            }
-        };
-
-        // Logout
-        window.logout = function() {
-            if (confirm('هل تريد تسجيل الخروج؟')) {
-                sessionStorage.clear();
-                localStorage.clear();
-                window.location.href = 'index.html';
-            }
-        };
-
-        // Initialize
-        window.addEventListener('load', () => {
-            loadDriversInfo();
-            loadDrivers();
+    // ---- Firebase listeners ----
+    function startListeners() {
+      // 1) drivers metadata (names, phones)
+      onSnapshot(collection(db, 'drivers'), (snap) => {
+        snap.forEach(doc => {
+          const data = doc.data();
+          driversInfo[doc.id] = {
+            name: data.name,
+            employeeNumber: data.employeeNumber || doc.id,
+            phone: data.phone,
+            fcmToken: data.fcmToken,
+            isActive: data.isActive,
+            location: data.location,
+            lastUpdate: data.lastUpdate,
+            battery: data.battery,
+          };
         });
+        // Re-derive driver list whenever driversInfo updates
+        rebuildAndRender();
+      }, (err) => {
+        console.error('drivers listener error:', err);
+      });
+    }
 
-        // Make loadDrivers global
-        window.loadDrivers = loadDrivers;
-    </script>
+    function rebuildAndRender() {
+      // Build the driver list FROM driversInfo (which has full data including location)
+      drivers = [];
+      Object.keys(driversInfo).forEach(id => {
+        const data = driversInfo[id];
+        if (data.location && data.location.latitude && data.location.longitude) {
+          drivers.push(normalizeDriver(id, data));
+        }
+      });
+      // Sort by id by default for stable rendering
+      drivers.sort((a, b) => a.id.localeCompare(b.id));
+
+      document.getElementById('loadingState').classList.add('hidden');
+      initialDataLoaded = true;
+      if (drivers.length === 0) {
+        document.getElementById('emptyState').classList.remove('hidden');
+        document.querySelectorAll('.view-container').forEach(v => v.classList.add('hidden'));
+      } else {
+        document.getElementById('emptyState').classList.add('hidden');
+        document.querySelectorAll('.view-container').forEach(v => v.classList.add('hidden'));
+        renderActiveView();
+      }
+      document.getElementById('liveStatus').textContent = 'آخر تحديث: ' + new Date().toLocaleTimeString('ar-KW');
+    }
+
+    // ---- View switching ----
+    let initialDataLoaded = false;
+    function setActiveView(view) {
+      activeView = view;
+      localStorage.setItem('tm:view', view);
+      document.querySelectorAll('.view-tab').forEach(b => {
+        const isActive = b.dataset.viewTab === view;
+        b.classList.toggle('border-white', isActive);
+        b.classList.toggle('text-white', isActive);
+        b.classList.toggle('bg-white/10', isActive);
+        b.classList.toggle('text-white/70', !isActive);
+      });
+      // Only render if we have data; otherwise leave loading state visible
+      if (initialDataLoaded) {
+        document.querySelectorAll('.view-container').forEach(v => v.classList.add('hidden'));
+        renderActiveView();
+      }
+    }
+
+    function renderActiveView() {
+      const containerId = { health: 'viewHealth', table: 'viewTable', cards: 'viewCards' }[activeView];
+      const container = document.getElementById(containerId);
+      container.classList.remove('hidden');
+      if (activeView === 'health') renderHealthDashboard(container);
+      else if (activeView === 'table') renderExcelTable(container);
+      else renderDriverCards(container);
+      lucide.createIcons();
+    }
+
+    // ---- Shared bits ----
+    function statusBadgeHtml(s) {
+      const map = {
+        active:  'bg-emerald-50 text-emerald-700 ring-emerald-200',
+        warning: 'bg-amber-50 text-amber-700 ring-amber-200',
+        stale:   'bg-rose-50 text-rose-700 ring-rose-200',
+      };
+      const dot = { active: 'bg-emerald-500', warning: 'bg-amber-500', stale: 'bg-rose-500' }[s];
+      return `<span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${map[s]}">
+        <span class="h-1.5 w-1.5 rounded-full ${dot}"></span>${statusLabel(s)}
+      </span>`;
+    }
+    function tokenBadgeHtml(t) {
+      if (t === 'ok') {
+        return `<span class="inline-flex items-center gap-1 text-xs text-emerald-700"><i data-lucide="wifi" class="h-3.5 w-3.5"></i>متصل</span>`;
+      }
+      return `<span class="inline-flex items-center gap-1 text-xs text-rose-700"><i data-lucide="wifi-off" class="h-3.5 w-3.5"></i>توكن مفقود</span>`;
+    }
+    function batteryHtml(v) {
+      if (v == null) return '<span class="text-xs text-slate-400">—</span>';
+      const tone = v <= 20 ? 'text-rose-600' : v <= 40 ? 'text-amber-600' : 'text-slate-700';
+      const fillTone = v <= 20 ? 'bg-rose-500' : v <= 40 ? 'bg-amber-500' : 'bg-emerald-500';
+      const icon = v <= 20 ? 'battery-low' : 'battery';
+      return `<span class="inline-flex items-center gap-1.5 ${tone}">
+        <i data-lucide="${icon}" class="h-3.5 w-3.5"></i>
+        <span class="relative h-1.5 w-12 overflow-hidden rounded-full bg-slate-200">
+          <span class="absolute inset-y-0 right-0 rounded-full ${fillTone}" style="width:${v}%"></span>
+        </span>
+        <span class="text-xs num">${v}%</span>
+      </span>`;
+    }
+    function actionBtnsHtml(d) {
+      return `
+        <button onclick="window.tmCall('${d.phone}')" title="اتصال" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition">
+          <i data-lucide="phone" class="h-4 w-4"></i>
+        </button>
+        <button onclick="window.tmWake('${d.id}','${escapeHtml(d.name)}')" title="إيقاظ السائق" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 transition">
+          <i data-lucide="bell" class="h-4 w-4"></i>
+        </button>
+        <button onclick="window.tmDetails('${d.id}')" title="عرض التفاصيل" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+          <i data-lucide="eye" class="h-4 w-4"></i>
+        </button>
+        <button onclick="window.tmDelete('${d.id}','${escapeHtml(d.name)}')" title="حذف بيانات التتبع" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 transition">
+          <i data-lucide="trash-2" class="h-4 w-4"></i>
+        </button>`;
+    }
+    function statsCounts() {
+      const total = drivers.length;
+      const active = drivers.filter(d => d.status === 'active').length;
+      const warning = drivers.filter(d => d.status === 'warning').length;
+      const stale = drivers.filter(d => d.status === 'stale').length;
+      const missing = drivers.filter(d => d.tokenStatus === 'missing').length;
+      const speeding = drivers.filter(d => d.speed > 90).length;
+      return { total, active, warning, stale, missing, speeding };
+    }
+
+    // =======================================================
+    // VIEW A: HEALTH DASHBOARD
+    // =======================================================
+    function renderHealthDashboard(root) {
+      const s = statsCounts();
+      const needs = drivers.filter(d => d.status !== 'active' || d.tokenStatus === 'missing');
+
+      const statCard = (icon, label, value, hint, tone) => {
+        const tones = {
+          neutral: 'from-slate-50 to-white border-slate-200',
+          success: 'from-emerald-50 to-white border-emerald-200',
+          warning: 'from-amber-50 to-white border-amber-200',
+          danger:  'from-rose-50 to-white border-rose-200',
+        };
+        const iconTones = {
+          neutral: 'bg-slate-100 text-slate-700',
+          success: 'bg-emerald-100 text-emerald-700',
+          warning: 'bg-amber-100 text-amber-700',
+          danger:  'bg-rose-100 text-rose-700',
+        };
+        return `
+          <div class="rounded-2xl border bg-gradient-to-br ${tones[tone]} shadow-sm p-4 md:p-5 flex items-center gap-4">
+            <div class="flex h-12 w-12 items-center justify-center rounded-xl ${iconTones[tone]}">
+              <i data-lucide="${icon}" class="h-6 w-6"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm text-slate-500">${label}</div>
+              <div class="mt-0.5 text-2xl md:text-3xl font-bold num leading-tight">${value}</div>
+              ${hint ? `<div class="mt-0.5 text-xs text-slate-500">${hint}</div>` : ''}
+            </div>
+          </div>`;
+      };
+
+      const attentionRow = (d) => {
+        const borderTone = d.status === 'stale' ? 'border-rose-200' : d.status === 'warning' ? 'border-amber-200' : 'border-slate-200';
+        const iconTone = d.status === 'stale' ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600';
+        const issues = [];
+        if (d.status === 'stale') issues.push(`لم يُحدّث موقعه ${d.lastUpdate}`);
+        else if (d.status === 'warning') issues.push(`تأخر في التحديث (${d.lastUpdate})`);
+        if (d.tokenStatus === 'missing') issues.push('توكن الإشعارات مفقود');
+        if ((d.battery ?? 100) <= 20) issues.push(`بطارية منخفضة ${d.battery}%`);
+        if (d.accuracy > 50) issues.push(`دقة GPS ضعيفة (${d.accuracy}م)`);
+        if (d.speed > 90) issues.push(`سرعة زائدة ${d.speed} كم/س`);
+        return `
+          <div class="flex flex-col gap-3 rounded-xl border ${borderTone} bg-white/80 p-4 shadow-sm md:flex-row md:items-center md:gap-4">
+            <div class="flex items-start gap-3 md:flex-1">
+              <div class="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconTone}">
+                <i data-lucide="alert-triangle" class="h-5 w-5"></i>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="font-semibold">${escapeHtml(d.name)}</span>
+                  <span class="text-xs text-slate-500 num">${d.id}</span>
+                  ${statusBadgeHtml(d.status)}
+                </div>
+                <div class="mt-1 text-sm text-slate-700">${issues.join(' • ')}</div>
+                <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                  <span class="inline-flex items-center gap-1"><i data-lucide="map-pin" class="h-3.5 w-3.5"></i>${escapeHtml(d.area)}</span>
+                  <span class="inline-flex items-center gap-1"><i data-lucide="clock" class="h-3.5 w-3.5"></i>${d.lastUpdate}</span>
+                  ${d.battery != null ? batteryHtml(d.battery) : ''}
+                </div>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-1.5 md:shrink-0">
+              ${actionBtnsHtml(d)}
+            </div>
+          </div>`;
+      };
+
+      const tableRow = (d) => `
+        <tr class="hover:bg-slate-50 border-b border-slate-100 last:border-0">
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-2">
+              <span class="font-medium">${escapeHtml(d.name)}</span>
+            </div>
+            <div class="text-xs text-slate-500 num">${d.id} • ${d.phone}</div>
+          </td>
+          <td class="px-4 py-3">${statusBadgeHtml(d.status)}</td>
+          <td class="px-4 py-3 text-sm text-slate-600">${d.lastUpdate}</td>
+          <td class="px-4 py-3 text-sm text-slate-600">${escapeHtml(d.area)}</td>
+          <td class="px-4 py-3 text-sm num ${d.speed > 90 ? 'font-bold text-rose-600' : ''}">${d.speed} كم/س</td>
+          <td class="px-4 py-3 text-sm num text-slate-600">±${d.accuracy}م</td>
+          <td class="px-4 py-3">${tokenBadgeHtml(d.tokenStatus)}</td>
+          <td class="px-4 py-3">${d.battery != null ? batteryHtml(d.battery) : '<span class="text-xs text-slate-400">—</span>'}</td>
+          <td class="px-4 py-3"><div class="flex gap-1">${actionBtnsHtml(d)}</div></td>
+        </tr>`;
+
+      const mobileCard = (d) => `
+        <div class="rounded-xl border bg-white p-4 shadow-sm">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="font-semibold">${escapeHtml(d.name)}</div>
+              <div class="mt-0.5 text-xs text-slate-500 num">${d.id} • ${d.phone}</div>
+            </div>
+            ${statusBadgeHtml(d.status)}
+          </div>
+          <div class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+            <div class="flex items-center gap-1.5 text-slate-500"><i data-lucide="map-pin" class="h-3.5 w-3.5"></i><span class="text-slate-800 truncate">${escapeHtml(d.area)}</span></div>
+            <div class="flex items-center gap-1.5 text-slate-500"><i data-lucide="clock" class="h-3.5 w-3.5"></i><span class="text-slate-800">${d.lastUpdate}</span></div>
+            <div class="flex items-center gap-1.5 text-slate-500"><i data-lucide="gauge" class="h-3.5 w-3.5"></i><span class="num ${d.speed > 90 ? 'font-bold text-rose-600' : 'text-slate-800'}">${d.speed} كم/س</span></div>
+            <div class="flex items-center gap-1.5 text-slate-500"><i data-lucide="activity" class="h-3.5 w-3.5"></i><span class="num ${d.accuracy > 50 ? 'text-amber-600' : 'text-slate-800'}">±${d.accuracy}م</span></div>
+            <div>${tokenBadgeHtml(d.tokenStatus)}</div>
+            <div>${d.battery != null ? batteryHtml(d.battery) : ''}</div>
+          </div>
+          <div class="mt-3 border-t pt-3 flex gap-1.5">${actionBtnsHtml(d)}</div>
+        </div>`;
+
+      const filtered = drivers.filter(d => {
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        return d.name.includes(searchQuery) || d.id.toLowerCase().includes(q) || d.phone.includes(searchQuery) || d.area.includes(searchQuery);
+      });
+
+      root.innerHTML = `
+        <div class="mb-6">
+          <div class="flex items-center gap-2 text-xs text-slate-500">
+            <span>لوحة التحكم</span><span>/</span><span>إدارة التتبع</span>
+          </div>
+          <h2 class="mt-1 text-2xl md:text-3xl font-bold tracking-tight">صحة بيانات السائقين</h2>
+          <p class="mt-1 text-sm text-slate-500">تابع حالة جميع السائقين وعالج المشاكل قبل أن تؤثر على العمل.</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4 mb-6">
+          ${statCard('users',         'إجمالي السائقين', s.total,             'مسجلين في النظام',           'neutral')}
+          ${statCard('check-circle-2','نشطون الآن',     s.active,            'يحدّثون الموقع',              'success')}
+          ${statCard('alert-triangle','بحاجة لمتابعة',  s.warning + s.stale, `${s.warning} تنبيه • ${s.stale} متوقف`, 'warning')}
+          ${statCard('key-round',     'توكنات مفقودة',  s.missing,           'لا تستقبل إشعارات',           'danger')}
+        </div>
+
+        ${needs.length > 0 ? `
+          <section class="mb-6">
+            <div class="overflow-hidden rounded-2xl border border-amber-200/70 bg-gradient-to-bl from-amber-50/70 via-rose-50/50 to-white shadow-sm">
+              <div class="flex flex-col gap-2 p-4 md:flex-row md:items-center md:justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                    <i data-lucide="alert-triangle" class="h-5 w-5"></i>
+                  </div>
+                  <div>
+                    <h3 class="text-lg font-bold">يحتاج إلى انتباهك</h3>
+                    <p class="text-sm text-slate-500">${needs.length} سائق لديهم مشاكل تتطلب إجراء سريع</p>
+                  </div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  ${s.stale ? `<span class="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs text-rose-700 font-medium">${s.stale} متوقف</span>` : ''}
+                  ${s.warning ? `<span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700 font-medium">${s.warning} تنبيه</span>` : ''}
+                  ${s.missing ? `<span class="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs text-rose-700 font-medium">${s.missing} توكن مفقود</span>` : ''}
+                </div>
+              </div>
+              <div class="space-y-3 p-4 pt-0">
+                ${needs.map(attentionRow).join('')}
+              </div>
+            </div>
+          </section>` : ''}
+
+        <section class="overflow-hidden rounded-2xl border bg-white shadow-sm">
+          <div class="flex flex-col gap-3 p-4 border-b md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 class="text-lg font-bold">جميع السائقين</h3>
+              <p class="text-sm text-slate-500">قائمة شاملة بكل السائقين وحالتهم الحالية</p>
+            </div>
+            <div class="relative w-full md:w-72">
+              <i data-lucide="search" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
+              <input id="healthSearch" type="search" value="${escapeHtml(searchQuery)}" placeholder="بحث بالاسم أو الرقم أو المنطقة..."
+                class="w-full rounded-md border border-slate-200 bg-white py-2 pr-9 pl-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500" />
+            </div>
+          </div>
+          <div class="hidden md:block overflow-x-auto">
+            <table class="w-full text-right">
+              <thead class="bg-slate-50 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                <tr>
+                  <th class="px-4 py-3">السائق</th>
+                  <th class="px-4 py-3">الحالة</th>
+                  <th class="px-4 py-3">آخر تحديث</th>
+                  <th class="px-4 py-3">المنطقة</th>
+                  <th class="px-4 py-3">السرعة</th>
+                  <th class="px-4 py-3">الدقة</th>
+                  <th class="px-4 py-3">التوكن</th>
+                  <th class="px-4 py-3">البطارية</th>
+                  <th class="px-4 py-3">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filtered.map(tableRow).join('') || '<tr><td colspan="9" class="p-8 text-center text-sm text-slate-500">لا توجد نتائج مطابقة</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+          <div class="md:hidden p-4 space-y-3">
+            ${filtered.map(mobileCard).join('') || '<div class="rounded-lg border border-dashed p-8 text-center text-sm text-slate-500">لا توجد نتائج مطابقة</div>'}
+          </div>
+        </section>
+      `;
+
+      // Wire up search
+      const searchInput = root.querySelector('#healthSearch');
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          searchQuery = e.target.value;
+          renderActiveView();
+          // Re-focus the input after re-render
+          requestAnimationFrame(() => {
+            const newInput = document.getElementById('healthSearch');
+            if (newInput) {
+              newInput.focus();
+              newInput.setSelectionRange(searchQuery.length, searchQuery.length);
+            }
+          });
+        });
+      }
+    }
+
+    // =======================================================
+    // VIEW B: EXCEL TABLE
+    // =======================================================
+    function renderExcelTable(root) {
+      const s = statsCounts();
+
+      const filterBy = (d) => {
+        if (activeFilter === 'active')      return d.status === 'active';
+        if (activeFilter === 'attention')   return d.status !== 'active';
+        if (activeFilter === 'tokenMissing')return d.tokenStatus === 'missing';
+        return true;
+      };
+      const search = (d) => {
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        return d.name.includes(searchQuery) || d.id.toLowerCase().includes(q) || d.phone.includes(searchQuery) || d.area.includes(searchQuery);
+      };
+      const sortBy = (a, b) => {
+        let cmp = 0;
+        const k = sortKey;
+        if (k === 'lastUpdate') cmp = ageMinutes(a._lastUpdate) - ageMinutes(b._lastUpdate);
+        else if (k === 'speed' || k === 'accuracy') cmp = (a[k] ?? 0) - (b[k] ?? 0);
+        else if (k === 'battery') cmp = (a.battery ?? 0) - (b.battery ?? 0);
+        else cmp = String(a[k]).localeCompare(String(b[k]), 'ar');
+        return sortDir === 'asc' ? cmp : -cmp;
+      };
+      const filtered = drivers.filter(d => filterBy(d) && search(d)).sort(sortBy);
+
+      const palette = [
+        'bg-violet-100 text-violet-700',
+        'bg-sky-100 text-sky-700',
+        'bg-emerald-100 text-emerald-700',
+        'bg-amber-100 text-amber-700',
+        'bg-rose-100 text-rose-700',
+        'bg-indigo-100 text-indigo-700',
+      ];
+      const avatarColor = (id) => {
+        let h = 0;
+        for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+        return palette[h % palette.length];
+      };
+
+      const sortableHeader = (key, label) => {
+        const isSort = sortKey === key;
+        const arrow = isSort ? (sortDir === 'asc' ? '▲' : '▼') : '↕';
+        return `<th class="px-3 py-2.5 cursor-pointer hover:bg-slate-100 select-none" onclick="window.tmSort('${key}')">
+          <span class="inline-flex items-center gap-1">${label}<span class="text-slate-400 text-[10px]">${arrow}</span></span>
+        </th>`;
+      };
+
+      const filterChip = (key, label) => {
+        const isActive = activeFilter === key;
+        const cls = isActive ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-100 border';
+        const count = key === 'all' ? drivers.length :
+                      key === 'active' ? s.active :
+                      key === 'attention' ? (s.warning + s.stale) :
+                      s.missing;
+        return `<button onclick="window.tmFilter('${key}')" class="${cls} rounded-full px-3 py-1 text-xs font-medium transition">
+          ${label} <span class="num text-[10px] opacity-70">${count}</span>
+        </button>`;
+      };
+
+      const row = (d) => {
+        const isSelected = selected.has(d.id);
+        const isSpeeding = d.speed > 90;
+        const isIdle = d.speed === 0;
+        return `
+          <tr class="${isSelected ? 'bg-slate-50' : ''} hover:bg-slate-50/70 border-b border-slate-100 last:border-0 transition">
+            <td class="px-3 py-2.5">
+              <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="window.tmToggleSel('${d.id}')" class="rounded border-slate-300 text-red-700 focus:ring-red-500" />
+            </td>
+            <td class="px-3 py-2.5"><span class="rounded border bg-slate-50 px-1.5 py-0.5 text-[11px] font-mono num">${d.id}</span></td>
+            <td class="px-3 py-2.5">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold ${avatarColor(d.id)}">${escapeHtml(d.name.charAt(0))}</span>
+                <span class="truncate font-medium">${escapeHtml(d.name)}</span>
+              </div>
+            </td>
+            <td class="px-3 py-2.5 text-sm num text-slate-600">${escapeHtml(d.phone)}</td>
+            <td class="px-3 py-2.5">${statusBadgeHtml(d.status)}</td>
+            <td class="px-3 py-2.5 text-sm text-slate-600">${d.lastUpdate}</td>
+            <td class="px-3 py-2.5 text-sm">
+              <span class="num ${isSpeeding ? 'font-bold text-rose-600' : isIdle ? 'text-slate-400' : 'text-slate-700'}">${d.speed} كم/س</span>
+              ${isSpeeding ? '<i data-lucide="alert-triangle" class="inline-block h-3 w-3 text-rose-500 mr-1"></i>' : ''}
+            </td>
+            <td class="px-3 py-2.5 text-sm">
+              <span class="inline-flex items-center gap-1 text-slate-600">
+                <i data-lucide="map-pin" class="h-3 w-3"></i>${escapeHtml(d.area)}
+              </span>
+            </td>
+            <td class="px-3 py-2.5"><span class="num ${d.accuracy > 50 ? 'text-amber-600' : 'text-slate-600'}">${d.accuracy}م</span></td>
+            <td class="px-3 py-2.5">${tokenBadgeHtml(d.tokenStatus)}</td>
+            <td class="px-3 py-2.5">${d.battery != null ? batteryHtml(d.battery) : '<span class="text-xs text-slate-400">—</span>'}</td>
+            <td class="px-3 py-2.5"><div class="flex gap-1">${actionBtnsHtml(d)}</div></td>
+          </tr>`;
+      };
+
+      const mobileCard = (d) => `
+        <div class="rounded-xl border bg-white p-3 shadow-sm">
+          <div class="flex items-start gap-2.5">
+            <input type="checkbox" ${selected.has(d.id) ? 'checked' : ''} onchange="window.tmToggleSel('${d.id}')" class="mt-1 rounded border-slate-300 text-red-700" />
+            <span class="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold ${avatarColor(d.id)}">${escapeHtml(d.name.charAt(0))}</span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-semibold truncate">${escapeHtml(d.name)}</span>
+                ${statusBadgeHtml(d.status)}
+              </div>
+              <div class="text-xs text-slate-500 num mt-0.5">${d.id} • ${d.phone}</div>
+              <div class="mt-2 grid grid-cols-2 gap-1.5 text-xs">
+                <div class="flex items-center gap-1 text-slate-500"><i data-lucide="clock" class="h-3 w-3"></i><span class="text-slate-700">${d.lastUpdate}</span></div>
+                <div class="flex items-center gap-1 text-slate-500"><i data-lucide="map-pin" class="h-3 w-3"></i><span class="text-slate-700 truncate">${escapeHtml(d.area)}</span></div>
+                <div class="flex items-center gap-1 text-slate-500"><i data-lucide="gauge" class="h-3 w-3"></i><span class="num ${d.speed > 90 ? 'font-bold text-rose-600' : 'text-slate-700'}">${d.speed} كم/س</span></div>
+                <div class="flex items-center gap-1 text-slate-500"><i data-lucide="activity" class="h-3 w-3"></i><span class="num text-slate-700">±${d.accuracy}م</span></div>
+                <div>${tokenBadgeHtml(d.tokenStatus)}</div>
+                <div>${d.battery != null ? batteryHtml(d.battery) : ''}</div>
+              </div>
+              <div class="mt-2.5 flex gap-1">${actionBtnsHtml(d)}</div>
+            </div>
+          </div>
+        </div>`;
+
+      const selectedCount = selected.size;
+      root.innerHTML = `
+        <div class="mb-5">
+          <h2 class="text-2xl md:text-3xl font-bold tracking-tight">إدارة التتبع</h2>
+          <p class="mt-1 text-sm text-slate-500">مراقبة صحّة بيانات السائقين واتخاذ الإجراءات</p>
+        </div>
+
+        <!-- Stats summary strip -->
+        <div class="rounded-2xl border bg-white p-3 mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm shadow-sm">
+          <div class="flex items-center gap-1.5"><i data-lucide="users" class="h-4 w-4 text-slate-500"></i><span class="font-bold num">${s.total}</span><span class="text-slate-500">سائق</span></div>
+          <span class="text-slate-300">•</span>
+          <div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-500"></span><span class="num font-medium">${s.active}</span><span class="text-slate-500">نشط</span></div>
+          <span class="text-slate-300">•</span>
+          <div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-amber-500"></span><span class="num font-medium">${s.warning}</span><span class="text-slate-500">تحذير</span></div>
+          <span class="text-slate-300">•</span>
+          <div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-rose-500"></span><span class="num font-medium">${s.stale}</span><span class="text-slate-500">متوقف</span></div>
+          <span class="text-slate-300">•</span>
+          <div class="flex items-center gap-1.5 text-rose-600"><i data-lucide="wifi-off" class="h-3.5 w-3.5"></i><span class="num font-medium">${s.missing}</span><span>توكن معطل</span></div>
+          ${s.speeding ? `<span class="text-slate-300">•</span><div class="flex items-center gap-1.5 text-rose-600"><i data-lucide="alert-triangle" class="h-3.5 w-3.5"></i><span class="num font-medium">${s.speeding}</span><span>سرعة عالية</span></div>` : ''}
+        </div>
+
+        <!-- Filters + actions -->
+        <div class="rounded-2xl border bg-white p-3 mb-3 shadow-sm flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+          <div class="flex flex-wrap gap-1.5">
+            ${filterChip('all', 'الكل')}
+            ${filterChip('active', 'نشط')}
+            ${filterChip('attention', 'تحتاج انتباه')}
+            ${filterChip('tokenMissing', 'توكن معطل')}
+          </div>
+          <div class="flex flex-col md:flex-row gap-2 md:items-center">
+            <div class="relative flex-1 md:w-72">
+              <i data-lucide="search" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
+              <input id="tableSearch" type="search" value="${escapeHtml(searchQuery)}" placeholder="ابحث باسم، معرف، رقم، منطقة..."
+                class="w-full rounded-md border border-slate-200 bg-white py-2 pr-9 pl-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500" />
+            </div>
+            <button onclick="window.tmExport()" class="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50">
+              <i data-lucide="download" class="h-4 w-4"></i>تصدير Excel
+            </button>
+          </div>
+        </div>
+
+        ${selectedCount > 0 ? `
+          <div class="rounded-xl border border-red-200 bg-red-50 p-3 mb-3 flex items-center justify-between gap-2">
+            <span class="text-sm text-red-800"><span class="font-bold num">${selectedCount}</span> سائق محدد</span>
+            <div class="flex gap-1.5">
+              <button onclick="window.tmBulkWake()" class="rounded-md bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 text-sm">إيقاظ الكل</button>
+              <button onclick="window.tmBulkDelete()" class="rounded-md bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 text-sm">حذف بيانات التتبع</button>
+              <button onclick="window.tmClearSel()" class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm">إلغاء</button>
+            </div>
+          </div>` : ''}
+
+        <!-- Table -->
+        <div class="hidden md:block rounded-2xl border bg-white shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-right text-sm">
+              <thead class="bg-slate-50 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                <tr>
+                  <th class="px-3 py-2.5"><input type="checkbox" onchange="window.tmToggleAll(this.checked)" ${filtered.length > 0 && filtered.every(d => selected.has(d.id)) ? 'checked' : ''} class="rounded border-slate-300" /></th>
+                  ${sortableHeader('id', 'المعرف')}
+                  ${sortableHeader('name', 'السائق')}
+                  <th class="px-3 py-2.5">الهاتف</th>
+                  <th class="px-3 py-2.5">الحالة</th>
+                  ${sortableHeader('lastUpdate', 'آخر تحديث')}
+                  ${sortableHeader('speed', 'السرعة')}
+                  <th class="px-3 py-2.5">المنطقة</th>
+                  ${sortableHeader('accuracy', 'الدقة')}
+                  <th class="px-3 py-2.5">التوكن</th>
+                  ${sortableHeader('battery', 'البطارية')}
+                  <th class="px-3 py-2.5">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filtered.map(row).join('') || '<tr><td colspan="12" class="p-8 text-center text-sm text-slate-500">لا توجد نتائج مطابقة</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+          <div class="border-t bg-slate-50/70 px-3 py-2 flex items-center justify-between text-xs text-slate-500">
+            <span>عرض ${filtered.length} من ${drivers.length} سائق</span>
+            <span>آخر مزامنة: قبل لحظات</span>
+          </div>
+        </div>
+        <div class="md:hidden space-y-2.5">
+          ${filtered.map(mobileCard).join('') || '<div class="rounded-lg border border-dashed p-8 text-center text-sm text-slate-500">لا توجد نتائج مطابقة</div>'}
+        </div>
+      `;
+
+      const searchInput = root.querySelector('#tableSearch');
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          searchQuery = e.target.value;
+          renderActiveView();
+          requestAnimationFrame(() => {
+            const newInput = document.getElementById('tableSearch');
+            if (newInput) {
+              newInput.focus();
+              newInput.setSelectionRange(searchQuery.length, searchQuery.length);
+            }
+          });
+        });
+      }
+    }
+
+    // =======================================================
+    // VIEW C: DRIVER CARDS
+    // =======================================================
+    function renderDriverCards(root) {
+      const s = statsCounts();
+
+      const summaryStat = (icon, label, value, accent) => `
+        <div class="flex items-center gap-3 rounded-2xl border bg-white p-3 shadow-sm">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${accent}">
+            <i data-lucide="${icon}" class="h-5 w-5"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="truncate text-xs text-slate-500">${label}</div>
+            <div class="text-xl font-extrabold leading-tight num">${value}</div>
+          </div>
+        </div>`;
+
+      const filterChip = (key, label, count) => {
+        const isActive = activeFilter === key;
+        const cls = isActive ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-100 border';
+        return `<button onclick="window.tmFilter('${key}')" class="${cls} rounded-full px-3 py-1 text-xs font-medium transition inline-flex items-center gap-1">
+          ${label} <span class="num text-[10px] opacity-70">${count}</span>
+        </button>`;
+      };
+
+      const card = (d) => {
+        const themes = {
+          active:  { bar: 'from-emerald-400 to-emerald-600', avatarBg: 'bg-emerald-100', avatarRing: 'ring-emerald-200', avatarText: 'text-emerald-700', cardBg: 'from-emerald-50/70 via-white to-white', chip: 'bg-emerald-100 text-emerald-800 border-emerald-200', dot: 'bg-emerald-500' },
+          warning: { bar: 'from-amber-400 to-amber-600',     avatarBg: 'bg-amber-100',   avatarRing: 'ring-amber-200',   avatarText: 'text-amber-700',   cardBg: 'from-amber-50/70 via-white to-white',   chip: 'bg-amber-100 text-amber-800 border-amber-200',     dot: 'bg-amber-500' },
+          stale:   { bar: 'from-rose-400 to-rose-600',       avatarBg: 'bg-rose-100',    avatarRing: 'ring-rose-200',    avatarText: 'text-rose-700',    cardBg: 'from-rose-50/70 via-white to-white',    chip: 'bg-rose-100 text-rose-800 border-rose-200',         dot: 'bg-rose-500' },
+        };
+        const t = themes[d.status];
+        const initial = escapeHtml(d.name.trim().charAt(0));
+        const isSpeeding = d.speed > 90;
+        const phoneFmt = d.phone ? `${d.phone.slice(0,4)} ${d.phone.slice(4)}` : '—';
+
+        return `
+          <div class="group relative overflow-hidden rounded-3xl border border-slate-200/70 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg bg-gradient-to-b ${t.cardBg}">
+            <div class="h-2 w-full bg-gradient-to-l ${t.bar}"></div>
+            <div class="p-5">
+              <div class="flex items-start gap-4">
+                <div class="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-2xl font-extrabold ring-4 ${t.avatarBg} ${t.avatarRing} ${t.avatarText}">
+                  ${initial}
+                  <span class="absolute -bottom-1 -left-1 h-4 w-4 rounded-full border-2 border-white ${t.dot}"></span>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${t.chip}">
+                      <span class="h-1.5 w-1.5 rounded-full ${t.dot}"></span>${statusLabel(d.status)}
+                    </span>
+                    <span class="text-[11px] font-mono text-slate-500 num">${d.id}</span>
+                  </div>
+                  <div class="mt-1 truncate text-base font-bold text-slate-900">${escapeHtml(d.name)}</div>
+                  <a href="tel:${d.phone}" class="mt-0.5 inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700">
+                    <i data-lucide="phone" class="h-3 w-3"></i><span class="num">${phoneFmt}</span>
+                  </a>
+                </div>
+              </div>
+
+              <div class="mt-4 grid grid-cols-3 gap-2">
+                <div class="rounded-xl border ${isSpeeding ? 'border-rose-200 bg-rose-50/60' : 'border-slate-200 bg-white/70'} px-2 py-2 text-center">
+                  <div class="mb-1 flex items-center justify-center gap-1 text-[10px] font-medium text-slate-500"><i data-lucide="gauge" class="h-3 w-3"></i>السرعة</div>
+                  <div class="text-sm font-bold ${isSpeeding ? 'text-rose-700' : 'text-slate-900'} num">${d.speed} كم/س</div>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-white/70 px-2 py-2 text-center">
+                  <div class="mb-1 flex items-center justify-center gap-1 text-[10px] font-medium text-slate-500"><i data-lucide="map-pin" class="h-3 w-3"></i>المنطقة</div>
+                  <div class="text-sm font-bold text-slate-900 truncate">${escapeHtml(d.area)}</div>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-white/70 px-2 py-2 text-center">
+                  <div class="mb-1 flex items-center justify-center gap-1 text-[10px] font-medium text-slate-500"><i data-lucide="clock" class="h-3 w-3"></i>آخر تحديث</div>
+                  <div class="text-sm font-bold text-slate-900">${d.lastUpdate}</div>
+                </div>
+              </div>
+
+              <div class="mt-3 flex items-center justify-between gap-2 text-xs">
+                ${tokenBadgeHtml(d.tokenStatus)}
+                ${d.battery != null ? batteryHtml(d.battery) : '<span class="text-slate-400">—</span>'}
+              </div>
+
+              <div class="mt-4 border-t pt-3 flex gap-1.5">
+                ${actionBtnsHtml(d)}
+              </div>
+            </div>
+          </div>`;
+      };
+
+      const filterFn = (d) => {
+        if (activeFilter === 'active')    return d.status === 'active';
+        if (activeFilter === 'attention') return d.status !== 'active';
+        if (activeFilter === 'tokenMissing') return d.tokenStatus === 'missing';
+        return true;
+      };
+      const search = (d) => {
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        return d.name.includes(searchQuery) || d.id.toLowerCase().includes(q) || d.phone.includes(searchQuery) || d.area.includes(searchQuery);
+      };
+      const filtered = drivers.filter(d => filterFn(d) && search(d));
+
+      root.innerHTML = `
+        <div class="mb-5">
+          <div class="text-xs text-slate-500">لوحة الإدارة</div>
+          <h2 class="mt-1 text-2xl md:text-3xl font-bold tracking-tight">إدارة التتبع</h2>
+          <p class="mt-1 text-sm text-slate-500">نظرة سريعة على حالة السائقين وصحة بيانات التتبع — اتخذ إجراء بضغطة واحدة.</p>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+          ${summaryStat('users',           'إجمالي السائقين', s.total,    'bg-slate-100 text-slate-700')}
+          ${summaryStat('check-circle',    'نشط',            s.active,   'bg-emerald-100 text-emerald-700')}
+          ${summaryStat('alert-circle',    'تحذير',          s.warning,  'bg-amber-100 text-amber-700')}
+          ${summaryStat('wifi-off',        'توكن مفقود',      s.missing,  'bg-rose-100 text-rose-700')}
+          ${summaryStat('zap',             'تجاوز السرعة',    s.speeding, 'bg-orange-100 text-orange-700')}
+        </div>
+
+        <div class="flex flex-col md:flex-row gap-3 md:items-center md:justify-between mb-5">
+          <div class="relative w-full md:w-96">
+            <i data-lucide="search" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
+            <input id="cardsSearch" type="search" value="${escapeHtml(searchQuery)}" placeholder="ابحث باسم السائق أو الرقم..."
+              class="w-full rounded-md border border-slate-200 bg-white py-2 pr-9 pl-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500" />
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            ${filterChip('all', 'الكل', drivers.length)}
+            ${filterChip('attention', 'تحتاج انتباه', s.warning + s.stale)}
+            ${filterChip('active', 'نشط', s.active)}
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          ${filtered.map(card).join('') || '<div class="col-span-full rounded-lg border border-dashed p-8 text-center text-sm text-slate-500">لا توجد نتائج مطابقة</div>'}
+        </div>
+      `;
+
+      const searchInput = root.querySelector('#cardsSearch');
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          searchQuery = e.target.value;
+          renderActiveView();
+          requestAnimationFrame(() => {
+            const newInput = document.getElementById('cardsSearch');
+            if (newInput) {
+              newInput.focus();
+              newInput.setSelectionRange(searchQuery.length, searchQuery.length);
+            }
+          });
+        });
+      }
+    }
+
+    // =======================================================
+    // GLOBAL ACTIONS
+    // =======================================================
+    window.tmCall = function(phone) {
+      if (!phone) return alert('لا يوجد رقم هاتف');
+      window.location.href = `tel:${phone}`;
+    };
+    window.tmWake = function(id, name) {
+      alert(`📢 سيتم إرسال إشعار إيقاظ إلى:\n${name} (${id})\n\n(ميزة قادمة - سيتم تفعيلها مع نظام الإشعارات)`);
+    };
+    window.tmDetails = function(id) {
+      // Navigate to tracking page focused on this driver
+      window.location.href = `tracking.html?driver=${encodeURIComponent(id)}`;
+    };
+    window.tmDelete = async function(id, name) {
+      if (!confirm(`⚠️ هل أنت متأكد من حذف بيانات التتبع للسائق:\n${name} (${id})؟\n\nسيتم مسح بيانات الموقع فقط من Firestore.\nلن يتم حذف السائق من النظام.`)) return;
+      try {
+        // Mirror legacy behavior: delete from driverLocations subcollection
+        await deleteDoc(doc(db, 'driverLocations', id));
+        alert('✅ تم حذف بيانات التتبع');
+      } catch (e) {
+        console.error(e);
+        alert('❌ حدث خطأ أثناء الحذف: ' + e.message);
+      }
+    };
+    window.tmFilter = function(key) {
+      activeFilter = key;
+      renderActiveView();
+    };
+    window.tmSort = function(key) {
+      if (sortKey === key) {
+        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortKey = key;
+        sortDir = 'asc';
+      }
+      renderActiveView();
+    };
+    window.tmToggleSel = function(id) {
+      if (selected.has(id)) selected.delete(id); else selected.add(id);
+      renderActiveView();
+    };
+    window.tmToggleAll = function(checked) {
+      if (checked) drivers.forEach(d => selected.add(d.id));
+      else selected.clear();
+      renderActiveView();
+    };
+    window.tmClearSel = function() {
+      selected.clear();
+      renderActiveView();
+    };
+    window.tmBulkWake = function() {
+      const ids = Array.from(selected);
+      if (!confirm(`📢 إرسال إشعار إيقاظ لـ ${ids.length} سائق؟`)) return;
+      alert('(ميزة قادمة - سيتم تفعيلها مع نظام الإشعارات)');
+    };
+    window.tmBulkDelete = async function() {
+      const ids = Array.from(selected);
+      if (ids.length === 0) return;
+      if (!confirm(`⚠️ حذف بيانات التتبع لـ ${ids.length} سائق؟\n\nهذا الإجراء لا يمكن التراجع عنه.`)) return;
+      if (!confirm('تأكيد نهائي: هل أنت متأكد 100%؟')) return;
+      try {
+        await Promise.all(ids.map(id => deleteDoc(doc(db, 'driverLocations', id))));
+        alert(`✅ تم حذف بيانات التتبع لـ ${ids.length} سائق`);
+        selected.clear();
+      } catch (e) {
+        console.error(e);
+        alert('❌ حدث خطأ: ' + e.message);
+      }
+    };
+    window.tmExport = function() {
+      const headers = ['المعرف','الاسم','الهاتف','الحالة','آخر تحديث','السرعة (كم/س)','المنطقة','الدقة (م)','التوكن','البطارية (%)'];
+      const rows = drivers.map(d => [
+        d.id, d.name, d.phone, statusLabel(d.status), d.lastUpdate,
+        d.speed, d.area, d.accuracy,
+        d.tokenStatus === 'ok' ? 'متصل' : 'مفقود',
+        d.battery ?? ''
+      ]);
+      const csv = '\ufeff' + [headers, ...rows].map(r => r.map(c => `"${String(c ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tracking-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+    window.logout = function() {
+      if (confirm('هل تريد تسجيل الخروج؟')) {
+        sessionStorage.clear();
+        localStorage.clear();
+        window.location.href = 'index.html';
+      }
+    };
+
+    // ---- View tab clicks ----
+    document.querySelectorAll('.view-tab').forEach(btn => {
+      btn.addEventListener('click', () => setActiveView(btn.dataset.viewTab));
+    });
+
+    // ---- Init ----
+    setActiveView(activeView);
+    startListeners();
+    lucide.createIcons();
+  </script>
 </body>
 </html>
-
