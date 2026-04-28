@@ -651,6 +651,9 @@
             <button class="header-icon-btn" id="heatmapBtn" onclick="toggleHeatmap()" title="خريطة حرارية - مناطق نشاط السائقين">
                 🔥
             </button>
+            <button class="header-icon-btn" id="geofenceBtn" onclick="openGeofenceModal()" title="المناطق الجغرافية - تنبيه عند خروج السائق">
+                🗺️
+            </button>
             <button class="header-icon-btn" onclick="toggleDarkMode()" title="وضع داكن">
                 <span id="darkModeIcon">🌙</span>
             </button>
@@ -735,13 +738,45 @@
         </div>
     </div>
 
+    <!-- ✅ Geofence Modal -->
+    <div id="geofenceModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;padding:20px;font-family:'Cairo','Segoe UI',Tahoma,sans-serif" dir="rtl">
+        <div style="background:white;border-radius:16px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+            <div style="background:linear-gradient(to left,#b91c1c,#7f1d1d);color:white;padding:16px 20px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center">
+                <h3 style="margin:0;font-size:18px">🗺️ المناطق الجغرافية - Geofencing</h3>
+                <button onclick="closeGeofenceModal()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px">✕</button>
+            </div>
+            <div style="padding:20px">
+                <p style="margin:0 0 16px;color:#64748b;font-size:14px">حدّد مناطق على الخريطة، النظام راح ينبّهك إذا خرج أي سائق منها.</p>
+                <div style="background:#f1f5f9;padding:14px;border-radius:10px;margin-bottom:16px">
+                    <h4 style="margin:0 0 10px;font-size:14px;color:#0f172a">➕ إضافة منطقة جديدة</h4>
+                    <input type="text" id="gfName" placeholder="اسم المنطقة (مثال: السالمية)" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:8px;font-family:inherit;font-size:14px">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                        <input type="number" id="gfLat" placeholder="خط العرض (29.xxx)" step="0.000001" style="padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:14px">
+                        <input type="number" id="gfLng" placeholder="خط الطول (47.xxx)" step="0.000001" style="padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:14px">
+                    </div>
+                    <input type="number" id="gfRadius" placeholder="نصف القطر بالمتر (مثال: 5000 = 5كم)" value="5000" min="100" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:8px;font-family:inherit;font-size:14px">
+                    <div style="display:flex;gap:8px">
+                        <button onclick="useMapCenter()" style="flex:1;background:#e2e8f0;color:#0f172a;border:none;padding:9px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:bold">📍 استخدم مركز الخريطة</button>
+                        <button onclick="addGeofence()" style="flex:1;background:linear-gradient(to left,#16a34a,#15803d);color:white;border:none;padding:9px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:bold">✅ حفظ المنطقة</button>
+                    </div>
+                </div>
+                <div>
+                    <h4 style="margin:0 0 10px;font-size:14px;color:#0f172a">📋 المناطق المحفوظة</h4>
+                    <div id="geofenceList" style="max-height:240px;overflow-y:auto">
+                        <p style="color:#94a3b8;text-align:center;padding:20px;font-size:13px">لا توجد مناطق محفوظة</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Leaflet JS + Heatmap plugin -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-        import { getFirestore, collection, onSnapshot, query } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        import { getFirestore, collection, onSnapshot, query, addDoc, deleteDoc, doc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -1258,6 +1293,140 @@
                 btn.title = 'خريطة حرارية - مناطق نشاط السائقين';
             }
         };
+
+        // ============================================
+        // ✅ GEOFENCING - المناطق الجغرافية + التنبيهات
+        // ============================================
+        let geofences = [];
+        let geofenceLayers = {};
+        const alertedDriverGeofence = new Set();
+
+        window.openGeofenceModal = function() {
+            document.getElementById('geofenceModal').style.display = 'flex';
+            renderGeofenceList();
+        };
+        window.closeGeofenceModal = function() {
+            document.getElementById('geofenceModal').style.display = 'none';
+        };
+        window.useMapCenter = function() {
+            const c = map.getCenter();
+            document.getElementById('gfLat').value = c.lat.toFixed(6);
+            document.getElementById('gfLng').value = c.lng.toFixed(6);
+        };
+        window.addGeofence = async function() {
+            const name = document.getElementById('gfName').value.trim();
+            const lat = parseFloat(document.getElementById('gfLat').value);
+            const lng = parseFloat(document.getElementById('gfLng').value);
+            const radius = parseFloat(document.getElementById('gfRadius').value);
+            if (!name || isNaN(lat) || isNaN(lng) || isNaN(radius) || radius < 100) {
+                alert('يرجى تعبئة جميع الحقول بشكل صحيح (نصف القطر أكبر من 100 متر)');
+                return;
+            }
+            try {
+                await addDoc(collection(db, 'geofences'), {
+                    name, lat, lng, radius, color: '#dc2626', createdAt: serverTimestamp()
+                });
+                document.getElementById('gfName').value = '';
+                document.getElementById('gfLat').value = '';
+                document.getElementById('gfLng').value = '';
+                alert(`✅ تم حفظ المنطقة "${name}"`);
+            } catch (err) {
+                alert('❌ خطأ في حفظ المنطقة: ' + err.message);
+            }
+        };
+        window.deleteGeofence = async function(id, name) {
+            if (!confirm(`هل تريد حذف المنطقة "${name}"؟`)) return;
+            try {
+                await deleteDoc(doc(db, 'geofences', id));
+            } catch (err) {
+                alert('❌ خطأ: ' + err.message);
+            }
+        };
+
+        function renderGeofenceList() {
+            const list = document.getElementById('geofenceList');
+            if (geofences.length === 0) {
+                list.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:20px;font-size:13px">لا توجد مناطق محفوظة</p>';
+                return;
+            }
+            list.innerHTML = geofences.map(g => `
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                        <div style="font-weight:bold;color:#0f172a;font-size:14px">📍 ${g.name}</div>
+                        <div style="font-size:11px;color:#64748b">نصف القطر: ${(g.radius/1000).toFixed(2)} كم &nbsp; | &nbsp; ${g.lat.toFixed(4)}, ${g.lng.toFixed(4)}</div>
+                    </div>
+                    <button onclick="deleteGeofence('${g.id}', '${g.name.replace(/'/g, "\\'")}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold">🗑️</button>
+                </div>
+            `).join('');
+        }
+
+        function drawGeofencesOnMap() {
+            Object.values(geofenceLayers).forEach(layer => map.removeLayer(layer));
+            geofenceLayers = {};
+            geofences.forEach(g => {
+                const circle = L.circle([g.lat, g.lng], {
+                    radius: g.radius,
+                    color: g.color || '#dc2626',
+                    fillColor: g.color || '#dc2626',
+                    fillOpacity: 0.1,
+                    weight: 2,
+                    dashArray: '6, 6'
+                }).bindPopup(`<b>📍 ${g.name}</b><br>نصف القطر: ${(g.radius/1000).toFixed(2)} كم`);
+                circle.addTo(map);
+                geofenceLayers[g.id] = circle;
+            });
+        }
+
+        function checkDriversAgainstGeofences() {
+            if (!geofences.length) return;
+            Object.values(drivers).forEach(driver => {
+                if (!driver.hasLocation || !driver.isActive) return;
+                let insideAny = false;
+                let nearestZone = null;
+                for (const g of geofences) {
+                    const d = haversineDistance(driver.latitude, driver.longitude, g.lat, g.lng);
+                    if (d <= g.radius) { insideAny = true; break; }
+                    if (!nearestZone || d < nearestZone.dist) nearestZone = { name: g.name, dist: d };
+                }
+                if (!insideAny && nearestZone) {
+                    const key = driver.driverId;
+                    if (!alertedDriverGeofence.has(key)) {
+                        alertedDriverGeofence.add(key);
+                        addNotification('🚨', `السائق ${getDriverName(driver.driverId)} خرج من المنطقة (أبعد ${(nearestZone.dist/1000).toFixed(1)}كم من ${nearestZone.name})`);
+                        setTimeout(() => alertedDriverGeofence.delete(key), 5 * 60 * 1000);
+                    }
+                } else if (insideAny) {
+                    alertedDriverGeofence.delete(driver.driverId);
+                }
+            });
+        }
+
+        function haversineDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371000;
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(Δφ/2)**2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2)**2;
+            return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        function addNotification(icon, message) {
+            if (typeof notifications !== 'undefined') {
+                notifications.unshift({ icon, message, time: new Date() });
+                if (notifications.length > 50) notifications.pop();
+                const badge = document.getElementById('notificationCount');
+                if (badge) badge.textContent = notifications.length;
+            }
+        }
+
+        onSnapshot(collection(db, 'geofences'), (snapshot) => {
+            geofences = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            drawGeofencesOnMap();
+            renderGeofenceList();
+        }, (err) => console.error('geofences listener error:', err));
+
+        setInterval(checkDriversAgainstGeofences, 30000);
 
         // Dark Mode Toggle
         window.toggleDarkMode = function() {
