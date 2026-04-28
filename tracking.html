@@ -973,15 +973,35 @@
         }
         
         // Get driver app version with color indicator
+        // ✅ نحسب أعلى إصدار موجود ديناميكياً (بدل hardcoded)
+        function getLatestVersion() {
+            let latest = '0.0.0';
+            const cmp = (a, b) => {
+                const pa = a.split('.').map(n => parseInt(n) || 0);
+                const pb = b.split('.').map(n => parseInt(n) || 0);
+                for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+                    if ((pa[i] || 0) > (pb[i] || 0)) return 1;
+                    if ((pa[i] || 0) < (pb[i] || 0)) return -1;
+                }
+                return 0;
+            };
+            Object.values(driversInfo).forEach(info => {
+                if (info.appVersion && info.appVersion !== 'غير معروف' && cmp(info.appVersion, latest) > 0) {
+                    latest = info.appVersion;
+                }
+            });
+            return latest === '0.0.0' ? null : latest;
+        }
+        
         function getDriverVersionBadge(driverId) {
-            const currentVersion = '2.3.7';
+            const latestVersion = getLatestVersion();
             const driverVersion = driversInfo[driverId]?.appVersion || 'غير معروف';
             
             if (driverVersion === 'غير معروف') {
                 return '<span style="font-size: 11px; color: #999;">الإصدار: غير معروف</span>';
             }
             
-            const isLatest = driverVersion === currentVersion;
+            const isLatest = !latestVersion || driverVersion === latestVersion;
             const color = isLatest ? '#10b981' : '#f59e0b';
             const icon = isLatest ? '✅' : '⚠️';
             
