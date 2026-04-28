@@ -256,10 +256,6 @@
         <div class="header">
             <h1>🚗 نظام إدارة التاكسي</h1>
             <div class="welcome" id="welcomeMessage">مرحباً بك</div>
-            <div class="header-actions">
-                <a class="tracking-btn" id="trackingLink" href="#" onclick="openTracking(event)">📍 التتبع التفصيلي</a>
-                <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
-            </div>
         </div>
 
         <!-- Messages -->
@@ -1180,17 +1176,6 @@
                 updateBtn.disabled = false;
                 updateBtn.textContent = 'تحديث البيانات';
             }
-        };
-
-        // V3.4: Open detailed tracking page
-        window.openTracking = function(e) {
-            e.preventDefault();
-            const empNum = (driverData && (driverData.driverId || driverData.employeeNumber)) || driverId;
-            if (!empNum || empNum === 'unknown') {
-                showMessage('لم يتم تحميل بيانات السائق بعد', true);
-                return;
-            }
-            window.location.href = 'driver-details.html?id=' + encodeURIComponent(empNum);
         };
 
         // Logout function - Fixed to work properly
