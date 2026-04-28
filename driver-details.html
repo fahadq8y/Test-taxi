@@ -187,7 +187,9 @@
           <p class="text-xs text-white/75">عرض الموقع والمسار وسجل التحركات</p>
         </div>
       </div>
-      <nav class="flex items-center gap-1.5 text-sm">
+      <nav class="flex items-center gap-1.5 text-sm flex-wrap">
+        <button onclick="exportPDF()" class="rounded-md bg-emerald-500 hover:bg-emerald-600 px-3 py-1.5 transition" title="حفظ التقرير كملف PDF">📄 PDF</button>
+        <button onclick="exportExcel()" class="rounded-md bg-blue-500 hover:bg-blue-600 px-3 py-1.5 transition" title="تصدير البيانات لـ Excel">📊 Excel</button>
         <a href="tracking.html" class="rounded-md bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">📍 صفحة التتبع</a>
         <a href="tracking-management.html" class="rounded-md bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">⚙️ الإدارة</a>
         <a href="admin-dashboard.html" class="rounded-md bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">🏠 الرئيسية</a>
@@ -426,6 +428,20 @@
   </main>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- ✅ SheetJS for Excel export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    
+    <!-- ✅ Print stylesheet for PDF export -->
+    <style media="print">
+      @page { size: A4; margin: 1cm; }
+      header nav, .filter-group, button, input[type="checkbox"], input[type="color"], input[type="range"] { display: none !important; }
+      header { background: #7f1d1d !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { background: white !important; }
+      #map, .leaflet-container { height: 400px !important; page-break-inside: avoid; }
+      .timeline-section, section { page-break-inside: avoid; }
+      .stat-value { color: #7f1d1d !important; }
+      #replayInfo, [id$="Btn"] { display: none !important; }
+    </style>
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
@@ -1349,6 +1365,70 @@
         }
         
         // ============================================
+        // ============================================
+        // ✅ EXPORT FUNCTIONS - PDF + Excel
+        // ============================================
+        window.exportPDF = function() {
+            const driverName = document.getElementById('driverName')?.textContent || 'تقرير السائق';
+            const original = document.title;
+            document.title = `${driverName} - ${new Date().toLocaleDateString('ar-KW')}`;
+            window.print();
+            setTimeout(() => { document.title = original; }, 1000);
+        };
+
+        window.exportExcel = function() {
+            try {
+                if (typeof XLSX === 'undefined') {
+                    alert('❌ مكتبة Excel لم تُحمّل بعد، جرب بعد ثانية');
+                    return;
+                }
+                const driverName = document.getElementById('driverName')?.textContent || 'السائق';
+                const wb = XLSX.utils.book_new();
+
+                // ورقة 1: ملخص السائق
+                const summary = [
+                    ['تقرير السائق', driverName],
+                    ['تاريخ التقرير', new Date().toLocaleString('ar-KW')],
+                    [''],
+                    ['البيان', 'القيمة']
+                ];
+                document.querySelectorAll('[id^="stat"], .stat-value, .stat-label').forEach(() => {});
+                const statBlocks = document.querySelectorAll('section .text-xs.text-slate-500, section .stat-label');
+                const statValues = document.querySelectorAll('section .text-xl.font-bold, section .stat-value');
+                for (let i = 0; i < Math.min(statBlocks.length, statValues.length); i++) {
+                    summary.push([statBlocks[i].textContent.trim(), statValues[i].textContent.trim()]);
+                }
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'ملخص السائق');
+
+                // ورقة 2: سجل المواقع (من replayData إن وُجد)
+                if (typeof replayData !== 'undefined' && Array.isArray(replayData) && replayData.length > 0) {
+                    const locations = [['#', 'الوقت', 'خط العرض', 'خط الطول', 'السرعة (كم/س)']];
+                    replayData.forEach((p, i) => {
+                        const t = p.timestamp?.toDate ? p.timestamp.toDate() : (p.timestamp ? new Date(p.timestamp) : new Date());
+                        locations.push([i+1, t.toLocaleString('ar-KW'), p.latitude || p.lat || '', p.longitude || p.lng || '', p.speed || 0]);
+                    });
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(locations), 'سجل المواقع');
+                }
+
+                // ورقة 3: السجل الزمني (من DOM)
+                const timeline = [['الوقت', 'الحدث']];
+                document.querySelectorAll('#timeline > div, .timeline-item').forEach(item => {
+                    const time = item.querySelector('.timeline-time, .text-xs')?.textContent?.trim() || '';
+                    const event = item.querySelector('.timeline-event, .font-medium')?.textContent?.trim() || item.textContent.trim().slice(0, 100);
+                    if (time || event) timeline.push([time, event]);
+                });
+                if (timeline.length > 1) {
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(timeline), 'السجل الزمني');
+                }
+
+                const fileName = `${driverName.replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+            } catch (err) {
+                alert('❌ خطأ في تصدير Excel: ' + err.message);
+                console.error(err);
+            }
+        };
+
         // ✅ REPLAY FUNCTIONS - إعادة تشغيل المسار
         // ============================================
         let replayMarker = null;
