@@ -215,13 +215,11 @@
     }
 
     function rebuildAndRender() {
-      // Build the driver list FROM driversInfo (which has full data including location)
+      // ✅ نعرض كل السائقين (حتى بدون location) عشان السائق الجديد يظهر
       drivers = [];
       Object.keys(driversInfo).forEach(id => {
         const data = driversInfo[id];
-        if (data.location && data.location.latitude && data.location.longitude) {
-          drivers.push(normalizeDriver(id, data));
-        }
+        drivers.push(normalizeDriver(id, data));
       });
       // Sort by id by default for stable rendering
       drivers.sort((a, b) => a.id.localeCompare(b.id));
