@@ -1,0 +1,58 @@
+{
+  "name": "White Horse Taxi - نظام إدارة التاكسي",
+  "short_name": "White Horse",
+  "description": "نظام إدارة وتتبع سائقي التاكسي - White Horse",
+  "start_url": "/tracking.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8fafc",
+  "theme_color": "#7f1d1d",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["business", "productivity", "navigation"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%237f1d1d'/><text x='50%25' y='55%25' font-size='120' text-anchor='middle' dominant-baseline='middle'>🚕</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%237f1d1d'/><text x='50%25' y='55%25' font-size='320' text-anchor='middle' dominant-baseline='middle'>🚕</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%237f1d1d'/><text x='50%25' y='55%25' font-size='280' text-anchor='middle' dominant-baseline='middle' fill='white'>🚕</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "تتبع السائقين",
+      "short_name": "تتبع",
+      "description": "عرض مواقع السائقين المباشرة",
+      "url": "/tracking.html",
+      "icons": [{
+        "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect width='96' height='96' rx='16' fill='%23dc2626'/><text x='50%25' y='55%25' font-size='60' text-anchor='middle' dominant-baseline='middle'>📍</text></svg>",
+        "sizes": "96x96",
+        "type": "image/svg+xml"
+      }]
+    },
+    {
+      "name": "إدارة التتبع",
+      "short_name": "إدارة",
+      "description": "إدارة سائقي التاكسي",
+      "url": "/tracking-management.html",
+      "icons": [{
+        "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect width='96' height='96' rx='16' fill='%23dc2626'/><text x='50%25' y='55%25' font-size='60' text-anchor='middle' dominant-baseline='middle'>👥</text></svg>",
+        "sizes": "96x96",
+        "type": "image/svg+xml"
+      }]
+    }
+  ]
+}
