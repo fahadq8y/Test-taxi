@@ -6,6 +6,7 @@
     <title>تفاصيل السائق - نظام إدارة التاكسي</title>
     <meta name="theme-color" content="#1a1a2e">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <style>
         :root {
@@ -450,6 +451,7 @@
             <div class="ctrl-group">
                 <button class="ctrl-btn" onclick="centerOnDriver()">🎯 مركز</button>
                 <button class="ctrl-btn" onclick="fitRoute()">🛣️ عرض المسار</button>
+                <button class="ctrl-btn" id="heatmapBtn" onclick="toggleHeatmap(this)">🔥 خريطة حرارية</button>
             </div>
         </div>
 
@@ -492,7 +494,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-import { getFirestore, doc, collection, onSnapshot, query, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import { getFirestore, doc, collection, onSnapshot, query, limit, getDocs, where, orderBy } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 
 const firebaseConfig = {
@@ -536,6 +538,10 @@ let tlSort = 'time';
 let replayData = [], replayIndex = 0, replayInterval = null;
 let replayPlaying = false, replaySpeed = 5;
 let replayMarker = null;
+
+// V3.4: Heatmap layer
+let heatmapLayer = null;
+let heatmapVisible = false;
 
 const activityMap = {
     'in_vehicle': '🚗 يقود', 'still': '🅿️ متوقف',
@@ -646,27 +652,63 @@ function drawRoute(points) {
 }
 
 // ===== LOAD ROUTE =====
+// V3.4: نقرأ من top-level locationHistory (المكان الصحيح اللي يكتب فيه التطبيق)
+// مع backward compat للـ subcollection القديم
 async function loadRoute() {
     const cutoff = Date.now() - routeRangeHours * 3600000;
     document.getElementById('mapRouteRange').textContent = routeRangeHours + ' ساعة';
+    const pts = [];
+    const seen = new Set();
+
     try {
-        const snap = await getDocs(query(collection(db, 'drivers', driverId, 'locationHistory'), limit(1000)));
-        const pts = [];
-        snap.forEach(d => {
+        // 1) المسار الصحيح: top-level locationHistory مع where(driverId)
+        const q1 = query(
+            collection(db, 'locationHistory'),
+            where('driverId', '==', driverId),
+            limit(2000)
+        );
+        const snap1 = await getDocs(q1);
+        snap1.forEach(d => {
             const v = d.data();
             const t = v.timestamp?.toDate ? v.timestamp.toDate() : (v.timestamp ? new Date(v.timestamp) : null);
             if (!t || t.getTime() < cutoff) return;
             const lat = v.latitude || v.location?.latitude;
             const lng = v.longitude || v.location?.longitude;
-            if (lat && lng) pts.push({ lat, lng, t, speed: v.speed || 0, isMoving: v.isMoving });
+            if (!lat || !lng) return;
+            const key = `${t.getTime()}_${lat.toFixed(5)}_${lng.toFixed(5)}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            pts.push({ lat, lng, t, speed: v.speed || 0, isMoving: v.isMoving, activity: v.activity });
         });
-        pts.sort((a, b) => a.t - b.t);
-        locationHistory = pts;
-        drawRoute(pts);
-        updateTimeline();
-        buildReplayData();
-        updateStatistics();
-    } catch (e) { console.error('Route load error:', e); }
+    } catch (e) {
+        console.warn('top-level locationHistory read failed:', e?.message);
+    }
+
+    try {
+        // 2) Backward compat: المسار القديم subcollection (لو فيه بيانات)
+        const snap2 = await getDocs(query(collection(db, 'drivers', driverId, 'locationHistory'), limit(1000)));
+        snap2.forEach(d => {
+            const v = d.data();
+            const t = v.timestamp?.toDate ? v.timestamp.toDate() : (v.timestamp ? new Date(v.timestamp) : null);
+            if (!t || t.getTime() < cutoff) return;
+            const lat = v.latitude || v.location?.latitude;
+            const lng = v.longitude || v.location?.longitude;
+            if (!lat || !lng) return;
+            const key = `${t.getTime()}_${lat.toFixed(5)}_${lng.toFixed(5)}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            pts.push({ lat, lng, t, speed: v.speed || 0, isMoving: v.isMoving, activity: v.activity });
+        });
+    } catch (e) { /* ignore */ }
+
+    pts.sort((a, b) => a.t - b.t);
+    console.log(`[loadRoute] driverId=${driverId} range=${routeRangeHours}h points=${pts.length}`);
+    locationHistory = pts;
+    drawRoute(pts);
+    updateTimeline();
+    buildReplayData();
+    updateStatistics();
+    updateHeatmap();
 }
 
 // ===== DRIVER LISTENER =====
@@ -894,6 +936,34 @@ window.fitRoute = function() {
     else map.fitBounds(bounds, { padding: [40, 40] });
 };
 window.toggleReplayPanel = function() { document.getElementById('replayPanel').classList.toggle('show'); };
+
+// V3.4: Heatmap (نقاط التوقف الذكية - وين السائق يقعد كثير)
+window.updateHeatmap = function() {
+    if (!heatmapVisible) return;
+    if (heatmapLayer) { map.removeLayer(heatmapLayer); heatmapLayer = null; }
+    if (!locationHistory.length) return;
+    // وزن النقطة = كم تقريباً سكنها (سرعة <2 = ساكن، نعطيها وزن أعلى)
+    const heatPoints = locationHistory.map(p => {
+        const spdKmh = (p.speed || 0) * 3.6;
+        const weight = spdKmh < 2 ? 1.0 : spdKmh < 10 ? 0.5 : 0.2;
+        return [p.lat, p.lng, weight];
+    });
+    heatmapLayer = L.heatLayer(heatPoints, {
+        radius: 25, blur: 18, maxZoom: 17, max: 1.0,
+        gradient: { 0.2: '#3b82f6', 0.4: '#10b981', 0.6: '#f59e0b', 0.8: '#ef4444', 1.0: '#8b5cf6' }
+    }).addTo(map);
+};
+
+window.toggleHeatmap = function(btn) {
+    heatmapVisible = !heatmapVisible;
+    if (heatmapVisible) {
+        btn.classList.add('active');
+        updateHeatmap();
+    } else {
+        btn.classList.remove('active');
+        if (heatmapLayer) { map.removeLayer(heatmapLayer); heatmapLayer = null; }
+    }
+};
 window.togglePanel = function() { document.getElementById('leftPanel').classList.toggle('open'); };
 window.switchTab = function(tab, el) {
     document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
