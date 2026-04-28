@@ -875,12 +875,36 @@
             driversList.innerHTML = '';
             
             Object.values(drivers).forEach(driver => {
-                const lastUpdate = new Date(driver.localTime);
-                const isOnline = driver.isActive || false; // Use isActive from Firestore
+                const isOnline = driver.isActive || false;
+                const hasLocation = driver.hasLocation && driver.latitude != null && driver.longitude != null;
 
                 const card = document.createElement('div');
                 card.className = `driver-card ${isOnline ? 'active' : ''}`;
                 card.dataset.driverId = driver.driverId;
+                
+                // ✅ سائق بدون موقع → بطاقة مبسطة تظهره مع علامة "في انتظار الموقع"
+                if (!hasLocation) {
+                    card.innerHTML = `
+                        <h3><span>🚕</span> ${getDriverName(driver.driverId)}</h3>
+                        <div style="margin-bottom: 8px;">${getDriverVersionBadge(driver.driverId)}</div>
+                        <div class="driver-info">
+                            <span class="driver-info-icon">⏳</span>
+                            <span style="color: #f59e0b;">في انتظار بيانات الموقع</span>
+                        </div>
+                        <div class="driver-info">
+                            <span class="driver-info-icon">ℹ️</span>
+                            <span style="font-size: 12px; color: #666;">السائق لم يبدأ التتبع بعد أو ليس لديه أذن الموقع</span>
+                        </div>
+                        <span class="status-badge ${isOnline ? 'online' : 'offline'}">
+                            ${isOnline ? '🟢 نشط (بدون موقع)' : '⚪ لم يبدأ التتبع'}
+                        </span>
+                        <button onclick="window.location.href='driver-details.html?id=${driver.driverId}'" style="margin-top: 10px; width: 100%; padding: 8px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">📊 عرض التفاصيل</button>
+                    `;
+                    driversList.appendChild(card);
+                    return;
+                }
+                
+                const lastUpdate = driver.localTime ? new Date(driver.localTime) : new Date();
                 const speedKmh = driver.speed * 3.6;
                 const speedClass = speedKmh < 20 ? 'slow' : speedKmh < 60 ? 'medium' : 'fast';
                 const speedLabel = speedKmh < 20 ? 'بطيء' : speedKmh < 60 ? 'متوسط' : 'سريع';
@@ -983,25 +1007,31 @@
                     const driverId = change.doc.id; // Use document ID as driverId
                     
                     if (change.type === 'added' || change.type === 'modified') {
-                        // Only process drivers with location data
-                        if (data.location && data.location.latitude && data.location.longitude) {
-                            const driverData = {
-                                driverId: driverId,
-                                latitude: data.location.latitude,
-                                longitude: data.location.longitude,
-                                speed: data.location.speed || 0,
-                                accuracy: data.location.accuracy || 0,
-                                localTime: data.lastUpdate ? (data.lastUpdate.toDate ? data.lastUpdate.toDate().toISOString() : new Date().toISOString()) : new Date().toISOString(),
-                                isActive: data.isActive || false
-                            };
-                            drivers[driverId] = driverData;
+                        const hasLocation = data.location && data.location.latitude && data.location.longitude;
+                        
+                        // ✅ نحفظ كل السائقين (حتى بدون موقع) عشان يظهرون في القائمة
+                        const driverData = {
+                            driverId: driverId,
+                            latitude: hasLocation ? data.location.latitude : null,
+                            longitude: hasLocation ? data.location.longitude : null,
+                            speed: hasLocation ? (data.location.speed || 0) : 0,
+                            accuracy: hasLocation ? (data.location.accuracy || 0) : 0,
+                            localTime: data.lastUpdate ? (data.lastUpdate.toDate ? data.lastUpdate.toDate().toISOString() : new Date().toISOString()) : null,
+                            isActive: data.isActive || false,
+                            hasLocation: hasLocation
+                        };
+                        drivers[driverId] = driverData;
+                        
+                        if (hasLocation) {
                             updateDriverMarker(driverData);
                             console.log(`✅ تحديث سائق ${driverId}:`, data.isActive ? 'نشط' : 'غير نشط');
-                        } else if (markers[driverId]) {
-                            // Remove marker if location data is missing
-                            map.removeLayer(markers[driverId]);
-                            delete markers[driverId];
-                            delete drivers[driverId];
+                        } else {
+                            // ما عنده موقع → احذف الـ marker لو موجود لكن ابق السائق في القائمة
+                            if (markers[driverId]) {
+                                map.removeLayer(markers[driverId]);
+                                delete markers[driverId];
+                            }
+                            console.log(`⏳ سائق ${driverId} بدون موقع - يظهر في القائمة فقط`);
                         }
                     } else if (change.type === 'removed') {
                         delete drivers[driverId];
