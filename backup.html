@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نسخة احتياطية - White Horse</title>
+
+  <!-- ✅ PWA Support -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#7f1d1d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="White Horse">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='10' fill='%237f1d1d'/><text x='50%25' y='55%25' font-size='40' text-anchor='middle' dominant-baseline='middle'>🚕</text></svg>">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="/pwa-register.js" defer></script>
+
+  <style>
+    body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; background: #f8fafc; }
+    .num { font-feature-settings: "tnum" on, "lnum" on; font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800">
+
+  <header class="bg-gradient-to-l from-red-700 to-red-900 text-white shadow">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
+          <i data-lucide="database-backup" class="h-5 w-5"></i>
+        </div>
+        <div>
+          <h1 class="text-lg md:text-xl font-bold leading-tight">💾 نسخة احتياطية</h1>
+          <p class="text-xs text-white/75">حمّل نسخة كاملة من بيانات النظام</p>
+        </div>
+      </div>
+      <nav class="flex items-center gap-1.5 text-sm flex-wrap">
+        <a href="tracking.html" class="rounded-md bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">📍 التتبع</a>
+        <a href="tracking-management.html" class="rounded-md bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">⚙️ الإدارة</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    
+    <!-- التعليمات -->
+    <section class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+      <h2 class="flex items-center gap-2 text-base font-bold text-slate-800 mb-3">
+        <i data-lucide="info" class="h-4 w-4 text-red-700"></i>
+        كيف يعمل؟
+      </h2>
+      <ul class="text-sm text-slate-600 space-y-1 list-disc mr-5">
+        <li>اضغط "💾 نسخة احتياطية كاملة" لتحميل ملف JSON يحتوي كل البيانات</li>
+        <li>احفظ الملف على الكمبيوتر أو على Google Drive للأمان</li>
+        <li>يُنصح بعمل نسخة كل يوم أو على الأقل كل أسبوع</li>
+        <li>الملف صغير الحجم (عادةً أقل من 5 ميجا)</li>
+      </ul>
+    </section>
+
+    <!-- إحصائيات + زر الـ Backup -->
+    <section class="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-slate-50 rounded-lg p-4 text-center">
+          <div class="text-3xl mb-1">👥</div>
+          <div class="text-xs text-slate-500">السائقين</div>
+          <div id="cntDrivers" class="text-xl font-bold num text-red-700">--</div>
+        </div>
+        <div class="bg-slate-50 rounded-lg p-4 text-center">
+          <div class="text-3xl mb-1">📍</div>
+          <div class="text-xs text-slate-500">المواقع الحالية</div>
+          <div id="cntLocations" class="text-xl font-bold num text-red-700">--</div>
+        </div>
+        <div class="bg-slate-50 rounded-lg p-4 text-center">
+          <div class="text-3xl mb-1">🗺️</div>
+          <div class="text-xs text-slate-500">المناطق</div>
+          <div id="cntGeofences" class="text-xl font-bold num text-red-700">--</div>
+        </div>
+        <div class="bg-slate-50 rounded-lg p-4 text-center">
+          <div class="text-3xl mb-1">📜</div>
+          <div class="text-xs text-slate-500">سجل المسار</div>
+          <div id="cntHistory" class="text-xl font-bold num text-red-700">--</div>
+        </div>
+      </div>
+
+      <button onclick="downloadFullBackup()" id="backupBtn"
+        class="w-full bg-gradient-to-l from-red-700 to-red-900 hover:from-red-800 hover:to-red-950 text-white py-4 rounded-xl text-lg font-bold transition shadow-md flex items-center justify-center gap-2">
+        💾 نسخة احتياطية كاملة (JSON)
+      </button>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+        <button onclick="downloadCSV('drivers')" class="bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-bold transition">📊 السائقين CSV</button>
+        <button onclick="downloadCSV('locationHistory')" class="bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg text-sm font-bold transition">📊 سجل المسار CSV</button>
+      </div>
+      
+      <div id="status" class="mt-4 text-center text-sm hidden"></div>
+    </section>
+
+    <!-- آخر النسخ المحلية -->
+    <section class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+      <h2 class="flex items-center gap-2 text-base font-bold text-slate-800 mb-3">
+        <i data-lucide="history" class="h-4 w-4 text-red-700"></i>
+        آخر النسخ التي حمّلتها
+      </h2>
+      <div id="recentBackups" class="text-sm text-slate-600">
+        <p class="text-slate-400 text-center py-3">لا توجد نسخ بعد</p>
+      </div>
+    </section>
+
+    <!-- نسخة احتياطية تلقائية يومية -->
+    <section class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+      <h2 class="flex items-center gap-2 text-base font-bold text-slate-800 mb-3">
+        <i data-lucide="clock" class="h-4 w-4 text-red-700"></i>
+        نسخة احتياطية تلقائية يومية (اختياري)
+      </h2>
+      <p class="text-sm text-slate-600 mb-3">
+        تقدر تخلي النظام يأخذ نسخة تلقائية كل يوم وتنحفظ في Google Drive أو Email. 
+        يحتاج إعداد لمرة واحدة فقط من Firebase Console.
+      </p>
+      <details class="text-sm">
+        <summary class="cursor-pointer font-bold text-red-700 hover:text-red-800">📖 شرح الإعداد (انقر للتوسيع)</summary>
+        <ol class="mt-3 space-y-2 list-decimal mr-5 text-slate-700 leading-relaxed">
+          <li>افتح <a href="https://console.firebase.google.com" target="_blank" class="text-blue-600 underline">Firebase Console</a></li>
+          <li>اختر مشروع <b>taxi-management-system-d8210</b></li>
+          <li>من القائمة: <b>Firestore Database</b> ← <b>Backups</b></li>
+          <li>فعّل <b>Daily Backups</b> (تحفظ تلقائياً في Google Cloud Storage)</li>
+          <li>اختر مدة الاحتفاظ (مثلاً 30 يوم)</li>
+        </ol>
+        <p class="mt-3 text-xs text-slate-500">
+          ملاحظة: الـ Daily Backups من Firebase تحتاج Blaze Plan. أما هذه الصفحة فبتشتغل على Spark Plan المجاني.
+        </p>
+      </details>
+    </section>
+
+  </main>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+      authDomain: "taxi-management-system-d8210.firebaseapp.com",
+      projectId: "taxi-management-system-d8210",
+      storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+      messagingSenderId: "720874424166",
+      appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // الـ collections اللي راح ننسخها
+    const COLLECTIONS = ['drivers', 'driverLocations', 'locationHistory', 'geofences', 'employees', 'users'];
+
+    async function fetchCollection(name) {
+      try {
+        const snap = await getDocs(collection(db, name));
+        return snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+      } catch (err) {
+        console.warn(`⚠️ ${name}:`, err.message);
+        return [];
+      }
+    }
+
+    // اعرض إحصائيات سريعة عند فتح الصفحة
+    async function loadStats() {
+      const [drivers, locations, geofences, history] = await Promise.all([
+        fetchCollection('drivers'),
+        fetchCollection('driverLocations'),
+        fetchCollection('geofences'),
+        fetchCollection('locationHistory')
+      ]);
+      document.getElementById('cntDrivers').textContent = drivers.length;
+      document.getElementById('cntLocations').textContent = locations.length;
+      document.getElementById('cntGeofences').textContent = geofences.length;
+      document.getElementById('cntHistory').textContent = history.length;
+      
+      // خزنها للاستخدام في الـ backup
+      window._cachedData = { drivers, locations, geofences, history };
+    }
+    loadStats();
+
+    function showStatus(msg, type='info') {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = `mt-4 text-center text-sm font-bold p-3 rounded-lg ${type === 'success' ? 'bg-emerald-100 text-emerald-700' : type === 'error' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 4000);
+    }
+
+    function downloadFile(filename, content, type='application/json') {
+      const blob = new Blob([content], { type: type + ';charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function saveBackupRecord(filename, size) {
+      const list = JSON.parse(localStorage.getItem('whBackups') || '[]');
+      list.unshift({ filename, size, time: new Date().toISOString() });
+      if (list.length > 10) list.pop();
+      localStorage.setItem('whBackups', JSON.stringify(list));
+      renderBackupList();
+    }
+
+    function renderBackupList() {
+      const list = JSON.parse(localStorage.getItem('whBackups') || '[]');
+      const el = document.getElementById('recentBackups');
+      if (!list.length) {
+        el.innerHTML = '<p class="text-slate-400 text-center py-3">لا توجد نسخ بعد</p>';
+        return;
+      }
+      el.innerHTML = list.map(b => `
+        <div class="flex justify-between items-center py-2 border-b border-slate-100 last:border-0">
+          <div>
+            <div class="font-bold text-slate-800">📄 ${b.filename}</div>
+            <div class="text-xs text-slate-500 num">${new Date(b.time).toLocaleString('ar-KW')}</div>
+          </div>
+          <div class="text-xs text-slate-600 num">${(b.size/1024).toFixed(1)} KB</div>
+        </div>
+      `).join('');
+    }
+    renderBackupList();
+
+    window.downloadFullBackup = async function() {
+      const btn = document.getElementById('backupBtn');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '⏳ جاري التجميع...';
+
+      try {
+        const data = {};
+        for (const col of COLLECTIONS) {
+          data[col] = await fetchCollection(col);
+        }
+        const backup = {
+          version: 1,
+          system: 'White Horse Taxi',
+          backupDate: new Date().toISOString(),
+          counts: Object.fromEntries(Object.entries(data).map(([k,v]) => [k, v.length])),
+          data
+        };
+        const json = JSON.stringify(backup, null, 2);
+        const filename = `WhiteHorse_Backup_${new Date().toISOString().slice(0,10).replace(/-/g,'')}_${Date.now()}.json`;
+        downloadFile(filename, json);
+        saveBackupRecord(filename, json.length);
+        showStatus(`✅ تم حفظ النسخة بنجاح (${(json.length/1024).toFixed(1)} KB)`, 'success');
+      } catch (err) {
+        console.error(err);
+        showStatus(`❌ خطأ: ${err.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    };
+
+    window.downloadCSV = async function(collName) {
+      try {
+        const items = await fetchCollection(collName);
+        if (!items.length) { showStatus('لا توجد بيانات', 'error'); return; }
+        // أوجد الحقول الأكثر شيوعاً
+        const allKeys = new Set();
+        items.slice(0, 50).forEach(it => Object.keys(it).forEach(k => allKeys.add(k)));
+        const keys = Array.from(allKeys);
+        const escape = (v) => {
+          if (v == null) return '';
+          if (typeof v === 'object' && v.seconds !== undefined) {
+            // Firestore Timestamp
+            return new Date(v.seconds * 1000).toISOString();
+          }
+          if (typeof v === 'object') return JSON.stringify(v).replace(/"/g, '""');
+          const s = String(v);
+          return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s;
+        };
+        let csv = '\uFEFF' + keys.join(',') + '\n'; // BOM للعربية
+        items.forEach(it => {
+          csv += keys.map(k => escape(it[k])).join(',') + '\n';
+        });
+        const filename = `${collName}_${new Date().toISOString().slice(0,10)}.csv`;
+        downloadFile(filename, csv, 'text/csv');
+        showStatus(`✅ ${items.length} صف محفوظ في ${filename}`, 'success');
+      } catch (err) {
+        showStatus(`❌ خطأ: ${err.message}`, 'error');
+      }
+    };
+
+    if (window.lucide) lucide.createIcons();
+  </script>
+</body>
+</html>
