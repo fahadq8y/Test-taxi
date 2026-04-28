@@ -316,11 +316,20 @@
                 const statusClass = user.isActive !== false ? 'status-active' : 'status-inactive';
                 
                 // معرفة السائق المربوط
+                // ✅ نبحث في عدة حقول لأن user.driverId قد يكون:
+                //    - Firestore document ID (للحسابات القديمة)
+                //    - employeeNumber/driverCode (للحسابات الجديدة من PR #4)
                 let linkedDriverInfo = '';
                 if (user.driverId) {
-                    const linkedDriver = availableDrivers.find(d => d.id === user.driverId);
+                    const linkedDriver = availableDrivers.find(d => 
+                        d.id === user.driverId ||
+                        d.employeeNumber === user.driverId ||
+                        d.driverCode === user.driverId ||
+                        d.code === user.driverId ||
+                        String(d.driverId) === String(user.driverId)
+                    );
                     if (linkedDriver) {
-                        const code = linkedDriver.driverCode || linkedDriver.code || linkedDriver.employeeNumber || '';
+                        const code = linkedDriver.driverCode || linkedDriver.code || linkedDriver.employeeNumber || linkedDriver.id || '';
                         linkedDriverInfo = code ? `🚖 ${linkedDriver.name} (${code})` : `🚖 ${linkedDriver.name}`;
                     } else {
                         linkedDriverInfo = `<span style="color: #dc3545;">⚠️ سائق محذوف (${user.driverId})</span>`;
@@ -673,17 +682,53 @@
             }
 
             try {
+                console.log('🔑 [PASSWORD] Updating password for userId:', userId);
+                
+                // ✅ تأكد إن المستخدم موجود قبل التحديث
+                const userDoc = await db.collection('users').doc(userId).get();
+                if (!userDoc.exists) {
+                    console.error('🔑 [PASSWORD] User document does not exist:', userId);
+                    showMessage('المستخدم غير موجود في النظام', 'error');
+                    return;
+                }
+                
+                console.log('🔑 [PASSWORD] User found, updating password...');
+                
                 await db.collection('users').doc(userId).update({
                     password: newPassword,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-
-                showMessage('تم تغيير كلمة المرور بنجاح! ✅', 'success');
-                closePasswordModal();
+                
+                // ✅ إعادة قراءة للتأكد إن التحديث نجح فعلاً
+                const verifyDoc = await db.collection('users').doc(userId).get();
+                const verifyPassword = verifyDoc.data()?.password;
+                
+                if (verifyPassword === newPassword) {
+                    console.log('🔑 [PASSWORD] ✅ Password updated and verified successfully');
+                    showMessage('تم تغيير كلمة المرور بنجاح! ✅', 'success');
+                    closePasswordModal();
+                    
+                    // ✅ إعادة تحميل القائمة لإظهار آخر تحديث
+                    await loadUsers();
+                } else {
+                    console.error('🔑 [PASSWORD] ❌ Password verification failed');
+                    console.error('Expected:', newPassword, 'Got:', verifyPassword);
+                    showMessage('فشل التحقق من حفظ كلمة المرور. الرجاء المحاولة مرة أخرى.', 'error');
+                }
                 
             } catch (error) {
-                console.error('Error changing password:', error);
-                showMessage('حدث خطأ في تغيير كلمة المرور', 'error');
+                console.error('🔑 [PASSWORD] ❌ Error changing password:', error);
+                console.error('Error code:', error.code, 'Message:', error.message);
+                
+                let errorMsg = 'حدث خطأ في تغيير كلمة المرور';
+                if (error.code === 'permission-denied') {
+                    errorMsg = '⛔ ليس لديك صلاحية لتغيير كلمة المرور. تأكد من أنك مسجّل دخول كمدير.';
+                } else if (error.code === 'not-found') {
+                    errorMsg = 'المستخدم غير موجود في قاعدة البيانات';
+                } else if (error.message) {
+                    errorMsg = `خطأ: ${error.message}`;
+                }
+                showMessage(errorMsg, 'error');
             }
         });
 
