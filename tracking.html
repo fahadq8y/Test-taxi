@@ -535,6 +535,36 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+// ===== V3.5: SMART MOVEMENT DETECTION =====
+// يحل مشكلة: الإصدار القديم (2.4.x) ما يسجل isMoving + الإصدار الجديد (2.5.x) يقول "متحرك" حتى لو السائق راكب في سيارة واقفة
+// المنطق:
+// - السرعة >= 5 كم/س = متحرك أكيد (يتجاوز نقص isMoving بالإصدار القديم)
+// - السرعة < 1 كم/س = متوقف أكيد (يصلح false-positive للإصدار الجديد لما السائق راكب في سيارة واقفة)
+// - بالمنتصف (1-5 كم/س) = استخدم isMoving من الإصدار الجديد لو متاح
+function isDriverActuallyMoving(driver) {
+    const speedRaw = driver.speed;
+    const speedKmh = (speedRaw && speedRaw > 0 ? speedRaw : 0) * 3.6;
+    if (speedKmh >= 5) return true;
+    if (speedKmh < 1) return false;
+    if (driver.isMoving === true) return true;
+    return false;
+}
+function getDriverActivity(driver) {
+    const speedKmh = (driver.speed && driver.speed > 0 ? driver.speed : 0) * 3.6;
+    const moving = isDriverActuallyMoving(driver);
+    if (!moving) {
+        if (driver.currentActivity === 'walking' || driver.currentActivity === 'on_foot') return 'walking';
+        return 'still';
+    }
+    if (speedKmh >= 8) return 'in_vehicle';
+    if (driver.currentActivity === 'walking' || driver.currentActivity === 'on_foot') return 'walking';
+    return 'in_vehicle';
+}
+window.isDriverActuallyMoving = isDriverActuallyMoving;
+window.getDriverActivity = getDriverActivity;
+// =========================================
+
+
 // Auth check
 const userRole = localStorage.getItem('userRole');
 if (!userRole || (userRole !== 'admin' && userRole !== 'owner')) {
@@ -578,13 +608,13 @@ function getMarkerColor(driver) {
     if (!driver.isActive) return '#ef4444';
     const speed = (driver.speed || 0) * 3.6;
     if (speed > 100) return '#f59e0b';
-    if (driver.isMoving) return '#10b981';
+    if (isDriverActuallyMoving(driver)) return '#10b981';
     return '#3b82f6';
 }
 
 function getMarkerHtml(driver) {
     const color = getMarkerColor(driver);
-    const emoji = driver.isMoving ? '🚕' : '🅿️';
+    const emoji = isDriverActuallyMoving(driver) ? '🚕' : '🅿️';
     return `<div style="
         width:36px;height:36px;
         background:${color};
@@ -600,7 +630,7 @@ function getPopupContent(driver) {
     const name = getDriverName(driver.driverId);
     const speedKmh = ((driver.speed || 0) * 3.6).toFixed(1);
     const lastUpdate = new Date(driver.localTime);
-    const activity = driver.currentActivity || 'unknown';
+    const activity = getDriverActivity(driver);
     const activityMap = { 'in_vehicle': '🚗 في السيارة', 'still': '🅿️ متوقف', 'walking': '🚶 يمشي', 'unknown': '❓ غير معروف' };
     return `
         <div style="direction:rtl;min-width:200px;font-family:'Segoe UI',sans-serif;">
@@ -665,7 +695,7 @@ function updateDriversList() {
         if (!matchSearch) return false;
         if (currentFilter === 'active') return d.isActive;
         if (currentFilter === 'inactive') return !d.isActive;
-        if (currentFilter === 'moving') return d.isMoving;
+        if (currentFilter === 'moving') return isDriverActuallyMoving(d);
         return true;
     });
 
@@ -693,7 +723,7 @@ function updateDriversList() {
         const appVersion = driversInfo[driver.driverId]?.appVersion || 'غير معروف';
         const isLatestVersion = appVersion === CURRENT_APP_VERSION;
         const activityMap = { 'in_vehicle': '🚗 يقود', 'still': '🅿️ متوقف', 'walking': '🚶 يمشي', 'unknown': '' };
-        const activityLabel = activityMap[driver.currentActivity || 'unknown'] || '';
+        const activityLabel = activityMap[getDriverActivity(driver)] || '';
 
         const card = document.createElement('div');
         card.className = `driver-card ${driver.isActive ? 'active' : 'inactive'}`;
@@ -741,7 +771,7 @@ function updateStats() {
     const all = Object.values(drivers);
     const active = all.filter(d => d.isActive);
     const inactive = all.filter(d => !d.isActive);
-    const moving = all.filter(d => d.isMoving);
+    const moving = all.filter(d => isDriverActuallyMoving(d));
     document.getElementById('totalDrivers').textContent = all.length;
     document.getElementById('activeDrivers').textContent = active.length;
     document.getElementById('inactiveDrivers').textContent = inactive.length;
@@ -838,8 +868,8 @@ window.exportData = function() {
     const driversData = Object.values(drivers).map(d => ({
         'السائق': getDriverName(d.driverId),
         'الحالة': d.isActive ? 'نشط' : 'غير نشط',
-        'يتحرك': d.isMoving ? 'نعم' : 'لا',
-        'النشاط': d.currentActivity || '',
+        'يتحرك': isDriverActuallyMoving(d) ? 'نعم' : 'لا',
+        'النشاط': getDriverActivity(d),
         'خط العرض': d.latitude.toFixed(6),
         'خط الطول': d.longitude.toFixed(6),
         'السرعة (كم/س)': ((d.speed || 0) * 3.6).toFixed(1),

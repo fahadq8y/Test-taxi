@@ -510,6 +510,36 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+// ===== V3.5: SMART MOVEMENT DETECTION =====
+// يحل مشكلة: الإصدار القديم (2.4.x) ما يسجل isMoving + الإصدار الجديد (2.5.x) يقول "متحرك" حتى لو السائق راكب في سيارة واقفة
+// المنطق:
+// - السرعة >= 5 كم/س = متحرك أكيد (يتجاوز نقص isMoving بالإصدار القديم)
+// - السرعة < 1 كم/س = متوقف أكيد (يصلح false-positive للإصدار الجديد لما السائق راكب في سيارة واقفة)
+// - بالمنتصف (1-5 كم/س) = استخدم isMoving من الإصدار الجديد لو متاح
+function isDriverActuallyMoving(driver) {
+    const speedRaw = driver.speed;
+    const speedKmh = (speedRaw && speedRaw > 0 ? speedRaw : 0) * 3.6;
+    if (speedKmh >= 5) return true;
+    if (speedKmh < 1) return false;
+    if (driver.isMoving === true) return true;
+    return false;
+}
+function getDriverActivity(driver) {
+    const speedKmh = (driver.speed && driver.speed > 0 ? driver.speed : 0) * 3.6;
+    const moving = isDriverActuallyMoving(driver);
+    if (!moving) {
+        if (driver.currentActivity === 'walking' || driver.currentActivity === 'on_foot') return 'walking';
+        return 'still';
+    }
+    if (speedKmh >= 8) return 'in_vehicle';
+    if (driver.currentActivity === 'walking' || driver.currentActivity === 'on_foot') return 'walking';
+    return 'in_vehicle';
+}
+window.isDriverActuallyMoving = isDriverActuallyMoving;
+window.getDriverActivity = getDriverActivity;
+// =========================================
+
+
 // Auth guard
 const userRole = localStorage.getItem('userRole');
 if (!userRole || (userRole !== 'admin' && userRole !== 'owner')) {

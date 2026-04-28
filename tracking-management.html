@@ -432,6 +432,36 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+// ===== V3.5: SMART MOVEMENT DETECTION =====
+// يحل مشكلة: الإصدار القديم (2.4.x) ما يسجل isMoving + الإصدار الجديد (2.5.x) يقول "متحرك" حتى لو السائق راكب في سيارة واقفة
+// المنطق:
+// - السرعة >= 5 كم/س = متحرك أكيد (يتجاوز نقص isMoving بالإصدار القديم)
+// - السرعة < 1 كم/س = متوقف أكيد (يصلح false-positive للإصدار الجديد لما السائق راكب في سيارة واقفة)
+// - بالمنتصف (1-5 كم/س) = استخدم isMoving من الإصدار الجديد لو متاح
+function isDriverActuallyMoving(driver) {
+    const speedRaw = driver.speed;
+    const speedKmh = (speedRaw && speedRaw > 0 ? speedRaw : 0) * 3.6;
+    if (speedKmh >= 5) return true;
+    if (speedKmh < 1) return false;
+    if (driver.isMoving === true) return true;
+    return false;
+}
+function getDriverActivity(driver) {
+    const speedKmh = (driver.speed && driver.speed > 0 ? driver.speed : 0) * 3.6;
+    const moving = isDriverActuallyMoving(driver);
+    if (!moving) {
+        if (driver.currentActivity === 'walking' || driver.currentActivity === 'on_foot') return 'walking';
+        return 'still';
+    }
+    if (speedKmh >= 8) return 'in_vehicle';
+    if (driver.currentActivity === 'walking' || driver.currentActivity === 'on_foot') return 'walking';
+    return 'in_vehicle';
+}
+window.isDriverActuallyMoving = isDriverActuallyMoving;
+window.getDriverActivity = getDriverActivity;
+// =========================================
+
+
 const userRole = localStorage.getItem('userRole');
 if (!userRole || (userRole !== 'admin' && userRole !== 'owner')) {
     onAuthStateChanged(auth, (user) => { if (!user) window.location.href = 'index.html'; });
@@ -484,7 +514,7 @@ function renderTable(data) {
         const speedKmh = ((driver.speed || 0) * 3.6).toFixed(1);
         const speedClass = getSpeedClass(parseFloat(speedKmh));
         const isLatest = (driver.appVersion || '') === CURRENT_APP_VERSION;
-        const activity = activityLabels[driver.currentActivity || 'unknown'] || '—';
+        const activity = activityLabels[getDriverActivity(driver)] || '—';
         const lat = driver.location?.latitude || driver.latitude || 0;
         const lng = driver.location?.longitude || driver.longitude || 0;
 
@@ -560,7 +590,7 @@ function applyFilters() {
         if (!matchSearch) return false;
         if (statusFilter === 'active') return d.isActive;
         if (statusFilter === 'inactive') return !d.isActive;
-        if (statusFilter === 'moving') return d.isMoving;
+        if (statusFilter === 'moving') return isDriverActuallyMoving(d);
         if (statusFilter === 'old-version') return (d.appVersion || '') !== CURRENT_APP_VERSION;
         return true;
     });
@@ -570,7 +600,7 @@ function applyFilters() {
 function updateStats() {
     const active = allDriversData.filter(d => d.isActive).length;
     const inactive = allDriversData.filter(d => !d.isActive).length;
-    const moving = allDriversData.filter(d => d.isMoving).length;
+    const moving = allDriversData.filter(d => isDriverActuallyMoving(d)).length;
     const oldVer = allDriversData.filter(d => (d.appVersion || '') !== CURRENT_APP_VERSION).length;
     document.getElementById('totalCount').textContent = allDriversData.length;
     document.getElementById('activeCount').textContent = active;
@@ -650,8 +680,8 @@ window.exportCSV = function() {
         'الرقم الوظيفي': d.driverId,
         'الاسم': getDriverName(d.driverId),
         'الحالة': d.isActive ? 'نشط' : 'غير نشط',
-        'يتحرك': d.isMoving ? 'نعم' : 'لا',
-        'النشاط': d.currentActivity || '',
+        'يتحرك': isDriverActuallyMoving(d) ? 'نعم' : 'لا',
+        'النشاط': getDriverActivity(d),
         'السرعة كم/س': ((d.speed || 0) * 3.6).toFixed(1),
         'الدقة م': (d.accuracy || 0).toFixed(0),
         'الإصدار': d.appVersion || 'غير معروف',
