@@ -4,503 +4,679 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إدارة التتبع - نظام إدارة التاكسي</title>
-    
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --primary: #1a1a2e;
+            --secondary: #16213e;
+            --accent: #0f3460;
+            --green: #10b981;
+            --red: #ef4444;
+            --yellow: #f59e0b;
+            --blue: #3b82f6;
+            --purple: #8b5cf6;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --card-bg: rgba(255,255,255,0.05);
+            --border: rgba(255,255,255,0.1);
+            --shadow: 0 4px 24px rgba(0,0,0,0.4);
         }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f5f5;
-            direction: rtl;
+            background: var(--primary);
+            color: var(--text);
+            min-height: 100vh;
         }
-        
+
+        /* ===== HEADER ===== */
         .header {
-            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
-            color: white;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            padding: 0 24px;
+            height: 60px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            position: sticky; top: 0; z-index: 100;
         }
-        
-        .header h1 {
-            font-size: 24px;
-            margin-bottom: 10px;
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-logo {
+            width: 38px; height: 38px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
         }
-        
-        .header p {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-        
-        .nav-buttons {
-            margin-top: 15px;
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        .nav-btn {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            padding: 8px 16px;
-            border: none;
-            border-radius: 6px;
+        .header-title h1 { font-size: 16px; font-weight: 700; color: white; }
+        .header-title p { font-size: 11px; color: var(--text-muted); }
+        .header-right { display: flex; align-items: center; gap: 8px; }
+        .header-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 7px 14px;
+            border-radius: 8px;
             cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
             text-decoration: none;
-            font-size: 14px;
-            transition: background 0.3s;
+            display: inline-flex; align-items: center; gap: 5px;
         }
-        
-        .nav-btn:hover {
-            background: rgba(255,255,255,0.3);
+        .header-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); }
+        .header-btn.danger { border-color: rgba(239,68,68,0.4); color: #fca5a5; }
+        .header-btn.danger:hover { background: rgba(239,68,68,0.15); }
+        .version-badge { font-size: 11px; color: var(--text-muted); background: var(--card-bg); border: 1px solid var(--border); padding: 4px 8px; border-radius: 6px; }
+
+        /* ===== PAGE CONTENT ===== */
+        .page-content { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+        /* ===== STATS GRID ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 14px;
+            margin-bottom: 24px;
         }
-        
-        .container {
-            max-width: 1200px;
-            margin: 30px auto;
-            padding: 0 20px;
+        .stat-card {
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            display: flex; align-items: center; gap: 14px;
+            transition: all 0.2s;
         }
-        
+        .stat-card:hover { border-color: rgba(255,255,255,0.2); transform: translateY(-2px); box-shadow: var(--shadow); }
+        .stat-icon-box {
+            width: 48px; height: 48px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; flex-shrink: 0;
+        }
+        .stat-icon-box.green { background: rgba(16,185,129,0.15); }
+        .stat-icon-box.red { background: rgba(239,68,68,0.15); }
+        .stat-icon-box.yellow { background: rgba(245,158,11,0.15); }
+        .stat-icon-box.blue { background: rgba(59,130,246,0.15); }
+        .stat-icon-box.purple { background: rgba(139,92,246,0.15); }
+        .stat-info { flex: 1; }
+        .stat-value { font-size: 26px; font-weight: 700; line-height: 1; }
+        .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+        .stat-card.green .stat-value { color: var(--green); }
+        .stat-card.red .stat-value { color: var(--red); }
+        .stat-card.yellow .stat-value { color: var(--yellow); }
+        .stat-card.blue .stat-value { color: var(--blue); }
+        .stat-card.purple .stat-value { color: var(--purple); }
+
+        /* ===== ACTIONS BAR ===== */
         .actions-bar {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            display: flex;
-            gap: 10px;
-            justify-content: space-between;
-            align-items: center;
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 16px;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
             flex-wrap: wrap;
         }
-        
-        .action-btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
+        .actions-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .search-input {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            width: 220px;
+            transition: all 0.2s;
+        }
+        .search-input::placeholder { color: var(--text-muted); }
+        .search-input:focus { outline: none; border-color: rgba(59,130,246,0.5); }
+        .filter-select {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: all 0.3s;
         }
-        
-        .btn-refresh {
-            background: #3b82f6;
-            color: white;
-        }
-        
-        .btn-refresh:hover {
-            background: #2563eb;
-        }
-        
-        .btn-delete-all {
-            background: #dc2626;
-            color: white;
-        }
-        
-        .btn-delete-all:hover {
-            background: #991b1b;
-        }
-        
-        .stats {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        
-        .stat-badge {
-            background: #f3f4f6;
+        .filter-select option { background: var(--secondary); }
+        .action-btn {
             padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: bold;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: inline-flex; align-items: center; gap: 6px;
         }
-        
-        .drivers-table {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        .btn-refresh { background: rgba(59,130,246,0.15); color: var(--blue); border-color: rgba(59,130,246,0.3); }
+        .btn-refresh:hover { background: rgba(59,130,246,0.3); }
+        .btn-export { background: rgba(16,185,129,0.15); color: var(--green); border-color: rgba(16,185,129,0.3); }
+        .btn-export:hover { background: rgba(16,185,129,0.3); }
+        .btn-delete-all { background: rgba(239,68,68,0.15); color: var(--red); border-color: rgba(239,68,68,0.3); }
+        .btn-delete-all:hover { background: rgba(239,68,68,0.3); }
+        .results-count { font-size: 13px; color: var(--text-muted); }
+
+        /* ===== TABLE ===== */
+        .table-container {
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            border-radius: 14px;
             overflow: hidden;
         }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
+        .table-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
         }
-        
-        thead {
-            background: #f9fafb;
+        .table-title { font-size: 15px; font-weight: 600; }
+        .live-badge {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(16,185,129,0.1);
+            border: 1px solid rgba(16,185,129,0.3);
+            padding: 4px 10px; border-radius: 20px;
+            font-size: 11px; color: var(--green);
         }
-        
-        th {
-            padding: 15px;
+        .live-dot { width: 7px; height: 7px; background: var(--green); border-radius: 50%; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+
+        /* Desktop Table */
+        .desktop-table { width: 100%; border-collapse: collapse; }
+        .desktop-table thead { background: rgba(0,0,0,0.3); }
+        .desktop-table th {
+            padding: 12px 16px;
             text-align: right;
-            font-weight: bold;
-            color: #374151;
-            border-bottom: 2px solid #e5e7eb;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
         }
-        
-        td {
-            padding: 15px;
-            border-bottom: 1px solid #e5e7eb;
+        .desktop-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 13px;
+            vertical-align: middle;
         }
-        
-        tbody tr:hover {
-            background: #f9fafb;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
+        .desktop-table tbody tr { transition: background 0.15s; }
+        .desktop-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+        .desktop-table tbody tr:last-child td { border-bottom: none; }
+
+        /* Mobile Cards */
+        .mobile-cards { display: none; padding: 12px; }
+        .mobile-driver-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
             border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
+            padding: 14px;
+            margin-bottom: 10px;
         }
-        
-        .status-online {
-            background: #d1fae5;
-            color: #065f46;
+        .mobile-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .mobile-card-name { font-size: 14px; font-weight: 600; }
+        .mobile-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .mobile-card-item { background: rgba(0,0,0,0.2); border-radius: 6px; padding: 7px 9px; }
+        .mobile-card-label { font-size: 10px; color: var(--text-muted); }
+        .mobile-card-value { font-size: 13px; font-weight: 600; margin-top: 2px; }
+        .mobile-card-actions { display: flex; gap: 8px; }
+        .mobile-card-actions button { flex: 1; }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 10px; border-radius: 20px;
+            font-size: 11px; font-weight: 600;
         }
-        
-        .status-offline {
-            background: #fee2e2;
-            color: #991b1b;
+        .status-online { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+        .status-offline { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+
+        /* Speed Badge */
+        .speed-badge { display: inline-block; padding: 3px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; }
+        .speed-slow { background: rgba(16,185,129,0.15); color: var(--green); }
+        .speed-medium { background: rgba(245,158,11,0.15); color: var(--yellow); }
+        .speed-fast { background: rgba(239,68,68,0.15); color: var(--red); }
+
+        /* Version Badge */
+        .ver-ok { color: var(--green); font-size: 12px; }
+        .ver-old { color: var(--yellow); font-size: 12px; }
+
+        /* Activity Badge */
+        .activity-badge { display: inline-block; padding: 3px 8px; border-radius: 8px; font-size: 11px; background: rgba(59,130,246,0.1); color: var(--blue); }
+
+        /* Action Buttons */
+        .btn-view { background: rgba(59,130,246,0.15); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+        .btn-view:hover { background: rgba(59,130,246,0.3); }
+        .btn-delete { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+        .btn-delete:hover { background: rgba(239,68,68,0.3); }
+
+        /* Loading / Empty */
+        .loading-state, .empty-state {
+            text-align: center; padding: 60px 20px; color: var(--text-muted);
         }
-        
-        .btn-delete {
-            background: #dc2626;
-            color: white;
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: background 0.3s;
+        .loading-spinner {
+            width: 40px; height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
         }
-        
-        .btn-delete:hover {
-            background: #991b1b;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #6b7280;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #6b7280;
-        }
-        
-        .empty-state-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
-        }
-        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-icon { font-size: 56px; margin-bottom: 14px; }
+
+        /* Coord text */
+        .coord-text { font-size: 11px; color: var(--text-muted); font-family: monospace; }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1100px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 768px) {
-            .actions-bar {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            
-            .stats {
-                justify-content: center;
-            }
-            
-            table {
-                font-size: 12px;
-            }
-            
-            th, td {
-                padding: 10px 5px;
-            }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .desktop-table { display: none; }
+            .mobile-cards { display: block; }
+            .header { padding: 0 14px; }
+            .header-title p { display: none; }
+            .version-badge { display: none; }
+            .page-content { padding: 14px; }
+            .search-input { width: 100%; }
+            .actions-bar { flex-direction: column; align-items: stretch; }
+            .actions-left { flex-wrap: wrap; }
         }
+        @media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🗑️ إدارة التتبع</h1>
-        <p>إدارة بيانات تتبع السائقين - حذف وتنظيف البيانات</p>
-        <div class="nav-buttons">
-            <a href="tracking.html" class="nav-btn">📍 صفحة التتبع</a>
-            <a href="admin-dashboard.html" class="nav-btn">🏠 الرئيسية</a>
-            <button class="nav-btn" onclick="logout()">تسجيل الخروج</button>
+
+<!-- HEADER -->
+<div class="header">
+    <div class="header-left">
+        <div class="header-logo">⚙️</div>
+        <div class="header-title">
+            <h1>إدارة التتبع</h1>
+            <p>مراقبة وإدارة بيانات السائقين</p>
+        </div>
+    </div>
+    <div class="header-right">
+        <span class="version-badge">v3.3</span>
+        <a href="tracking.html" class="header-btn">📍 خريطة التتبع</a>
+        <a href="admin-dashboard.html" class="header-btn">🏠 الرئيسية</a>
+        <button class="header-btn danger" onclick="logout()">🚪 خروج</button>
+    </div>
+</div>
+
+<div class="page-content">
+
+    <!-- STATS GRID -->
+    <div class="stats-grid">
+        <div class="stat-card green">
+            <div class="stat-icon-box green">🟢</div>
+            <div class="stat-info">
+                <div class="stat-value" id="activeCount">0</div>
+                <div class="stat-label">سائقين نشطين</div>
+            </div>
+        </div>
+        <div class="stat-card red">
+            <div class="stat-icon-box red">🔴</div>
+            <div class="stat-info">
+                <div class="stat-value" id="inactiveCount">0</div>
+                <div class="stat-label">غير نشطين</div>
+            </div>
+        </div>
+        <div class="stat-card blue">
+            <div class="stat-icon-box blue">🚗</div>
+            <div class="stat-info">
+                <div class="stat-value" id="movingCount">0</div>
+                <div class="stat-label">يتحركون الآن</div>
+            </div>
+        </div>
+        <div class="stat-card yellow">
+            <div class="stat-icon-box yellow">⚠️</div>
+            <div class="stat-info">
+                <div class="stat-value" id="oldVersionCount">0</div>
+                <div class="stat-label">إصدار قديم</div>
+            </div>
+        </div>
+        <div class="stat-card purple">
+            <div class="stat-icon-box purple">📊</div>
+            <div class="stat-info">
+                <div class="stat-value" id="totalCount">0</div>
+                <div class="stat-label">إجمالي السائقين</div>
+            </div>
         </div>
     </div>
 
-    <div class="container">
-        <div class="actions-bar">
-            <div class="stats">
-                <div class="stat-badge">
-                    📊 إجمالي السائقين: <span id="totalCount">0</span>
-                </div>
-                <div class="stat-badge">
-                    🟢 نشط: <span id="activeCount">0</span>
-                </div>
-                <div class="stat-badge">
-                    🔴 غير نشط: <span id="inactiveCount">0</span>
-                </div>
-            </div>
-            <div style="display: flex; gap: 10px;">
-                <button class="action-btn btn-refresh" onclick="loadDrivers()">
-                    🔄 تحديث
-                </button>
-                <button class="action-btn btn-delete-all" onclick="deleteAllDrivers()">
-                    🗑️ مسح الكل
-                </button>
-            </div>
+    <!-- ACTIONS BAR -->
+    <div class="actions-bar">
+        <div class="actions-left">
+            <input type="text" class="search-input" id="searchInput" placeholder="🔍 ابحث عن سائق..." oninput="filterTable()">
+            <select class="filter-select" id="statusFilter" onchange="filterTable()">
+                <option value="all">جميع الحالات</option>
+                <option value="active">نشط فقط</option>
+                <option value="inactive">غير نشط فقط</option>
+                <option value="moving">يتحرك الآن</option>
+                <option value="old-version">إصدار قديم</option>
+            </select>
+            <span class="results-count" id="resultsCount">0 سائق</span>
         </div>
-
-        <div class="drivers-table">
-            <div id="loading" class="loading">
-                <p>⏳ جاري تحميل البيانات...</p>
-            </div>
-            
-            <div id="emptyState" class="empty-state" style="display: none;">
-                <div class="empty-state-icon">📭</div>
-                <h3>لا توجد بيانات تتبع</h3>
-                <p>لم يتم العثور على أي سائقين في نظام التتبع</p>
-            </div>
-            
-            <table id="driversTable" style="display: none;">
-                <thead>
-                    <tr>
-                        <th>الرقم الوظيفي</th>
-                        <th>اسم السائق</th>
-                        <th>آخر موقع</th>
-                        <th>السرعة</th>
-                        <th>الدقة</th>
-                        <th>آخر تحديث</th>
-                        <th>الحالة</th>
-                        <th>الإجراءات</th>
-                    </tr>
-                </thead>
-                <tbody id="driversTableBody">
-                </tbody>
-            </table>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="action-btn btn-refresh" onclick="loadDrivers()">🔄 تحديث</button>
+            <button class="action-btn btn-export" onclick="exportCSV()">📥 تصدير CSV</button>
+            <button class="action-btn btn-delete-all" onclick="deleteAllDrivers()">🗑️ مسح الكل</button>
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-        import { getFirestore, collection, getDocs, deleteDoc, doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+    <!-- TABLE CONTAINER -->
+    <div class="table-container">
+        <div class="table-header">
+            <span class="table-title">بيانات السائقين المتتبعين</span>
+            <div class="live-badge">
+                <div class="live-dot"></div>
+                تحديث مباشر
+            </div>
+        </div>
 
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
-            authDomain: "taxi-management-system-d8210.firebaseapp.com",
-            projectId: "taxi-management-system-d8210",
-            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
-            messagingSenderId: "720874424166",
-            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
-            measurementId: "G-GY8820W410"
-        };
+        <!-- Loading -->
+        <div id="loadingState" class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>جاري تحميل البيانات...</p>
+        </div>
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        <!-- Empty -->
+        <div id="emptyState" class="empty-state" style="display:none;">
+            <div class="empty-icon">📭</div>
+            <h3 style="margin-bottom:8px;">لا توجد بيانات تتبع</h3>
+            <p>لم يتم العثور على أي سائقين في نظام التتبع</p>
+        </div>
 
-        let driversInfo = {};
-        let driversData = [];
+        <!-- Desktop Table -->
+        <table class="desktop-table" id="driversTable" style="display:none;">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>الرقم الوظيفي</th>
+                    <th>اسم السائق</th>
+                    <th>الحالة</th>
+                    <th>النشاط</th>
+                    <th>السرعة</th>
+                    <th>الدقة</th>
+                    <th>الإصدار</th>
+                    <th>آخر موقع</th>
+                    <th>آخر تحديث</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="driversTableBody"></tbody>
+        </table>
 
-        // Load drivers info
-        function loadDriversInfo() {
-            const driversRef = collection(db, 'drivers');
-            onSnapshot(driversRef, (snapshot) => {
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    driversInfo[data.employeeId] = {
-                        name: data.name,
-                        employeeId: data.employeeId,
-                        phone: data.phone
-                    };
-                });
-                console.log('Drivers info loaded:', driversInfo);
-            });
-        }
+        <!-- Mobile Cards -->
+        <div class="mobile-cards" id="mobileCards" style="display:none;"></div>
+    </div>
 
-        // Get driver name
-        function getDriverName(driverId) {
-            if (driversInfo[driverId]) {
-                return driversInfo[driverId].name;
-            }
-            return 'غير معروف';
-        }
+</div>
 
-        // Load drivers from tracking with real-time updates
-        function loadDrivers() {
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('emptyState').style.display = 'none';
-            document.getElementById('driversTable').style.display = 'none';
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+import { getFirestore, collection, onSnapshot, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 
-            try {
-                console.log('🔊 بدء الاستماع للتحديثات في الوقت الفعلي...');
-                
-                // Setup real-time listener for drivers collection
-                const driversRef = collection(db, 'drivers');
-                onSnapshot(driversRef, (snapshot) => {
-                    driversData = [];
-                    
-                    snapshot.forEach((doc) => {
-                        const data = doc.data();
-                        // Only include drivers with location data
-                        if (data.location && data.location.latitude && data.location.longitude) {
-                            driversData.push({
-                                id: doc.id,
-                                driverId: doc.id, // Use document ID as driverId
-                                latitude: data.location.latitude,
-                                longitude: data.location.longitude,
-                                speed: data.location.speed || 0,
-                                accuracy: data.location.accuracy || 0,
-                                localTime: data.lastUpdate ? (data.lastUpdate.toDate ? data.lastUpdate.toDate().toISOString() : data.lastUpdate) : new Date().toISOString(),
-                                isActive: data.isActive || false,
-                                ...data
-                            });
-                        }
-                    });
+const firebaseConfig = {
+    apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+    authDomain: "taxi-management-system-d8210.firebaseapp.com",
+    projectId: "taxi-management-system-d8210",
+    storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+    messagingSenderId: "720874424166",
+    appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+    measurementId: "G-GY8820W410"
+};
 
-                    console.log(`✅ تم تحديث بيانات ${driversData.length} سائق`);
-                    displayDrivers();
-                    document.getElementById('loading').style.display = 'none';
-                }, (error) => {
-                    console.error('Error loading drivers:', error);
-                    alert('حدث خطأ أثناء تحميل البيانات');
-                    document.getElementById('loading').style.display = 'none';
-                });
-            } catch (error) {
-                console.error('Error setting up listener:', error);
-                alert('حدث خطأ أثناء إعداد الاستماع');
-                document.getElementById('loading').style.display = 'none';
-            }
-        }
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-        // Display drivers in table
-        function displayDrivers() {
-            const tbody = document.getElementById('driversTableBody');
-            tbody.innerHTML = '';
+const userRole = localStorage.getItem('userRole');
+if (!userRole || (userRole !== 'admin' && userRole !== 'owner')) {
+    onAuthStateChanged(auth, (user) => { if (!user) window.location.href = 'index.html'; });
+}
 
-            if (driversData.length === 0) {
-                document.getElementById('emptyState').style.display = 'block';
-                document.getElementById('driversTable').style.display = 'none';
-                updateStats(0, 0, 0);
-                return;
-            }
+const CURRENT_APP_VERSION = '2.3.7';
+let allDriversData = [];
+let driversInfoMap = {};
 
-            document.getElementById('driversTable').style.display = 'table';
-            
-            let activeCount = 0;
-            let inactiveCount = 0;
+const activityLabels = { 'in_vehicle': '🚗 يقود', 'still': '🅿️ متوقف', 'walking': '🚶 يمشي', 'unknown': '❓ غير معروف' };
 
-            driversData.forEach((driver) => {
-                const lastUpdate = new Date(driver.localTime);
-                const isOnline = driver.isActive || false; // Use isActive from Firestore
+function getDriverName(driverId) {
+    if (driversInfoMap[driverId]) return driversInfoMap[driverId].name || driverId;
+    return driverId;
+}
 
-                if (isOnline) activeCount++;
-                else inactiveCount++;
+function formatTime(timestamp) {
+    if (!timestamp) return '—';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const now = new Date();
+    const diff = Math.floor((now - date) / 60000);
+    if (diff < 1) return '<span style="color:var(--green)">الآن</span>';
+    if (diff < 60) return `منذ ${diff} د`;
+    if (diff < 1440) return `منذ ${Math.floor(diff/60)} س`;
+    return date.toLocaleDateString('ar-SA');
+}
 
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td><strong>${driver.driverId}</strong></td>
-                    <td>${getDriverName(driver.driverId)}</td>
-                    <td style="font-size: 11px;">
-                        ${driver.latitude.toFixed(6)}, ${driver.longitude.toFixed(6)}
-                    </td>
-                    <td>${(driver.speed * 3.6).toFixed(1)} كم/س</td>
-                    <td>${driver.accuracy.toFixed(0)} م</td>
-                    <td>${lastUpdate.toLocaleString('ar-SA')}</td>
-                    <td>
-                        <span class="status-badge ${isOnline ? 'status-online' : 'status-offline'}">
-                            ${isOnline ? '🟢 نشط' : '🔴 غير نشط'}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn-delete" onclick="window.deleteDriver('${driver.id}', '${driver.driverId}')">
-                            🗑️ مسح
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
+function getSpeedClass(kmh) { return kmh < 20 ? 'slow' : kmh < 80 ? 'medium' : 'fast'; }
 
-            updateStats(driversData.length, activeCount, inactiveCount);
-        }
+function renderTable(data) {
+    const tbody = document.getElementById('driversTableBody');
+    const mobileCards = document.getElementById('mobileCards');
+    tbody.innerHTML = '';
+    mobileCards.innerHTML = '';
 
-        // Update stats
-        function updateStats(total, active, inactive) {
-            document.getElementById('totalCount').textContent = total;
-            document.getElementById('activeCount').textContent = active;
-            document.getElementById('inactiveCount').textContent = inactive;
-        }
+    if (data.length === 0) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'block';
+        document.getElementById('driversTable').style.display = 'none';
+        document.getElementById('mobileCards').style.display = 'none';
+        return;
+    }
 
-        // Delete single driver
-        window.deleteDriver = async function(docId, driverId) {
-            if (!confirm(`هل أنت متأكد من حذف بيانات السائق ${driverId}؟\n\nسيتم حذف جميع بيانات التتبع الخاصة به.`)) {
-                return;
-            }
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('driversTable').style.display = 'table';
+    document.getElementById('mobileCards').style.display = 'block';
 
-            try {
-                await deleteDoc(doc(db, 'driverLocations', docId));
-                alert('✅ تم حذف بيانات السائق بنجاح');
-                loadDrivers();
-            } catch (error) {
-                console.error('Error deleting driver:', error);
-                alert('❌ حدث خطأ أثناء الحذف');
-            }
-        };
+    data.forEach((driver, index) => {
+        const speedKmh = ((driver.speed || 0) * 3.6).toFixed(1);
+        const speedClass = getSpeedClass(parseFloat(speedKmh));
+        const isLatest = (driver.appVersion || '') === CURRENT_APP_VERSION;
+        const activity = activityLabels[driver.currentActivity || 'unknown'] || '—';
+        const lat = driver.location?.latitude || driver.latitude || 0;
+        const lng = driver.location?.longitude || driver.longitude || 0;
 
-        // Delete all drivers
-        window.deleteAllDrivers = async function() {
-            if (driversData.length === 0) {
-                alert('لا توجد بيانات للحذف');
-                return;
-            }
+        // Desktop Row
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="color:var(--text-muted);font-size:12px;">${index + 1}</td>
+            <td style="font-weight:600;">${driver.driverId}</td>
+            <td>${getDriverName(driver.driverId)}</td>
+            <td><span class="status-badge ${driver.isActive ? 'status-online' : 'status-offline'}">${driver.isActive ? '🟢 نشط' : '🔴 غير نشط'}</span></td>
+            <td><span class="activity-badge">${activity}</span></td>
+            <td><span class="speed-badge speed-${speedClass}">${speedKmh} كم/س</span></td>
+            <td style="color:var(--text-muted);">${(driver.accuracy || 0).toFixed(0)} م</td>
+            <td><span class="${isLatest ? 'ver-ok' : 'ver-old'}">${isLatest ? '✅' : '⚠️'} ${driver.appVersion || 'غير معروف'}</span></td>
+            <td class="coord-text">${lat.toFixed(4)}, ${lng.toFixed(4)}</td>
+            <td style="font-size:12px;color:var(--text-muted);">${formatTime(driver.lastUpdate)}</td>
+            <td>
+                <div style="display:flex;gap:6px;">
+                    <button class="btn-view" onclick="viewDriver('${driver.driverId}')">👁 عرض</button>
+                    <button class="btn-delete" onclick="deleteDriver('${driver.driverId}')">🗑</button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
 
-            if (!confirm(`⚠️ تحذير!\n\nهل أنت متأكد من حذف جميع بيانات التتبع؟\n\nسيتم حذف ${driversData.length} سائق\n\nهذا الإجراء لا يمكن التراجع عنه!`)) {
-                return;
-            }
+        // Mobile Card
+        const card = document.createElement('div');
+        card.className = 'mobile-driver-card';
+        card.innerHTML = `
+            <div class="mobile-card-header">
+                <div>
+                    <div class="mobile-card-name">${getDriverName(driver.driverId)}</div>
+                    <div style="font-size:11px;color:var(--text-muted);">${driver.driverId}</div>
+                </div>
+                <span class="status-badge ${driver.isActive ? 'status-online' : 'status-offline'}">${driver.isActive ? '🟢 نشط' : '🔴 غير نشط'}</span>
+            </div>
+            <div class="mobile-card-grid">
+                <div class="mobile-card-item">
+                    <div class="mobile-card-label">السرعة</div>
+                    <div class="mobile-card-value"><span class="speed-badge speed-${speedClass}">${speedKmh} كم/س</span></div>
+                </div>
+                <div class="mobile-card-item">
+                    <div class="mobile-card-label">الدقة</div>
+                    <div class="mobile-card-value">${(driver.accuracy || 0).toFixed(0)} م</div>
+                </div>
+                <div class="mobile-card-item">
+                    <div class="mobile-card-label">النشاط</div>
+                    <div class="mobile-card-value" style="font-size:12px;">${activity}</div>
+                </div>
+                <div class="mobile-card-item">
+                    <div class="mobile-card-label">الإصدار</div>
+                    <div class="mobile-card-value"><span class="${isLatest ? 'ver-ok' : 'ver-old'}">${isLatest ? '✅' : '⚠️'} ${driver.appVersion || '?'}</span></div>
+                </div>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">⏱ آخر تحديث: ${formatTime(driver.lastUpdate)}</div>
+            <div class="mobile-card-actions">
+                <button class="btn-view" onclick="viewDriver('${driver.driverId}')">👁 عرض التفاصيل</button>
+                <button class="btn-delete" onclick="deleteDriver('${driver.driverId}')">🗑 حذف</button>
+            </div>
+        `;
+        mobileCards.appendChild(card);
+    });
 
-            if (!confirm('تأكيد نهائي: هل أنت متأكد 100%؟')) {
-                return;
-            }
+    document.getElementById('resultsCount').textContent = `${data.length} سائق`;
+}
 
-            try {
-                const deletePromises = driversData.map(driver => 
-                    deleteDoc(doc(db, 'driverLocations', driver.id))
-                );
-                
-                await Promise.all(deletePromises);
-                alert('✅ تم حذف جميع بيانات التتبع بنجاح');
-                loadDrivers();
-            } catch (error) {
-                console.error('Error deleting all drivers:', error);
-                alert('❌ حدث خطأ أثناء الحذف');
-            }
-        };
+function applyFilters() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+    let filtered = allDriversData.filter(d => {
+        const name = getDriverName(d.driverId).toLowerCase();
+        const matchSearch = name.includes(search) || d.driverId.toLowerCase().includes(search);
+        if (!matchSearch) return false;
+        if (statusFilter === 'active') return d.isActive;
+        if (statusFilter === 'inactive') return !d.isActive;
+        if (statusFilter === 'moving') return d.isMoving;
+        if (statusFilter === 'old-version') return (d.appVersion || '') !== CURRENT_APP_VERSION;
+        return true;
+    });
+    renderTable(filtered);
+}
 
-        // Logout
-        window.logout = function() {
-            if (confirm('هل تريد تسجيل الخروج؟')) {
-                sessionStorage.clear();
-                localStorage.clear();
-                window.location.href = 'index.html';
-            }
-        };
+function updateStats() {
+    const active = allDriversData.filter(d => d.isActive).length;
+    const inactive = allDriversData.filter(d => !d.isActive).length;
+    const moving = allDriversData.filter(d => d.isMoving).length;
+    const oldVer = allDriversData.filter(d => (d.appVersion || '') !== CURRENT_APP_VERSION).length;
+    document.getElementById('totalCount').textContent = allDriversData.length;
+    document.getElementById('activeCount').textContent = active;
+    document.getElementById('inactiveCount').textContent = inactive;
+    document.getElementById('movingCount').textContent = moving;
+    document.getElementById('oldVersionCount').textContent = oldVer;
+}
 
-        // Initialize
-        window.addEventListener('load', () => {
-            loadDriversInfo();
-            loadDrivers();
+function loadDrivers() {
+    document.getElementById('loadingState').style.display = 'block';
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('driversTable').style.display = 'none';
+    document.getElementById('mobileCards').style.display = 'none';
+
+    // Load drivers info
+    onSnapshot(collection(db, 'drivers'), (snapshot) => {
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const key = data.employeeNumber || doc.id;
+            driversInfoMap[key] = { name: data.name || doc.id };
         });
+    });
 
-        // Make loadDrivers global
-        window.loadDrivers = loadDrivers;
-    </script>
+    // Load tracking data
+    onSnapshot(collection(db, 'drivers'), (snapshot) => {
+        allDriversData = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            allDriversData.push({ driverId: doc.id, ...data });
+        });
+        // Sort: active first
+        allDriversData.sort((a, b) => {
+            if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+            return 0;
+        });
+        updateStats();
+        applyFilters();
+    });
+}
+
+window.filterTable = applyFilters;
+
+window.viewDriver = function(driverId) {
+    window.location.href = `driver-details.html?id=${driverId}`;
+};
+
+window.deleteDriver = async function(driverId) {
+    if (!confirm(`هل أنت متأكد من حذف بيانات السائق ${driverId}؟`)) return;
+    try {
+        await deleteDoc(doc(db, 'drivers', driverId));
+        allDriversData = allDriversData.filter(d => d.driverId !== driverId);
+        updateStats();
+        applyFilters();
+    } catch (e) {
+        alert('خطأ في الحذف: ' + e.message);
+    }
+};
+
+window.deleteAllDrivers = async function() {
+    if (!confirm('⚠️ هل أنت متأكد من حذف جميع بيانات التتبع؟\nهذا الإجراء لا يمكن التراجع عنه!')) return;
+    if (!confirm('تأكيد نهائي: سيتم حذف جميع بيانات السائقين من نظام التتبع.')) return;
+    try {
+        const promises = allDriversData.map(d => deleteDoc(doc(db, 'drivers', d.driverId)));
+        await Promise.all(promises);
+        allDriversData = [];
+        updateStats();
+        applyFilters();
+        alert('✅ تم حذف جميع البيانات بنجاح');
+    } catch (e) {
+        alert('خطأ في الحذف: ' + e.message);
+    }
+};
+
+window.exportCSV = function() {
+    if (allDriversData.length === 0) { alert('لا توجد بيانات للتصدير'); return; }
+    const rows = allDriversData.map(d => ({
+        'الرقم الوظيفي': d.driverId,
+        'الاسم': getDriverName(d.driverId),
+        'الحالة': d.isActive ? 'نشط' : 'غير نشط',
+        'يتحرك': d.isMoving ? 'نعم' : 'لا',
+        'النشاط': d.currentActivity || '',
+        'السرعة كم/س': ((d.speed || 0) * 3.6).toFixed(1),
+        'الدقة م': (d.accuracy || 0).toFixed(0),
+        'الإصدار': d.appVersion || 'غير معروف',
+        'خط العرض': (d.location?.latitude || d.latitude || 0).toFixed(6),
+        'خط الطول': (d.location?.longitude || d.longitude || 0).toFixed(6),
+    }));
+    let csv = '\uFEFF' + Object.keys(rows[0]).join(',') + '\n';
+    rows.forEach(r => { csv += Object.values(r).join(',') + '\n'; });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `tracking_management_${new Date().toISOString().slice(0,10)}.csv`;
+    link.click();
+};
+
+window.loadDrivers = loadDrivers;
+
+window.logout = function() {
+    if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+        localStorage.removeItem('userRole');
+        window.location.href = 'index.html';
+    }
+};
+
+window.addEventListener('load', loadDrivers);
+</script>
 </body>
 </html>
-

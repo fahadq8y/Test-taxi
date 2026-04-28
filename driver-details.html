@@ -2,1589 +2,949 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تفاصيل السائق</title>
-    
-    <!-- Leaflet CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>تفاصيل السائق - نظام إدارة التاكسي</title>
+    <meta name="theme-color" content="#1a1a2e">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --primary: #1a1a2e;
+            --secondary: #16213e;
+            --accent: #0f3460;
+            --green: #10b981;
+            --red: #ef4444;
+            --yellow: #f59e0b;
+            --blue: #3b82f6;
+            --purple: #8b5cf6;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --card-bg: rgba(255,255,255,0.05);
+            --border: rgba(255,255,255,0.1);
+            --shadow: 0 4px 24px rgba(0,0,0,0.4);
         }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f5f5;
+            background: var(--primary);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
         }
-        
+
+        /* ===== HEADER ===== */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .header-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .header h1 {
-            font-size: 24px;
-        }
-        
-        .back-btn {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 2px solid white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-block;
-        }
-        
-        .back-btn:hover {
-            background: white;
-            color: #667eea;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 20px auto;
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
             padding: 0 20px;
+            height: 60px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            flex-shrink: 0; z-index: 200;
         }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .driver-avatar {
+            width: 38px; height: 38px;
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; flex-shrink: 0;
         }
-        
-        .stat-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        
-        .stat-card .icon {
-            font-size: 36px;
-            margin-bottom: 10px;
-        }
-        
-        .stat-card .label {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 5px;
-        }
-        
-        .stat-card .value {
-            font-size: 28px;
-            font-weight: bold;
-            color: #333;
-        }
-        
-        .stat-card.online .value {
-            color: #28a745;
-        }
-        
-        .stat-card.offline .value {
-            color: #dc3545;
-        }
-        
-        .content-grid {
-            display: grid;
-            grid-template-columns: 1fr 400px;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .map-section {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            position: relative;
-        }
-        
-        .map-section h2 {
-            margin-bottom: 15px;
-            color: #333;
-        }
-        
-        #map {
-            width: 100%;
-            height: 500px;
+        .header-title h1 { font-size: 15px; font-weight: 700; color: white; }
+        .header-title p { font-size: 11px; color: var(--text-muted); }
+        .header-right { display: flex; align-items: center; gap: 6px; }
+        .header-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 6px 12px;
             border-radius: 8px;
-        }
-        
-        .timeline-section {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            max-height: 600px;
-            overflow-y: auto;
-        }
-        
-        .timeline-section h2 {
-            margin-bottom: 15px;
-            color: #333;
-            position: sticky;
-            top: 0;
-            background: white;
-            padding-bottom: 10px;
-            z-index: 10;
-        }
-        
-        .timeline-item {
-            padding: 15px;
-            border-right: 3px solid #667eea;
-            margin-bottom: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            position: relative;
-        }
-        
-        .timeline-item::before {
-            content: '';
-            position: absolute;
-            right: -8px;
-            top: 20px;
-            width: 13px;
-            height: 13px;
-            background: #667eea;
-            border-radius: 50%;
-            border: 3px solid white;
-        }
-        
-        .timeline-item.moving {
-            border-right-color: #28a745;
-        }
-        
-        .timeline-item.moving::before {
-            background: #28a745;
-        }
-        
-        .timeline-item.stopped {
-            border-right-color: #ffc107;
-        }
-        
-        .timeline-item.stopped::before {
-            background: #ffc107;
-        }
-        
-        .timeline-time {
-            font-size: 16px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 8px;
-        }
-        
-        .timeline-status {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 5px;
-        }
-        
-        .timeline-details {
+            cursor: pointer;
             font-size: 12px;
-            color: #999;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex; align-items: center; gap: 5px;
         }
-        
-        .map-type-controls {
-            position: absolute;
-            top: 70px;
-            left: 30px;
-            z-index: 1000;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            padding: 10px;
+        .header-btn:hover { background: rgba(255,255,255,0.12); }
+        .header-btn.green { border-color: rgba(16,185,129,0.4); color: #6ee7b7; }
+        .header-btn.green:hover { background: rgba(16,185,129,0.15); }
+        .header-btn.blue { border-color: rgba(59,130,246,0.4); color: #93c5fd; }
+        .header-btn.blue:hover { background: rgba(59,130,246,0.15); }
+        .live-badge {
+            display: flex; align-items: center; gap: 5px;
+            background: rgba(16,185,129,0.1);
+            border: 1px solid rgba(16,185,129,0.3);
+            padding: 4px 10px; border-radius: 20px;
+            font-size: 11px; color: var(--green);
+        }
+        .live-dot { width: 7px; height: 7px; background: var(--green); border-radius: 50%; animation: blink 1.5s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        .version-tag { font-size: 10px; color: var(--text-muted); background: var(--card-bg); border: 1px solid var(--border); padding: 3px 7px; border-radius: 5px; }
+
+        /* ===== MAIN LAYOUT ===== */
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+
+        /* ===== LEFT PANEL ===== */
+        .left-panel {
+            width: 320px;
+            background: var(--secondary);
+            display: flex; flex-direction: column;
+            border-left: 1px solid var(--border);
+            flex-shrink: 0;
+            overflow: hidden;
+            transition: transform 0.3s;
+        }
+        .panel-tabs {
             display: flex;
-            gap: 10px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
         }
-        
-        .map-type-btn {
-            padding: 8px 16px;
-            border: 2px solid #ddd;
-            background: white;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: all 0.3s;
-            color: #666;
+        .panel-tab {
+            flex: 1; padding: 11px 6px;
+            text-align: center; font-size: 11px; font-weight: 600;
+            color: var(--text-muted); cursor: pointer;
+            border-bottom: 2px solid transparent; transition: all 0.2s;
         }
-        
-        .map-type-btn:hover {
-            background: #f0f0f0;
-            border-color: #667eea;
+        .panel-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+        .panel-tab:hover:not(.active) { color: var(--text); background: rgba(255,255,255,0.04); }
+        .panel-content { flex: 1; overflow-y: auto; padding: 14px; }
+        .panel-content::-webkit-scrollbar { width: 3px; }
+        .panel-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        /* ===== INFO CARDS ===== */
+        .section-title { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; margin-top: 14px; }
+        .section-title:first-child { margin-top: 0; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+        .info-card {
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 9px; padding: 10px 11px; transition: border-color 0.2s;
         }
-        
-        .map-type-btn.active {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
+        .info-card:hover { border-color: rgba(255,255,255,0.2); }
+        .ic-label { font-size: 10px; color: var(--text-muted); margin-bottom: 3px; }
+        .ic-value { font-size: 18px; font-weight: 700; }
+        .ic-sub { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+        .ic-blue .ic-value { color: var(--blue); }
+        .ic-green .ic-value { color: var(--green); }
+        .ic-yellow .ic-value { color: var(--yellow); }
+        .ic-purple .ic-value { color: var(--purple); }
+        .ic-red .ic-value { color: var(--red); }
+        .ic-full { grid-column: 1 / -1; }
+        .info-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 12px;
         }
-        
-        .filters {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+        .info-row:last-child { border-bottom: none; }
+        .ir-label { color: var(--text-muted); }
+        .ir-value { font-weight: 600; }
+
+        /* Battery */
+        .battery-bar { width: 100%; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 5px; }
+        .battery-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+
+        /* Status pill */
+        .status-pill {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 11px; border-radius: 20px; font-size: 12px; font-weight: 600;
         }
-        
-        .filters h3 {
-            margin-bottom: 15px;
-            color: #333;
+        .s-online { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+        .s-offline { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+        .s-dot { width: 6px; height: 6px; border-radius: 50%; }
+        .s-dot.on { background: var(--green); animation: blink 2s infinite; }
+        .s-dot.off { background: var(--red); }
+
+        /* Speed badge */
+        .spd { display: inline-block; padding: 2px 7px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+        .spd-slow { background: rgba(16,185,129,0.15); color: var(--green); }
+        .spd-med { background: rgba(245,158,11,0.15); color: var(--yellow); }
+        .spd-fast { background: rgba(239,68,68,0.15); color: var(--red); }
+
+        /* ===== TIMELINE ===== */
+        .filter-pills { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+        .pill {
+            padding: 4px 9px; background: var(--card-bg); border: 1px solid var(--border);
+            color: var(--text-muted); border-radius: 6px; cursor: pointer; font-size: 11px; transition: all 0.2s;
         }
-        
-        .filter-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
+        .pill.active { background: var(--accent); color: white; border-color: rgba(255,255,255,0.2); }
+        .pill:hover:not(.active) { background: rgba(255,255,255,0.08); }
+        .sort-row { display: flex; gap: 5px; margin-bottom: 10px; }
+        .sort-btn { flex: 1; padding: 5px 6px; background: var(--card-bg); border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; cursor: pointer; font-size: 10px; transition: all 0.2s; }
+        .sort-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+        .tl-item {
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 9px 11px; margin-bottom: 5px;
+            cursor: pointer; transition: all 0.15s;
         }
-        
-        .filter-btn {
-            padding: 8px 16px;
-            border: 2px solid #ddd;
-            background: white;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s;
+        .tl-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
+        .tl-item.hl { border-color: rgba(59,130,246,0.5); background: rgba(59,130,246,0.08); }
+        .tl-time { font-size: 10px; color: var(--text-muted); margin-bottom: 3px; }
+        .tl-row { display: flex; justify-content: space-between; align-items: center; }
+        .tl-coords { font-size: 10px; color: var(--text-muted); font-family: monospace; margin-top: 2px; }
+        .no-data { text-align: center; padding: 28px 14px; color: var(--text-muted); font-size: 12px; }
+
+        /* ===== MAP ===== */
+        .map-area { flex: 1; position: relative; background: #0a0a1a; }
+        #map { width: 100%; height: 100%; }
+
+        /* Map Controls */
+        .map-controls {
+            position: absolute; top: 12px; left: 12px; z-index: 1000;
+            display: flex; flex-direction: column; gap: 6px;
         }
-        
-        .filter-btn:hover {
-            border-color: #667eea;
+        .ctrl-group {
+            background: rgba(22,33,62,0.95); border: 1px solid var(--border);
+            border-radius: 10px; overflow: hidden; backdrop-filter: blur(10px); box-shadow: var(--shadow);
         }
-        
-        .filter-btn.active {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
+        .ctrl-btn {
+            display: flex; align-items: center; gap: 6px;
+            padding: 8px 13px; background: transparent; border: none;
+            color: var(--text-muted); cursor: pointer; font-size: 11px;
+            transition: all 0.2s; width: 100%;
+            border-bottom: 1px solid var(--border);
         }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-            font-size: 18px;
+        .ctrl-btn:last-child { border-bottom: none; }
+        .ctrl-btn:hover { background: rgba(255,255,255,0.08); color: white; }
+        .ctrl-btn.active { color: var(--blue); background: rgba(59,130,246,0.1); }
+
+        /* Replay Panel */
+        .replay-panel {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; background: rgba(22,33,62,0.97);
+            border: 1px solid var(--border); border-radius: 14px;
+            padding: 14px 18px; backdrop-filter: blur(10px); box-shadow: var(--shadow);
+            min-width: 340px; max-width: 90vw; display: none;
         }
-        
-        .no-data {
-            text-align: center;
-            padding: 40px;
-            color: #999;
+        .replay-panel.show { display: block; }
+        .rp-title { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+        .rp-controls { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
+        .rp-btn { padding: 7px 13px; border-radius: 8px; border: none; cursor: pointer; font-size: 12px; font-weight: 700; transition: all 0.2s; }
+        .rp-play { background: var(--green); color: white; }
+        .rp-play:hover { background: #059669; }
+        .rp-reset { background: var(--card-bg); border: 1px solid var(--border); color: var(--text-muted); }
+        .rp-reset:hover { background: rgba(255,255,255,0.1); }
+        .rp-speed { background: var(--card-bg); border: 1px solid var(--border); color: var(--text); padding: 6px 9px; border-radius: 7px; font-size: 12px; }
+        .rp-speed option { background: var(--secondary); }
+        .rp-slider { width: 100%; accent-color: var(--blue); cursor: pointer; margin-bottom: 8px; }
+        .rp-info { display: flex; gap: 14px; font-size: 11px; color: var(--text-muted); flex-wrap: wrap; }
+        .rp-info span { color: var(--text); font-weight: 600; }
+
+        /* Map Info Panel */
+        .map-info {
+            position: absolute; bottom: 20px; right: 20px; z-index: 1000;
+            background: rgba(22,33,62,0.95); border: 1px solid var(--border);
+            border-radius: 11px; padding: 11px 14px; backdrop-filter: blur(10px);
+            box-shadow: var(--shadow); font-size: 11px; color: var(--text-muted); min-width: 170px;
         }
-        
-        @media (max-width: 1024px) {
-            .content-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
+        .mi-row { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 3px; }
+        .mi-row:last-child { margin-bottom: 0; }
+        .mi-val { color: var(--text); font-weight: 600; }
+
+        /* Leaflet popup dark theme */
+        .leaflet-popup-content-wrapper { background: rgba(22,33,62,0.97) !important; border: 1px solid var(--border) !important; border-radius: 12px !important; box-shadow: var(--shadow) !important; color: var(--text) !important; }
+        .leaflet-popup-tip { background: rgba(22,33,62,0.97) !important; }
+        .leaflet-popup-content { margin: 11px 13px !important; }
+
+        /* ===== PRINT ===== */
+        @media print {
+            .header-right, .map-controls, .replay-panel, .map-info { display: none !important; }
+            body { overflow: visible; height: auto; }
+            .main-layout { flex-direction: column; overflow: visible; }
+            .left-panel { width: 100%; border: none; overflow: visible; }
+            .map-area { height: 400px; }
         }
-        
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 900px) { .left-panel { width: 280px; } }
         @media (max-width: 768px) {
-            .stats-grid {
-                grid-template-columns: 1fr;
+            .left-panel {
+                position: absolute; top: 0; right: 0; bottom: 0;
+                z-index: 500; transform: translateX(100%); width: 290px;
             }
-            
-            .header-content {
-                flex-direction: column;
-                gap: 15px;
+            .left-panel.open { transform: translateX(0); }
+            .panel-toggle-btn {
+                position: absolute; top: 12px; right: 12px; z-index: 600;
+                background: rgba(22,33,62,0.95); border: 1px solid var(--border);
+                color: var(--text); padding: 8px 11px; border-radius: 9px;
+                cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px;
+                backdrop-filter: blur(10px);
             }
-        }
-        
-        /* Pulse animation for markers */
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-                opacity: 1;
-            }
-            50% {
-                transform: scale(1.1);
-                opacity: 0.8;
-            }
-            100% {
-                transform: scale(1);
-                opacity: 1;
-            }
-        }
-        
-        /* ===== Responsive Design for Mobile ===== */
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 18px;
-            }
-            
-            .back-btn {
-                padding: 8px 15px;
-                font-size: 14px;
-            }
-            
-            .container {
-                padding: 0 10px;
-            }
-            
-            /* Stats Grid - 2 columns on mobile */
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
-            }
-            
-            .stat-card {
-                padding: 15px 10px;
-            }
-            
-            .stat-card .icon {
-                font-size: 28px;
-            }
-            
-            .stat-card .label {
-                font-size: 12px;
-            }
-            
-            .stat-card .value {
-                font-size: 20px;
-            }
-            
-            /* Filter buttons - wrap on mobile */
-            .filter-group {
-                flex-wrap: wrap;
-                gap: 8px !important;
-            }
-            
-            .filter-btn {
-                padding: 8px 12px !important;
-                font-size: 13px !important;
-            }
-            
-            /* Custom Date Range - vertical layout */
-            .filters > div:last-child > div {
-                flex-direction: column !important;
-                align-items: stretch !important;
-            }
-            
-            .filters > div:last-child > div > * {
-                width: 100% !important;
-            }
-            
-            .filters > div:last-child input[type="date"],
-            .filters > div:last-child input[type="time"] {
-                width: 100% !important;
-                margin-bottom: 8px;
-            }
-            
-            .filters > div:last-child button {
-                width: 100% !important;
-                margin-top: 10px;
-            }
-            
-            /* Map type buttons - horizontal scroll */
-            .map-type-controls {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-            }
-            
-            .map-type-controls {
-                flex-wrap: nowrap !important;
-                min-width: max-content;
-            }
-            
-            /* Timeline sort buttons - wrap */
-            .timeline-section > div:first-child > div {
-                flex-wrap: wrap !important;
-                gap: 5px !important;
-            }
-            
-            .timeline-section button {
-                padding: 5px 10px !important;
-                font-size: 12px !important;
-            }
-            
-            /* Content grid - stack on mobile */
-            .content-grid {
-                grid-template-columns: 1fr !important;
-            }
-            
-            /* Map height on mobile */
-            #map {
-                height: 400px !important;
-            }
-            
-            /* Timeline items - smaller on mobile */
-            .timeline-item {
-                padding: 12px !important;
-            }
-            
-            .timeline-time {
-                font-size: 13px !important;
-            }
-            
-            .timeline-location {
-                font-size: 12px !important;
-            }
-            
-            .timeline-details {
-                font-size: 11px !important;
-            }
+            .header { padding: 0 12px; }
+            .header-title p, .version-tag { display: none; }
+            .replay-panel { min-width: 270px; bottom: 70px; }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-content">
-            <h1 id="driverName">🚕 تفاصيل السائق</h1>
-            <a href="tracking.html" class="back-btn">← العودة للخريطة</a>
+
+<!-- HEADER -->
+<div class="header">
+    <div class="header-left">
+        <div class="driver-avatar">🚕</div>
+        <div class="header-title">
+            <h1 id="pageTitle">تفاصيل السائق</h1>
+            <p id="pageSubtitle">الموقع والمسار وسجل التحركات</p>
         </div>
     </div>
-    
-    <div class="container">
-        <!-- Statistics Cards -->
-        <div class="stats-grid">
-            <div class="stat-card" id="statusCard">
-                <div class="icon">🟢</div>
-                <div class="label">الحالة</div>
-                <div class="value" id="statusValue">نشط</div>
+    <div class="header-right">
+        <div class="live-badge"><div class="live-dot"></div>مباشر</div>
+        <span class="version-tag">v3.3</span>
+        <button class="header-btn green" onclick="exportPDF()">📄 PDF</button>
+        <button class="header-btn blue" onclick="exportExcel()">📊 Excel</button>
+        <a href="tracking.html" class="header-btn">📍 التتبع</a>
+        <a href="tracking-management.html" class="header-btn">⚙️ الإدارة</a>
+        <a href="admin-dashboard.html" class="header-btn">🏠 الرئيسية</a>
+    </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main-layout">
+
+    <!-- LEFT PANEL -->
+    <div class="left-panel" id="leftPanel">
+        <div class="panel-tabs">
+            <div class="panel-tab active" onclick="switchTab('info', this)">📊 معلومات</div>
+            <div class="panel-tab" onclick="switchTab('route', this)">🛣️ المسار</div>
+            <div class="panel-tab" onclick="switchTab('timeline', this)">📋 السجل</div>
+        </div>
+
+        <!-- INFO TAB -->
+        <div class="panel-content tab-pane active" id="tab-info">
+            <div class="section-title">الحالة</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <span class="status-pill s-offline" id="statusPill"><div class="s-dot off"></div>غير نشط</span>
+                <span id="lastUpdateBadge" style="font-size:10px;color:var(--text-muted);">—</span>
             </div>
-            
-            <div class="stat-card">
-                <div class="icon">⏰</div>
-                <div class="label" id="workHoursLabel">ساعات العمل اليوم</div>
-                <div class="value" id="workHours">0:00</div>
+
+            <div class="section-title">إحصائيات اليوم</div>
+            <div class="info-grid">
+                <div class="info-card ic-blue">
+                    <div class="ic-label">السرعة الحالية</div>
+                    <div class="ic-value" id="currentSpeed">0</div>
+                    <div class="ic-sub">كم/ساعة</div>
+                </div>
+                <div class="info-card ic-green">
+                    <div class="ic-label">المسافة الكلية</div>
+                    <div class="ic-value" id="totalDistance">0</div>
+                    <div class="ic-sub">كيلومتر</div>
+                </div>
+                <div class="info-card ic-yellow">
+                    <div class="ic-label">متوسط السرعة</div>
+                    <div class="ic-value" id="avgSpeed">0</div>
+                    <div class="ic-sub">كم/ساعة</div>
+                </div>
+                <div class="info-card ic-purple">
+                    <div class="ic-label">التوقفات</div>
+                    <div class="ic-value" id="stopsCount">0</div>
+                    <div class="ic-sub">توقف</div>
+                </div>
+                <div class="info-card ic-full" style="background:rgba(59,130,246,0.06);border-color:rgba(59,130,246,0.2);">
+                    <div class="ic-label">ساعات العمل (سرعة &gt; 10 كم/س)</div>
+                    <div class="ic-value" id="workHours" style="color:var(--blue);font-size:22px;">0</div>
+                    <div class="ic-sub">ساعة</div>
+                </div>
             </div>
-            
-            <div class="stat-card">
-                <div class="icon">📏</div>
-                <div class="label" id="totalDistanceLabel">المسافة المقطوعة</div>
-                <div class="value" id="totalDistance">0 كم</div>
+
+            <div class="section-title">الموقع الحالي</div>
+            <div class="info-card ic-full">
+                <div class="info-row"><span class="ir-label">خط العرض</span><span class="ir-value" id="currentLat" style="font-family:monospace;font-size:11px;">—</span></div>
+                <div class="info-row"><span class="ir-label">خط الطول</span><span class="ir-value" id="currentLng" style="font-family:monospace;font-size:11px;">—</span></div>
+                <div class="info-row"><span class="ir-label">دقة GPS</span><span class="ir-value" id="currentAccuracy">— م</span></div>
+                <div class="info-row"><span class="ir-label">النشاط</span><span class="ir-value" id="currentActivity">—</span></div>
+                <div class="info-row"><span class="ir-label">ثقة النشاط</span><span class="ir-value" id="activityConf">—</span></div>
+                <div class="info-row"><span class="ir-label">يتحرك الآن</span><span class="ir-value" id="isMovingNow">—</span></div>
             </div>
-            
-            <div class="stat-card">
-                <div class="icon">🚗</div>
-                <div class="label" id="avgSpeedLabel">متوسط السرعة</div>
-                <div class="value" id="avgSpeed">0 كم/س</div>
+
+            <div class="section-title">معلومات الجهاز</div>
+            <div class="info-card ic-full">
+                <div class="info-row"><span class="ir-label">البطارية</span><span class="ir-value" id="batteryLevel">—</span></div>
+                <div class="battery-bar"><div class="battery-fill" id="batteryBar" style="width:0%;background:var(--green);"></div></div>
+                <div class="info-row" style="margin-top:7px;"><span class="ir-label">إصدار التطبيق</span><span class="ir-value" id="appVersion">—</span></div>
+                <div class="info-row"><span class="ir-label">FCM Token</span><span class="ir-value" id="fcmStatus">—</span></div>
+                <div class="info-row"><span class="ir-label">رقم الموظف</span><span class="ir-value" id="employeeNum">—</span></div>
+                <div class="info-row"><span class="ir-label">رقم الهاتف</span><span class="ir-value" id="phoneNum">—</span></div>
             </div>
-            
-            <div class="stat-card">
-                <div class="icon">⏸️</div>
-                <div class="label" id="stopsCountLabel">عدد التوقفات</div>
-                <div class="value" id="stopsCount">0</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="icon">⏱️</div>
-                <div class="label">آخر نشاط</div>
-                <div class="value" id="lastActivity">--</div>
+
+            <div class="section-title">إجراءات</div>
+            <div style="display:flex;gap:7px;">
+                <button id="callBtn" onclick="callDriver()" style="flex:1;padding:9px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:var(--green);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;display:none;">📞 اتصال</button>
+                <a href="#" id="profileLink" style="flex:1;padding:9px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:var(--blue);border-radius:8px;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">👤 الملف الكامل</a>
             </div>
         </div>
-        
-        <!-- Filters -->
-        <div class="filters">
-            <h3>📅 فلتر التاريخ</h3>
-            <div class="filter-group">
-                <button class="filter-btn active" onclick="filterByDate('today')">اليوم</button>
-                <button class="filter-btn" onclick="filterByDate('yesterday')">أمس</button>
-                <button class="filter-btn" onclick="filterByDate('week')">آخر 7 أيام</button>
-                <button class="filter-btn" onclick="filterByDate('month')">آخر 30 يوم</button>
-                <button class="filter-btn" onclick="filterByDate('all')">الكل</button>
+
+        <!-- ROUTE TAB -->
+        <div class="panel-content tab-pane" id="tab-route">
+            <div class="section-title">نطاق المسار</div>
+            <div class="filter-pills">
+                <div class="pill active" onclick="setRouteRange(2, this)">2 ساعة</div>
+                <div class="pill" onclick="setRouteRange(8, this)">8 ساعات</div>
+                <div class="pill" onclick="setRouteRange(24, this)">24 ساعة</div>
+                <div class="pill" onclick="setRouteRange(72, this)">3 أيام</div>
             </div>
-            
-            <!-- Custom Date Range -->
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
-                <h4 style="margin-bottom: 10px; color: #4a5568; font-size: 14px;">📅 نطاق تاريخ مخصص</h4>
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; direction: rtl;">
-                    <label style="font-size: 14px; color: #4a5568;">من:</label>
-                    <input type="date" id="startDate" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
-                    <input type="time" id="startTime" value="00:00" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
-                    <label style="font-size: 14px; color: #4a5568;">إلى:</label>
-                    <input type="date" id="endDate" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
-                    <input type="time" id="endTime" value="23:59" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
-                    <button onclick="filterByCustomRange()" style="padding: 8px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s;">
-                        تطبيق
-                    </button>
+
+            <div class="section-title">إحصائيات المسار</div>
+            <div class="info-grid">
+                <div class="info-card ic-blue"><div class="ic-label">المسافة</div><div class="ic-value" id="routeDistance">—</div><div class="ic-sub">كم</div></div>
+                <div class="info-card ic-green"><div class="ic-label">نقاط GPS</div><div class="ic-value" id="routePoints">—</div><div class="ic-sub">نقطة</div></div>
+                <div class="info-card ic-yellow"><div class="ic-label">% حركة</div><div class="ic-value" id="routeMovingPct">—</div><div class="ic-sub">من الوقت</div></div>
+                <div class="info-card ic-red"><div class="ic-label">أعلى سرعة</div><div class="ic-value" id="routeMaxSpeed">—</div><div class="ic-sub">كم/س</div></div>
+            </div>
+
+            <div class="section-title">خيارات العرض</div>
+            <div class="info-card ic-full">
+                <div class="info-row">
+                    <span class="ir-label">عرض المسار</span>
+                    <button onclick="toggleRoute()" id="toggleRouteBtn" style="padding:4px 11px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:var(--green);border-radius:6px;cursor:pointer;font-size:11px;">إخفاء</button>
+                </div>
+                <div class="info-row">
+                    <span class="ir-label">تتبع تلقائي</span>
+                    <button onclick="toggleAutoFollow()" id="autoFollowBtn" style="padding:4px 11px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:var(--blue);border-radius:6px;cursor:pointer;font-size:11px;">تفعيل</button>
+                </div>
+                <div class="info-row">
+                    <span class="ir-label">لون المسار</span>
+                    <div style="display:flex;gap:5px;">
+                        <div onclick="setPathColor('#3b82f6')" title="أزرق" style="width:18px;height:18px;border-radius:50%;background:#3b82f6;cursor:pointer;border:2px solid white;"></div>
+                        <div onclick="setPathColor('#10b981')" title="أخضر" style="width:18px;height:18px;border-radius:50%;background:#10b981;cursor:pointer;"></div>
+                        <div onclick="setPathColor('#f59e0b')" title="أصفر" style="width:18px;height:18px;border-radius:50%;background:#f59e0b;cursor:pointer;"></div>
+                        <div onclick="setPathColor('#ef4444')" title="أحمر" style="width:18px;height:18px;border-radius:50%;background:#ef4444;cursor:pointer;"></div>
+                        <div onclick="setPathColor('speed')" title="حسب السرعة" style="width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#10b981,#f59e0b,#ef4444);cursor:pointer;"></div>
+                    </div>
                 </div>
             </div>
+
+            <div class="section-title">إعادة تشغيل المسار</div>
+            <button onclick="toggleReplayPanel()" style="width:100%;padding:9px;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--purple);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;">▶️ فتح لوحة إعادة التشغيل</button>
         </div>
-        
-        <!-- Map and Timeline -->
-        <div class="content-grid">
-            <div class="map-section">
-                <h2>🗺️ المسار</h2>
-                
-                <!-- Auto-Follow Control -->
-                <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); direction: rtl;">
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: bold;">
-                        <input type="checkbox" id="autoFollowCheckbox" onchange="toggleAutoFollow()" style="width: 20px; height: 20px; cursor: pointer;">
-                        <span>🎯 تتبع تلقائي للسائق</span>
-                    </label>
-                    <p style="margin: 8px 0 0 30px; font-size: 13px; color: #666;">عند التفعيل: الخريطة تتحرك تلقائياً مع موقع السائق</p>
-                </div>
-                
-                <div class="map-type-controls">
-                    <button class="map-type-btn active" onclick="changeMapType('streets')">🗺️ الشوارع</button>
-                    <button class="map-type-btn" onclick="changeMapType('satellite')">🛰️ الأقمار</button>
-                    <button class="map-type-btn" onclick="changeMapType('hybrid')">🌐 هجين</button>
-                    <button class="map-type-btn" onclick="changeMapType('osm')">🌍 OSM</button>
-                    <button class="map-type-btn" onclick="changeMapType('dark')">🌙 داكن</button>
-                    <button class="map-type-btn" onclick="changeMapType('terrain')">⛰️ تضاريس</button>
-                </div>
-                
-                <!-- Route Controls -->
-                <div class="route-controls" style="margin: 15px 0; padding: 15px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; direction: rtl;">
-                        <!-- Toggle Route -->
-                        <button id="toggleRouteBtn" onclick="toggleRoute()" style="padding: 8px 16px; background: #48bb78; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.3s;">
-                            🛣️ إخفاء المسار
-                        </button>
-                        
-                        <!-- Color Picker -->
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <label style="font-weight: bold; color: #2d3748;">🎨 اللون:</label>
-                            <input type="color" id="pathColorPicker" value="#667eea" onchange="changePathColor(this.value)" style="width: 50px; height: 35px; border: none; border-radius: 8px; cursor: pointer;">
-                        </div>
-                        
-                        <!-- Width Slider -->
-                        <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 200px;">
-                            <label style="font-weight: bold; color: #2d3748;">📏 السُمك:</label>
-                            <input type="range" id="pathWidthSlider" min="2" max="10" value="4" oninput="changePathWidth(this.value)" style="flex: 1; cursor: pointer;">
-                            <span id="pathWidthValue" style="font-weight: bold; color: #667eea; min-width: 30px;">4</span>
-                        </div>
-                        
-                        <!-- Speed Legend -->
-                        <div style="display: flex; align-items: center; gap: 10px; font-size: 12px; margin-right: auto;">
-                            <span style="font-weight: bold; color: #2d3748;">مفتاح السرعة:</span>
-                            <span style="color: #48bb78;">● بطيء (&lt;20)</span>
-                            <span style="color: #ed8936;">● متوسط (20-60)</span>
-                            <span style="color: #f56565;">● سريع (60-100)</span>
-                            <span style="color: #c53030;">● سريع جداً (&gt;100)</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Speed Color Customization -->
-                <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); direction: rtl;">
-                    <h4 style="margin: 0 0 15px 0; color: #2d3748;">🎨 تخصيص ألوان السرعة</h4>
-                    
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                        <!-- Speed Range 1 -->
-                        <div style="display: flex; flex-direction: column; gap: 8px;">
-                            <label style="font-weight: bold; font-size: 14px;">🐢 بطيء (0-20 كم/س)</label>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <input type="number" id="speed1Max" value="20" min="1" max="200" style="width: 60px; padding: 5px; border: 1px solid #e2e8f0; border-radius: 6px;">
-                                <input type="color" id="color1" value="#48bb78" style="width: 50px; height: 35px; border: none; border-radius: 6px; cursor: pointer;">
-                            </div>
-                        </div>
-                        
-                        <!-- Speed Range 2 -->
-                        <div style="display: flex; flex-direction: column; gap: 8px;">
-                            <label style="font-weight: bold; font-size: 14px;">🚗 متوسط (20-60 كم/س)</label>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <input type="number" id="speed2Max" value="60" min="1" max="200" style="width: 60px; padding: 5px; border: 1px solid #e2e8f0; border-radius: 6px;">
-                                <input type="color" id="color2" value="#ed8936" style="width: 50px; height: 35px; border: none; border-radius: 6px; cursor: pointer;">
-                            </div>
-                        </div>
-                        
-                        <!-- Speed Range 3 -->
-                        <div style="display: flex; flex-direction: column; gap: 8px;">
-                            <label style="font-weight: bold; font-size: 14px;">🏎️ سريع (60-100 كم/س)</label>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <input type="number" id="speed3Max" value="100" min="1" max="200" style="width: 60px; padding: 5px; border: 1px solid #e2e8f0; border-radius: 6px;">
-                                <input type="color" id="color3" value="#f56565" style="width: 50px; height: 35px; border: none; border-radius: 6px; cursor: pointer;">
-                            </div>
-                        </div>
-                        
-                        <!-- Speed Range 4 -->
-                        <div style="display: flex; flex-direction: column; gap: 8px;">
-                            <label style="font-weight: bold; font-size: 14px;">🚀 سريع جداً (+100 كم/س)</label>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <span style="width: 60px; text-align: center; color: #718096;">+100</span>
-                                <input type="color" id="color4" value="#c53030" style="width: 50px; height: 35px; border: none; border-radius: 6px; cursor: pointer;">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button onclick="applySpeedColors()" style="margin-top: 15px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.3s;">
-                        ✅ تطبيق الألوان
-                    </button>
-                </div>
-                
-                <div id="map"></div>
+
+        <!-- TIMELINE TAB -->
+        <div class="panel-content tab-pane" id="tab-timeline">
+            <div class="filter-pills" id="tlFilters">
+                <div class="pill active" onclick="filterTL('all', this)">الكل</div>
+                <div class="pill" onclick="filterTL('today', this)">اليوم</div>
+                <div class="pill" onclick="filterTL('yesterday', this)">أمس</div>
+                <div class="pill" onclick="filterTL('week', this)">الأسبوع</div>
             </div>
-            
-            <div class="timeline-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h2 style="margin: 0;">📋 الجدول الزمني</h2>
-                    <div style="display: flex; gap: 10px; direction: rtl;">
-                        <button onclick="sortTimeline('time', 'desc')" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
-                            ⬇️ الأحدث
-                        </button>
-                        <button onclick="sortTimeline('time', 'asc')" style="padding: 6px 12px; background: #e2e8f0; color: #4a5568; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
-                            ⬆️ الأقدم
-                        </button>
-                        <button onclick="sortTimeline('speed', 'desc')" style="padding: 6px 12px; background: #e2e8f0; color: #4a5568; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
-                            🚀 الأسرع
-                        </button>
-                        <button onclick="sortTimeline('speed', 'asc')" style="padding: 6px 12px; background: #e2e8f0; color: #4a5568; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
-                            🐌 الأبطأ
-                        </button>
-                    </div>
-                </div>
-                <div id="timeline">
-                    <div class="loading">جاري تحميل البيانات...</div>
-                </div>
+            <div class="sort-row">
+                <button class="sort-btn" onclick="sortTL('time')">⏰ الأحدث</button>
+                <button class="sort-btn" onclick="sortTL('speed_desc')">🚀 الأسرع</button>
+                <button class="sort-btn" onclick="sortTL('speed_asc')">🐌 الأبطأ</button>
             </div>
+            <div id="timeline"><div class="no-data">📡 جاري تحميل السجل...</div></div>
         </div>
     </div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- MAP AREA -->
+    <div class="map-area">
+        <!-- Mobile panel toggle -->
+        <button class="panel-toggle-btn" id="panelToggleBtn" onclick="togglePanel()" style="display:none;">☰ المعلومات</button>
 
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-        import { getFirestore, collection, query, where, orderBy, getDocs, onSnapshot, doc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        <!-- Map Controls -->
+        <div class="map-controls">
+            <div class="ctrl-group">
+                <button class="ctrl-btn active" onclick="setMapType('streets', this)">🗺️ الشوارع</button>
+                <button class="ctrl-btn" onclick="setMapType('satellite', this)">🛰️ الأقمار</button>
+                <button class="ctrl-btn" onclick="setMapType('hybrid', this)">🌐 هجين</button>
+            </div>
+            <div class="ctrl-group">
+                <button class="ctrl-btn" onclick="centerOnDriver()">🎯 مركز</button>
+                <button class="ctrl-btn" onclick="fitRoute()">🛣️ عرض المسار</button>
+            </div>
+        </div>
 
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
-            authDomain: "taxi-management-system-d8210.firebaseapp.com",
-            projectId: "taxi-management-system-d8210",
-            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
-            messagingSenderId: "720874424166",
-            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
-            measurementId: "G-GY8820W410"
-        };
+        <!-- Replay Panel -->
+        <div class="replay-panel" id="replayPanel">
+            <div class="rp-title">
+                <span>▶️ إعادة تشغيل المسار</span>
+                <button onclick="toggleReplayPanel()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;line-height:1;">✕</button>
+            </div>
+            <div class="rp-controls">
+                <button class="rp-btn rp-play" id="replayPlayBtn" onclick="toggleReplay()">▶️ تشغيل</button>
+                <button class="rp-btn rp-reset" onclick="resetReplay()">⏮ إعادة</button>
+                <select class="rp-speed" id="replaySpeed" onchange="changeReplaySpeed()">
+                    <option value="1">1x</option>
+                    <option value="5" selected>5x</option>
+                    <option value="10">10x</option>
+                    <option value="20">20x</option>
+                    <option value="50">50x</option>
+                </select>
+            </div>
+            <input type="range" class="rp-slider" id="replaySlider" min="0" max="100" value="0" oninput="seekReplay(this.value)">
+            <div class="rp-info">
+                <span>الوقت: <span id="replayTime">—</span></span>
+                <span>السرعة: <span id="replayCurrentSpeed">—</span></span>
+                <span id="replayProgress" style="margin-right:auto;">0 / 0</span>
+            </div>
+        </div>
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        <!-- Map Info Panel -->
+        <div class="map-info">
+            <div class="mi-row"><span>آخر تحديث:</span><span class="mi-val" id="lastUpdateTime">—</span></div>
+            <div class="mi-row"><span>نقاط المسار:</span><span class="mi-val" id="mapRoutePoints">0</span></div>
+            <div class="mi-row"><span>نطاق المسار:</span><span class="mi-val" id="mapRouteRange">2 ساعة</span></div>
+        </div>
 
-        // Get driver ID from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const driverId = urlParams.get('id') || 'TEST_DRIVER_001';
-        
-        let map;
-        let currentTileLayer = null;
-        let currentMapType = 'streets';
-        let pathPolyline = null;
-        let currentLocationMarker = null;
-        let locationHistory = []; // Filtered data for display
-        let rawLocationHistory = []; // Raw data from Firebase (never filtered)
-        let currentFilter = 'today'; // Default to today
-        let pathVisible = true;
-        let pathColor = '#667eea';
-        let pathWidth = 4;
-        let autoFollow = false; // Auto-follow driver location
-        let timelineSortBy = 'time'; // Sort timeline by: 'time' or 'speed'
-        let timelineSortOrder = 'desc'; // Sort order: 'asc' or 'desc'
-        
-        // Speed color ranges (customizable)
-        let speedRanges = {
-            range1: { max: 20, color: '#48bb78' },  // Slow
-            range2: { max: 60, color: '#ed8936' },  // Medium
-            range3: { max: 100, color: '#f56565' }, // Fast
-            range4: { max: Infinity, color: '#c53030' } // Very fast
-        };
-        
-        // Map tile layers
-        const mapLayers = {
-            streets: {
-                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                attribution: '© OpenStreetMap contributors'
-            },
-            satellite: {
-                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                attribution: '© Esri, Maxar, Earthstar Geographics'
-            },
-            hybrid: {
-                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                attribution: '© Esri, Maxar, Earthstar Geographics',
-                labels: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-            },
-            osm: {
-                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                attribution: '© OpenStreetMap contributors'
-            },
-            dark: {
-                url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-                attribution: '© OpenStreetMap contributors © CARTO'
-            },
-            terrain: {
-                url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-                attribution: '© OpenStreetMap contributors, SRTM | © OpenTopoMap'
-            }
-        };
+        <div id="map"></div>
+    </div>
+</div>
 
-        // Initialize map
-        function initMap() {
-            const center = [29.3759, 47.9774];
-            
-            map = L.map('map').setView(center, 12);
-            
-            currentTileLayer = L.tileLayer(mapLayers.streets.url, {
-                attribution: mapLayers.streets.attribution,
-                maxZoom: 19
-            }).addTo(map);
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+import { getFirestore, doc, collection, onSnapshot, query, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+
+const firebaseConfig = {
+    apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+    authDomain: "taxi-management-system-d8210.firebaseapp.com",
+    projectId: "taxi-management-system-d8210",
+    storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+    messagingSenderId: "720874424166",
+    appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+// Auth guard
+const userRole = localStorage.getItem('userRole');
+if (!userRole || (userRole !== 'admin' && userRole !== 'owner')) {
+    onAuthStateChanged(auth, u => { if (!u) window.location.href = 'index.html'; });
+}
+
+const urlParams = new URLSearchParams(window.location.search);
+const driverId = urlParams.get('id') || urlParams.get('driverId') || 'unknown';
+const CURRENT_APP_VERSION = '2.3.7';
+
+let map, tileLayer, mapType = 'streets';
+let currentMarker = null;
+let routePoly = null;
+let startMarker = null;
+let stopMarkers = [];
+let locationHistory = [];
+let currentDriverData = null;
+let autoFollow = false;
+let routeVisible = true;
+let pathColor = '#3b82f6';
+let routeRangeHours = 2;
+let tlFilter = 'all';
+let tlSort = 'time';
+
+// Replay
+let replayData = [], replayIndex = 0, replayInterval = null;
+let replayPlaying = false, replaySpeed = 5;
+let replayMarker = null;
+
+const activityMap = {
+    'in_vehicle': '🚗 يقود', 'still': '🅿️ متوقف',
+    'walking': '🚶 يمشي', 'on_foot': '🚶 يمشي',
+    'running': '🏃 يركض', 'unknown': '❓ غير معروف'
+};
+
+const tiles = {
+    streets: { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attr: '© OpenStreetMap' },
+    satellite: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr: '© Esri' },
+    hybrid: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr: '© Esri' }
+};
+
+// ===== MAP INIT =====
+function initMap() {
+    map = L.map('map', { zoomControl: false }).setView([29.3759, 47.9774], 13);
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
+    tileLayer = L.tileLayer(tiles.streets.url, { attribution: tiles.streets.attr, maxZoom: 19 }).addTo(map);
+}
+
+window.setMapType = function(type, btn) {
+    if (mapType === type) return;
+    if (tileLayer) map.removeLayer(tileLayer);
+    tileLayer = L.tileLayer(tiles[type].url, { attribution: tiles[type].attr, maxZoom: 19 }).addTo(map);
+    mapType = type;
+    document.querySelectorAll('.ctrl-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+};
+
+// ===== HAVERSINE =====
+function haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371, d2r = Math.PI / 180;
+    const dLat = (lat2 - lat1) * d2r, dLon = (lon2 - lon1) * d2r;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*d2r)*Math.cos(lat2*d2r)*Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ===== CURRENT MARKER =====
+function updateCurrentMarker(lat, lng, speed) {
+    const spd = (speed || 0) * 3.6;
+    const col = spd > 100 ? '#f59e0b' : spd > 1 ? '#10b981' : '#3b82f6';
+    const icon = L.divIcon({
+        className: '',
+        iconSize: [40, 40], iconAnchor: [20, 40], popupAnchor: [0, -40],
+        html: `<div style="width:40px;height:40px;background:${col};border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;"><span style="transform:rotate(45deg);font-size:18px;">🚕</span></div>`
+    });
+    if (currentMarker) { currentMarker.setLatLng([lat, lng]); currentMarker.setIcon(icon); }
+    else { currentMarker = L.marker([lat, lng], { icon, zIndexOffset: 1000 }).addTo(map); map.setView([lat, lng], 15); }
+    if (autoFollow) map.setView([lat, lng]);
+}
+
+// ===== DRAW ROUTE =====
+function drawRoute(points) {
+    if (routePoly) { map.removeLayer(routePoly); routePoly = null; }
+    if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
+    stopMarkers.forEach(m => map.removeLayer(m));
+    stopMarkers = [];
+    if (points.length < 2) return;
+
+    // Filter unrealistic jumps
+    const filtered = [points[0]];
+    for (let i = 1; i < points.length; i++) {
+        const prev = filtered[filtered.length - 1], curr = points[i];
+        const dist = haversine(prev.lat, prev.lng, curr.lat, curr.lng);
+        const dt = (curr.t - prev.t) / 1000;
+        if (dt > 0 && (dist / dt) * 3600 < 250) filtered.push(curr);
+        else if (dist < 0.1) filtered.push(curr);
+    }
+
+    const lls = filtered.map(p => [p.lat, p.lng]);
+
+    if (pathColor === 'speed') {
+        for (let i = 1; i < filtered.length; i++) {
+            const s = (filtered[i].speed || 0) * 3.6;
+            const c = s < 20 ? '#10b981' : s < 80 ? '#f59e0b' : '#ef4444';
+            L.polyline([[filtered[i-1].lat, filtered[i-1].lng], [filtered[i].lat, filtered[i].lng]], { color: c, weight: 4, opacity: 0.8 }).addTo(map);
         }
-        
-        // Change map type
-        window.changeMapType = function(type) {
-            if (currentMapType === type) return;
-            
-            if (currentTileLayer) {
-                map.removeLayer(currentTileLayer);
-            }
-            
-            const layer = mapLayers[type];
-            currentTileLayer = L.tileLayer(layer.url, {
-                attribution: layer.attribution,
-                maxZoom: 19
-            }).addTo(map);
-            
-            if (type === 'hybrid' && layer.labels) {
-                L.tileLayer(layer.labels, {
-                    attribution: '',
-                    maxZoom: 19,
-                    opacity: 0.7
-                }).addTo(map);
-            }
-            
-            currentMapType = type;
-            
-            document.querySelectorAll('.map-type-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-        };
-        
-        // Toggle route visibility
-        window.toggleRoute = function() {
-            pathVisible = !pathVisible;
-            const btn = document.getElementById('toggleRouteBtn');
-            
-            if (pathVisible) {
-                btn.textContent = '🛣️ إخفاء المسار';
-                btn.style.background = '#48bb78';
-            } else {
-                btn.textContent = '🛣️ إظهار المسار';
-                btn.style.background = '#cbd5e0';
-            }
-            
-            updateMap();
-        };
-        
-        // Change path color
-        window.changePathColor = function(color) {
-            pathColor = color;
-            updateMap();
-        };
-        
-        // Change path width
-        window.changePathWidth = function(width) {
-            pathWidth = parseInt(width);
-            document.getElementById('pathWidthValue').textContent = width;
-            updateMap();
-        };
-        
-        // Toggle auto-follow mode
-        window.toggleAutoFollow = function() {
-            autoFollow = document.getElementById('autoFollowCheckbox').checked;
-            console.log('🎯 Auto-follow:', autoFollow ? 'enabled' : 'disabled');
-            
-            if (autoFollow && currentLocationMarker) {
-                // Immediately center on current location
-                const latLng = currentLocationMarker.getLatLng();
-                map.setView(latLng, 15, { animate: true });
-            }
-        };
-        
-        // Apply custom speed colors
-        window.applySpeedColors = function() {
-            // Get values from inputs
-            speedRanges.range1.max = parseInt(document.getElementById('speed1Max').value);
-            speedRanges.range1.color = document.getElementById('color1').value;
-            
-            speedRanges.range2.max = parseInt(document.getElementById('speed2Max').value);
-            speedRanges.range2.color = document.getElementById('color2').value;
-            
-            speedRanges.range3.max = parseInt(document.getElementById('speed3Max').value);
-            speedRanges.range3.color = document.getElementById('color3').value;
-            
-            speedRanges.range4.color = document.getElementById('color4').value;
-            
-            console.log('🎨 Speed colors updated:', speedRanges);
-            
-            // Update map with new colors
-            updateMap();
-            
-            // Show success message
-            alert('✅ تم تطبيق الألوان بنجاح!');
-        };
-        
-        // Filter by date
-        window.filterByDate = function(period) {
-            console.log('📅 Filter changed to:', period);
-            currentFilter = period;
-            
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-            
-            // Re-apply filter to existing data (don't reload from Firebase)
-            if (window.mergeAndUpdateLocations) {
-                window.mergeAndUpdateLocations();
-            }
-        };
-        
-        // Sort timeline
-        window.sortTimeline = function(by, order) {
-            console.log('🔄 Sort timeline:', by, order);
-            timelineSortBy = by;
-            timelineSortOrder = order;
-            
-            // Update button styles
-            const buttons = document.querySelectorAll('.timeline-section button');
-            buttons.forEach(btn => {
-                btn.style.background = '#e2e8f0';
-                btn.style.color = '#4a5568';
-            });
-            event.target.style.background = '#667eea';
-            event.target.style.color = 'white';
-            
-            // Re-render timeline with new sort
-            updateTimeline();
-        };
-        
-        // Filter by custom date range
-        window.filterByCustomRange = function() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-            
-            if (!startDate || !endDate) {
-                alert('الرجاء اختيار تاريخ البداية والنهاية');
-                return;
-            }
-            
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            
-            if (start > end) {
-                alert('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
-                return;
-            }
-            
-            console.log('📅 Custom filter:', startDate, '-', endDate);
-            currentFilter = 'custom';
-            
-            // Remove active class from all filter buttons
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // Re-apply filter
-            if (window.mergeAndUpdateLocations) {
-                window.mergeAndUpdateLocations();
-            }
-        };
-        
-        // Calculate distance between two points (Haversine formula)
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Earth radius in km
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                     Math.sin(dLon/2) * Math.sin(dLon/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            return R * c;
+    } else {
+        routePoly = L.polyline(lls, { color: pathColor, weight: 4, opacity: 0.75, lineJoin: 'round' }).addTo(map);
+    }
+
+    startMarker = L.circleMarker(lls[0], { radius: 8, fillColor: '#10b981', color: 'white', weight: 2, fillOpacity: 1 })
+        .bindTooltip('بداية المسار', { direction: 'top' }).addTo(map);
+
+    filtered.forEach((p, i) => {
+        if (i > 0 && (p.speed || 0) * 3.6 < 1) {
+            const m = L.circleMarker([p.lat, p.lng], { radius: 5, fillColor: '#ef4444', color: 'white', weight: 1.5, fillOpacity: 0.8 })
+                .bindTooltip(`توقف ${p.t.toLocaleTimeString('ar-SA', {hour:'2-digit',minute:'2-digit'})}`, { direction: 'top' }).addTo(map);
+            stopMarkers.push(m);
         }
-        
-        // Update statistics labels based on current filter
-        function updateStatisticsLabels() {
-            const workHoursLabel = document.getElementById('workHoursLabel');
-            const totalDistanceLabel = document.getElementById('totalDistanceLabel');
-            const avgSpeedLabel = document.getElementById('avgSpeedLabel');
-            const stopsCountLabel = document.getElementById('stopsCountLabel');
-            
-            let suffix = '';
-            
-            switch(currentFilter) {
-                case 'today':
-                    suffix = ' اليوم';
-                    break;
-                case 'yesterday':
-                    suffix = ' أمس';
-                    break;
-                case 'week':
-                    suffix = ' (آخر 7 أيام)';
-                    break;
-                case 'month':
-                    suffix = ' (آخر 30 يوم)';
-                    break;
-                case 'all':
-                    suffix = ' (الكل)';
-                    break;
-                case 'custom':
-                    const startDate = document.getElementById('startDate').value;
-                    const endDate = document.getElementById('endDate').value;
-                    if (startDate && endDate) {
-                        const start = new Date(startDate).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
-                        const end = new Date(endDate).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
-                        suffix = ` (${start} - ${end})`;
-                    } else {
-                        suffix = ' (نطاق مخصص)';
-                    }
-                    break;
-                default:
-                    suffix = '';
-            }
-            
-            workHoursLabel.textContent = 'ساعات العمل' + suffix;
-            totalDistanceLabel.textContent = 'المسافة المقطوعة' + suffix;
-            avgSpeedLabel.textContent = 'متوسط السرعة' + suffix;
-            stopsCountLabel.textContent = 'عدد التوقفات' + suffix;
-        }
-        
-        // Get date range based on filter
-        function getDateRange() {
-            const now = new Date();
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            
-            switch(currentFilter) {
-                case 'today':
-                    return { start: today, end: new Date() };
-                case 'yesterday':
-                    const yesterday = new Date(today);
-                    yesterday.setDate(yesterday.getDate() - 1);
-                    return { start: yesterday, end: today };
-                case 'week':
-                    const weekAgo = new Date(today);
-                    weekAgo.setDate(weekAgo.getDate() - 7);
-                    return { start: weekAgo, end: new Date() };
-                case 'month':
-                    const monthAgo = new Date(today);
-                    monthAgo.setDate(monthAgo.getDate() - 30);
-                    return { start: monthAgo, end: new Date() };
-                case 'all':
-                    // Return a very old date to include all records
-                    return { start: new Date(2020, 0, 1), end: new Date() };
-                case 'custom':
-                    // Custom date range from date and time pickers
-                    const startDate = document.getElementById('startDate').value;
-                    const startTime = document.getElementById('startTime').value || '00:00';
-                    const endDate = document.getElementById('endDate').value;
-                    const endTime = document.getElementById('endTime').value || '23:59';
-                    
-                    if (startDate && endDate) {
-                        const start = new Date(startDate + 'T' + startTime);
-                        const end = new Date(endDate + 'T' + endTime);
-                        return { start, end };
-                    }
-                    return { start: today, end: new Date() };
-                default:
-                    return { start: today, end: new Date() };
-            }
-        }
-        
-        // Load driver history
-        function loadDriverHistory() {
-            console.log('🔍 Loading driver history for:', driverId);
-            console.log('🔥 Firebase initialized:', !!db);
-            
-            if (!db) {
-                console.error('❌ Firebase not initialized!');
-                document.getElementById('timeline').innerHTML = '<div class="no-data">خطأ في الاتصال بقاعدة البيانات</div>';
-                return;
-            }
-            
-            let currentDriverLocation = null; // Store current location from drivers collection
-            
-            try {
-                // 1. Listen to current driver location from drivers collection (Real-time)
-                const driverDocRef = doc(db, 'drivers', driverId);
-                console.log('📡 Setting up driver document listener...');
-                onSnapshot(driverDocRef, (docSnap) => {
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        
-                        // Update driver status
-                        if (data.isActive !== undefined) {
-                            const statusEl = document.querySelector('.status-badge');
-                            if (statusEl) {
-                                if (data.isActive) {
-                                    statusEl.textContent = 'نشط';
-                                    statusEl.style.background = '#48bb78';
-                                } else {
-                                    statusEl.textContent = 'غير نشط';
-                                    statusEl.style.background = '#f56565';
-                                }
-                            }
-                        }
-                        
-                        // Update last activity
-                        if (data.lastUpdate) {
-                            const lastUpdateTime = data.lastUpdate.toDate();
-                            const now = new Date();
-                            const diffMinutes = Math.floor((now - lastUpdateTime) / 60000);
-                            
-                            const lastActivityEl = document.querySelector('.stat-card:nth-child(3) .stat-value');
-                            if (lastActivityEl) {
-                                if (diffMinutes < 1) {
-                                    lastActivityEl.textContent = 'الآن';
-                                } else if (diffMinutes < 60) {
-                                    lastActivityEl.textContent = `منذ ${diffMinutes} دقيقة`;
-                                } else {
-                                    const diffHours = Math.floor(diffMinutes / 60);
-                                    lastActivityEl.textContent = `منذ ${diffHours} ساعة`;
-                                }
-                            }
-                        }
-                        
-                        // Store current location for merging with history
-                        if (data.location && data.location.latitude && data.location.longitude) {
-                            currentDriverLocation = {
-                                latitude: data.location.latitude,
-                                longitude: data.location.longitude,
-                                speed: data.location.speed || 0,
-                                accuracy: data.location.accuracy || 0,
-                                timestamp: data.lastUpdate || data.location.timestamp,
-                                source: 'drivers' // Mark source for debugging
-                            };
-                            
-                            console.log('📍 Current location from drivers collection:', currentDriverLocation);
-                            
-                            // Update current location marker on map
-                            updateCurrentLocationMarker(data.location);
-                            
-                            // Don't call mergeAndUpdateLocations here - let locationHistory listener do it
-                            // This prevents showing only 1 point before history loads
-                        }
-                    }
-                });
-                
-                // 2. Listen to location history from locationHistory collection
-                console.log('📍 Setting up locationHistory listener for:', driverId);
-                const q = query(collection(db, 'locationHistory'), where('driverId', '==', driverId));
-                
-                onSnapshot(q, 
-                    (snapshot) => {
-                        console.log('📊 Snapshot received, docs count:', snapshot.size);
-                        rawLocationHistory = []; // Store raw data
-                        snapshot.forEach((doc) => {
-                            const data = doc.data();
-                            data.source = 'locationHistory'; // Mark source
-                            rawLocationHistory.push(data);
-                        });
-                        
-                        console.log('✅ rawLocationHistory loaded:', rawLocationHistory.length, 'records');
-                        
-                        // Merge and update
-                        mergeAndUpdateLocations();
-                    },
-                    (error) => {
-                        console.error('❌ Error in onSnapshot:', error);
-                        document.getElementById('timeline').innerHTML = '<div class="no-data">خطأ: ' + error.message + '</div>';
-                    }
-                );
-                
-                // Function to merge current location with history and update UI
-                window.mergeAndUpdateLocations = function() {
-                    console.log('🔄 mergeAndUpdateLocations called');
-                    console.log('   rawLocationHistory:', rawLocationHistory.length, 'records');
-                    console.log('   currentDriverLocation:', currentDriverLocation ? 'exists' : 'null');
-                    
-                    let mergedLocations = [...rawLocationHistory]; // Use raw data
-                    
-                    // Add current location if it exists and is not duplicate
-                    if (currentDriverLocation) {
-                        const isDuplicate = mergedLocations.some(loc => {
-                            if (!loc.timestamp || !currentDriverLocation.timestamp) return false;
-                            const locTime = loc.timestamp.toDate ? loc.timestamp.toDate().getTime() : loc.timestamp.getTime();
-                            const currTime = currentDriverLocation.timestamp.toDate ? currentDriverLocation.timestamp.toDate().getTime() : currentDriverLocation.timestamp.getTime();
-                            return Math.abs(locTime - currTime) < 5000; // Within 5 seconds = duplicate
-                        });
-                        
-                        if (!isDuplicate) {
-                            console.log('➕ Adding current location to merged array');
-                            mergedLocations.push(currentDriverLocation);
-                        } else {
-                            console.log('⚠️ Current location already in history, skipping');
-                        }
-                    }
-                    
-                    // Sort by timestamp
-                    mergedLocations.sort((a, b) => {
-                        const timeA = a.timestamp.toDate ? a.timestamp.toDate() : a.timestamp;
-                        const timeB = b.timestamp.toDate ? b.timestamp.toDate() : b.timestamp;
-                        return timeA - timeB;
-                    });
-                    
-                    console.log('🔀 Merged locations (before filter):', mergedLocations.length, 'total records');
-                    
-                    // Apply date filter
-                    const dateRange = getDateRange();
-                    console.log('📅 Date range for filter:', dateRange.start, '-', dateRange.end);
-                    
-                    // Debug: show first few timestamps before filter
-                    if (mergedLocations.length > 0) {
-                        console.log('Sample timestamps before filter:');
-                        mergedLocations.slice(0, 3).forEach((loc, i) => {
-                            const locTime = loc.timestamp.toDate ? loc.timestamp.toDate() : loc.timestamp;
-                            console.log(`  ${i}: ${locTime}`);
-                        });
-                    }
-                    
-                    mergedLocations = mergedLocations.filter(loc => {
-                        if (!loc.timestamp) return false;
-                        const locTime = loc.timestamp.toDate ? loc.timestamp.toDate() : loc.timestamp;
-                        const inRange = locTime >= dateRange.start && locTime <= dateRange.end;
-                        return inRange;
-                    });
-                    
-                    console.log('✅ After date filter (' + currentFilter + '):', mergedLocations.length, 'records');
-                    console.log('   Date range:', dateRange.start.toLocaleString('en-GB'), '-', dateRange.end.toLocaleString('en-GB'));
-                    
-                    // Update global locationHistory with merged data
-                    locationHistory = mergedLocations;
-                    
-                    if (locationHistory.length > 0) {
-                        console.log('🗺️ Updating map, timeline, and statistics...');
-                        console.log('   locationHistory length RIGHT BEFORE updateMap:', locationHistory.length);
-                        updateStatisticsLabels(); // Update labels first
-                        updateMap();
-                        console.log('   locationHistory length RIGHT BEFORE updateTimeline:', locationHistory.length);
-                        updateTimeline();
-                        updateStatistics();
-                    } else {
-                        console.warn('⚠️ No location data found for driver:', driverId);
-                        document.getElementById('timeline').innerHTML = '<div class="no-data">لا توجد بيانات لهذا السائق</div>';
-                    }
-                }
-            } catch (error) {
-                console.error('Error loading history:', error);
-                document.getElementById('timeline').innerHTML = '<div class="no-data">حدث خطأ في تحميل البيانات</div>';
-            }
-        }
-        
-        // Update current location marker (Real-time from drivers collection)
-        function updateCurrentLocationMarker(location) {
-            if (!map) return;
-            
-            const position = [location.latitude, location.longitude];
-            
-            // Remove old marker
-            if (currentLocationMarker) {
-                map.removeLayer(currentLocationMarker);
-            }
-            
-            // Add new marker for current position
-            const icon = L.divIcon({
-                className: 'current-location-marker',
-                iconSize: [50, 50],
-                html: '<div style="width: 100%; height: 100%; background: #48bb78; border-radius: 50%; border: 4px solid white; box-shadow: 0 3px 15px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; font-size: 24px; animation: pulse 2s infinite;">🚕</div>'
-            });
-            
-            currentLocationMarker = L.marker(position, { icon: icon })
-                .addTo(map)
-                .bindPopup(`
-                    <div style="padding: 10px; text-align: right; direction: rtl;">
-                        <h3 style="margin: 0 0 10px 0; color: #48bb78;">📍 الموقع الحالي</h3>
-                        <p style="margin: 5px 0;"><strong>السائق:</strong> ${driverId}</p>
-                        <p style="margin: 5px 0;"><strong>السرعة:</strong> ${(location.speed * 3.6).toFixed(1)} كم/س</p>
-                        <p style="margin: 5px 0; color: #48bb78; font-weight: bold;">✅ محدث في الوقت الفعلي</p>
-                    </div>
-                `);
-            
-            // Auto-follow: center map on current location if enabled
-            if (autoFollow) {
-                map.setView(position, map.getZoom(), { animate: true, duration: 0.5 });
-            }
-        }
-        
-        // Update map with path
-        function updateMap() {
-            if (locationHistory.length === 0) return;
-            
-            // Remove old path
-            if (pathPolyline) {
-                map.removeLayer(pathPolyline);
-                pathPolyline = null;
-            }
-            
-            // Sort by timestamp
-            const sortedHistory = [...locationHistory].sort((a, b) => {
-                return a.timestamp.toDate() - b.timestamp.toDate();
-            });
-            
-            // Filter out unrealistic jumps (GPS errors)
-            const filteredHistory = [];
-            sortedHistory.forEach((loc, index) => {
-                if (index === 0) {
-                    filteredHistory.push(loc);
-                    return;
-                }
-                
-                const prevLoc = filteredHistory[filteredHistory.length - 1];
-                
-                // Calculate distance in km
-                const R = 6371; // Earth radius in km
-                const lat1 = prevLoc.latitude * Math.PI / 180;
-                const lat2 = loc.latitude * Math.PI / 180;
-                const deltaLat = (loc.latitude - prevLoc.latitude) * Math.PI / 180;
-                const deltaLon = (loc.longitude - prevLoc.longitude) * Math.PI / 180;
-                const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
-                         Math.cos(lat1) * Math.cos(lat2) *
-                         Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                const distance = R * c;
-                
-                // Calculate time difference in seconds
-                const timeDiff = (loc.timestamp.toDate() - prevLoc.timestamp.toDate()) / 1000;
-                
-                // Calculate speed in km/h
-                const speedKmh = timeDiff > 0 ? (distance / timeDiff) * 3600 : 0;
-                
-                // Filter: Skip if distance > 10km AND time < 5 minutes (unrealistic jump)
-                // OR if speed > 200 km/h (impossible for taxi)
-                if ((distance > 10 && timeDiff < 300) || speedKmh > 200) {
-                    console.warn('⚠️ Filtered unrealistic jump:', {
-                        distance: distance.toFixed(2) + ' km',
-                        time: timeDiff.toFixed(0) + ' sec',
-                        speed: speedKmh.toFixed(1) + ' km/h',
-                        from: prevLoc.timestamp.toDate().toLocaleString(),
-                        to: loc.timestamp.toDate().toLocaleString()
-                    });
-                    return; // Skip this point
-                }
-                
-                filteredHistory.push(loc);
-            });
-            
-            console.log('📊 Location filter: ' + sortedHistory.length + ' → ' + filteredHistory.length + ' points');
-            
-            // Create path coordinates from filtered data
-            const pathCoordinates = filteredHistory.map(loc => [loc.latitude, loc.longitude]);
-            
-            // Draw path with color based on speed
-            if (pathCoordinates.length > 1) {
-                // Draw path as multiple segments colored by speed
-                filteredHistory.forEach((loc, index) => {
-                    if (index === 0) return;
-                    
-                    const prevLoc = filteredHistory[index - 1];
-                    const speedKmh = loc.speed * 3.6;
-                    
-                    // Get color based on speed (using custom ranges)
-                    let color = pathColor;
-                    if (pathColor === '#667eea') { // Only apply speed colors to default color
-                        if (speedKmh < speedRanges.range1.max) {
-                            color = speedRanges.range1.color;
-                        } else if (speedKmh < speedRanges.range2.max) {
-                            color = speedRanges.range2.color;
-                        } else if (speedKmh < speedRanges.range3.max) {
-                            color = speedRanges.range3.color;
-                        } else {
-                            color = speedRanges.range4.color;
-                        }
-                    }
-                    
-                    const segment = L.polyline(
-                        [[prevLoc.latitude, prevLoc.longitude], [loc.latitude, loc.longitude]],
-                        {
-                            color: color,
-                            weight: pathWidth,
-                            opacity: 0.8,
-                            smoothFactor: 1
-                        }
-                    );
-                    
-                    if (pathVisible) {
-                        segment.addTo(map);
-                    }
-                    
-                    // Store reference for later removal
-                    if (!pathPolyline) {
-                        pathPolyline = L.layerGroup([segment]).addTo(map);
-                    } else {
-                        pathPolyline.addLayer(segment);
-                    }
-                });
-                
-                // Add start marker
-                const startLoc = filteredHistory[0];
-                const startIcon = L.divIcon({
-                    className: 'start-marker',
-                    iconSize: [30, 30],
-                    html: '<div style="width: 100%; height: 100%; background: #48bb78; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 16px;">🏁</div>'
-                });
-                L.marker([startLoc.latitude, startLoc.longitude], { icon: startIcon })
-                    .addTo(map)
-                    .bindPopup(`
-                        <div style="padding: 10px; text-align: right; direction: rtl;">
-                            <h4 style="margin: 0 0 5px 0; color: #48bb78;">🏁 نقطة البداية</h4>
-                            <p style="margin: 3px 0;"><strong>الوقت:</strong> ${startLoc.timestamp.toDate().toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
-                        </div>
-                    `);
-                
-                // Add stop markers
-                filteredHistory.forEach((loc, index) => {
-                    const speedKmh = loc.speed * 3.6;
-                    
-                    if (speedKmh < 1 && index > 0) { // Stopped
-                        const stopIcon = L.divIcon({
-                            className: 'stop-marker',
-                            iconSize: [20, 20],
-                            html: '<div style="width: 100%; height: 100%; background: #f56565; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>'
-                        });
-                        
-                        L.marker([loc.latitude, loc.longitude], { icon: stopIcon })
-                            .addTo(map)
-                            .bindPopup(`
-                                <div style="padding: 10px; text-align: right; direction: rtl;">
-                                    <h4 style="margin: 0 0 5px 0; color: #f56565;">⏸️ توقف</h4>
-                                    <p style="margin: 3px 0;"><strong>الوقت:</strong> ${loc.timestamp.toDate().toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
-                                </div>
-                            `);
-                    }
-                });
-                
-                // Note: Auto-follow only tracks current location, not entire path
-                // This prevents unwanted zoom-out behavior on every update
-            }
-        }
-        
-        // Update timeline
-        function updateTimeline() {
-            console.log('📋 updateTimeline called, locationHistory length:', locationHistory.length);
-            
-            const timelineEl = document.getElementById('timeline');
-            
-            if (locationHistory.length === 0) {
-                console.warn('⚠️ No location history to display');
-                timelineEl.innerHTML = '<div class="no-data">لا توجد بيانات</div>';
-                return;
-            }
-            
-            console.log('✅ Rendering', locationHistory.length, 'timeline items...');
-            console.log('First item:', locationHistory[0]);
-            
-            timelineEl.innerHTML = '';
-            
-            // Sort locationHistory based on current sort settings
-            let sortedHistory = [...locationHistory];
-            
-            if (timelineSortBy === 'time') {
-                sortedHistory.sort((a, b) => {
-                    const timeA = a.timestamp.toDate ? a.timestamp.toDate() : a.timestamp;
-                    const timeB = b.timestamp.toDate ? b.timestamp.toDate() : b.timestamp;
-                    return timelineSortOrder === 'asc' ? timeA - timeB : timeB - timeA;
-                });
-            } else if (timelineSortBy === 'speed') {
-                sortedHistory.sort((a, b) => {
-                    const speedA = a.speed * 3.6;
-                    const speedB = b.speed * 3.6;
-                    return timelineSortOrder === 'asc' ? speedA - speedB : speedB - speedA;
-                });
-            }
-            
-            sortedHistory.forEach((location, index) => {
-                if (index < 3) {
-                    console.log(`Item ${index}:`, location);
-                }
-                const time = location.timestamp.toDate();
-                const speed = (location.speed * 3.6).toFixed(1);
-                const isMoving = location.speed > 0.5;
-                
-                const item = document.createElement('div');
-                item.className = `timeline-item ${isMoving ? 'moving' : 'stopped'}`;
-                item.style.cursor = 'pointer';
-                item.style.transition = 'all 0.3s';
-                item.innerHTML = `
-                    <div class="timeline-time">${time.toLocaleString('en-GB', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
-                    <div class="timeline-status">
-                        ${isMoving ? '🚗 في حركة' : '⏸️ متوقف'}
-                    </div>
-                    <div class="timeline-details">
-                        📍 ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}<br>
-                        🚗 السرعة: ${speed} كم/س<br>
-                        🎯 الدقة: ${location.accuracy.toFixed(0)} متر
-                    </div>
-                `;
-                
-                // Add click handler to highlight location on map
-                item.addEventListener('click', function() {
-                    // Remove previous highlights
-                    document.querySelectorAll('.timeline-item').forEach(el => {
-                        el.style.background = '';
-                        el.style.borderLeft = '';
-                    });
-                    
-                    // Highlight clicked item
-                    item.style.background = '#f0f4ff';
-                    item.style.borderLeft = '4px solid #667eea';
-                    
-                    // Center map on this location
-                    const position = [location.latitude, location.longitude];
-                    map.setView(position, 16, { animate: true });
-                    
-                    // Add temporary highlight marker
-                    const highlightIcon = L.divIcon({
-                        className: 'highlight-marker',
-                        iconSize: [60, 60],
-                        html: '<div style="width: 100%; height: 100%; background: rgba(102, 126, 234, 0.3); border-radius: 50%; border: 3px solid #667eea; animation: pulse 1s ease-out 3;"></div>'
-                    });
-                    
-                    const highlightMarker = L.marker(position, { icon: highlightIcon }).addTo(map);
-                    
-                    // Remove highlight marker after 3 seconds
-                    setTimeout(() => {
-                        map.removeLayer(highlightMarker);
-                    }, 3000);
-                    
-                    // Show popup
-                    L.popup()
-                        .setLatLng(position)
-                        .setContent(`
-                            <div style="padding: 10px; text-align: right; direction: rtl;">
-                                <h4 style="margin: 0 0 5px 0; color: #667eea;">📍 نقطة محددة</h4>
-                                <p style="margin: 3px 0;"><strong>الوقت:</strong> ${time.toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
-                                <p style="margin: 3px 0;"><strong>السرعة:</strong> ${speed} كم/س</p>
-                                <p style="margin: 3px 0;"><strong>الحالة:</strong> ${isMoving ? '🚗 في حركة' : '⏸️ متوقف'}</p>
-                            </div>
-                        `)
-                        .openOn(map);
-                });
-                
-                // Add hover effect
-                item.addEventListener('mouseenter', function() {
-                    if (!item.style.borderLeft) {
-                        item.style.background = '#fafbff';
-                    }
-                });
-                
-                item.addEventListener('mouseleave', function() {
-                    if (!item.style.borderLeft) {
-                        item.style.background = '';
-                    }
-                });
-                
-                timelineEl.appendChild(item);
-            });
-        }
-        
-        // Update statistics
-        function updateStatistics() {
-            if (locationHistory.length === 0) return;
-            
-            const latest = locationHistory[locationHistory.length - 1];
-            const lastTime = latest.timestamp.toDate();
-            const now = new Date();
-            const timeDiff = now - lastTime;
-            const isOnline = timeDiff < 60000; // Online if updated in last minute
-            
-            // Status
-            const statusCard = document.getElementById('statusCard');
-            const statusValue = document.getElementById('statusValue');
-            if (isOnline) {
-                statusCard.classList.add('online');
-                statusCard.classList.remove('offline');
-                statusCard.querySelector('.icon').textContent = '🟢';
-                statusValue.textContent = 'نشط';
-            } else {
-                statusCard.classList.add('offline');
-                statusCard.classList.remove('online');
-                statusCard.querySelector('.icon').textContent = '🔴';
-                statusValue.textContent = 'غير نشط';
-            }
-            
-            // Last activity
-            const minutes = Math.floor(timeDiff / 60000);
-            if (minutes < 1) {
-                document.getElementById('lastActivity').textContent = 'الآن';
-            } else if (minutes < 60) {
-                document.getElementById('lastActivity').textContent = `منذ ${minutes} دقيقة`;
-            } else {
-                const hours = Math.floor(minutes / 60);
-                document.getElementById('lastActivity').textContent = `منذ ${hours} ساعة`;
-            }
-            
-            // Calculate total distance
-            let totalDistance = 0;
-            for (let i = 1; i < locationHistory.length; i++) {
-                const prev = locationHistory[i-1];
-                const curr = locationHistory[i];
-                totalDistance += calculateDistance(
-                    prev.latitude, prev.longitude,
-                    curr.latitude, curr.longitude
-                );
-            }
-            document.getElementById('totalDistance').textContent = totalDistance.toFixed(1) + ' كم';
-            
-            // Average speed (exclude speeds = 0)
-            const speeds = locationHistory.map(l => l.speed * 3.6).filter(s => s > 0);
-            const avgSpeed = speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
-            document.getElementById('avgSpeed').textContent = avgSpeed.toFixed(1) + ' كم/س';
-            
-            // Stops count (speed < 1 km/h)
-            const stops = locationHistory.filter(l => (l.speed * 3.6) < 1).length;
-            document.getElementById('stopsCount').textContent = stops;
-            
-            // Work hours (only when speed > 10 km/h)
-            if (locationHistory.length > 1) {
-                // Sort by timestamp
-                const sorted = [...locationHistory].sort((a, b) => {
-                    const timeA = a.timestamp.toDate ? a.timestamp.toDate() : a.timestamp;
-                    const timeB = b.timestamp.toDate ? b.timestamp.toDate() : b.timestamp;
-                    return timeA - timeB;
-                });
-                
-                let workingTimeMs = 0;
-                for (let i = 1; i < sorted.length; i++) {
-                    const speedKmh = sorted[i].speed * 3.6;
-                    if (speedKmh > 10) {
-                        const prevTime = sorted[i-1].timestamp.toDate ? sorted[i-1].timestamp.toDate() : sorted[i-1].timestamp;
-                        const currTime = sorted[i].timestamp.toDate ? sorted[i].timestamp.toDate() : sorted[i].timestamp;
-                        const timeDiff = currTime - prevTime;
-                        // Only count if time difference is reasonable (< 5 minutes)
-                        if (timeDiff < 300000) {
-                            workingTimeMs += timeDiff;
-                        }
-                    }
-                }
-                
-                const hours = Math.floor(workingTimeMs / 3600000);
-                const minutes = Math.floor((workingTimeMs % 3600000) / 60000);
-                document.getElementById('workHours').textContent = `${hours}:${minutes.toString().padStart(2, '0')}`;
-            }
-            
-            // Update page title
-            document.getElementById('driverName').textContent = `🚕 ${driverId}`;
-        }
-        
-        // Initialize
-        window.addEventListener('load', () => {
-            initMap();
-            loadDriverHistory();
+    });
+
+    // Stats
+    let dist = 0, movPts = 0, maxSpd = 0;
+    for (let i = 1; i < filtered.length; i++) {
+        dist += haversine(filtered[i-1].lat, filtered[i-1].lng, filtered[i].lat, filtered[i].lng);
+        const s = (filtered[i].speed || 0) * 3.6;
+        if (s > 1) movPts++;
+        if (s > maxSpd) maxSpd = s;
+    }
+    const movPct = filtered.length > 1 ? Math.round(movPts * 100 / (filtered.length - 1)) : 0;
+    document.getElementById('routeDistance').textContent = dist.toFixed(1);
+    document.getElementById('routePoints').textContent = filtered.length;
+    document.getElementById('routeMovingPct').textContent = movPct + '%';
+    document.getElementById('routeMaxSpeed').textContent = maxSpd.toFixed(0);
+    document.getElementById('mapRoutePoints').textContent = filtered.length;
+    document.getElementById('totalDistance').textContent = dist.toFixed(1);
+}
+
+// ===== LOAD ROUTE =====
+async function loadRoute() {
+    const cutoff = Date.now() - routeRangeHours * 3600000;
+    document.getElementById('mapRouteRange').textContent = routeRangeHours + ' ساعة';
+    try {
+        const snap = await getDocs(query(collection(db, 'drivers', driverId, 'locationHistory'), limit(1000)));
+        const pts = [];
+        snap.forEach(d => {
+            const v = d.data();
+            const t = v.timestamp?.toDate ? v.timestamp.toDate() : (v.timestamp ? new Date(v.timestamp) : null);
+            if (!t || t.getTime() < cutoff) return;
+            const lat = v.latitude || v.location?.latitude;
+            const lng = v.longitude || v.location?.longitude;
+            if (lat && lng) pts.push({ lat, lng, t, speed: v.speed || 0, isMoving: v.isMoving });
         });
-    </script>
+        pts.sort((a, b) => a.t - b.t);
+        locationHistory = pts;
+        drawRoute(pts);
+        updateTimeline();
+        buildReplayData();
+        updateStatistics();
+    } catch (e) { console.error('Route load error:', e); }
+}
+
+// ===== DRIVER LISTENER =====
+function startListener() {
+    onSnapshot(doc(db, 'drivers', driverId), snap => {
+        if (!snap.exists()) return;
+        const d = snap.data();
+        currentDriverData = d;
+        const lat = d.location?.latitude;
+        const lng = d.location?.longitude;
+        const speed = d.location?.speed || 0;
+        const spd = (speed * 3.6).toFixed(1);
+        const acc = d.location?.accuracy || 0;
+        const isActive = d.isActive || false;
+        const isMoving = d.isMoving;
+        const activity = d.currentActivity || 'unknown';
+        const conf = d.activityConfidence;
+        const battery = d.battery;
+        const appVer = d.appVersion || '—';
+        const fcm = d.fcmToken;
+        const lastUpdate = d.lastUpdate?.toDate ? d.lastUpdate.toDate() : new Date();
+        const name = d.name || driverId;
+        const phone = d.phone;
+        const empNum = d.employeeNumber || driverId;
+
+        document.getElementById('pageTitle').textContent = name;
+        document.getElementById('pageSubtitle').textContent = `${empNum} — الموقع والمسار`;
+        document.title = `${name} - تفاصيل السائق`;
+
+        const pill = document.getElementById('statusPill');
+        pill.className = `status-pill ${isActive ? 's-online' : 's-offline'}`;
+        pill.innerHTML = `<div class="s-dot ${isActive ? 'on' : 'off'}"></div>${isActive ? 'نشط' : 'غير نشط'}`;
+
+        const minsAgo = Math.floor((Date.now() - lastUpdate.getTime()) / 60000);
+        document.getElementById('lastUpdateBadge').textContent = `⏱ ${minsAgo < 1 ? 'الآن' : minsAgo < 60 ? `منذ ${minsAgo} د` : lastUpdate.toLocaleTimeString('ar-SA', {hour:'2-digit',minute:'2-digit'})}`;
+        document.getElementById('lastUpdateTime').textContent = lastUpdate.toLocaleTimeString('ar-SA', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+        const spdClass = spd < 20 ? 'spd-slow' : spd < 80 ? 'spd-med' : 'spd-fast';
+        document.getElementById('currentSpeed').innerHTML = `<span class="spd ${spdClass}">${spd}</span>`;
+
+        if (lat && lng) {
+            document.getElementById('currentLat').textContent = lat.toFixed(6);
+            document.getElementById('currentLng').textContent = lng.toFixed(6);
+            updateCurrentMarker(lat, lng, speed);
+        }
+        document.getElementById('currentAccuracy').textContent = `${acc.toFixed(0)} م`;
+        document.getElementById('currentActivity').textContent = activityMap[activity] || activity;
+        document.getElementById('activityConf').textContent = conf != null ? `${conf}%` : '—';
+        document.getElementById('isMovingNow').innerHTML = isMoving === true ? '<span style="color:var(--green)">✅ نعم</span>' : isMoving === false ? '<span style="color:var(--text-muted)">⏸️ لا</span>' : '—';
+
+        if (battery != null) {
+            const bCol = battery <= 20 ? 'var(--red)' : battery <= 40 ? 'var(--yellow)' : 'var(--green)';
+            document.getElementById('batteryLevel').innerHTML = `<span style="color:${bCol}">${battery}%</span>`;
+            document.getElementById('batteryBar').style.width = `${battery}%`;
+            document.getElementById('batteryBar').style.background = bCol;
+        }
+        const isLatest = appVer === CURRENT_APP_VERSION;
+        document.getElementById('appVersion').innerHTML = `<span style="color:${isLatest ? 'var(--green)' : 'var(--yellow)'}">${isLatest ? '✅' : '⚠️'} ${appVer}</span>`;
+        document.getElementById('fcmStatus').innerHTML = fcm ? '<span style="color:var(--green)">✅ متصل</span>' : '<span style="color:var(--red)">❌ مفقود</span>';
+        document.getElementById('employeeNum').textContent = empNum;
+        if (phone) {
+            document.getElementById('phoneNum').textContent = phone;
+            document.getElementById('callBtn').style.display = 'block';
+            window._phone = phone;
+        }
+        document.getElementById('profileLink').href = `driver-view.html?driverId=${encodeURIComponent(empNum)}`;
+    });
+}
+
+// ===== STATISTICS =====
+function updateStatistics() {
+    if (!locationHistory.length) return;
+    const sorted = [...locationHistory].sort((a, b) => a.t - b.t);
+    let dist = 0, totalSpd = 0, spdCnt = 0, stops = 0, workMs = 0;
+    for (let i = 1; i < sorted.length; i++) {
+        const p = sorted[i-1], c = sorted[i];
+        const d = haversine(p.lat, p.lng, c.lat, c.lng);
+        const dt = (c.t - p.t) / 1000;
+        if (dt > 0 && (d / dt) * 3600 < 250) {
+            dist += d;
+            const s = (c.speed || 0) * 3.6;
+            if (s > 0) { totalSpd += s; spdCnt++; }
+            if (s < 1) stops++;
+            if (s > 10 && dt < 300) workMs += dt * 1000;
+        }
+    }
+    document.getElementById('totalDistance').textContent = dist.toFixed(1);
+    document.getElementById('avgSpeed').textContent = spdCnt > 0 ? (totalSpd / spdCnt).toFixed(1) : '0';
+    document.getElementById('stopsCount').textContent = stops;
+    document.getElementById('workHours').textContent = (workMs / 3600000).toFixed(1);
+}
+
+// ===== TIMELINE =====
+function updateTimeline() {
+    const container = document.getElementById('timeline');
+    if (!locationHistory.length) { container.innerHTML = '<div class="no-data">لا توجد بيانات لهذا السائق</div>'; return; }
+    let data = [...locationHistory];
+    const now = new Date();
+    if (tlFilter === 'today') { const s = new Date(now); s.setHours(0,0,0,0); data = data.filter(p => p.t >= s); }
+    else if (tlFilter === 'yesterday') { const s = new Date(now); s.setDate(s.getDate()-1); s.setHours(0,0,0,0); const e = new Date(now); e.setHours(0,0,0,0); data = data.filter(p => p.t >= s && p.t < e); }
+    else if (tlFilter === 'week') { const s = new Date(now); s.setDate(s.getDate()-7); data = data.filter(p => p.t >= s); }
+    if (tlSort === 'time') data.sort((a, b) => b.t - a.t);
+    else if (tlSort === 'speed_desc') data.sort((a, b) => (b.speed||0) - (a.speed||0));
+    else if (tlSort === 'speed_asc') data.sort((a, b) => (a.speed||0) - (b.speed||0));
+    container.innerHTML = '';
+    data.slice(0, 200).forEach(point => {
+        const s = ((point.speed || 0) * 3.6).toFixed(1);
+        const sc = s < 20 ? 'spd-slow' : s < 80 ? 'spd-med' : 'spd-fast';
+        const el = document.createElement('div');
+        el.className = 'tl-item';
+        el.innerHTML = `<div class="tl-time">${point.t.toLocaleString('ar-SA', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})}</div><div class="tl-row"><span class="spd ${sc}">${s} كم/س</span><span style="font-size:10px;color:var(--text-muted);">${point.isMoving ? '🚗 يتحرك' : '🅿️ متوقف'}</span></div><div class="tl-coords">${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}</div>`;
+        el.addEventListener('click', () => {
+            document.querySelectorAll('.tl-item').forEach(e => e.classList.remove('hl'));
+            el.classList.add('hl');
+            map.setView([point.lat, point.lng], 17);
+            L.popup().setLatLng([point.lat, point.lng]).setContent(`<div style="direction:rtl;color:var(--text);font-size:12px;"><div style="font-weight:700;margin-bottom:5px;">📍 نقطة من السجل</div><div>السرعة: ${s} كم/س</div><div>الوقت: ${point.t.toLocaleTimeString('ar-SA')}</div></div>`).openOn(map);
+        });
+        container.appendChild(el);
+    });
+    if (!data.length) container.innerHTML = '<div class="no-data">لا توجد بيانات في هذه الفترة</div>';
+}
+
+// ===== REPLAY =====
+function buildReplayData() {
+    const sorted = [...locationHistory].sort((a, b) => a.t - b.t);
+    const filtered = sorted.length ? [sorted[0]] : [];
+    for (let i = 1; i < sorted.length; i++) {
+        const prev = filtered[filtered.length-1], curr = sorted[i];
+        const d = haversine(prev.lat, prev.lng, curr.lat, curr.lng);
+        const dt = (curr.t - prev.t) / 1000;
+        if (dt > 0 && (d / dt) * 3600 < 250) filtered.push(curr);
+        else if (d < 0.1) filtered.push(curr);
+    }
+    replayData = filtered;
+    document.getElementById('replaySlider').max = Math.max(0, replayData.length - 1);
+    document.getElementById('replaySlider').value = 0;
+    document.getElementById('replayProgress').textContent = `0 / ${replayData.length}`;
+}
+
+function showReplayPoint(idx) {
+    if (!replayData.length || idx >= replayData.length) return;
+    const p = replayData[idx];
+    const icon = L.divIcon({ className: '', iconSize: [30,30], iconAnchor: [15,30], html: `<div style="width:30px;height:30px;background:#8b5cf6;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;"><span style="transform:rotate(45deg);font-size:13px;">🚕</span></div>` });
+    if (!replayMarker) replayMarker = L.marker([p.lat, p.lng], { icon, zIndexOffset: 2000 }).addTo(map);
+    else replayMarker.setLatLng([p.lat, p.lng]);
+    map.setView([p.lat, p.lng]);
+    const s = ((p.speed || 0) * 3.6).toFixed(1);
+    document.getElementById('replayTime').textContent = p.t.toLocaleTimeString('ar-SA');
+    document.getElementById('replayCurrentSpeed').textContent = `${s} كم/س`;
+    document.getElementById('replayProgress').textContent = `${idx + 1} / ${replayData.length}`;
+    document.getElementById('replaySlider').value = idx;
+    replayIndex = idx;
+}
+
+window.toggleReplay = function() {
+    if (!replayData.length) buildReplayData();
+    if (!replayData.length) { alert('لا توجد بيانات مسار للتشغيل'); return; }
+    replayPlaying = !replayPlaying;
+    const btn = document.getElementById('replayPlayBtn');
+    if (replayPlaying) {
+        btn.textContent = '⏸ إيقاف'; btn.style.background = 'var(--yellow)';
+        replayInterval = setInterval(() => {
+            if (replayIndex >= replayData.length - 1) { window.toggleReplay(); return; }
+            showReplayPoint(replayIndex + 1);
+        }, 1000 / replaySpeed);
+    } else {
+        clearInterval(replayInterval);
+        btn.textContent = '▶️ تشغيل'; btn.style.background = 'var(--green)';
+    }
+};
+
+window.resetReplay = function() {
+    clearInterval(replayInterval); replayPlaying = false; replayIndex = 0;
+    document.getElementById('replayPlayBtn').textContent = '▶️ تشغيل';
+    document.getElementById('replayPlayBtn').style.background = 'var(--green)';
+    if (replayMarker) { map.removeLayer(replayMarker); replayMarker = null; }
+    document.getElementById('replaySlider').value = 0;
+    document.getElementById('replayProgress').textContent = `0 / ${replayData.length}`;
+    document.getElementById('replayTime').textContent = '—';
+    document.getElementById('replayCurrentSpeed').textContent = '—';
+};
+
+window.seekReplay = function(v) { replayIndex = parseInt(v); showReplayPoint(replayIndex); };
+window.changeReplaySpeed = function() {
+    replaySpeed = parseInt(document.getElementById('replaySpeed').value);
+    if (replayPlaying) { clearInterval(replayInterval); replayInterval = setInterval(() => { if (replayIndex >= replayData.length - 1) { window.toggleReplay(); return; } showReplayPoint(replayIndex + 1); }, 1000 / replaySpeed); }
+};
+
+// ===== CONTROLS =====
+window.toggleRoute = function() {
+    routeVisible = !routeVisible;
+    const btn = document.getElementById('toggleRouteBtn');
+    if (routePoly) routePoly.setStyle({ opacity: routeVisible ? 0.75 : 0 });
+    stopMarkers.forEach(m => routeVisible ? map.addLayer(m) : map.removeLayer(m));
+    btn.textContent = routeVisible ? 'إخفاء' : 'إظهار';
+    btn.style.color = routeVisible ? 'var(--green)' : 'var(--red)';
+};
+window.toggleAutoFollow = function() {
+    autoFollow = !autoFollow;
+    const btn = document.getElementById('autoFollowBtn');
+    btn.textContent = autoFollow ? 'إيقاف' : 'تفعيل';
+    btn.style.color = autoFollow ? 'var(--green)' : 'var(--blue)';
+};
+window.setPathColor = function(c) { pathColor = c; drawRoute(locationHistory); };
+window.setRouteRange = function(h, el) {
+    routeRangeHours = h;
+    document.querySelectorAll('#tab-route .pill').forEach(b => b.classList.remove('active'));
+    if (el) el.classList.add('active');
+    loadRoute();
+};
+window.filterTL = function(f, el) {
+    tlFilter = f;
+    document.querySelectorAll('#tlFilters .pill').forEach(b => b.classList.remove('active'));
+    if (el) el.classList.add('active');
+    updateTimeline();
+};
+window.sortTL = function(s) { tlSort = s; updateTimeline(); };
+window.centerOnDriver = function() {
+    if (currentDriverData?.location?.latitude) map.setView([currentDriverData.location.latitude, currentDriverData.location.longitude], 17);
+};
+window.fitRoute = function() {
+    if (!locationHistory.length) return;
+    const bounds = locationHistory.map(p => [p.lat, p.lng]);
+    if (bounds.length === 1) map.setView(bounds[0], 15);
+    else map.fitBounds(bounds, { padding: [40, 40] });
+};
+window.toggleReplayPanel = function() { document.getElementById('replayPanel').classList.toggle('show'); };
+window.togglePanel = function() { document.getElementById('leftPanel').classList.toggle('open'); };
+window.switchTab = function(tab, el) {
+    document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    if (el) el.classList.add('active');
+    document.getElementById(`tab-${tab}`).classList.add('active');
+};
+window.callDriver = function() { if (window._phone) window.location.href = `tel:${window._phone}`; };
+
+// ===== EXPORT =====
+window.exportPDF = function() { window.print(); };
+window.exportExcel = function() {
+    if (typeof XLSX === 'undefined') { alert('مكتبة Excel لم تُحمّل بعد، جرب بعد ثانية'); return; }
+    const wb = XLSX.utils.book_new();
+    const d = currentDriverData;
+    const summary = [
+        ['الحقل', 'القيمة'],
+        ['الاسم', d?.name || driverId],
+        ['الرقم الوظيفي', d?.employeeNumber || driverId],
+        ['الحالة', d?.isActive ? 'نشط' : 'غير نشط'],
+        ['السرعة الحالية', `${((d?.location?.speed || 0) * 3.6).toFixed(1)} كم/س`],
+        ['المسافة الكلية', `${document.getElementById('totalDistance').textContent} كم`],
+        ['متوسط السرعة', `${document.getElementById('avgSpeed').textContent} كم/س`],
+        ['عدد التوقفات', document.getElementById('stopsCount').textContent],
+        ['ساعات العمل', `${document.getElementById('workHours').textContent} ساعة`],
+        ['إصدار التطبيق', d?.appVersion || '—'],
+        ['البطارية', d?.battery != null ? `${d.battery}%` : '—'],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'ملخص');
+    if (locationHistory.length) {
+        const hist = [['الوقت', 'خط العرض', 'خط الطول', 'السرعة كم/س', 'يتحرك']];
+        locationHistory.forEach(p => hist.push([p.t.toLocaleString('ar-SA'), p.lat.toFixed(6), p.lng.toFixed(6), ((p.speed||0)*3.6).toFixed(1), p.isMoving ? 'نعم' : 'لا']));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hist), 'سجل المواقع');
+    }
+    XLSX.writeFile(wb, `driver_${driverId}_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+// ===== RESPONSIVE =====
+function checkMobile() {
+    const isMobile = window.innerWidth <= 768;
+    document.getElementById('panelToggleBtn').style.display = isMobile ? 'flex' : 'none';
+}
+window.addEventListener('resize', checkMobile);
+checkMobile();
+
+// ===== INIT =====
+window.addEventListener('load', () => {
+    initMap();
+    startListener();
+    loadRoute();
+});
+</script>
 </body>
 </html>
-

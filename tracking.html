@@ -4,1219 +4,870 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تتبع السائقين - نظام إدارة التاكسي</title>
-    
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --primary: #1a1a2e;
+            --secondary: #16213e;
+            --accent: #0f3460;
+            --gold: #e94560;
+            --green: #10b981;
+            --red: #ef4444;
+            --yellow: #f59e0b;
+            --blue: #3b82f6;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --card-bg: rgba(255,255,255,0.05);
+            --border: rgba(255,255,255,0.1);
+            --shadow: 0 4px 24px rgba(0,0,0,0.4);
         }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f5f5;
+            background: var(--primary);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
-        
+
+        /* ===== HEADER ===== */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            padding: 0 20px;
+            height: 60px;
             display: flex;
+            align-items: center;
             justify-content: space-between;
-            align-items: center;
+            border-bottom: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            flex-shrink: 0;
+            z-index: 100;
         }
-        
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
+        .header-left { display: flex; align-items: center; gap: 12px; }
         .header-logo {
-            font-size: 32px;
-        }
-        
-        .header-title h1 {
+            width: 38px; height: 38px;
+            background: linear-gradient(135deg, var(--gold), #ff6b6b);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
             font-size: 20px;
-            margin: 0;
         }
-        
-        .header-title p {
-            font-size: 12px;
-            opacity: 0.9;
-            margin: 2px 0 0 0;
-        }
-        
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-        
-        .header-user {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .header-user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: white;
-            color: #667eea;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 18px;
-        }
-        
-        .header-notifications {
-            position: relative;
-            cursor: pointer;
-            font-size: 24px;
-        }
-        
-        .notification-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #ef4444;
-            color: white;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            font-size: 11px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
-        
-        .header-icon-btn {
-            background: rgba(255,255,255,0.2);
-            border: 2px solid white;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 18px;
-            transition: all 0.3s;
-            margin-left: 10px;
-        }
-        
-        .header-icon-btn:hover {
-            background: white;
-            transform: scale(1.1);
-        }
-        
-        .header-logout {
-            background: rgba(255,255,255,0.2);
-            border: 2px solid white;
-            color: white;
-            padding: 8px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-        
-        .header-logout:hover {
-            background: white;
-            color: #667eea;
-        }
-        
-        .stats-container {
-            background: white;
-            padding: 20px 30px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-        }
-        
-        .stat-card {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            transition: all 0.3s;
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-        }
-        
-        .stat-card.active {
-            background: linear-gradient(135deg, #d4edda 0%, #a8d5ba 100%);
-        }
-        
-        .stat-card.inactive {
-            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-        }
-        
-        .stat-card.speed {
-            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-        }
-        
-        .stat-card.distance {
-            background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
-        }
-        
-        .stat-icon {
-            font-size: 32px;
-            margin-bottom: 10px;
-        }
-        
-        .stat-value {
-            font-size: 28px;
-            font-weight: bold;
-            color: #333;
-            margin: 5px 0;
-        }
-        
-        .stat-label {
-            font-size: 14px;
-            color: #666;
-        }
-        
-        .filters-container {
-            background: white;
-            padding: 15px 30px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        
-        .search-box {
-            flex: 1;
-            min-width: 250px;
-            position: relative;
-        }
-        
-        .search-box input {
-            width: 100%;
-            padding: 10px 15px 10px 40px;
-            border: 2px solid #e0e0e0;
+        .header-title h1 { font-size: 16px; font-weight: 700; color: white; }
+        .header-title p { font-size: 11px; color: var(--text-muted); }
+        .header-right { display: flex; align-items: center; gap: 8px; }
+        .header-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 7px 14px;
             border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-        
-        .search-box input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .search-icon {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 18px;
-            color: #999;
-        }
-        
-        .filter-group {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        
-        .filter-checkbox {
-            display: flex;
-            align-items: center;
-            gap: 5px;
             cursor: pointer;
-            padding: 8px 15px;
-            border-radius: 6px;
-            background: #f5f5f5;
-            transition: all 0.3s;
-        }
-        
-        .filter-checkbox:hover {
-            background: #e0e0e0;
-        }
-        
-        .filter-checkbox input {
-            cursor: pointer;
-        }
-        
-        .filter-checkbox label {
-            cursor: pointer;
-            font-size: 14px;
-            color: #666;
-        }
-        
-        .container {
-            display: flex;
-            height: calc(100vh - 240px);
-        }
-        
-        .sidebar {
-            width: 300px;
-            background: white;
-            padding: 20px;
-            overflow-y: auto;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-        }
-        
-        .map-container {
-            flex: 1;
-            position: relative;
-        }
-        
-        #map {
-            width: 100%;
-            height: 100%;
-        }
-        
-        .driver-card {
-            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-            border-radius: 12px;
-            padding: 18px;
-            margin-bottom: 15px;
-            border-right: 4px solid #667eea;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        
-        .driver-card:hover {
-            transform: translateX(-5px) translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
-        }
-        
-        .driver-card.active {
-            background: linear-gradient(135deg, #e7f3ff 0%, #d4edda 100%);
-            border-right-color: #28a745;
-            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
-        }
-        
-        .driver-card h3 {
-            color: #333;
-            margin-bottom: 12px;
-            font-size: 18px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .driver-info {
             font-size: 13px;
-            color: #666;
-            margin: 6px 0;
-            display: flex;
-            align-items: center;
-            gap: 6px;
+            transition: all 0.2s;
+            display: flex; align-items: center; gap: 5px;
         }
-        
-        .driver-info-icon {
-            font-size: 16px;
-            min-width: 20px;
+        .header-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); }
+        .header-btn.danger { border-color: rgba(239,68,68,0.4); }
+        .header-btn.danger:hover { background: rgba(239,68,68,0.15); }
+        .live-indicator {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(16,185,129,0.15);
+            border: 1px solid rgba(16,185,129,0.3);
+            padding: 5px 12px; border-radius: 20px;
+            font-size: 12px; color: var(--green);
         }
-        
-        .driver-speed-badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-right: 5px;
-        }
-        
-        .driver-speed-badge.slow {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .driver-speed-badge.medium {
-            background: #fff3cd;
-            color: #856404;
-        }
-        
-        .driver-speed-badge.fast {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-top: 5px;
-        }
-        
-        .status-badge.online {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .status-badge.offline {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
-        .refresh-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            transition: all 0.3s;
-        }
-        
-        .refresh-btn:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-        }
-        
-        /* Custom marker style */
-        .custom-marker {
-            background: #667eea;
-            width: 30px;
-            height: 30px;
+        .live-dot {
+            width: 8px; height: 8px;
+            background: var(--green);
             border-radius: 50%;
-            border: 3px solid white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            animation: pulse 1.5s infinite;
         }
-        
-        /* Map type controls */
-        .map-type-controls {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 1000;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            padding: 10px;
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+        .version-badge {
+            font-size: 11px; color: var(--text-muted);
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 4px 8px; border-radius: 6px;
+        }
+
+        /* ===== STATS BAR ===== */
+        .stats-bar {
+            background: var(--secondary);
+            padding: 10px 20px;
             display: flex;
-            gap: 10px;
+            gap: 12px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            overflow-x: auto;
         }
-        
-        .map-type-btn {
+        .stat-pill {
+            display: flex; align-items: center; gap: 8px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 8px 16px; border-radius: 10px;
+            white-space: nowrap; flex-shrink: 0;
+            transition: all 0.2s;
+        }
+        .stat-pill:hover { border-color: rgba(255,255,255,0.2); }
+        .stat-pill.green { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); }
+        .stat-pill.red { border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.08); }
+        .stat-pill.yellow { border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.08); }
+        .stat-pill.blue { border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.08); }
+        .stat-icon { font-size: 18px; }
+        .stat-info { display: flex; flex-direction: column; }
+        .stat-value { font-size: 18px; font-weight: 700; line-height: 1; }
+        .stat-label { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+        .stat-pill.green .stat-value { color: var(--green); }
+        .stat-pill.red .stat-value { color: var(--red); }
+        .stat-pill.yellow .stat-value { color: var(--yellow); }
+        .stat-pill.blue .stat-value { color: var(--blue); }
+
+        /* ===== MAIN LAYOUT ===== */
+        .main-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: 320px;
+            background: var(--secondary);
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--border);
+            flex-shrink: 0;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .sidebar-title { font-size: 14px; font-weight: 600; color: var(--text); }
+        .sidebar-count {
+            background: var(--accent);
+            color: var(--text-muted);
+            font-size: 11px;
+            padding: 3px 8px; border-radius: 10px;
+        }
+        .search-box {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .search-input {
+            width: 100%;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 9px 12px 9px 36px;
+            border-radius: 8px;
+            font-size: 13px;
+            transition: all 0.2s;
+            direction: rtl;
+        }
+        .search-input::placeholder { color: var(--text-muted); }
+        .search-input:focus { outline: none; border-color: rgba(59,130,246,0.5); background: rgba(255,255,255,0.08); }
+        .search-wrapper { position: relative; }
+        .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 15px; color: var(--text-muted); }
+        .filter-tabs {
             padding: 8px 16px;
-            border: 2px solid #ddd;
-            background: white;
+            display: flex; gap: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+        .filter-tab {
+            flex: 1;
+            padding: 6px 8px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
             border-radius: 6px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: all 0.3s;
-            color: #666;
+            font-size: 12px;
+            text-align: center;
+            transition: all 0.2s;
         }
-        
-        .map-type-btn:hover {
-            background: #f0f0f0;
-            border-color: #667eea;
+        .filter-tab.active { background: var(--accent); color: white; border-color: rgba(255,255,255,0.2); }
+        .filter-tab:hover:not(.active) { background: rgba(255,255,255,0.08); }
+        .drivers-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .drivers-list::-webkit-scrollbar { width: 4px; }
+        .drivers-list::-webkit-scrollbar-track { background: transparent; }
+        .drivers-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        /* ===== DRIVER CARD ===== */
+        .driver-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
         }
-        
-        .map-type-btn.active {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
+        .driver-card::before {
+            content: '';
+            position: absolute;
+            right: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: var(--text-muted);
+            border-radius: 0 12px 12px 0;
         }
-        
-        /* Mobile Responsive */
+        .driver-card.active::before { background: var(--green); }
+        .driver-card.inactive::before { background: var(--red); }
+        .driver-card:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); transform: translateX(3px); }
+        .driver-card.selected { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.4); }
+        .driver-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .driver-name { font-size: 14px; font-weight: 600; color: white; }
+        .driver-id { font-size: 11px; color: var(--text-muted); }
+        .status-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: var(--red);
+            flex-shrink: 0;
+        }
+        .status-dot.active { background: var(--green); animation: pulse 2s infinite; }
+        .driver-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+        .driver-stat {
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+            padding: 6px 8px;
+        }
+        .driver-stat-label { font-size: 10px; color: var(--text-muted); }
+        .driver-stat-value { font-size: 13px; font-weight: 600; color: var(--text); margin-top: 2px; }
+        .speed-badge {
+            display: inline-block;
+            padding: 2px 8px; border-radius: 10px;
+            font-size: 11px; font-weight: 700;
+        }
+        .speed-slow { background: rgba(16,185,129,0.2); color: var(--green); }
+        .speed-medium { background: rgba(245,158,11,0.2); color: var(--yellow); }
+        .speed-fast { background: rgba(239,68,68,0.2); color: var(--red); }
+        .driver-card-footer { display: flex; align-items: center; justify-content: space-between; }
+        .last-update { font-size: 11px; color: var(--text-muted); }
+        .version-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+        .version-ok { background: rgba(16,185,129,0.15); color: var(--green); }
+        .version-old { background: rgba(245,158,11,0.15); color: var(--yellow); }
+        .activity-badge {
+            font-size: 10px; padding: 2px 7px; border-radius: 8px;
+            background: rgba(59,130,246,0.15); color: var(--blue);
+        }
+        .btn-details {
+            width: 100%;
+            margin-top: 10px;
+            padding: 8px;
+            background: rgba(59,130,246,0.15);
+            border: 1px solid rgba(59,130,246,0.3);
+            color: var(--blue);
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-details:hover { background: rgba(59,130,246,0.3); }
+        .empty-state {
+            text-align: center; padding: 40px 20px; color: var(--text-muted);
+        }
+        .empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+        /* ===== MAP AREA ===== */
+        .map-area {
+            flex: 1;
+            position: relative;
+            background: #0a0a1a;
+        }
+        #map { width: 100%; height: 100%; }
+
+        /* Map Controls */
+        .map-controls {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 1000;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .map-ctrl-group {
+            background: rgba(22,33,62,0.95);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            box-shadow: var(--shadow);
+        }
+        .map-ctrl-btn {
+            display: flex; align-items: center; gap: 6px;
+            padding: 9px 14px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            width: 100%;
+            border-bottom: 1px solid var(--border);
+        }
+        .map-ctrl-btn:last-child { border-bottom: none; }
+        .map-ctrl-btn:hover { background: rgba(255,255,255,0.08); color: white; }
+        .map-ctrl-btn.active { color: var(--blue); background: rgba(59,130,246,0.1); }
+
+        /* Sidebar Toggle (Mobile) */
+        .sidebar-toggle {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 1000;
+            background: rgba(22,33,62,0.95);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 9px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            display: none;
+            backdrop-filter: blur(10px);
+            box-shadow: var(--shadow);
+        }
+
+        /* Map Info Panel */
+        .map-info-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(22,33,62,0.95);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            backdrop-filter: blur(10px);
+            box-shadow: var(--shadow);
+            font-size: 12px;
+            color: var(--text-muted);
+            min-width: 180px;
+        }
+        .map-info-panel .info-row { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 4px; }
+        .map-info-panel .info-row:last-child { margin-bottom: 0; }
+        .map-info-panel .info-val { color: var(--text); font-weight: 600; }
+
+        /* Leaflet popup override */
+        .leaflet-popup-content-wrapper {
+            background: rgba(22,33,62,0.97) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 12px !important;
+            box-shadow: var(--shadow) !important;
+            color: var(--text) !important;
+        }
+        .leaflet-popup-tip { background: rgba(22,33,62,0.97) !important; }
+        .leaflet-popup-content { margin: 14px 16px !important; }
+
+        /* ===== RESPONSIVE ===== */
         @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                gap: 15px;
-                padding: 15px;
-            }
-            
-            .header-left {
-                width: 100%;
-                justify-content: center;
-            }
-            
-            .header-right {
-                width: 100%;
-                justify-content: center;
-                flex-wrap: wrap;
-            }
-            
-            .header-title h1 {
-                font-size: 18px;
-            }
-            
-            .header-title p {
-                font-size: 11px;
-            }
-            
-            .header-user span {
-                font-size: 12px;
-            }
-            
-            .header-logout {
-                padding: 6px 15px;
-                font-size: 12px;
-            }
-            
-            .stats-container {
-                padding: 15px;
-            }
-            
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 15px;
-            }
-            
-            .stat-card {
-                padding: 15px;
-            }
-            
-            .stat-icon {
-                font-size: 24px;
-            }
-            
-            .stat-value {
-                font-size: 22px;
-            }
-            
-            .stat-label {
-                font-size: 12px;
-            }
-            
-            .filters-container {
-                padding: 15px;
-                flex-direction: column;
-                align-items: stretch;
-            }
-            
-            .search-box {
-                width: 100%;
-                min-width: auto;
-            }
-            
-            .filter-group {
-                width: 100%;
-                justify-content: space-between;
-            }
-            
-            .filter-checkbox {
-                padding: 6px 10px;
-                font-size: 12px;
-            }
-            
-            .container {
-                flex-direction: column;
-                height: auto;
-                min-height: 500px;
-            }
-            
             .sidebar {
-                width: 100%;
-                max-height: 300px;
-                order: 2;
+                position: absolute;
+                top: 0; right: 0; bottom: 0;
+                z-index: 500;
+                transform: translateX(100%);
+                width: 290px;
             }
-            
-            .map-container {
-                width: 100%;
-                height: 400px;
-                min-height: 400px;
-                order: 1;
-            }
-            
-            #map {
-                width: 100%;
-                height: 400px;
-            }
-                        .map-type-controls {
-                top: 10px;
-                left: 10px;
-                padding: 5px;
-                gap: 5px;
-            }
-            
-            .header-icon-btn {
-                padding: 6px 10px;
-                font-size: 16px;
-                margin-left: 5px;
-            }
-        }
-        
-        /* Dark Mode Styles */
-        body.dark-mode {
-            background: #1a1a2e;
-            color: #eee;
-        }
-        
-        body.dark-mode .header {
-            background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
-        }
-        
-        body.dark-mode .stats-container,
-        body.dark-mode .filters-container,
-        body.dark-mode .sidebar,
-        body.dark-mode .driver-card {
-            background: #16213e;
-            color: #eee;
-        }
-        
-        body.dark-mode .driver-card {
-            background: linear-gradient(135deg, #16213e 0%, #1a1a2e 100%);
-            border-right-color: #0f3460;
-        }
-        
-        body.dark-mode .driver-card.active {
-            background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
-            border-right-color: #28a745;
-        }
-        
-        body.dark-mode .driver-card h3,
-        body.dark-mode .driver-info,
-        body.dark-mode .stat-label {
-            color: #eee;
-        }
-        
-        body.dark-mode .stat-card {
-            background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
-        }
-        
-        body.dark-mode input[type="text"],
-        body.dark-mode input[type="checkbox"] {
-            background: #0f3460;
-            border-color: #16213e;
-            color: #eee;
-        }
-            .map-type-btn {
-                padding: 6px 12px;
-                font-size: 12px;
-            }
-            
-            .driver-card {
-                padding: 12px;
-            }
-            
-            .driver-card h3 {
-                font-size: 16px;
-            }
-            
-            .driver-info {
-                font-size: 12px;
-            }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-toggle { display: flex; align-items: center; gap: 6px; }
+            .stats-bar { padding: 8px 12px; gap: 8px; }
+            .stat-pill { padding: 6px 10px; }
+            .stat-value { font-size: 15px; }
+            .header { padding: 0 12px; }
+            .header-title p { display: none; }
+            .version-badge { display: none; }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-left">
-            <div class="header-logo">🚗</div>
-            <div class="header-title">
-                <h1>نظام تتبع التاكسي</h1>
-                <p>عرض مواقع السائقين في الوقت الفعلي</p>
-            </div>
-        </div>
-        <div class="header-right">
-            <button class="header-icon-btn" onclick="toggleDarkMode()" title="وضع داكن">
-                <span id="darkModeIcon">🌙</span>
-            </button>
-            <button class="header-icon-btn" onclick="exportData()" title="تصدير البيانات">
-                📊
-            </button>
-            <div class="header-notifications" onclick="showNotifications()">
-                🔔
-                <span class="notification-badge" id="notificationCount">0</span>
-            </div>
-            <div class="header-user">
-                <div class="header-user-avatar">A</div>
-                <span>مرحباً، Admin</span>
-            </div>
-            <button class="header-logout" onclick="logout()">🚺 تسجيل الخروج</button>
+
+<!-- HEADER -->
+<div class="header">
+    <div class="header-left">
+        <div class="header-logo">🚕</div>
+        <div class="header-title">
+            <h1>مركز تتبع السائقين</h1>
+            <p>الوقت الفعلي — Kuwait Taxi System</p>
         </div>
     </div>
-    
-    <!-- Stats Dashboard -->
-    <div class="stats-container">
-        <div class="stats-grid">
-            <div class="stat-card active">
-                <div class="stat-icon">🟢</div>
-                <div class="stat-value" id="activeDrivers">0</div>
-                <div class="stat-label">سائقين نشطين</div>
-            </div>
-            <div class="stat-card inactive">
-                <div class="stat-icon">🔴</div>
-                <div class="stat-value" id="inactiveDrivers">0</div>
-                <div class="stat-label">سائقين غير نشطين</div>
-            </div>
-            <div class="stat-card speed">
-                <div class="stat-icon">⚡</div>
-                <div class="stat-value" id="avgSpeed">0</div>
-                <div class="stat-label">متوسط السرعة (كم/س)</div>
-            </div>
-            <div class="stat-card distance">
-                <div class="stat-icon">📏</div>
-                <div class="stat-value" id="totalDistance">0</div>
-                <div class="stat-label">المسافة الكلية (كم)</div>
-            </div>
+    <div class="header-right">
+        <div class="live-indicator">
+            <div class="live-dot"></div>
+            مباشر
+        </div>
+        <span class="version-badge">v3.3</span>
+        <button class="header-btn" onclick="fitAllDrivers()" title="عرض الكل على الخريطة">🗺️ عرض الكل</button>
+        <button class="header-btn" onclick="exportData()" title="تصدير البيانات">📊 تصدير</button>
+        <button class="header-btn" onclick="window.location.href='tracking-management.html'" title="إدارة التتبع">⚙️ إدارة</button>
+        <button class="header-btn danger" onclick="logout()">🚪 خروج</button>
+    </div>
+</div>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+    <div class="stat-pill green">
+        <span class="stat-icon">🟢</span>
+        <div class="stat-info">
+            <span class="stat-value" id="activeDrivers">0</span>
+            <span class="stat-label">نشطين</span>
         </div>
     </div>
-    
-    <!-- Search & Filters -->
-    <div class="filters-container">
+    <div class="stat-pill red">
+        <span class="stat-icon">🔴</span>
+        <div class="stat-info">
+            <span class="stat-value" id="inactiveDrivers">0</span>
+            <span class="stat-label">غير نشطين</span>
+        </div>
+    </div>
+    <div class="stat-pill yellow">
+        <span class="stat-icon">⚡</span>
+        <div class="stat-info">
+            <span class="stat-value" id="avgSpeed">0</span>
+            <span class="stat-label">متوسط السرعة كم/س</span>
+        </div>
+    </div>
+    <div class="stat-pill blue">
+        <span class="stat-icon">🚗</span>
+        <div class="stat-info">
+            <span class="stat-value" id="movingDrivers">0</span>
+            <span class="stat-label">يتحركون الآن</span>
+        </div>
+    </div>
+    <div class="stat-pill" style="border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.08)">
+        <span class="stat-icon">📡</span>
+        <div class="stat-info">
+            <span class="stat-value" style="color:#a78bfa" id="totalDrivers">0</span>
+            <span class="stat-label">إجمالي السائقين</span>
+        </div>
+    </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">قائمة السائقين</span>
+            <span class="sidebar-count" id="sidebarCount">0</span>
+        </div>
         <div class="search-box">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="searchInput" placeholder="ابحث عن سائق..." oninput="filterDrivers()">
-        </div>
-        <div class="filter-group">
-            <div class="filter-checkbox">
-                <input type="checkbox" id="filterActive" checked onchange="filterDrivers()">
-                <label for="filterActive">نشط</label>
-            </div>
-            <div class="filter-checkbox">
-                <input type="checkbox" id="filterInactive" checked onchange="filterDrivers()">
-                <label for="filterInactive">غير نشط</label>
-            </div>
-            <div class="filter-checkbox">
-                <input type="checkbox" id="filterHighSpeed" onchange="filterDrivers()">
-                <label for="filterHighSpeed">سرعة عالية (>80)</label>
+            <div class="search-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" id="searchInput" placeholder="ابحث باسم السائق أو رقمه..." oninput="filterDrivers()">
             </div>
         </div>
-    </div>
-    
-    <div class="container">
-        <div class="sidebar">
-            <button class="refresh-btn" onclick="loadDrivers()">🔄 تحديث</button>
-            <div id="driversList">
-                <div class="loading">جاري تحميل السائقين...</div>
-            </div>
+        <div class="filter-tabs">
+            <div class="filter-tab active" onclick="setFilter('all', this)">الكل</div>
+            <div class="filter-tab" onclick="setFilter('active', this)">نشط</div>
+            <div class="filter-tab" onclick="setFilter('inactive', this)">غير نشط</div>
+            <div class="filter-tab" onclick="setFilter('moving', this)">يتحرك</div>
         </div>
-        
-        <div class="map-container">
-            <div class="map-type-controls">
-                <button class="map-type-btn active" onclick="changeMapType('streets')">🗺️ الشوارع</button>
-                <button class="map-type-btn" onclick="changeMapType('satellite')">🛰️ الأقمار</button>
-                <button class="map-type-btn" onclick="changeMapType('hybrid')">🌐 هجين</button>
+        <div class="drivers-list" id="driversList">
+            <div class="empty-state">
+                <div class="empty-icon">📡</div>
+                <p>جاري الاتصال بقاعدة البيانات...</p>
             </div>
-            <div id="map"></div>
         </div>
     </div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- MAP AREA -->
+    <div class="map-area">
+        <!-- Sidebar Toggle (Mobile) -->
+        <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">☰ السائقين</button>
 
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-        import { getFirestore, collection, onSnapshot, query } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        <!-- Map Controls -->
+        <div class="map-controls">
+            <div class="map-ctrl-group">
+                <button class="map-ctrl-btn active" id="btnStreets" onclick="changeMapType('streets', this)">🗺️ الشوارع</button>
+                <button class="map-ctrl-btn" id="btnSatellite" onclick="changeMapType('satellite', this)">🛰️ الأقمار</button>
+                <button class="map-ctrl-btn" id="btnHybrid" onclick="changeMapType('hybrid', this)">🌐 هجين</button>
+            </div>
+            <div class="map-ctrl-group">
+                <button class="map-ctrl-btn" onclick="fitAllDrivers()">🎯 عرض الكل</button>
+                <button class="map-ctrl-btn" onclick="loadDrivers()">🔄 تحديث</button>
+            </div>
+        </div>
 
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
-            authDomain: "taxi-management-system-d8210.firebaseapp.com",
-            projectId: "taxi-management-system-d8210",
-            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
-            messagingSenderId: "720874424166",
-            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
-            measurementId: "G-GY8820W410"
-        };
+        <!-- Map Info Panel -->
+        <div class="map-info-panel">
+            <div class="info-row">
+                <span>آخر تحديث:</span>
+                <span class="info-val" id="lastUpdateTime">--:--</span>
+            </div>
+            <div class="info-row">
+                <span>أعلى سرعة:</span>
+                <span class="info-val" id="maxSpeed">0 كم/س</span>
+            </div>
+            <div class="info-row">
+                <span>نوع الخريطة:</span>
+                <span class="info-val" id="mapTypeName">الشوارع</span>
+            </div>
+        </div>
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        <div id="map"></div>
+    </div>
+</div>
 
-        let map;
-        let markers = {};
-        let drivers = {};
-        let driversInfo = {}; // Store driver names and info
-        let currentTileLayer = null;
-        let currentMapType = 'streets';
-        
-        // Map tile layers
-        const mapLayers = {
-            streets: {
-                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                attribution: '© OpenStreetMap contributors'
-            },
-            satellite: {
-                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                attribution: '© Esri, Maxar, Earthstar Geographics'
-            },
-            hybrid: {
-                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                attribution: '© Esri, Maxar, Earthstar Geographics',
-                labels: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-            }
-        };
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+import { getFirestore, collection, onSnapshot, query } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 
-        // Initialize Leaflet Map
-        function initMap() {
-            // Default center (Kuwait)
-            const center = [29.3759, 47.9774];
-            
-            map = L.map('map').setView(center, 12);
-            
-            // Add default tile layer (streets)
-            currentTileLayer = L.tileLayer(mapLayers.streets.url, {
-                attribution: mapLayers.streets.attribution,
-                maxZoom: 19
-            }).addTo(map);
-        }
-        
-        // Change map type
-        window.changeMapType = function(type) {
-            if (currentMapType === type) return;
-            
-            // Remove current tile layer
-            if (currentTileLayer) {
-                map.removeLayer(currentTileLayer);
-            }
-            
-            // Add new tile layer
-            const layer = mapLayers[type];
-            currentTileLayer = L.tileLayer(layer.url, {
-                attribution: layer.attribution,
-                maxZoom: 19
-            }).addTo(map);
-            
-            // For hybrid, add labels layer on top
-            if (type === 'hybrid' && layer.labels) {
-                L.tileLayer(layer.labels, {
-                    attribution: '',
-                    maxZoom: 19,
-                    opacity: 0.7
-                }).addTo(map);
-            }
-            
-            currentMapType = type;
-            
-            // Update button states
-            document.querySelectorAll('.map-type-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-        };
+const firebaseConfig = {
+    apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+    authDomain: "taxi-management-system-d8210.firebaseapp.com",
+    projectId: "taxi-management-system-d8210",
+    storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+    messagingSenderId: "720874424166",
+    appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+    measurementId: "G-GY8820W410"
+};
 
-        // Add or update driver marker
-        function updateDriverMarker(driverData) {
-            const position = [driverData.latitude, driverData.longitude];
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-            if (markers[driverData.driverId]) {
-                // Update existing marker
-                markers[driverData.driverId].setLatLng(position);
-                markers[driverData.driverId].getPopup().setContent(getPopupContent(driverData));
-            } else {
-                // Create custom icon
-                const customIcon = L.divIcon({
-                    className: 'custom-marker',
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 15],
-                    popupAnchor: [0, -15],
-                    html: '<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">🚕</div>'
-                });
+// Auth check
+const userRole = localStorage.getItem('userRole');
+if (!userRole || (userRole !== 'admin' && userRole !== 'owner')) {
+    onAuthStateChanged(auth, (user) => {
+        if (!user) window.location.href = 'index.html';
+    });
+}
 
-                // Create new marker
-                const marker = L.marker(position, { icon: customIcon })
-                    .addTo(map)
-                    .bindPopup(getPopupContent(driverData));
+let map, currentTileLayer, currentMapType = 'streets';
+let markers = {}, drivers = {}, driversInfo = {};
+let currentFilter = 'all';
+const CURRENT_APP_VERSION = '2.3.7';
 
-                markers[driverData.driverId] = marker;
-            }
+const mapLayers = {
+    streets: { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '© OpenStreetMap', name: 'الشوارع' },
+    satellite: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '© Esri', name: 'الأقمار' },
+    hybrid: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '© Esri', name: 'هجين' }
+};
 
-            // Center map on first driver
-            if (Object.keys(markers).length === 1) {
-                map.setView(position, 15);
-            }
-        }
+function initMap() {
+    map = L.map('map', { zoomControl: false }).setView([29.3759, 47.9774], 12);
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
+    currentTileLayer = L.tileLayer(mapLayers.streets.url, { attribution: mapLayers.streets.attribution, maxZoom: 19 }).addTo(map);
+}
 
-        // Get popup content
-        function getPopupContent(driverData) {
-            return `
-                <div style="padding: 10px; text-align: right; direction: rtl; min-width: 200px;">
-                    <h3 style="margin: 0 0 10px 0; color: #667eea;">🚕 ${getDriverName(driverData.driverId)}</h3>
-                    <p style="margin: 5px 0;"><strong>الوقت:</strong> ${new Date(driverData.localTime).toLocaleTimeString('ar-SA')}</p>
-                    <p style="margin: 5px 0;"><strong>الدقة:</strong> ${driverData.accuracy.toFixed(0)} متر</p>
-                    <p style="margin: 5px 0;"><strong>السرعة:</strong> ${(driverData.speed * 3.6).toFixed(1)} كم/س</p>
-                    <p style="margin: 5px 0; font-size: 11px; color: #666;">
-                        <strong>الموقع:</strong><br>
-                        Lat: ${driverData.latitude.toFixed(6)}<br>
-                        Lng: ${driverData.longitude.toFixed(6)}
-                    </p>
+window.changeMapType = function(type, btn) {
+    if (currentMapType === type) return;
+    if (currentTileLayer) map.removeLayer(currentTileLayer);
+    const layer = mapLayers[type];
+    currentTileLayer = L.tileLayer(layer.url, { attribution: layer.attribution, maxZoom: 19 }).addTo(map);
+    if (type === 'hybrid') {
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { opacity: 0.5 }).addTo(map);
+    }
+    currentMapType = type;
+    document.querySelectorAll('.map-ctrl-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    document.getElementById('mapTypeName').textContent = layer.name;
+};
+
+function getMarkerColor(driver) {
+    if (!driver.isActive) return '#ef4444';
+    const speed = (driver.speed || 0) * 3.6;
+    if (speed > 100) return '#f59e0b';
+    if (driver.isMoving) return '#10b981';
+    return '#3b82f6';
+}
+
+function getMarkerHtml(driver) {
+    const color = getMarkerColor(driver);
+    const emoji = driver.isMoving ? '🚕' : '🅿️';
+    return `<div style="
+        width:36px;height:36px;
+        background:${color};
+        border-radius:50% 50% 50% 0;
+        transform:rotate(-45deg);
+        border:2px solid white;
+        box-shadow:0 2px 8px rgba(0,0,0,0.4);
+        display:flex;align-items:center;justify-content:center;
+    "><span style="transform:rotate(45deg);font-size:16px;">${emoji}</span></div>`;
+}
+
+function getPopupContent(driver) {
+    const name = getDriverName(driver.driverId);
+    const speedKmh = ((driver.speed || 0) * 3.6).toFixed(1);
+    const lastUpdate = new Date(driver.localTime);
+    const activity = driver.currentActivity || 'unknown';
+    const activityMap = { 'in_vehicle': '🚗 في السيارة', 'still': '🅿️ متوقف', 'walking': '🚶 يمشي', 'unknown': '❓ غير معروف' };
+    return `
+        <div style="direction:rtl;min-width:200px;font-family:'Segoe UI',sans-serif;">
+            <div style="font-size:15px;font-weight:700;color:#e2e8f0;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.1);">
+                🚕 ${name}
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+                <div style="background:rgba(0,0,0,0.3);border-radius:6px;padding:7px;">
+                    <div style="font-size:10px;color:#94a3b8;">السرعة</div>
+                    <div style="font-size:16px;font-weight:700;color:${speedKmh > 100 ? '#f59e0b' : '#10b981'};">${speedKmh}</div>
+                    <div style="font-size:10px;color:#94a3b8;">كم/ساعة</div>
                 </div>
-            `;
-        }
+                <div style="background:rgba(0,0,0,0.3);border-radius:6px;padding:7px;">
+                    <div style="font-size:10px;color:#94a3b8;">الدقة</div>
+                    <div style="font-size:16px;font-weight:700;color:#3b82f6;">${(driver.accuracy || 0).toFixed(0)}</div>
+                    <div style="font-size:10px;color:#94a3b8;">متر</div>
+                </div>
+            </div>
+            <div style="font-size:12px;color:#94a3b8;margin-bottom:4px;">النشاط: <span style="color:#e2e8f0;">${activityMap[activity] || activity}</span></div>
+            <div style="font-size:12px;color:#94a3b8;margin-bottom:4px;">آخر تحديث: <span style="color:#e2e8f0;">${lastUpdate.toLocaleTimeString('ar-SA')}</span></div>
+            <div style="font-size:11px;color:#64748b;margin-top:6px;">
+                ${driver.latitude.toFixed(5)}, ${driver.longitude.toFixed(5)}
+            </div>
+            <button onclick="window.location.href='driver-details.html?id=${driver.driverId}'" style="
+                margin-top:10px;width:100%;padding:8px;
+                background:rgba(59,130,246,0.2);
+                border:1px solid rgba(59,130,246,0.4);
+                color:#93c5fd;border-radius:7px;cursor:pointer;
+                font-size:12px;font-weight:600;
+            ">📊 عرض التفاصيل الكاملة</button>
+        </div>`;
+}
 
-        // Update drivers list
-        function updateDriversList() {
-            const driversList = document.getElementById('driversList');
-            
-            if (Object.keys(drivers).length === 0) {
-                driversList.innerHTML = '<div class="loading">لا توجد بيانات حالياً</div>';
-                return;
-            }
+function updateDriverMarker(driverData) {
+    const position = [driverData.latitude, driverData.longitude];
+    const customIcon = L.divIcon({
+        className: '',
+        iconSize: [36, 36],
+        iconAnchor: [18, 36],
+        popupAnchor: [0, -36],
+        html: getMarkerHtml(driverData)
+    });
+    if (markers[driverData.driverId]) {
+        markers[driverData.driverId].setLatLng(position);
+        markers[driverData.driverId].setIcon(customIcon);
+        markers[driverData.driverId].getPopup().setContent(getPopupContent(driverData));
+    } else {
+        const marker = L.marker(position, { icon: customIcon }).addTo(map).bindPopup(getPopupContent(driverData), { maxWidth: 260 });
+        markers[driverData.driverId] = marker;
+        if (Object.keys(markers).length === 1) map.setView(position, 15);
+    }
+}
 
-            driversList.innerHTML = '';
-            
-            Object.values(drivers).forEach(driver => {
-                const lastUpdate = new Date(driver.localTime);
-                const isOnline = driver.isActive || false; // Use isActive from Firestore
+function updateDriversList() {
+    const list = document.getElementById('driversList');
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const allDrivers = Object.values(drivers);
 
-                const card = document.createElement('div');
-                card.className = `driver-card ${isOnline ? 'active' : ''}`;
-                card.dataset.driverId = driver.driverId;
-                const speedKmh = driver.speed * 3.6;
-                const speedClass = speedKmh < 20 ? 'slow' : speedKmh < 60 ? 'medium' : 'fast';
-                const speedLabel = speedKmh < 20 ? 'بطيء' : speedKmh < 60 ? 'متوسط' : 'سريع';
-                
-                card.innerHTML = `
-                    <h3><span>🚕</span> ${getDriverName(driver.driverId)}</h3>
-                    <div style="margin-bottom: 8px;">${getDriverVersionBadge(driver.driverId)}</div>
-                    <div class="driver-info">
-                        <span class="driver-info-icon">📍</span>
-                        <span>${driver.latitude.toFixed(6)}, ${driver.longitude.toFixed(6)}</span>
-                    </div>
-                    <div class="driver-info">
-                        <span class="driver-info-icon">🎯</span>
-                        <span>الدقة: ${driver.accuracy.toFixed(0)} متر</span>
-                    </div>
-                    <div class="driver-info">
-                        <span class="driver-info-icon">🚗</span>
-                        <span>
-                            <span class="driver-speed-badge ${speedClass}">${speedKmh.toFixed(1)} كم/س</span>
-                            ${speedLabel}
-                        </span>
-                    </div>
-                    <div class="driver-info">
-                        <span class="driver-info-icon">⏰</span>
-                        <span>${lastUpdate.toLocaleTimeString('ar-SA')}</span>
-                    </div>
-                    <span class="status-badge ${isOnline ? 'online' : 'offline'}">
-                        ${isOnline ? '🟢 نشط' : '🔴 غير نشط'}
-                    </span>
-                    <button onclick="window.location.href='driver-details.html?id=${driver.driverId}'" style="margin-top: 10px; width: 100%; padding: 8px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s;" onmouseover="this.style.background='#5568d3'" onmouseout="this.style.background='#667eea'">📊 عرض التفاصيل</button>
-                `;
-                
-                card.onclick = (e) => {
-                    // Don't trigger if clicking the details button
-                    if (e.target.tagName === 'BUTTON') return;
-                    
-                    const position = [driver.latitude, driver.longitude];
-                    map.setView(position, 17);
-                    if (markers[driver.driverId]) {
-                        markers[driver.driverId].openPopup();
-                    }
-                };
-                
-                driversList.appendChild(card);
-            });
-            
-            // Update stats after updating list
-            updateStats();
-        }
+    let filtered = allDrivers.filter(d => {
+        const name = (driversInfo[d.driverId]?.name || d.driverId).toLowerCase();
+        const matchSearch = name.includes(search) || d.driverId.toLowerCase().includes(search);
+        if (!matchSearch) return false;
+        if (currentFilter === 'active') return d.isActive;
+        if (currentFilter === 'inactive') return !d.isActive;
+        if (currentFilter === 'moving') return d.isMoving;
+        return true;
+    });
 
-        // Load drivers info from Firebase
-        async function loadDriversInfo() {
-            const driversRef = collection(db, 'drivers');
-            onSnapshot(driversRef, (snapshot) => {
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    driversInfo[data.employeeNumber] = {
-                        name: data.name,
-                        employeeNumber: data.employeeNumber,
-                        phone: data.phone,
-                        appVersion: data.appVersion || 'غير معروف'
-                    };
-                });
-                console.log('Drivers info loaded:', driversInfo);
-            });
-        }
-        
-        // Get driver app version with color indicator
-        function getDriverVersionBadge(driverId) {
-            const currentVersion = '2.3.7';
-            const driverVersion = driversInfo[driverId]?.appVersion || 'غير معروف';
-            
-            if (driverVersion === 'غير معروف') {
-                return '<span style="font-size: 11px; color: #999;">الإصدار: غير معروف</span>';
-            }
-            
-            const isLatest = driverVersion === currentVersion;
-            const color = isLatest ? '#10b981' : '#f59e0b';
-            const icon = isLatest ? '✅' : '⚠️';
-            
-            return `<span style="font-size: 11px; color: ${color}; font-weight: 600;">${icon} الإصدار: ${driverVersion}</span>`;
-        }
-        
-        // Get driver display name
-        function getDriverName(driverId) {
-            if (driversInfo[driverId]) {
-                return `${driversInfo[driverId].name} (${driversInfo[driverId].employeeNumber})`;
-            }
-            return driverId;
-        }
-        
-        // Listen to real-time updates
-        function startRealtimeTracking() {
-            console.log('🔊 بدء الاستماع للتحديثات في الوقت الفعلي...');
-            const q = query(collection(db, 'drivers')); // Read from 'drivers' collection
-            
-            onSnapshot(q, (snapshot) => {
-                snapshot.docChanges().forEach((change) => {
-                    const data = change.doc.data();
-                    const driverId = change.doc.id; // Use document ID as driverId
-                    
-                    if (change.type === 'added' || change.type === 'modified') {
-                        // Only process drivers with location data
-                        if (data.location && data.location.latitude && data.location.longitude) {
-                            const driverData = {
-                                driverId: driverId,
-                                latitude: data.location.latitude,
-                                longitude: data.location.longitude,
-                                speed: data.location.speed || 0,
-                                accuracy: data.location.accuracy || 0,
-                                localTime: data.lastUpdate ? (data.lastUpdate.toDate ? data.lastUpdate.toDate().toISOString() : new Date().toISOString()) : new Date().toISOString(),
-                                isActive: data.isActive || false
-                            };
-                            drivers[driverId] = driverData;
-                            updateDriverMarker(driverData);
-                            console.log(`✅ تحديث سائق ${driverId}:`, data.isActive ? 'نشط' : 'غير نشط');
-                        } else if (markers[driverId]) {
-                            // Remove marker if location data is missing
-                            map.removeLayer(markers[driverId]);
-                            delete markers[driverId];
-                            delete drivers[driverId];
-                        }
-                    } else if (change.type === 'removed') {
-                        delete drivers[driverId];
-                        if (markers[driverId]) {
-                            map.removeLayer(markers[driverId]);
-                            delete markers[driverId];
-                        }
-                    }
-                });
-                
-                updateDriversList();
-            });
-        }
+    // Sort: active first, then by speed
+    filtered.sort((a, b) => {
+        if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+        return (b.speed || 0) - (a.speed || 0);
+    });
 
-        // Notifications system
-        let notifications = [];
-        
-        function checkNotifications() {
-            notifications = [];
-            
-            Object.values(drivers).forEach(driver => {
-                const speedKmh = (driver.speed || 0) * 3.6;
-                const driverName = getDriverName(driver.driverId);
-                
-                // High speed alert (> 100 km/h)
-                if (speedKmh > 100) {
-                    notifications.push({
-                        type: 'warning',
-                        icon: '⚠️',
-                        message: `${driverName} يقود بسرعة عالية: ${speedKmh.toFixed(1)} كم/س`,
-                        driverId: driver.driverId
-                    });
-                }
-                
-                // Inactive driver alert
-                if (!driver.isActive) {
-                    const lastUpdate = new Date(driver.localTime);
-                    const minutesAgo = Math.floor((Date.now() - lastUpdate.getTime()) / 60000);
-                    if (minutesAgo > 30) {
-                        notifications.push({
-                            type: 'info',
-                            icon: 'ℹ️',
-                            message: `${driverName} غير نشط منذ ${minutesAgo} دقيقة`,
-                            driverId: driver.driverId
-                        });
-                    }
-                }
-            });
-            
-            // Update notification count
-            const notificationCount = document.getElementById('notificationCount');
-            if (notificationCount) {
-                notificationCount.textContent = notifications.length;
-                notificationCount.style.display = notifications.length > 0 ? 'flex' : 'none';
-            }
-        }
-        
-        // Update statistics
-        function updateStats() {
-            const allDrivers = Object.values(drivers);
-            const activeDrivers = allDrivers.filter(d => d.isActive);
-            const inactiveDrivers = allDrivers.filter(d => !d.isActive);
-            
-            // Check notifications
-            checkNotifications();
-            
-            // Count active/inactive
-            document.getElementById('activeDrivers').textContent = activeDrivers.length;
-            document.getElementById('inactiveDrivers').textContent = inactiveDrivers.length;
-            
-            // Calculate average speed (only active drivers)
-            if (activeDrivers.length > 0) {
-                const totalSpeed = activeDrivers.reduce((sum, d) => sum + (d.speed || 0), 0);
-                const avgSpeed = (totalSpeed / activeDrivers.length * 3.6).toFixed(1);
-                document.getElementById('avgSpeed').textContent = avgSpeed;
-            } else {
-                document.getElementById('avgSpeed').textContent = '0';
-            }
-            
-            // Total distance (placeholder - would need calculation from location history)
-            document.getElementById('totalDistance').textContent = '0';
-        }
-        
-        // Filter drivers
-        window.filterDrivers = function() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const showActive = document.getElementById('filterActive').checked;
-            const showInactive = document.getElementById('filterInactive').checked;
-            const showHighSpeed = document.getElementById('filterHighSpeed').checked;
-            
-            const driverCards = document.querySelectorAll('.driver-card');
-            
-            driverCards.forEach(card => {
-                const driverId = card.dataset.driverId;
-                const driver = drivers[driverId];
-                
-                if (!driver) {
-                    card.style.display = 'none';
-                    return;
-                }
-                
-                const driverName = (driversInfo[driverId]?.name || driverId).toLowerCase();
-                const matchesSearch = driverName.includes(searchTerm) || driverId.toLowerCase().includes(searchTerm);
-                
-                const matchesStatus = (driver.isActive && showActive) || (!driver.isActive && showInactive);
-                
-                const speedKmh = (driver.speed || 0) * 3.6;
-                const matchesSpeed = !showHighSpeed || speedKmh > 80;
-                
-                if (matchesSearch && matchesStatus && matchesSpeed) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        };
-        
-        // Show notifications
-        window.showNotifications = function() {
-            if (notifications.length === 0) {
-                alert('🔔 لا توجد تنبيهات جديدة');
-                return;
-            }
-            
-            let message = '🔔 التنبيهات:\n\n';
-            notifications.forEach((notif, index) => {
-                message += `${index + 1}. ${notif.icon} ${notif.message}\n`;
-            });
-            
-            alert(message);
-        };
-        
-        // Dark Mode Toggle
-        window.toggleDarkMode = function() {
-            document.body.classList.toggle('dark-mode');
-            const isDark = document.body.classList.contains('dark-mode');
-            document.getElementById('darkModeIcon').textContent = isDark ? '☀️' : '🌙';
-            localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
-        };
-        
-        // Export Data
-        window.exportData = function() {
-            const options = prompt('📊 اختر نوع التصدير:\n\n1 - Excel (CSV)\n2 - JSON\n3 - نسخ البيانات\n\nأدخل رقم الخيار:');
-            
-            if (!options) return;
-            
-            const driversData = Object.values(drivers).map(driver => ({
-                'السائق': getDriverName(driver.driverId),
-                'الحالة': driver.isActive ? 'نشط' : 'غير نشط',
-                'خط العرض': driver.latitude.toFixed(6),
-                'خط الطول': driver.longitude.toFixed(6),
-                'السرعة (كم/س)': (driver.speed * 3.6).toFixed(1),
-                'الدقة (متر)': driver.accuracy.toFixed(0),
-                'آخر تحديث': new Date(driver.localTime).toLocaleString('ar-SA')
-            }));
-            
-            if (options === '1') {
-                // CSV Export
-                let csv = '﻿'; // BOM for UTF-8
-                csv += Object.keys(driversData[0]).join(',') + '\n';
-                driversData.forEach(row => {
-                    csv += Object.values(row).join(',') + '\n';
-                });
-                
-                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = `drivers_${Date.now()}.csv`;
-                link.click();
-                alert('✅ تم تصدير Excel بنجاح!');
-            } else if (options === '2') {
-                // JSON Export
-                const json = JSON.stringify(driversData, null, 2);
-                const blob = new Blob([json], { type: 'application/json' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = `drivers_${Date.now()}.json`;
-                link.click();
-                alert('✅ تم تصدير JSON بنجاح!');
-            } else if (options === '3') {
-                // Copy to clipboard
-                const text = JSON.stringify(driversData, null, 2);
-                navigator.clipboard.writeText(text).then(() => {
-                    alert('✅ تم نسخ البيانات!');
-                });
-            }
-        };
-        
-        // Logout
-        window.logout = function() {
-            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
-                window.location.href = 'index.html';
-            }
-        };
+    document.getElementById('sidebarCount').textContent = filtered.length;
 
-        // Make loadDrivers global
-        window.loadDrivers = function() {
-            updateDriversList();
-            updateStats();
-        };
+    if (filtered.length === 0) {
+        list.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p>لا توجد نتائج</p></div>`;
+        return;
+    }
 
-        // Initialize on page load
-        window.addEventListener('load', () => {
-            // Load dark mode preference
-            if (localStorage.getItem('darkMode') === 'enabled') {
-                document.body.classList.add('dark-mode');
-                document.getElementById('darkModeIcon').textContent = '☀️';
-            }
-            
-            initMap();
-            loadDriversInfo();
-            startRealtimeTracking();
-            updateStats();
+    list.innerHTML = '';
+    filtered.forEach(driver => {
+        const name = getDriverName(driver.driverId);
+        const speedKmh = ((driver.speed || 0) * 3.6).toFixed(1);
+        const speedClass = speedKmh < 20 ? 'slow' : speedKmh < 80 ? 'medium' : 'fast';
+        const lastUpdate = new Date(driver.localTime);
+        const minutesAgo = Math.floor((Date.now() - lastUpdate.getTime()) / 60000);
+        const timeStr = minutesAgo < 1 ? 'الآن' : minutesAgo < 60 ? `منذ ${minutesAgo} د` : lastUpdate.toLocaleTimeString('ar-SA', {hour:'2-digit',minute:'2-digit'});
+        const appVersion = driversInfo[driver.driverId]?.appVersion || 'غير معروف';
+        const isLatestVersion = appVersion === CURRENT_APP_VERSION;
+        const activityMap = { 'in_vehicle': '🚗 يقود', 'still': '🅿️ متوقف', 'walking': '🚶 يمشي', 'unknown': '' };
+        const activityLabel = activityMap[driver.currentActivity || 'unknown'] || '';
+
+        const card = document.createElement('div');
+        card.className = `driver-card ${driver.isActive ? 'active' : 'inactive'}`;
+        card.dataset.driverId = driver.driverId;
+        card.innerHTML = `
+            <div class="driver-card-header">
+                <div>
+                    <div class="driver-name">${name}</div>
+                    <div class="driver-id">${driver.driverId}</div>
+                </div>
+                <div class="status-dot ${driver.isActive ? 'active' : ''}"></div>
+            </div>
+            <div class="driver-stats">
+                <div class="driver-stat">
+                    <div class="driver-stat-label">السرعة</div>
+                    <div class="driver-stat-value"><span class="speed-badge speed-${speedClass}">${speedKmh} كم/س</span></div>
+                </div>
+                <div class="driver-stat">
+                    <div class="driver-stat-label">الدقة</div>
+                    <div class="driver-stat-value">${(driver.accuracy || 0).toFixed(0)} م</div>
+                </div>
+            </div>
+            <div class="driver-card-footer">
+                <span class="last-update">⏱ ${timeStr}</span>
+                <div style="display:flex;gap:4px;align-items:center;">
+                    ${activityLabel ? `<span class="activity-badge">${activityLabel}</span>` : ''}
+                    <span class="version-tag ${isLatestVersion ? 'version-ok' : 'version-old'}">${isLatestVersion ? '✅' : '⚠️'} ${appVersion}</span>
+                </div>
+            </div>
+            <button class="btn-details" onclick="event.stopPropagation();window.location.href='driver-details.html?id=${driver.driverId}'">📊 عرض التفاصيل</button>
+        `;
+        card.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            document.querySelectorAll('.driver-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            map.setView([driver.latitude, driver.longitude], 17);
+            if (markers[driver.driverId]) markers[driver.driverId].openPopup();
         });
-    </script>
+        list.appendChild(card);
+    });
+    updateStats();
+}
+
+function updateStats() {
+    const all = Object.values(drivers);
+    const active = all.filter(d => d.isActive);
+    const inactive = all.filter(d => !d.isActive);
+    const moving = all.filter(d => d.isMoving);
+    document.getElementById('totalDrivers').textContent = all.length;
+    document.getElementById('activeDrivers').textContent = active.length;
+    document.getElementById('inactiveDrivers').textContent = inactive.length;
+    document.getElementById('movingDrivers').textContent = moving.length;
+    if (active.length > 0) {
+        const avgSpd = (active.reduce((s, d) => s + (d.speed || 0), 0) / active.length * 3.6).toFixed(1);
+        document.getElementById('avgSpeed').textContent = avgSpd;
+        const maxSpd = Math.max(...active.map(d => (d.speed || 0) * 3.6)).toFixed(1);
+        document.getElementById('maxSpeed').textContent = `${maxSpd} كم/س`;
+    } else {
+        document.getElementById('avgSpeed').textContent = '0';
+        document.getElementById('maxSpeed').textContent = '0 كم/س';
+    }
+    document.getElementById('lastUpdateTime').textContent = new Date().toLocaleTimeString('ar-SA', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function loadDriversInfo() {
+    onSnapshot(collection(db, 'drivers'), (snapshot) => {
+        snapshot.forEach((doc) => {
+            const data = doc.data();
+            const key = data.employeeNumber || doc.id;
+            driversInfo[key] = { name: data.name || 'سائق', employeeNumber: key, phone: data.phone, appVersion: data.appVersion || 'غير معروف' };
+        });
+    });
+}
+
+function getDriverName(driverId) {
+    if (driversInfo[driverId]) return `${driversInfo[driverId].name} (${driversInfo[driverId].employeeNumber})`;
+    return driverId;
+}
+
+function startRealtimeTracking() {
+    onSnapshot(query(collection(db, 'drivers')), (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            const data = change.doc.data();
+            const driverId = change.doc.id;
+            if (change.type === 'added' || change.type === 'modified') {
+                const lat = data.location?.latitude || data.latitude;
+                const lng = data.location?.longitude || data.longitude;
+                if (lat && lng) {
+                    const driverData = {
+                        driverId,
+                        latitude: lat,
+                        longitude: lng,
+                        speed: data.location?.speed ?? data.speed ?? 0,
+                        accuracy: data.location?.accuracy ?? data.accuracy ?? 0,
+                        heading: data.location?.heading ?? data.heading ?? 0,
+                        localTime: data.lastUpdate ? (data.lastUpdate.toDate ? data.lastUpdate.toDate().toISOString() : new Date().toISOString()) : new Date().toISOString(),
+                        isActive: data.isActive || false,
+                        isMoving: data.isMoving || false,
+                        currentActivity: data.currentActivity || 'unknown',
+                        activityConfidence: data.activityConfidence || 0
+                    };
+                    drivers[driverId] = driverData;
+                    updateDriverMarker(driverData);
+                } else if (markers[driverId]) {
+                    map.removeLayer(markers[driverId]);
+                    delete markers[driverId];
+                    delete drivers[driverId];
+                }
+            } else if (change.type === 'removed') {
+                delete drivers[driverId];
+                if (markers[driverId]) { map.removeLayer(markers[driverId]); delete markers[driverId]; }
+            }
+        });
+        updateDriversList();
+    });
+}
+
+window.fitAllDrivers = function() {
+    const positions = Object.values(drivers).map(d => [d.latitude, d.longitude]);
+    if (positions.length === 0) return;
+    if (positions.length === 1) { map.setView(positions[0], 15); return; }
+    map.fitBounds(positions, { padding: [40, 40] });
+};
+
+window.filterDrivers = function() { updateDriversList(); };
+
+window.setFilter = function(filter, el) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    updateDriversList();
+};
+
+window.loadDrivers = function() { updateDriversList(); updateStats(); };
+
+window.toggleSidebar = function() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('open');
+};
+
+window.exportData = function() {
+    const driversData = Object.values(drivers).map(d => ({
+        'السائق': getDriverName(d.driverId),
+        'الحالة': d.isActive ? 'نشط' : 'غير نشط',
+        'يتحرك': d.isMoving ? 'نعم' : 'لا',
+        'النشاط': d.currentActivity || '',
+        'خط العرض': d.latitude.toFixed(6),
+        'خط الطول': d.longitude.toFixed(6),
+        'السرعة (كم/س)': ((d.speed || 0) * 3.6).toFixed(1),
+        'الدقة (م)': (d.accuracy || 0).toFixed(0),
+        'آخر تحديث': new Date(d.localTime).toLocaleString('ar-SA')
+    }));
+    if (driversData.length === 0) { alert('لا توجد بيانات للتصدير'); return; }
+    let csv = '\uFEFF' + Object.keys(driversData[0]).join(',') + '\n';
+    driversData.forEach(row => { csv += Object.values(row).join(',') + '\n'; });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `drivers_tracking_${new Date().toISOString().slice(0,10)}.csv`;
+    link.click();
+};
+
+window.logout = function() {
+    if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+        localStorage.removeItem('userRole');
+        window.location.href = 'index.html';
+    }
+};
+
+window.addEventListener('load', () => {
+    initMap();
+    loadDriversInfo();
+    startRealtimeTracking();
+});
+</script>
 </body>
 </html>
-
