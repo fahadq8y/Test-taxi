@@ -1,661 +1,383 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تفاصيل السائق</title>
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f5f5;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .header-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .header h1 {
-            font-size: 24px;
-        }
-        
-        .back-btn {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 2px solid white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-block;
-        }
-        
-        .back-btn:hover {
-            background: white;
-            color: #667eea;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 20px auto;
-            padding: 0 20px;
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .stat-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        
-        .stat-card .icon {
-            font-size: 36px;
-            margin-bottom: 10px;
-        }
-        
-        .stat-card .label {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 5px;
-        }
-        
-        .stat-card .value {
-            font-size: 28px;
-            font-weight: bold;
-            color: #333;
-        }
-        
-        .stat-card.online .value {
-            color: #28a745;
-        }
-        
-        .stat-card.offline .value {
-            color: #dc3545;
-        }
-        
-        .content-grid {
-            display: grid;
-            grid-template-columns: 1fr 400px;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .map-section {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            position: relative;
-        }
-        
-        .map-section h2 {
-            margin-bottom: 15px;
-            color: #333;
-        }
-        
-        #map {
-            width: 100%;
-            height: 500px;
-            border-radius: 8px;
-        }
-        
-        .timeline-section {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            max-height: 600px;
-            overflow-y: auto;
-        }
-        
-        .timeline-section h2 {
-            margin-bottom: 15px;
-            color: #333;
-            position: sticky;
-            top: 0;
-            background: white;
-            padding-bottom: 10px;
-            z-index: 10;
-        }
-        
-        .timeline-item {
-            padding: 15px;
-            border-right: 3px solid #667eea;
-            margin-bottom: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            position: relative;
-        }
-        
-        .timeline-item::before {
-            content: '';
-            position: absolute;
-            right: -8px;
-            top: 20px;
-            width: 13px;
-            height: 13px;
-            background: #667eea;
-            border-radius: 50%;
-            border: 3px solid white;
-        }
-        
-        .timeline-item.moving {
-            border-right-color: #28a745;
-        }
-        
-        .timeline-item.moving::before {
-            background: #28a745;
-        }
-        
-        .timeline-item.stopped {
-            border-right-color: #ffc107;
-        }
-        
-        .timeline-item.stopped::before {
-            background: #ffc107;
-        }
-        
-        .timeline-time {
-            font-size: 16px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 8px;
-        }
-        
-        .timeline-status {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 5px;
-        }
-        
-        .timeline-details {
-            font-size: 12px;
-            color: #999;
-        }
-        
-        .map-type-controls {
-            position: absolute;
-            top: 70px;
-            left: 30px;
-            z-index: 1000;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            padding: 10px;
-            display: flex;
-            gap: 10px;
-        }
-        
-        .map-type-btn {
-            padding: 8px 16px;
-            border: 2px solid #ddd;
-            background: white;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: all 0.3s;
-            color: #666;
-        }
-        
-        .map-type-btn:hover {
-            background: #f0f0f0;
-            border-color: #667eea;
-        }
-        
-        .map-type-btn.active {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
-        }
-        
-        .filters {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        
-        .filters h3 {
-            margin-bottom: 15px;
-            color: #333;
-        }
-        
-        .filter-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        
-        .filter-btn {
-            padding: 8px 16px;
-            border: 2px solid #ddd;
-            background: white;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-        
-        .filter-btn:hover {
-            border-color: #667eea;
-        }
-        
-        .filter-btn.active {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-            font-size: 18px;
-        }
-        
-        .no-data {
-            text-align: center;
-            padding: 40px;
-            color: #999;
-        }
-        
-        @media (max-width: 1024px) {
-            .content-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .header-content {
-                flex-direction: column;
-                gap: 15px;
-            }
-        }
-        
-        /* Pulse animation for markers */
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-                opacity: 1;
-            }
-            50% {
-                transform: scale(1.1);
-                opacity: 0.8;
-            }
-            100% {
-                transform: scale(1);
-                opacity: 1;
-            }
-        }
-        
-        /* ===== Responsive Design for Mobile ===== */
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 18px;
-            }
-            
-            .back-btn {
-                padding: 8px 15px;
-                font-size: 14px;
-            }
-            
-            .container {
-                padding: 0 10px;
-            }
-            
-            /* Stats Grid - 2 columns on mobile */
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
-            }
-            
-            .stat-card {
-                padding: 15px 10px;
-            }
-            
-            .stat-card .icon {
-                font-size: 28px;
-            }
-            
-            .stat-card .label {
-                font-size: 12px;
-            }
-            
-            .stat-card .value {
-                font-size: 20px;
-            }
-            
-            /* Filter buttons - wrap on mobile */
-            .filter-group {
-                flex-wrap: wrap;
-                gap: 8px !important;
-            }
-            
-            .filter-btn {
-                padding: 8px 12px !important;
-                font-size: 13px !important;
-            }
-            
-            /* Custom Date Range - vertical layout */
-            .filters > div:last-child > div {
-                flex-direction: column !important;
-                align-items: stretch !important;
-            }
-            
-            .filters > div:last-child > div > * {
-                width: 100% !important;
-            }
-            
-            .filters > div:last-child input[type="date"],
-            .filters > div:last-child input[type="time"] {
-                width: 100% !important;
-                margin-bottom: 8px;
-            }
-            
-            .filters > div:last-child button {
-                width: 100% !important;
-                margin-top: 10px;
-            }
-            
-            /* Map type buttons - horizontal scroll */
-            .map-type-controls {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-            }
-            
-            .map-type-controls {
-                flex-wrap: nowrap !important;
-                min-width: max-content;
-            }
-            
-            /* Timeline sort buttons - wrap */
-            .timeline-section > div:first-child > div {
-                flex-wrap: wrap !important;
-                gap: 5px !important;
-            }
-            
-            .timeline-section button {
-                padding: 5px 10px !important;
-                font-size: 12px !important;
-            }
-            
-            /* Content grid - stack on mobile */
-            .content-grid {
-                grid-template-columns: 1fr !important;
-            }
-            
-            /* Map height on mobile */
-            #map {
-                height: 400px !important;
-            }
-            
-            /* Timeline items - smaller on mobile */
-            .timeline-item {
-                padding: 12px !important;
-            }
-            
-            .timeline-time {
-                font-size: 13px !important;
-            }
-            
-            .timeline-location {
-                font-size: 12px !important;
-            }
-            
-            .timeline-details {
-                font-size: 11px !important;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <div class="header-content">
-            <h1 id="driverName">🚕 تفاصيل السائق</h1>
-            <a href="tracking.html" class="back-btn">← العودة للخريطة</a>
-        </div>
-    </div>
-    
-    <div class="container">
-        <!-- Statistics Cards -->
-        <div class="stats-grid">
-            <div class="stat-card" id="statusCard">
-                <div class="icon">🟢</div>
-                <div class="label">الحالة</div>
-                <div class="value" id="statusValue">نشط</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="icon">⏰</div>
-                <div class="label" id="workHoursLabel">ساعات العمل اليوم</div>
-                <div class="value" id="workHours">0:00</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="icon">📏</div>
-                <div class="label" id="totalDistanceLabel">المسافة المقطوعة</div>
-                <div class="value" id="totalDistance">0 كم</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="icon">🚗</div>
-                <div class="label" id="avgSpeedLabel">متوسط السرعة</div>
-                <div class="value" id="avgSpeed">0 كم/س</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="icon">⏸️</div>
-                <div class="label" id="stopsCountLabel">عدد التوقفات</div>
-                <div class="value" id="stopsCount">0</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="icon">⏱️</div>
-                <div class="label">آخر نشاط</div>
-                <div class="value" id="lastActivity">--</div>
-            </div>
-        </div>
-        
-        <!-- Filters -->
-        <div class="filters">
-            <h3>📅 فلتر التاريخ</h3>
-            <div class="filter-group">
-                <button class="filter-btn active" onclick="filterByDate('today')">اليوم</button>
-                <button class="filter-btn" onclick="filterByDate('yesterday')">أمس</button>
-                <button class="filter-btn" onclick="filterByDate('week')">آخر 7 أيام</button>
-                <button class="filter-btn" onclick="filterByDate('month')">آخر 30 يوم</button>
-                <button class="filter-btn" onclick="filterByDate('all')">الكل</button>
-            </div>
-            
-            <!-- Custom Date Range -->
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
-                <h4 style="margin-bottom: 10px; color: #4a5568; font-size: 14px;">📅 نطاق تاريخ مخصص</h4>
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; direction: rtl;">
-                    <label style="font-size: 14px; color: #4a5568;">من:</label>
-                    <input type="date" id="startDate" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
-                    <input type="time" id="startTime" value="00:00" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
-                    <label style="font-size: 14px; color: #4a5568;">إلى:</label>
-                    <input type="date" id="endDate" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
-                    <input type="time" id="endTime" value="23:59" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
-                    <button onclick="filterByCustomRange()" style="padding: 8px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s;">
-                        تطبيق
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Map and Timeline -->
-        <div class="content-grid">
-            <div class="map-section">
-                <h2>🗺️ المسار</h2>
-                
-                <!-- Auto-Follow Control -->
-                <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); direction: rtl;">
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: bold;">
-                        <input type="checkbox" id="autoFollowCheckbox" onchange="toggleAutoFollow()" style="width: 20px; height: 20px; cursor: pointer;">
-                        <span>🎯 تتبع تلقائي للسائق</span>
-                    </label>
-                    <p style="margin: 8px 0 0 30px; font-size: 13px; color: #666;">عند التفعيل: الخريطة تتحرك تلقائياً مع موقع السائق</p>
-                </div>
-                
-                <div class="map-type-controls">
-                    <button class="map-type-btn active" onclick="changeMapType('streets')">🗺️ الشوارع</button>
-                    <button class="map-type-btn" onclick="changeMapType('satellite')">🛰️ الأقمار</button>
-                    <button class="map-type-btn" onclick="changeMapType('hybrid')">🌐 هجين</button>
-                    <button class="map-type-btn" onclick="changeMapType('osm')">🌍 OSM</button>
-                    <button class="map-type-btn" onclick="changeMapType('dark')">🌙 داكن</button>
-                    <button class="map-type-btn" onclick="changeMapType('terrain')">⛰️ تضاريس</button>
-                </div>
-                
-                <!-- Route Controls -->
-                <div class="route-controls" style="margin: 15px 0; padding: 15px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; direction: rtl;">
-                        <!-- Toggle Route -->
-                        <button id="toggleRouteBtn" onclick="toggleRoute()" style="padding: 8px 16px; background: #48bb78; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.3s;">
-                            🛣️ إخفاء المسار
-                        </button>
-                        
-                        <!-- Color Picker -->
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <label style="font-weight: bold; color: #2d3748;">🎨 اللون:</label>
-                            <input type="color" id="pathColorPicker" value="#667eea" onchange="changePathColor(this.value)" style="width: 50px; height: 35px; border: none; border-radius: 8px; cursor: pointer;">
-                        </div>
-                        
-                        <!-- Width Slider -->
-                        <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 200px;">
-                            <label style="font-weight: bold; color: #2d3748;">📏 السُمك:</label>
-                            <input type="range" id="pathWidthSlider" min="2" max="10" value="4" oninput="changePathWidth(this.value)" style="flex: 1; cursor: pointer;">
-                            <span id="pathWidthValue" style="font-weight: bold; color: #667eea; min-width: 30px;">4</span>
-                        </div>
-                        
-                        <!-- Speed Legend -->
-                        <div style="display: flex; align-items: center; gap: 10px; font-size: 12px; margin-right: auto;">
-                            <span style="font-weight: bold; color: #2d3748;">مفتاح السرعة:</span>
-                            <span style="color: #48bb78;">● بطيء (&lt;20)</span>
-                            <span style="color: #ed8936;">● متوسط (20-60)</span>
-                            <span style="color: #f56565;">● سريع (60-100)</span>
-                            <span style="color: #c53030;">● سريع جداً (&gt;100)</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Speed Color Customization -->
-                <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); direction: rtl;">
-                    <h4 style="margin: 0 0 15px 0; color: #2d3748;">🎨 تخصيص ألوان السرعة</h4>
-                    
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                        <!-- Speed Range 1 -->
-                        <div style="display: flex; flex-direction: column; gap: 8px;">
-                            <label style="font-weight: bold; font-size: 14px;">🐢 بطيء (0-20 كم/س)</label>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <input type="number" id="speed1Max" value="20" min="1" max="200" style="width: 60px; padding: 5px; border: 1px solid #e2e8f0; border-radius: 6px;">
-                                <input type="color" id="color1" value="#48bb78" style="width: 50px; height: 35px; border: none; border-radius: 6px; cursor: pointer;">
-                            </div>
-                        </div>
-                        
-                        <!-- Speed Range 2 -->
-                        <div style="display: flex; flex-direction: column; gap: 8px;">
-                            <label style="font-weight: bold; font-size: 14px;">🚗 متوسط (20-60 كم/س)</label>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <input type="number" id="speed2Max" value="60" min="1" max="200" style="width: 60px; padding: 5px; border: 1px solid #e2e8f0; border-radius: 6px;">
-                                <input type="color" id="color2" value="#ed8936" style="width: 50px; height: 35px; border: none; border-radius: 6px; cursor: pointer;">
-                            </div>
-                        </div>
-                        
-                        <!-- Speed Range 3 -->
-                        <div style="display: flex; flex-direction: column; gap: 8px;">
-                            <label style="font-weight: bold; font-size: 14px;">🏎️ سريع (60-100 كم/س)</label>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <input type="number" id="speed3Max" value="100" min="1" max="200" style="width: 60px; padding: 5px; border: 1px solid #e2e8f0; border-radius: 6px;">
-                                <input type="color" id="color3" value="#f56565" style="width: 50px; height: 35px; border: none; border-radius: 6px; cursor: pointer;">
-                            </div>
-                        </div>
-                        
-                        <!-- Speed Range 4 -->
-                        <div style="display: flex; flex-direction: column; gap: 8px;">
-                            <label style="font-weight: bold; font-size: 14px;">🚀 سريع جداً (+100 كم/س)</label>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <span style="width: 60px; text-align: center; color: #718096;">+100</span>
-                                <input type="color" id="color4" value="#c53030" style="width: 50px; height: 35px; border: none; border-radius: 6px; cursor: pointer;">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button onclick="applySpeedColors()" style="margin-top: 15px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.3s;">
-                        ✅ تطبيق الألوان
-                    </button>
-                </div>
-                
-                <div id="map"></div>
-            </div>
-            
-            <div class="timeline-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h2 style="margin: 0;">📋 الجدول الزمني</h2>
-                    <div style="display: flex; gap: 10px; direction: rtl;">
-                        <button onclick="sortTimeline('time', 'desc')" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
-                            ⬇️ الأحدث
-                        </button>
-                        <button onclick="sortTimeline('time', 'asc')" style="padding: 6px 12px; background: #e2e8f0; color: #4a5568; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
-                            ⬆️ الأقدم
-                        </button>
-                        <button onclick="sortTimeline('speed', 'desc')" style="padding: 6px 12px; background: #e2e8f0; color: #4a5568; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
-                            🚀 الأسرع
-                        </button>
-                        <button onclick="sortTimeline('speed', 'asc')" style="padding: 6px 12px; background: #e2e8f0; color: #4a5568; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
-                            🐌 الأبطأ
-                        </button>
-                    </div>
-                </div>
-                <div id="timeline">
-                    <div class="loading">جاري تحميل البيانات...</div>
-                </div>
-            </div>
-        </div>
-    </div>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تفاصيل السائق - نظام إدارة التاكسي</title>
 
-    <!-- Leaflet JS -->
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Tailwind + Lucide + IBM Plex Sans Arabic -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['IBM Plex Sans Arabic', 'Segoe UI', 'Tahoma', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    body { font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif; }
+    .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+
+    /* Map */
+    #map {
+      height: 600px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      z-index: 1;
+    }
+    @media (max-width: 768px) { #map { height: 400px; } }
+
+    /* Filter buttons (driven by JS .active class) */
+    .filter-btn {
+      padding: 8px 18px;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .filter-btn:hover { background: #e2e8f0; }
+    .filter-btn.active {
+      background: linear-gradient(to left, #b91c1c, #7f1d1d);
+      color: white;
+      border-color: transparent;
+    }
+
+    /* Map type buttons */
+    .map-type-btn {
+      padding: 8px 14px;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .map-type-btn:hover { background: #e2e8f0; }
+    .map-type-btn.active {
+      background: linear-gradient(to left, #b91c1c, #7f1d1d);
+      color: white;
+      border-color: transparent;
+    }
+
+    /* Timeline (created by JS) */
+    .timeline-item {
+      background: white;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 10px;
+      border-right: 4px solid #cbd5e1;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      position: relative;
+      transition: all 0.2s;
+    }
+    .timeline-item:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      transform: translateX(-2px);
+    }
+    .timeline-item.moving { border-right-color: #16a34a; }
+    .timeline-item.stopped { border-right-color: #dc2626; }
+    .timeline-time {
+      font-weight: 700;
+      font-size: 14px;
+      color: #1e293b;
+      margin-bottom: 6px;
+    }
+    .timeline-location {
+      font-size: 13px;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+    .timeline-status {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .timeline-item.moving .timeline-status {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .timeline-item.stopped .timeline-status {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .timeline-details {
+      font-size: 12px;
+      color: #64748b;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    /* No-data / loading inside timeline */
+    .loading, .no-data {
+      text-align: center;
+      padding: 30px;
+      color: #94a3b8;
+      font-size: 14px;
+    }
+
+    /* Status badge for stat-card status (used by JS via .status-badge) */
+    .status-badge {
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* Custom scrollbar for tabs */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Stat value (used by JS query .stat-card .stat-value) */
+    .stat-value { font-size: 22px; font-weight: 700; color: #1e293b; }
+
+    /* Pulse for live indicator */
+    @keyframes pulseDot {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+
+  <!-- ============== HEADER ============== -->
+  <header class="bg-gradient-to-l from-red-700 to-red-900 text-white shadow">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
+          <i data-lucide="user-circle" class="h-5 w-5"></i>
+        </div>
+        <div>
+          <h1 id="driverName" class="text-lg md:text-xl font-bold leading-tight">تفاصيل السائق</h1>
+          <p class="text-xs text-white/75">عرض الموقع والمسار وسجل التحركات</p>
+        </div>
+      </div>
+      <nav class="flex items-center gap-1.5 text-sm">
+        <a href="tracking.html" class="rounded-md bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">📍 صفحة التتبع</a>
+        <a href="tracking-management.html" class="rounded-md bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">⚙️ الإدارة</a>
+        <a href="admin-dashboard.html" class="rounded-md bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">🏠 الرئيسية</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- ============== STATS GRID ============== -->
+    <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+
+      <div id="statusCard" class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 text-center">
+        <div class="text-2xl mb-1">🟢</div>
+        <div class="text-xs text-slate-500 mb-1">الحالة</div>
+        <div id="statusValue" class="stat-value num">نشط</div>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 text-center">
+        <div class="text-2xl mb-1">⏰</div>
+        <div id="workHoursLabel" class="text-xs text-slate-500 mb-1">ساعات العمل اليوم</div>
+        <div id="workHours" class="stat-value num">0:00</div>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 text-center">
+        <div class="text-2xl mb-1">📏</div>
+        <div id="totalDistanceLabel" class="text-xs text-slate-500 mb-1">المسافة المقطوعة</div>
+        <div id="totalDistance" class="stat-value num">0 كم</div>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 text-center">
+        <div class="text-2xl mb-1">🚗</div>
+        <div id="avgSpeedLabel" class="text-xs text-slate-500 mb-1">متوسط السرعة</div>
+        <div id="avgSpeed" class="stat-value num">0 كم/س</div>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 text-center">
+        <div class="text-2xl mb-1">⏸️</div>
+        <div id="stopsCountLabel" class="text-xs text-slate-500 mb-1">عدد التوقفات</div>
+        <div id="stopsCount" class="stat-value num">0</div>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 text-center">
+        <div class="text-2xl mb-1">⏱️</div>
+        <div class="text-xs text-slate-500 mb-1">آخر نشاط</div>
+        <div id="lastActivity" class="stat-value num text-base">--</div>
+      </div>
+
+    </section>
+
+    <!-- ============== DATE FILTERS ============== -->
+    <section class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+      <h3 class="flex items-center gap-2 text-base font-bold text-slate-800 mb-3">
+        <i data-lucide="calendar" class="h-4 w-4 text-red-700"></i>
+        فلتر التاريخ
+      </h3>
+      <div class="filter-group flex flex-wrap gap-2">
+        <button class="filter-btn active" onclick="filterByDate('today')">اليوم</button>
+        <button class="filter-btn" onclick="filterByDate('yesterday')">أمس</button>
+        <button class="filter-btn" onclick="filterByDate('week')">آخر 7 أيام</button>
+        <button class="filter-btn" onclick="filterByDate('month')">آخر 30 يوم</button>
+        <button class="filter-btn" onclick="filterByDate('all')">الكل</button>
+      </div>
+
+      <!-- Custom Date Range -->
+      <div class="mt-4 pt-4 border-t border-slate-200">
+        <h4 class="text-sm font-semibold text-slate-600 mb-2">📅 نطاق تاريخ مخصص</h4>
+        <div class="flex flex-wrap items-center gap-2">
+          <label class="text-sm text-slate-600">من:</label>
+          <input type="date" id="startDate" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none">
+          <input type="time" id="startTime" value="00:00" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none">
+          <label class="text-sm text-slate-600">إلى:</label>
+          <input type="date" id="endDate" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none">
+          <input type="time" id="endTime" value="23:59" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none">
+          <button onclick="filterByCustomRange()" class="px-5 py-2 bg-gradient-to-l from-red-700 to-red-900 hover:from-red-800 hover:to-red-950 text-white rounded-lg text-sm font-bold transition">
+            تطبيق
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== MAP + TIMELINE GRID ============== -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- ===== MAP SECTION ===== -->
+      <section class="lg:col-span-2 space-y-4">
+        <h2 class="flex items-center gap-2 text-lg font-bold text-slate-800">
+          <i data-lucide="map" class="h-5 w-5 text-red-700"></i>
+          المسار
+        </h2>
+
+        <!-- Auto-Follow -->
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" id="autoFollowCheckbox" onchange="toggleAutoFollow()" class="w-5 h-5 accent-red-700 cursor-pointer">
+            <span class="font-bold text-slate-800">🎯 تتبع تلقائي للسائق</span>
+          </label>
+          <p class="mr-8 mt-1 text-xs text-slate-500">عند التفعيل: الخريطة تتحرك تلقائياً مع موقع السائق</p>
+        </div>
+
+        <!-- Map type controls -->
+        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          <button class="map-type-btn active" onclick="changeMapType('streets')">🗺️ الشوارع</button>
+          <button class="map-type-btn" onclick="changeMapType('satellite')">🛰️ الأقمار</button>
+          <button class="map-type-btn" onclick="changeMapType('hybrid')">🌐 هجين</button>
+          <button class="map-type-btn" onclick="changeMapType('osm')">🌍 OSM</button>
+          <button class="map-type-btn" onclick="changeMapType('dark')">🌙 داكن</button>
+          <button class="map-type-btn" onclick="changeMapType('terrain')">⛰️ تضاريس</button>
+        </div>
+
+        <!-- Route Controls -->
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+          <div class="flex flex-wrap items-center gap-4">
+            <button id="toggleRouteBtn" onclick="toggleRoute()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold transition">
+              🛣️ إخفاء المسار
+            </button>
+
+            <div class="flex items-center gap-2">
+              <label class="text-sm font-bold text-slate-700">🎨 اللون:</label>
+              <input type="color" id="pathColorPicker" value="#b91c1c" onchange="changePathColor(this.value)" class="w-12 h-9 border-0 rounded-lg cursor-pointer">
+            </div>
+
+            <div class="flex items-center gap-2 flex-1 min-w-[200px]">
+              <label class="text-sm font-bold text-slate-700">📏 السُمك:</label>
+              <input type="range" id="pathWidthSlider" min="2" max="10" value="4" oninput="changePathWidth(this.value)" class="flex-1 accent-red-700 cursor-pointer">
+              <span id="pathWidthValue" class="font-bold text-red-700 num min-w-[24px]">4</span>
+            </div>
+
+            <div class="flex items-center gap-2 text-xs flex-wrap">
+              <span class="font-bold text-slate-700">مفتاح السرعة:</span>
+              <span class="text-emerald-600">● بطيء (&lt;20)</span>
+              <span class="text-orange-500">● متوسط (20-60)</span>
+              <span class="text-red-500">● سريع (60-100)</span>
+              <span class="text-red-800">● سريع جداً (&gt;100)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Speed Color Customization -->
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+          <h4 class="text-sm font-bold text-slate-800 mb-3">🎨 تخصيص ألوان السرعة</h4>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="flex flex-col gap-2">
+              <label class="text-xs font-bold text-slate-700">🐢 بطيء (0-20 كم/س)</label>
+              <div class="flex gap-2 items-center">
+                <input type="number" id="speed1Max" value="20" min="1" max="200" class="w-14 px-2 py-1 border border-slate-200 rounded text-sm">
+                <input type="color" id="color1" value="#16a34a" class="w-10 h-8 border-0 rounded cursor-pointer">
+              </div>
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-xs font-bold text-slate-700">🚗 متوسط (20-60 كم/س)</label>
+              <div class="flex gap-2 items-center">
+                <input type="number" id="speed2Max" value="60" min="1" max="200" class="w-14 px-2 py-1 border border-slate-200 rounded text-sm">
+                <input type="color" id="color2" value="#f97316" class="w-10 h-8 border-0 rounded cursor-pointer">
+              </div>
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-xs font-bold text-slate-700">🏎️ سريع (60-100 كم/س)</label>
+              <div class="flex gap-2 items-center">
+                <input type="number" id="speed3Max" value="100" min="1" max="200" class="w-14 px-2 py-1 border border-slate-200 rounded text-sm">
+                <input type="color" id="color3" value="#ef4444" class="w-10 h-8 border-0 rounded cursor-pointer">
+              </div>
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-xs font-bold text-slate-700">🚀 سريع جداً (+100 كم/س)</label>
+              <div class="flex gap-2 items-center">
+                <span class="w-14 text-center text-sm text-slate-500">+100</span>
+                <input type="color" id="color4" value="#991b1b" class="w-10 h-8 border-0 rounded cursor-pointer">
+              </div>
+            </div>
+          </div>
+          <button onclick="applySpeedColors()" class="mt-4 px-5 py-2 bg-gradient-to-l from-red-700 to-red-900 hover:from-red-800 hover:to-red-950 text-white rounded-lg text-sm font-bold transition">
+            ✅ تطبيق الألوان
+          </button>
+        </div>
+
+        <div id="map"></div>
+      </section>
+
+      <!-- ===== TIMELINE SECTION ===== -->
+      <section class="timeline-section">
+        <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+          <h2 class="flex items-center gap-2 text-lg font-bold text-slate-800">
+            <i data-lucide="list" class="h-5 w-5 text-red-700"></i>
+            الجدول الزمني
+          </h2>
+          <div class="flex gap-1 flex-wrap">
+            <button onclick="sortTimeline('time', 'desc')" class="px-3 py-1.5 bg-gradient-to-l from-red-700 to-red-900 text-white rounded-md text-xs font-bold transition">⬇️ الأحدث</button>
+            <button onclick="sortTimeline('time', 'asc')" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md text-xs font-bold transition">⬆️ الأقدم</button>
+            <button onclick="sortTimeline('speed', 'desc')" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md text-xs font-bold transition">🚀 الأسرع</button>
+            <button onclick="sortTimeline('speed', 'asc')" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md text-xs font-bold transition">🐌 الأبطأ</button>
+          </div>
+        </div>
+        <div id="timeline" class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 max-h-[700px] overflow-y-auto">
+          <div class="loading">جاري تحميل البيانات...</div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script type="module">
@@ -1583,6 +1305,8 @@
         window.addEventListener('load', () => {
             initMap();
             loadDriverHistory();
+            // ✅ تفعيل أيقونات Lucide
+            if (window.lucide) lucide.createIcons();
         });
     </script>
 </body>
