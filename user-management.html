@@ -47,6 +47,15 @@
                             <option value="driver">سائق (Driver)</option>
                         </select>
                     </div>
+                    <div class="form-group" id="driverLinkGroup" style="display: none;">
+                        <label>اربط بسائق موجود <span style="color: #dc3545;">*</span></label>
+                        <select id="userDriverId">
+                            <option value="">— اختر السائق —</option>
+                        </select>
+                        <small style="color: #6c757d; display: block; margin-top: 4px;">
+                            يظهر فقط السائقين غير المربوطين بحساب آخر
+                        </small>
+                    </div>
                 </div>
                 <div style="text-align: center; display: flex; gap: 10px; justify-content: center;">
                     <button type="submit" class="btn btn-primary">💾 إضافة مستخدم</button>
@@ -66,13 +75,14 @@
                         <th>الاسم</th>
                         <th>البريد الإلكتروني</th>
                         <th>الدور</th>
+                        <th>السائق المربوط</th>
                         <th>الحالة</th>
                         <th>الإجراءات</th>
                     </tr>
                 </thead>
                 <tbody id="usersTableBody">
                     <tr>
-                        <td colspan="5" class="loading">جاري تحميل المستخدمين...</td>
+                        <td colspan="6" class="loading">جاري تحميل المستخدمين...</td>
                     </tr>
                 </tbody>
             </table>
@@ -181,10 +191,75 @@
                 return;
             }
 
-            await loadUsers();
+            await Promise.all([loadUsers(), loadAvailableDrivers()]);
         });
 
         let users = [];
+        let availableDrivers = []; // كل السائقين من collection drivers
+        
+        // تحميل قائمة السائقين لاختيارهم في النموذج
+        async function loadAvailableDrivers() {
+            try {
+                const snapshot = await db.collection('drivers').get();
+                availableDrivers = [];
+                snapshot.forEach(doc => {
+                    availableDrivers.push({ id: doc.id, ...doc.data() });
+                });
+                refreshDriverDropdown();
+            } catch (error) {
+                console.error('Error loading drivers:', error);
+            }
+        }
+
+        // تحديث الـ dropdown — استثناء السائقين المربوطين فعلاً بمستخدم
+        function refreshDriverDropdown() {
+            const select = document.getElementById('userDriverId');
+            if (!select) return;
+            
+            // السائقين المربوطين فعلاً بمستخدم
+            const linkedDriverIds = new Set(
+                users.filter(u => u.driverId).map(u => u.driverId)
+            );
+            
+            // الباقي = متاح للربط
+            const unlinked = availableDrivers.filter(d => !linkedDriverIds.has(d.id));
+            
+            select.innerHTML = '<option value="">— اختر السائق —</option>';
+            unlinked.forEach(driver => {
+                const opt = document.createElement('option');
+                opt.value = driver.id;
+                const code = driver.driverCode || driver.code || driver.employeeNumber || '';
+                opt.textContent = code ? `${driver.name} (${code})` : driver.name;
+                select.appendChild(opt);
+            });
+            
+            if (unlinked.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.disabled = true;
+                opt.textContent = 'كل السائقين مربوطين بحسابات';
+                select.appendChild(opt);
+            }
+        }
+
+        // إظهار/إخفاء حقل اختيار السائق حسب الدور
+        document.addEventListener('DOMContentLoaded', () => {
+            const roleSelect = document.getElementById('userRole');
+            if (roleSelect) {
+                roleSelect.addEventListener('change', (e) => {
+                    const group = document.getElementById('driverLinkGroup');
+                    const driverSelect = document.getElementById('userDriverId');
+                    if (e.target.value === 'driver') {
+                        group.style.display = 'block';
+                        driverSelect.required = true;
+                    } else {
+                        group.style.display = 'none';
+                        driverSelect.required = false;
+                        driverSelect.value = '';
+                    }
+                });
+            }
+        });
         
         // Check if current user can modify target user
         function canModifyUser(targetUserRole) {
@@ -213,6 +288,7 @@
                     });
                 });
                 displayUsers();
+                refreshDriverDropdown(); // تحديث القائمة بعد تحميل المستخدمين
             } catch (error) {
                 console.error('Error loading users:', error);
                 showMessage('حدث خطأ في تحميل المستخدمين', 'error');
@@ -225,7 +301,7 @@
             const mobileContainer = document.getElementById('mobileCardsContainer');
             
             if (users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="no-data">لا يوجد مستخدمون</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="no-data">لا يوجد مستخدمون</td></tr>';
                 mobileContainer.innerHTML = '<div class="no-data">لا يوجد مستخدمون</div>';
                 return;
             }
@@ -239,12 +315,29 @@
                 const statusName = user.isActive !== false ? 'نشط' : 'معطل';
                 const statusClass = user.isActive !== false ? 'status-active' : 'status-inactive';
                 
+                // معرفة السائق المربوط
+                let linkedDriverInfo = '';
+                if (user.driverId) {
+                    const linkedDriver = availableDrivers.find(d => d.id === user.driverId);
+                    if (linkedDriver) {
+                        const code = linkedDriver.driverCode || linkedDriver.code || linkedDriver.employeeNumber || '';
+                        linkedDriverInfo = code ? `🚖 ${linkedDriver.name} (${code})` : `🚖 ${linkedDriver.name}`;
+                    } else {
+                        linkedDriverInfo = `<span style="color: #dc3545;">⚠️ سائق محذوف (${user.driverId})</span>`;
+                    }
+                } else if (user.role === 'driver') {
+                    linkedDriverInfo = `<span style="color: #ffc107;">⚠️ غير مربوط</span>`;
+                } else {
+                    linkedDriverInfo = '—';
+                }
+                
                 // Desktop Table Row
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${user.name || '-'}</td>
                     <td>${user.email || 'لا يوجد'}</td>
                     <td><span class="role-badge ${roleClass}">${roleName}</span></td>
+                    <td>${linkedDriverInfo}</td>
                     <td><span class="status-badge ${statusClass}">${statusName}</span></td>
                     <td>
                         <div class="action-buttons">
@@ -281,6 +374,10 @@
                             <span class="mobile-card-label">🔑 الدور</span>
                             <span class="mobile-card-value">${roleName}</span>
                         </div>
+                        <div class="mobile-card-row">
+                            <span class="mobile-card-label">🚖 السائق المربوط</span>
+                            <span class="mobile-card-value">${linkedDriverInfo}</span>
+                        </div>
                     </div>
                     <div class="mobile-card-footer">
                         <button class="btn btn-warning" onclick="openEditModal('${user.id}')">✏️ تعديل</button>
@@ -309,14 +406,36 @@
         document.getElementById('addUserForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const name = document.getElementById('userName').value;
+            // Trim لكل الحقول النصية لمنع المسافات الزائدة
+            const name = document.getElementById('userName').value.trim();
             const email = document.getElementById('userEmail').value.trim();
-            const password = document.getElementById('userPassword').value;
+            const password = document.getElementById('userPassword').value; // كلمة المرور بدون trim
             const role = document.getElementById('userRole').value;
+            const driverId = document.getElementById('userDriverId').value.trim();
+
+            if (!name) {
+                showMessage('الاسم مطلوب', 'error');
+                return;
+            }
 
             if (password.length < 6) {
                 showMessage('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
                 return;
+            }
+
+            // التحقق من ربط السائق
+            if (role === 'driver' && !driverId) {
+                showMessage('يجب اختيار السائق المربوط بهذا الحساب', 'error');
+                return;
+            }
+
+            // التأكد إن السائق مو مربوط بحساب ثاني
+            if (role === 'driver' && driverId) {
+                const alreadyLinked = users.find(u => u.driverId === driverId);
+                if (alreadyLinked) {
+                    showMessage(`هذا السائق مربوط بالفعل بحساب: ${alreadyLinked.name}`, 'error');
+                    return;
+                }
             }
 
             try {
@@ -332,17 +451,25 @@
                 }
 
                 // حفظ البيانات في Firestore
-                await db.collection('users').doc(userId).set({
+                const userData = {
                     name: name,
                     email: email || null,
                     password: password,
                     role: role,
                     isActive: true,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                };
+                
+                // إضافة driverId فقط لو الدور سائق
+                if (role === 'driver' && driverId) {
+                    userData.driverId = driverId;
+                }
+                
+                await db.collection('users').doc(userId).set(userData);
 
                 showMessage('تم إضافة المستخدم بنجاح! ✅', 'success');
                 document.getElementById('addUserForm').reset();
+                document.getElementById('driverLinkGroup').style.display = 'none';
                 await loadUsers();
                 
             } catch (error) {
@@ -388,8 +515,13 @@
             e.preventDefault();
             
             const userId = document.getElementById('editUserId').value;
-            const name = document.getElementById('editUserName').value;
+            const name = document.getElementById('editUserName').value.trim();
             const role = document.getElementById('editUserRole').value;
+
+            if (!name) {
+                showMessage('الاسم مطلوب', 'error');
+                return;
+            }
 
             try {
                 await db.collection('users').doc(userId).update({
@@ -421,15 +553,39 @@
             
             const action = isActive ? 'تفعيل' : 'تعطيل';
             
-            if (!confirm(`هل أنت متأكد من ${action} هذا المستخدم؟`)) return;
+            // رسالة تأكيد إضافية لو السائق مربوط
+            let confirmMsg = `هل أنت متأكد من ${action} هذا المستخدم؟`;
+            if (user.driverId) {
+                confirmMsg += `\n\n⚠️ هذا الحساب مربوط بسائق — راح يتم ${action} السائق أيضاً في النظام.`;
+            }
+            if (!confirm(confirmMsg)) return;
 
             try {
-                await db.collection('users').doc(userId).update({
+                // استخدام batch لضمان أن العمليتين تنجحان معاً أو تفشلان معاً
+                const batch = db.batch();
+                
+                batch.update(db.collection('users').doc(userId), {
                     isActive: isActive,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
+                
+                // Cascade: تطبيق نفس الحالة على السائق المربوط
+                if (user.driverId) {
+                    batch.update(db.collection('drivers').doc(user.driverId), {
+                        isActive: isActive,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        statusReason: isActive 
+                            ? 'تم التفعيل من إدارة المستخدمين' 
+                            : 'تم التعطيل من إدارة المستخدمين'
+                    });
+                }
+                
+                await batch.commit();
 
-                showMessage(`تم ${action} المستخدم بنجاح! ✅`, 'success');
+                const successMsg = user.driverId
+                    ? `تم ${action} المستخدم والسائق المربوط بنجاح! ✅`
+                    : `تم ${action} المستخدم بنجاح! ✅`;
+                showMessage(successMsg, 'success');
                 await loadUsers();
                 
             } catch (error) {
