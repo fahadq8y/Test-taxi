@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة نسخة التطبيق - White Horse</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; direction: rtl; }
+        .header {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white; padding: 1rem 2rem; display: flex;
+            justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header h1 { font-size: 1.5rem; }
+        .nav-buttons { display: flex; gap: 1rem; align-items: center; }
+        .nav-btn {
+            background: rgba(255,255,255,0.2); color: white; border: none;
+            padding: 0.5rem 1rem; border-radius: 5px; cursor: pointer;
+            text-decoration: none; transition: background 0.2s;
+        }
+        .nav-btn:hover { background: rgba(255,255,255,0.35); }
+
+        .container { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+        .card {
+            background: white; border-radius: 12px; padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 1.25rem;
+        }
+        .card-title { font-size: 1.15rem; color: #1e293b; margin-bottom: 1rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
+
+        .current-version-banner {
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+            border: 2px solid #10b981; border-radius: 12px;
+            padding: 1.25rem; margin-bottom: 1.25rem; display: flex;
+            justify-content: space-between; align-items: center; gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .version-tag {
+            background: #10b981; color: white; padding: 0.5rem 1rem;
+            border-radius: 20px; font-weight: 700; font-size: 1.2rem;
+        }
+        .last-updated { color: #475569; font-size: 0.9rem; }
+
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.4rem; font-weight: 600; color: #334155; font-size: 0.95rem; }
+        .form-group .help-text { display: block; font-size: 0.8rem; color: #64748b; margin-top: 0.3rem; }
+        .form-group input[type="text"], .form-group input[type="url"], .form-group textarea, .form-group select {
+            width: 100%; padding: 0.7rem; border: 1.5px solid #cbd5e1;
+            border-radius: 8px; font-size: 0.95rem; font-family: inherit;
+            direction: ltr; text-align: left;
+        }
+        .form-group textarea { direction: rtl; text-align: right; min-height: 80px; resize: vertical; }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none; border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .checkbox-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem; background: #fef3c7; border-radius: 8px; border: 1px solid #fcd34d; }
+        .checkbox-row input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
+        .checkbox-row label { margin: 0; font-weight: 600; color: #92400e; cursor: pointer; }
+
+        .target-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+        .target-option {
+            background: #f1f5f9; border: 2px solid transparent;
+            border-radius: 10px; padding: 1rem; cursor: pointer; text-align: center;
+            transition: all 0.2s;
+        }
+        .target-option:hover { background: #e2e8f0; }
+        .target-option.selected { background: #dbeafe; border-color: #2563eb; }
+        .target-option .icon { font-size: 1.8rem; margin-bottom: 0.4rem; }
+        .target-option .label { font-weight: 700; color: #1e293b; }
+        .target-option .desc { font-size: 0.78rem; color: #64748b; margin-top: 0.2rem; }
+
+        .drivers-picker { display: none; margin-top: 1rem; padding: 1rem; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; }
+        .drivers-picker.active { display: block; }
+        .drivers-search { margin-bottom: 0.75rem; }
+        .drivers-list { max-height: 280px; overflow-y: auto; background: white; border-radius: 8px; padding: 0.5rem; }
+        .driver-row { display: flex; align-items: center; padding: 0.5rem; gap: 0.6rem; border-radius: 6px; cursor: pointer; }
+        .driver-row:hover { background: #f1f5f9; }
+        .driver-row input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+        .driver-row .driver-id { font-weight: 700; color: #2563eb; min-width: 70px; font-family: monospace; }
+        .driver-row .driver-name { color: #475569; flex: 1; }
+        .selected-count { font-weight: 700; color: #10b981; font-size: 0.9rem; margin-top: 0.5rem; }
+
+        .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.25rem; }
+        .btn { padding: 0.8rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 700; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+        .btn-secondary { background: #e2e8f0; color: #1e293b; }
+        .btn-danger { background: #fee2e2; color: #991b1b; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .toast {
+            position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+            padding: 0.9rem 1.5rem; border-radius: 8px; font-weight: 700;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 1000;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+        .toast.success { background: #10b981; color: white; }
+        .toast.error { background: #ef4444; color: white; }
+
+        .info-box { background: #eff6ff; border-right: 4px solid #2563eb; padding: 0.85rem 1rem; border-radius: 6px; margin-bottom: 1rem; color: #1e3a8a; font-size: 0.9rem; line-height: 1.7; }
+
+        .preview-box {
+            background: #1e293b; color: #e2e8f0; padding: 1rem;
+            border-radius: 8px; font-family: 'Courier New', monospace;
+            font-size: 0.85rem; direction: ltr; text-align: left;
+            white-space: pre-wrap; word-break: break-all;
+            max-height: 200px; overflow: auto;
+        }
+
+        .loading { text-align: center; padding: 2rem; color: #64748b; }
+        .loading::before { content: '⏳'; display: block; font-size: 2rem; margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📱 إدارة نسخة التطبيق</h1>
+        <div class="nav-buttons">
+            <a href="admin-dashboard.html" class="nav-btn">🏠 الرئيسية</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="loadingState" class="card loading">جاري التحميل...</div>
+
+        <div id="mainContent" style="display:none;">
+            <!-- النسخة الحالية -->
+            <div class="current-version-banner">
+                <div>
+                    <div style="color:#065f46;font-weight:600;margin-bottom:0.3rem;">📦 النسخة المنشورة حالياً للسائقين:</div>
+                    <span class="version-tag" id="currentVersionTag">--</span>
+                </div>
+                <div class="last-updated" id="lastUpdatedText">--</div>
+            </div>
+
+            <div class="info-box">
+                <strong>💡 كيف يعمل النظام:</strong><br>
+                • التطبيق يفحص هذه الصفحة عند بدء التشغيل ويقارن نسخته بالنسخة هنا.<br>
+                • <strong>"الكل"</strong>: كل السائقين يشوفون رسالة التحديث.<br>
+                • <strong>"تجريبي"</strong>: فقط السائقين المحددين (مفيد لاختبار قبل النشر للجميع).<br>
+                • <strong>"مخفي"</strong>: لا يظهر التحديث لأي سائق (لإيقاف الإشعار مؤقتاً).
+            </div>
+
+            <!-- معلومات النسخة -->
+            <div class="card">
+                <div class="card-title">📋 معلومات النسخة الجديدة</div>
+
+                <div class="form-group">
+                    <label>رقم النسخة <span style="color:#ef4444;">*</span></label>
+                    <input type="text" id="versionInput" placeholder="مثال: 2.6.0" />
+                    <span class="help-text">يجب أن تكون أكبر من النسخة المثبتة في تطبيق السائق (مثل 2.5.11 → 2.6.0)</span>
+                </div>
+
+                <div class="form-group">
+                    <label>رابط تحميل APK <span style="color:#ef4444;">*</span></label>
+                    <input type="url" id="downloadUrlInput" placeholder="https://github.com/.../releases/download/v2.6.0/app-release.apk" />
+                    <span class="help-text">رابط مباشر لملف APK من GitHub Releases</span>
+                </div>
+
+                <div class="form-group">
+                    <label>رسالة التحديث (تظهر للسائق)</label>
+                    <textarea id="updateMessageInput" placeholder="مثال: تحسينات في دقة الموقع وإصلاحات للأداء"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="forceUpdateInput" />
+                        <label for="forceUpdateInput">⚠️ تحديث إجباري (السائق ما يقدر يأجل)</label>
+                    </div>
+                    <span class="help-text">استخدمها فقط للنسخ الحرجة جداً (إصلاحات أمنية مثلاً)</span>
+                </div>
+            </div>
+
+            <!-- استهداف السائقين -->
+            <div class="card">
+                <div class="card-title">🎯 من يشاهد التحديث؟</div>
+
+                <div class="target-options">
+                    <div class="target-option" data-target="all">
+                        <div class="icon">🌍</div>
+                        <div class="label">الكل</div>
+                        <div class="desc">جميع السائقين</div>
+                    </div>
+                    <div class="target-option" data-target="specific">
+                        <div class="icon">🧪</div>
+                        <div class="label">تجريبي</div>
+                        <div class="desc">سائقين محددين فقط</div>
+                    </div>
+                    <div class="target-option" data-target="none">
+                        <div class="icon">🔇</div>
+                        <div class="label">مخفي</div>
+                        <div class="desc">لا أحد يشوف التحديث</div>
+                    </div>
+                </div>
+
+                <div id="driversPicker" class="drivers-picker">
+                    <div class="drivers-search">
+                        <input type="text" id="driversSearch" placeholder="🔍 ابحث عن سائق (بالاسم أو الرقم)..." style="width:100%;padding:0.6rem;border:1.5px solid #cbd5e1;border-radius:8px;" />
+                    </div>
+                    <div class="drivers-list" id="driversList">
+                        <div style="text-align:center;color:#64748b;padding:1rem;">جاري تحميل قائمة السائقين...</div>
+                    </div>
+                    <div class="selected-count" id="selectedCount">لم يتم اختيار أي سائق</div>
+                </div>
+            </div>
+
+            <!-- معاينة JSON -->
+            <div class="card">
+                <div class="card-title">🔍 معاينة ما سيتم حفظه</div>
+                <div class="preview-box" id="jsonPreview">--</div>
+            </div>
+
+            <!-- أزرار الحفظ -->
+            <div class="actions">
+                <button class="btn btn-primary" id="saveBtn">💾 حفظ ونشر</button>
+                <button class="btn btn-secondary" id="reloadBtn">🔄 إعادة تحميل</button>
+                <button class="btn btn-danger" id="hideUpdateBtn">🔇 إخفاء التحديث الحالي</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // ===== STATE =====
+        let allDrivers = [];
+        let selectedDriverIds = new Set();
+        let currentTarget = 'all'; // 'all' | 'specific' | 'none'
+
+        // ===== DOM =====
+        const $ = (id) => document.getElementById(id);
+        const toast = (msg, type = 'success') => {
+            const t = $('toast');
+            t.textContent = msg;
+            t.className = `toast ${type} show`;
+            setTimeout(() => t.classList.remove('show'), 3000);
+        };
+
+        // ===== AUTH GUARD =====
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+            init();
+        });
+
+        async function init() {
+            try {
+                await Promise.all([loadCurrentVersion(), loadDrivers()]);
+                $('loadingState').style.display = 'none';
+                $('mainContent').style.display = 'block';
+                attachEventListeners();
+                updatePreview();
+            } catch (err) {
+                console.error('Init error:', err);
+                $('loadingState').textContent = 'فشل التحميل: ' + err.message;
+            }
+        }
+
+        async function loadCurrentVersion() {
+            const snap = await getDoc(doc(db, 'appConfig', 'version'));
+            if (snap.exists()) {
+                const data = snap.data();
+                $('currentVersionTag').textContent = data.version || '—';
+                $('versionInput').value = data.version || '';
+                $('downloadUrlInput').value = data.downloadUrl || '';
+                $('updateMessageInput').value = data.updateMessage || '';
+                $('forceUpdateInput').checked = !!data.forceUpdate;
+
+                // last updated
+                if (data.updatedAt && data.updatedAt.toDate) {
+                    $('lastUpdatedText').textContent = '🕐 آخر تحديث: ' + data.updatedAt.toDate().toLocaleString('ar-SA');
+                }
+
+                // targetDrivers
+                const td = data.targetDrivers;
+                if (td === 'none') {
+                    setTarget('none');
+                } else if (Array.isArray(td)) {
+                    setTarget('specific');
+                    selectedDriverIds = new Set(td.map(s => String(s).toUpperCase().trim()));
+                } else {
+                    setTarget('all');
+                }
+            } else {
+                $('currentVersionTag').textContent = 'غير محدد';
+                $('lastUpdatedText').textContent = 'لم يتم تعيين نسخة بعد';
+                setTarget('all');
+            }
+        }
+
+        async function loadDrivers() {
+            const snap = await getDocs(collection(db, 'drivers'));
+            allDrivers = [];
+            snap.forEach(d => {
+                const data = d.data();
+                if (!data.isArchived) {
+                    allDrivers.push({
+                        id: d.id,
+                        name: data.name || data.fullName || data.driverName || '(بدون اسم)',
+                        employeeNumber: data.employeeNumber || d.id,
+                    });
+                }
+            });
+            allDrivers.sort((a, b) => a.id.localeCompare(b.id));
+            renderDriversList();
+        }
+
+        function renderDriversList(filter = '') {
+            const list = $('driversList');
+            const filterLower = filter.toLowerCase().trim();
+            const filtered = filterLower
+                ? allDrivers.filter(d =>
+                    d.id.toLowerCase().includes(filterLower) ||
+                    d.name.toLowerCase().includes(filterLower) ||
+                    String(d.employeeNumber).toLowerCase().includes(filterLower)
+                )
+                : allDrivers;
+
+            if (filtered.length === 0) {
+                list.innerHTML = '<div style="text-align:center;color:#64748b;padding:1rem;">لا يوجد سائقين</div>';
+                return;
+            }
+
+            list.innerHTML = filtered.map(d => `
+                <label class="driver-row">
+                    <input type="checkbox" data-id="${d.id}" ${selectedDriverIds.has(d.id.toUpperCase()) ? 'checked' : ''} />
+                    <span class="driver-id">${d.id}</span>
+                    <span class="driver-name">${d.name}</span>
+                </label>
+            `).join('');
+
+            list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    const id = e.target.dataset.id.toUpperCase();
+                    if (e.target.checked) selectedDriverIds.add(id);
+                    else selectedDriverIds.delete(id);
+                    updateSelectedCount();
+                    updatePreview();
+                });
+            });
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            const n = selectedDriverIds.size;
+            $('selectedCount').textContent = n === 0
+                ? 'لم يتم اختيار أي سائق'
+                : `✅ تم اختيار ${n} سائق`;
+        }
+
+        function setTarget(target) {
+            currentTarget = target;
+            document.querySelectorAll('.target-option').forEach(el => {
+                el.classList.toggle('selected', el.dataset.target === target);
+            });
+            $('driversPicker').classList.toggle('active', target === 'specific');
+            updatePreview();
+        }
+
+        function updatePreview() {
+            let targetValue;
+            if (currentTarget === 'all') targetValue = '"all"';
+            else if (currentTarget === 'none') targetValue = '"none"';
+            else targetValue = JSON.stringify([...selectedDriverIds]);
+
+            const obj = {
+                version: $('versionInput').value || '?.?.?',
+                downloadUrl: $('downloadUrlInput').value || '(empty)',
+                updateMessage: $('updateMessageInput').value || '',
+                forceUpdate: $('forceUpdateInput').checked,
+                targetDrivers: currentTarget === 'specific' ? [...selectedDriverIds] : currentTarget,
+            };
+            $('jsonPreview').textContent = JSON.stringify(obj, null, 2);
+        }
+
+        function attachEventListeners() {
+            // target options
+            document.querySelectorAll('.target-option').forEach(el => {
+                el.addEventListener('click', () => setTarget(el.dataset.target));
+            });
+
+            // form inputs
+            ['versionInput', 'downloadUrlInput', 'updateMessageInput', 'forceUpdateInput']
+                .forEach(id => $(id).addEventListener('input', updatePreview));
+
+            // search
+            $('driversSearch').addEventListener('input', (e) => renderDriversList(e.target.value));
+
+            // save
+            $('saveBtn').addEventListener('click', saveVersion);
+            $('reloadBtn').addEventListener('click', () => location.reload());
+            $('hideUpdateBtn').addEventListener('click', hideUpdate);
+        }
+
+        async function saveVersion() {
+            const version = $('versionInput').value.trim();
+            const downloadUrl = $('downloadUrlInput').value.trim();
+            const updateMessage = $('updateMessageInput').value.trim();
+            const forceUpdate = $('forceUpdateInput').checked;
+
+            if (!version) { toast('⚠️ رقم النسخة مطلوب', 'error'); return; }
+            if (!/^\d+\.\d+\.\d+$/.test(version)) { toast('⚠️ صيغة النسخة خطأ (مثال: 2.6.0)', 'error'); return; }
+            if (!downloadUrl) { toast('⚠️ رابط التحميل مطلوب', 'error'); return; }
+            if (currentTarget === 'specific' && selectedDriverIds.size === 0) {
+                toast('⚠️ اختر سائق واحد على الأقل أو غيّر الاستهداف', 'error');
+                return;
+            }
+
+            let targetDrivers;
+            if (currentTarget === 'all') targetDrivers = 'all';
+            else if (currentTarget === 'none') targetDrivers = 'none';
+            else targetDrivers = [...selectedDriverIds];
+
+            const payload = {
+                version,
+                downloadUrl,
+                updateMessage: updateMessage || 'يوجد تحديث جديد',
+                forceUpdate,
+                targetDrivers,
+                updatedAt: serverTimestamp(),
+                updatedBy: auth.currentUser?.email || 'admin',
+            };
+
+            const btn = $('saveBtn');
+            btn.disabled = true; btn.textContent = '⏳ جاري الحفظ...';
+            try {
+                await setDoc(doc(db, 'appConfig', 'version'), payload, { merge: true });
+                toast('✅ تم الحفظ بنجاح! السائقين راح يشوفون التحديث عند فتح التطبيق', 'success');
+                $('currentVersionTag').textContent = version;
+                $('lastUpdatedText').textContent = '🕐 آخر تحديث: الآن';
+            } catch (err) {
+                console.error(err);
+                toast('❌ فشل الحفظ: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false; btn.textContent = '💾 حفظ ونشر';
+            }
+        }
+
+        async function hideUpdate() {
+            if (!confirm('هل تريد إخفاء التحديث الحالي عن جميع السائقين؟ (يمكنك إعادة تفعيله لاحقاً)')) return;
+            try {
+                await setDoc(doc(db, 'appConfig', 'version'), {
+                    targetDrivers: 'none',
+                    updatedAt: serverTimestamp(),
+                    updatedBy: auth.currentUser?.email || 'admin',
+                }, { merge: true });
+                setTarget('none');
+                updatePreview();
+                toast('🔇 تم إخفاء التحديث', 'success');
+            } catch (err) {
+                toast('❌ خطأ: ' + err.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

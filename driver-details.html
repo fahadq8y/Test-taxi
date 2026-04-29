@@ -745,20 +745,30 @@ function updateCurrentMarker(lat, lng, speed) {
     if (autoFollow) map.setView([lat, lng]);
 }
 
-// ===== STOP CLUSTERING (v3.6) =====
-// يجمع نقاط التوقف القريبة (شعاع 50م + فاصل 30 دقيقة)
-// ترجع: { stops: [{lat, lng, startT, endT, count, durationMs}], movingPoints: [...] }
+// ===== STOP CLUSTERING (v3.7 - DBSCAN-like) =====
+// V4 PRO (v3.7): تجميع ذكي يفكّ نقاط GPS الموزعة حول نفس الموقع
+//
+// التحسينات على v3.6:
+//   1. يستخدم isMoving (إن وجد) قبل السرعة (أدق مع v2.6.0)
+//   2. شعاع توسعي 80م (بدل 50م) لاستيعاب نقاط GPS الموزعة في الموقف
+//   3. تصنيف بطول التوقف: short (<5د) / medium (5-30د) / long (>30د)
+//   4. كاشف "موقع متكرر": نفس النقطة تتكرر = home/work
+//
+// ترجع: { stops: [{lat, lng, startT, endT, count, durationMs, tier, isRecurring}], movingPoints: [...] }
 function clusterStops(points) {
     const stops = [];
     const moving = [];
     let currentCluster = null;
 
+    const STOP_RADIUS_M = 80;       // شعاع التجمع
+    const STOP_GAP_MIN = 30;         // فاصل زمني أقصى داخل نفس التوقف
+
     for (const p of points) {
         const speedKmh = (p.speed || 0) * 3.6;
-        const isStopped = speedKmh < 1;
+        // V4: إن جاء isMoving من التطبيق نستخدمه، وإلا نعتمد على السرعة
+        const isStopped = (p.isMoving === false) || (p.isMoving === undefined && speedKmh < 1);
 
         if (!isStopped) {
-            // أنه أي تجمع جاري
             if (currentCluster) {
                 stops.push(finalizeCluster(currentCluster));
                 currentCluster = null;
@@ -767,7 +777,6 @@ function clusterStops(points) {
             continue;
         }
 
-        // نقطة توقف
         if (!currentCluster) {
             currentCluster = { points: [p], startT: p.t, endT: p.t, lat: p.lat, lng: p.lng };
             continue;
@@ -776,13 +785,13 @@ function clusterStops(points) {
         const dist = haversineM(currentCluster.lat, currentCluster.lng, p.lat, p.lng);
         const gapMin = (p.t - currentCluster.endT) / 60000;
 
-        // ضمن نفس التجمع: 50م + 30د
-        if (dist <= 50 && gapMin <= 30) {
+        if (dist <= STOP_RADIUS_M && gapMin <= STOP_GAP_MIN) {
             currentCluster.points.push(p);
             currentCluster.endT = p.t;
-            // متوسط الموقع لتثبيت المركز
-            currentCluster.lat = (currentCluster.lat * (currentCluster.points.length - 1) + p.lat) / currentCluster.points.length;
-            currentCluster.lng = (currentCluster.lng * (currentCluster.points.length - 1) + p.lng) / currentCluster.points.length;
+            // متوسط متحرك لتثبيت المركز
+            const n = currentCluster.points.length;
+            currentCluster.lat = (currentCluster.lat * (n - 1) + p.lat) / n;
+            currentCluster.lng = (currentCluster.lng * (n - 1) + p.lng) / n;
         } else {
             stops.push(finalizeCluster(currentCluster));
             currentCluster = { points: [p], startT: p.t, endT: p.t, lat: p.lat, lng: p.lng };
@@ -790,14 +799,34 @@ function clusterStops(points) {
     }
     if (currentCluster) stops.push(finalizeCluster(currentCluster));
 
+    // V4: كاشف "المواقع المتكررة" - لو نفس الموقع (<150م) ظهر >=2 مرات = home/work
+    for (let i = 0; i < stops.length; i++) {
+        let recurrenceCount = 1;
+        for (let j = 0; j < stops.length; j++) {
+            if (i === j) continue;
+            const d = haversineM(stops[i].lat, stops[i].lng, stops[j].lat, stops[j].lng);
+            if (d < 150) recurrenceCount++;
+        }
+        stops[i].isRecurring = recurrenceCount >= 2;
+        stops[i].recurrenceCount = recurrenceCount;
+    }
+
     return { stops, movingPoints: moving };
 }
 function finalizeCluster(c) {
+    const durationMs = c.endT - c.startT;
+    const minutes = durationMs / 60000;
+    // V4: تصنيف ثلاثي
+    let tier;
+    if (minutes < 5) tier = 'short';        // توقف قصير (إشارة، ركاب)
+    else if (minutes < 30) tier = 'medium'; // توقف متوسط (استراحة، تعبئة)
+    else tier = 'long';                      // توقف طويل (منزل، عمل)
     return {
         lat: c.lat, lng: c.lng,
         startT: c.startT, endT: c.endT,
         count: c.points.length,
-        durationMs: c.endT - c.startT,
+        durationMs,
+        tier,
     };
 }
 
@@ -827,12 +856,21 @@ function drawRoute(points) {
         return;
     }
 
-    // فلترة القفزات الغير منطقية
-    const filtered = [points[0]];
-    for (let i = 1; i < points.length; i++) {
-        const prev = filtered[filtered.length - 1], curr = points[i];
-        const dist = haversine(prev.lat, prev.lng, curr.lat, curr.lng);
-        const dt = (curr.t - prev.t) / 1000;
+    // V4 (v3.7): فلترة متعددة المراحل
+    //   1. ارفض النقاط بدقة سيئة (accuracy > 50م) - حماية من cell tower fixes
+    //   2. ارفض النقاط المكررة (نفس مكان نفس ثانية) - حماية من batch upload
+    //   3. ارفض القفزات الوهمية (>250 km/h محسوبة)
+    const qualityPoints = points.filter(p => !p.accuracy || p.accuracy <= 50);
+    const filtered = [];
+    for (let i = 0; i < qualityPoints.length; i++) {
+        const curr = qualityPoints[i];
+        if (filtered.length === 0) { filtered.push(curr); continue; }
+        const prev = filtered[filtered.length - 1];
+        const dist = haversine(prev.lat, prev.lng, curr.lat, curr.lng); // km
+        const dt = (curr.t - prev.t) / 1000; // s
+        // منع التكرار: <5م في <5 ثوان
+        if (dist * 1000 < 5 && Math.abs(dt) < 5) continue;
+        // فلتر القفزات
         if (dt > 0 && (dist / dt) * 3600 < 250) filtered.push(curr);
         else if (dist < 0.1) filtered.push(curr);
     }
