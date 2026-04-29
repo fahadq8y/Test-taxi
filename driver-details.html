@@ -357,7 +357,7 @@
     </div>
     <div class="header-right">
         <div class="live-badge"><div class="live-dot"></div>مباشر</div>
-        <span class="version-tag">v3.6</span>
+        <span class="version-tag">v3.8</span>
         <button class="header-btn green" onclick="exportPDF()">📄 PDF</button>
         <button class="header-btn blue" onclick="exportExcel()">📊 Excel</button>
         <a href="tracking.html" class="header-btn">📍 التتبع</a>
@@ -485,6 +485,37 @@
                 <div class="info-card ic-red"><div class="ic-label">أعلى سرعة</div><div class="ic-value" id="routeMaxSpeed">—</div><div class="ic-sub">كم/س</div></div>
             </div>
 
+            <!-- v3.8: إحصائيات حسب النشاط -->
+            <div class="section-title">📊 توزيع النشاط</div>
+            <div class="info-grid">
+                <div class="info-card" style="background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.3);">
+                    <div class="ic-label">🚗 سياقة</div>
+                    <div class="ic-value" id="actDriveDist" style="color:#10b981;">—</div>
+                    <div class="ic-sub"><span id="actDriveTime">—</span></div>
+                </div>
+                <div class="info-card" style="background:rgba(251,146,60,0.08);border-color:rgba(251,146,60,0.3);">
+                    <div class="ic-label">🚶 مشي</div>
+                    <div class="ic-value" id="actWalkDist" style="color:#fb923c;">—</div>
+                    <div class="ic-sub"><span id="actWalkTime">—</span></div>
+                </div>
+                <div class="info-card" style="background:rgba(148,163,184,0.08);border-color:rgba(148,163,184,0.3);">
+                    <div class="ic-label">🅿️ توقف</div>
+                    <div class="ic-value" id="actStillTime" style="color:#94a3b8;">—</div>
+                    <div class="ic-sub" id="actStillCount">—</div>
+                </div>
+                <div class="info-card" style="background:rgba(124,58,237,0.08);border-color:rgba(124,58,237,0.3);">
+                    <div class="ic-label">🔁 أماكن متكررة</div>
+                    <div class="ic-value" id="actRecurring" style="color:#a78bfa;">—</div>
+                    <div class="ic-sub">مكان</div>
+                </div>
+            </div>
+
+            <!-- v3.8: ملخص ذكي للأماكن -->
+            <div class="section-title">🏠 الأماكن المهمة</div>
+            <div id="smartPlacesList" style="display:flex;flex-direction:column;gap:6px;font-size:11px;">
+                <div class="no-data" style="padding:14px 8px;">📍 جاري التحليل...</div>
+            </div>
+
             <div class="section-title">خيارات العرض</div>
             <div class="info-card ic-full">
                 <div class="info-row">
@@ -511,14 +542,22 @@
                 </div>
             </div>
 
-            <!-- v3.6: مفتاح الألوان للنشاط -->
-            <div id="activityLegend" style="display:none;">
-                <div class="section-title">مفتاح ألوان النشاط</div>
+            <!-- v3.8: مفتاح الألوان (المسار + التوقفات) - يظهر دائماً -->
+            <div id="activityLegend">
+                <div class="section-title">🎨 مفتاح الألوان</div>
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">المسار:</div>
                 <div class="activity-legend">
                     <div class="legend-item"><div class="legend-swatch" style="background:#10b981"></div>قيادة</div>
                     <div class="legend-item"><div class="legend-swatch" style="background:#fb923c"></div>مشي</div>
                     <div class="legend-item"><div class="legend-swatch" style="background:#8b5cf6"></div>جري</div>
                     <div class="legend-item"><div class="legend-swatch" style="background:#94a3b8"></div>توقف</div>
+                </div>
+                <div style="font-size:10px;color:var(--text-muted);margin:8px 0 4px;">التوقفات:</div>
+                <div class="activity-legend">
+                    <div class="legend-item"><div class="legend-swatch" style="background:#fbbf24"></div>قصير (&lt;5د)</div>
+                    <div class="legend-item"><div class="legend-swatch" style="background:#f97316"></div>متوسط (5-30د)</div>
+                    <div class="legend-item"><div class="legend-swatch" style="background:#dc2626"></div>طويل (&gt;30د)</div>
+                    <div class="legend-item"><div class="legend-swatch" style="background:#7c3aed"></div>منزل/عمل</div>
                 </div>
             </div>
 
@@ -665,7 +704,7 @@ let currentDriverData = null;
 let autoFollow = false;
 let routeVisible = true;
 let panelVisible = true;
-let pathColor = '#3b82f6';
+let pathColor = 'activity'; // v3.8: افتراضياً تلوين بالنشاط (مع v2.6.0)
 let routeRangeHours = 2;
 let customRangeFrom = null; // v3.6: فلتر يدوي
 let customRangeTo = null;
@@ -685,8 +724,90 @@ let heatmapVisible = false;
 const activityMap = {
     'in_vehicle': '🚗 يقود', 'still': '🅿️ متوقف',
     'walking': '🚶 يمشي', 'on_foot': '🚶 يمشي',
-    'running': '🏃 يركض', 'unknown': '❓ غير معروف'
+    'running': '🏃 يركض', 'on_bicycle': '🚲 دراجة',
+    'tilting': '📱 يحرك الجوال', 'unknown': '❓ غير معروف'
 };
+
+// v3.8: Reverse Geocoding cache (Nominatim - مجاني، لا يحتاج API key)
+const geocodeCache = (() => {
+    try { return JSON.parse(sessionStorage.getItem('geocodeCache') || '{}'); }
+    catch(e) { return {}; }
+})();
+function saveGeocodeCache() {
+    try { sessionStorage.setItem('geocodeCache', JSON.stringify(geocodeCache)); } catch(e) {}
+}
+async function reverseGeocode(lat, lng) {
+    const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+    if (geocodeCache[key]) return geocodeCache[key];
+    try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=ar`;
+        const r = await fetch(url, { headers: { 'User-Agent': 'WhiteHorse-Taxi-Admin/3.8' } });
+        if (!r.ok) return null;
+        const data = await r.json();
+        const result = {
+            name: data.name || data.display_name?.split(',')[0] || '',
+            category: classifyOSMPlace(data),
+            road: data.address?.road || data.address?.pedestrian || '',
+            suburb: data.address?.suburb || data.address?.neighbourhood || data.address?.quarter || '',
+            city: data.address?.city || data.address?.town || data.address?.village || data.address?.state || '',
+        };
+        geocodeCache[key] = result;
+        saveGeocodeCache();
+        return result;
+    } catch(e) { return null; }
+}
+function classifyOSMPlace(data) {
+    const a = data.address || {};
+    const t = data.type;
+    const cat = data.category;
+    // Priority order
+    if (a.shop === 'mall' || t === 'mall' || /mall|أفنيوز|avenues|مجمع/i.test(data.display_name||'')) return { icon: '🛍️', label: 'مول/مجمع' };
+    if (a.amenity === 'cafe' || t === 'cafe') return { icon: '☕', label: 'مقهى' };
+    if (a.amenity === 'restaurant' || a.amenity === 'fast_food' || t === 'restaurant' || t === 'fast_food') return { icon: '🍽️', label: 'مطعم' };
+    if (a.amenity === 'fuel' || t === 'fuel') return { icon: '⛽', label: 'محطة وقود' };
+    if (a.amenity === 'hospital' || a.amenity === 'clinic' || t === 'hospital') return { icon: '🏥', label: 'مستشفى/عيادة' };
+    if (a.amenity === 'pharmacy') return { icon: '💊', label: 'صيدلية' };
+    if (a.amenity === 'school' || a.amenity === 'university' || t === 'school') return { icon: '🏫', label: 'مدرسة/جامعة' };
+    if (a.amenity === 'place_of_worship' || t === 'mosque' || /مسجد|mosque/i.test(data.display_name||'')) return { icon: '🕌', label: 'مسجد' };
+    if (a.amenity === 'bank' || a.amenity === 'atm') return { icon: '🏦', label: 'بنك' };
+    if (a.shop === 'supermarket' || t === 'supermarket') return { icon: '🛒', label: 'سوبرماركت' };
+    if (a.shop) return { icon: '🛍️', label: 'محل: ' + a.shop };
+    if (a.tourism === 'hotel') return { icon: '🏨', label: 'فندق' };
+    if (a.leisure === 'park' || t === 'park') return { icon: '🌳', label: 'حديقة' };
+    if (a.amenity === 'parking') return { icon: '🅿️', label: 'موقف سيارات' };
+    if (a.building === 'residential' || a.building === 'house' || a.building === 'apartments') return { icon: '🏠', label: 'منطقة سكنية' };
+    if (a.office) return { icon: '🏢', label: 'مكتب' };
+    if (cat === 'highway' || a.highway) return { icon: '🛣️', label: 'طريق' };
+    return { icon: '📍', label: 'موقع' };
+}
+
+// v3.8: تصنيف ذكي للتوقف (المنزل/العمل/مكان متكرر)
+function inferStopContext(stop, allStops) {
+    const startHour = stop.startT.getHours();
+    const endHour = stop.endT.getHours();
+    const minutes = stop.durationMs / 60000;
+
+    // المنزل: توقف طويل (>3 ساعات) في الليل (22:00-07:00) متكرر
+    if (stop.isRecurring && minutes >= 180) {
+        const overlapsNight = (startHour >= 22 || startHour <= 6) || (endHour >= 22 || endHour <= 6);
+        if (overlapsNight) return { type: 'home', icon: '🏠', label: 'المنزل (محتمل)' };
+    }
+    // العمل: توقف 4-10 ساعات في النهار (08:00-17:00) متكرر
+    if (stop.isRecurring && minutes >= 240 && minutes <= 600) {
+        if (startHour >= 7 && startHour <= 10 && endHour >= 14 && endHour <= 18) {
+            return { type: 'work', icon: '💼', label: 'العمل (محتمل)' };
+        }
+    }
+    // مكان متكرر يومي
+    if (stop.isRecurring) {
+        return { type: 'recurring', icon: '🔁', label: `مكان متكرر (${stop.recurrenceCount} زيارات)` };
+    }
+    // تصنيف بالمدة
+    if (minutes < 5) return { type: 'brief', icon: '🚦', label: 'توقف قصير (إشارة/نقطة تفتيش)' };
+    if (minutes < 30) return { type: 'short', icon: '⏱', label: 'استراحة قصيرة' };
+    if (minutes < 90) return { type: 'medium', icon: '🍽️', label: 'استراحة طويلة (ربما طعام)' };
+    return { type: 'long', icon: '🏠', label: 'توقف طويل' };
+}
 
 // v3.6: لون لكل نشاط
 function activityColor(act, speedKmh) {
@@ -904,34 +1025,65 @@ function drawRoute(points) {
 
     // ===== رسم نقاط التوقف =====
     let stopCount = 0;
+    let lastStopsData = []; // v3.8: نخزّنها للإحصائيات والتقرير
     if (stopClusteringEnabled) {
         // v3.6: تجميع ذكي
         const { stops } = clusterStops(filtered);
         stopCount = stops.length;
-        stops.forEach(s => {
-            // الحجم حسب طول التوقف (max 26px)
+        lastStopsData = stops;
+        // v3.8: لون حسب نوع التوقف
+        const tierColors = { short: '#fbbf24', medium: '#f97316', long: '#dc2626' };
+        const recurringColor = '#7c3aed';
+        stops.forEach((s, idx) => {
             const minutes = s.durationMs / 60000;
-            const radius = Math.min(26, 12 + Math.sqrt(minutes));
-            const isLong = minutes >= 60;
-            const color = isLong ? '#dc2626' : '#ef4444';
+            const radius = Math.min(28, 10 + Math.sqrt(minutes) * 1.2);
+            const ctx = inferStopContext(s, stops);
+            s._context = ctx;
+            const color = (ctx.type === 'home' || ctx.type === 'work') ? recurringColor : (tierColors[s.tier] || '#ef4444');
+            const labelText = (ctx.type === 'home' || ctx.type === 'work') ? ctx.icon : (s.count > 1 ? s.count : '🅿');
             const icon = L.divIcon({
                 className: '',
                 iconSize: [radius * 2, radius * 2],
                 iconAnchor: [radius, radius],
-                html: `<div class="stop-cluster-marker" style="width:${radius*2}px;height:${radius*2}px;background:${color};">${s.count > 1 ? s.count : '🅿'}</div>`
+                html: `<div class="stop-cluster-marker" style="width:${radius*2}px;height:${radius*2}px;background:${color};font-size:${ctx.type==='home'||ctx.type==='work'?'14px':'11px'};">${labelText}</div>`
             });
+            const initialTooltip = `<div style="direction:rtl;font-size:11px;min-width:200px;">
+                <b style="font-size:13px;">${ctx.icon} ${ctx.label}</b><br>
+                ⏱ ${formatDuration(s.durationMs)}<br>
+                من ${s.startT.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})}
+                إلى ${s.endT.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})}<br>
+                <span style="opacity:0.7">📍 جاري تحديد المكان...</span>
+            </div>`;
             const m = L.marker([s.lat, s.lng], { icon, zIndexOffset: 500 })
-                .bindTooltip(
-                    `<div style="direction:rtl;font-size:11px;">
-                        <b>🅿️ توقف ${formatDuration(s.durationMs)}</b><br>
+                .bindTooltip(initialTooltip, { direction: 'top' }).addTo(map);
+            stopMarkers.push(m);
+            // v3.8: Reverse geocoding للتوقفات >= 5 دقائق فقط (لتقليل الطلبات)
+            if (minutes >= 5) {
+                // تأخير لتجنب rate limit (Nominatim: 1 req/sec)
+                setTimeout(async () => {
+                    const place = await reverseGeocode(s.lat, s.lng);
+                    if (!place) return;
+                    s._place = place;
+                    const fullTooltip = `<div style="direction:rtl;font-size:11px;min-width:220px;">
+                        <b style="font-size:13px;">${ctx.icon} ${ctx.label}</b><br>
+                        <div style="margin:4px 0;padding:4px 6px;background:rgba(124,58,237,0.15);border-radius:4px;">
+                            <b>${place.category.icon} ${place.category.label}</b>
+                            ${place.name ? '<br>📌 ' + place.name : ''}
+                            ${place.road ? '<br>🛣️ ' + place.road : ''}
+                            ${place.suburb ? '<br>🏘️ ' + place.suburb : ''}
+                            ${place.city ? '<br>🌆 ' + place.city : ''}
+                        </div>
+                        ⏱ ${formatDuration(s.durationMs)}<br>
                         من ${s.startT.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})}
                         إلى ${s.endT.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})}<br>
                         ${s.count} نقطة GPS
-                    </div>`,
-                    { direction: 'top' }
-                ).addTo(map);
-            stopMarkers.push(m);
+                    </div>`;
+                    m.setTooltipContent(fullTooltip);
+                }, idx * 1100); // تأخير تصاعدي
+            }
         });
+        // حفظ للوصول من الإحصائيات
+        window._lastStops = stops;
     } else {
         // الطريقة القديمة: نقطة لكل GPS واقف
         filtered.forEach((p, i) => {
@@ -946,11 +1098,35 @@ function drawRoute(points) {
 
     // ===== الإحصائيات =====
     let dist = 0, movPts = 0, maxSpd = 0;
+    // v3.8: إحصائيات حسب النشاط
+    let driveDistKm = 0, walkDistKm = 0;
+    let driveTimeMs = 0, walkTimeMs = 0, stillTimeMs = 0;
     for (let i = 1; i < filtered.length; i++) {
-        dist += haversine(filtered[i-1].lat, filtered[i-1].lng, filtered[i].lat, filtered[i].lng);
+        const segDistKm = haversine(filtered[i-1].lat, filtered[i-1].lng, filtered[i].lat, filtered[i].lng);
+        const segTimeMs = filtered[i].t - filtered[i-1].t;
+        dist += segDistKm;
         const s = (filtered[i].speed || 0) * 3.6;
         if (s > 1) movPts++;
         if (s > maxSpd) maxSpd = s;
+        // تصنيف حسب النشاط (نأخذ نشاط النقطة الحالية)
+        const act = filtered[i].activity || filtered[i].currentActivity;
+        // لا نعد فترات أكبر من 10 دقائق (فجوات)
+        if (segTimeMs > 0 && segTimeMs < 10 * 60 * 1000) {
+            if (act === 'in_vehicle') {
+                driveDistKm += segDistKm;
+                driveTimeMs += segTimeMs;
+            } else if (act === 'walking' || act === 'on_foot' || act === 'running') {
+                walkDistKm += segDistKm;
+                walkTimeMs += segTimeMs;
+            } else if (act === 'still' || filtered[i].isMoving === false) {
+                stillTimeMs += segTimeMs;
+            } else {
+                // unknown: استخدم السرعة كـ fallback
+                if (s > 10) { driveDistKm += segDistKm; driveTimeMs += segTimeMs; }
+                else if (s > 2) { walkDistKm += segDistKm; walkTimeMs += segTimeMs; }
+                else stillTimeMs += segTimeMs;
+            }
+        }
     }
     const movPct = filtered.length > 1 ? Math.round(movPts * 100 / (filtered.length - 1)) : 0;
     document.getElementById('routeDistance').textContent = dist.toFixed(1);
@@ -960,6 +1136,61 @@ function drawRoute(points) {
     document.getElementById('mapRoutePoints').textContent = filtered.length;
     document.getElementById('mapStopCount').textContent = stopCount;
     document.getElementById('totalDistance').textContent = dist.toFixed(1);
+
+    // v3.8: ملء بطاقات النشاط
+    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setText('actDriveDist', driveDistKm.toFixed(1) + ' كم');
+    setText('actDriveTime', formatDuration(driveTimeMs));
+    setText('actWalkDist', walkDistKm.toFixed(2) + ' كم');
+    setText('actWalkTime', formatDuration(walkTimeMs));
+    setText('actStillTime', formatDuration(stillTimeMs));
+    const recurringStops = lastStopsData.filter(s => s.isRecurring).length;
+    setText('actStillCount', stopCount + ' توقف');
+    setText('actRecurring', recurringStops);
+
+    // v3.8: تحديث قائمة الأماكن المهمة (async - بعد ما يخلص geocoding)
+    setTimeout(() => updateSmartPlacesList(lastStopsData), 100);
+}
+
+// v3.8: عرض قائمة الأماكن المهمة (المنزل/العمل/مكان متكرر/أطول توقفات)
+function updateSmartPlacesList(stops) {
+    const el = document.getElementById('smartPlacesList');
+    if (!el) return;
+    if (!stops || !stops.length) {
+        el.innerHTML = '<div class="no-data" style="padding:14px 8px;">لا توجد توقفات في هذه الفترة</div>';
+        return;
+    }
+    // ترتيب: المنزل > العمل > متكرر > أطول
+    const sorted = [...stops].sort((a, b) => {
+        const rank = s => s._context?.type === 'home' ? 0 : s._context?.type === 'work' ? 1 : s._context?.type === 'recurring' ? 2 : 3;
+        const ra = rank(a), rb = rank(b);
+        if (ra !== rb) return ra - rb;
+        return b.durationMs - a.durationMs;
+    });
+    const top = sorted.slice(0, 8);
+    el.innerHTML = top.map(s => {
+        const ctx = s._context || { icon: '📍', label: 'توقف' };
+        const place = s._place;
+        const placeText = place
+            ? `${place.category.icon} ${place.category.label}${place.suburb ? ' - ' + place.suburb : ''}`
+            : '<span style="opacity:0.6">📍 جاري تحديد المكان...</span>';
+        return `<div onclick="map.flyTo([${s.lat}, ${s.lng}], 17)"
+            style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:pointer;transition:all 0.2s;"
+            onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='var(--card-bg)'">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+                <b style="color:var(--text);">${ctx.icon} ${ctx.label}</b>
+                <span style="font-size:10px;color:var(--text-muted);">${formatDuration(s.durationMs)}</span>
+            </div>
+            <div style="font-size:10px;color:var(--text-muted);">${placeText}</div>
+            <div style="font-size:9px;color:var(--text-muted);opacity:0.7;margin-top:2px;">
+                ${s.startT.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})} - ${s.endT.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})}
+            </div>
+        </div>`;
+    }).join('');
+    // إعادة تحديث بعد 5 ثواني (لما geocoding يخلص)
+    if (top.some(s => !s._place && s.durationMs >= 5*60*1000)) {
+        setTimeout(() => updateSmartPlacesList(stops), 5000);
+    }
 }
 
 // ===== LOAD ROUTE (v3.6 — إصلاح الباغ الكبير) =====
@@ -1329,7 +1560,7 @@ window.toggleStopClustering = function() {
 };
 window.setPathColor = function(c) {
     pathColor = c;
-    document.getElementById('activityLegend').style.display = (c === 'activity') ? 'block' : 'none';
+    // v3.8: legend دائماً ظاهر (يحتوي مفتاح المسار + التوقفات)
     drawRoute(locationHistory);
 };
 window.setRouteRange = function(h, el) {
