@@ -18,6 +18,7 @@
             --yellow: #f59e0b;
             --blue: #3b82f6;
             --purple: #8b5cf6;
+            --orange: #fb923c;
             --text: #e2e8f0;
             --text-muted: #94a3b8;
             --card-bg: rgba(255,255,255,0.05);
@@ -94,7 +95,12 @@
             border-left: 1px solid var(--border);
             flex-shrink: 0;
             overflow: hidden;
-            transition: transform 0.3s;
+            transition: transform 0.3s, width 0.3s, margin 0.3s;
+        }
+        .left-panel.collapsed {
+            width: 0;
+            margin-right: -1px;
+            border-left: none;
         }
         .panel-tabs {
             display: flex;
@@ -132,6 +138,7 @@
         .ic-yellow .ic-value { color: var(--yellow); }
         .ic-purple .ic-value { color: var(--purple); }
         .ic-red .ic-value { color: var(--red); }
+        .ic-orange .ic-value { color: var(--orange); }
         .ic-full { grid-column: 1 / -1; }
         .info-row {
             display: flex; justify-content: space-between; align-items: center;
@@ -186,6 +193,44 @@
         .tl-coords { font-size: 10px; color: var(--text-muted); font-family: monospace; margin-top: 2px; }
         .no-data { text-align: center; padding: 28px 14px; color: var(--text-muted); font-size: 12px; }
 
+        /* ===== DATE RANGE PICKER (v3.6) ===== */
+        .date-range-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;
+        }
+        .date-input-wrap {
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 6px 8px;
+        }
+        .date-input-wrap label {
+            display: block; font-size: 9px; color: var(--text-muted); margin-bottom: 3px;
+        }
+        .date-input-wrap input {
+            width: 100%; background: transparent; border: none; color: var(--text);
+            font-size: 11px; font-family: inherit; outline: none;
+            color-scheme: dark;
+        }
+        .date-apply-btn {
+            width: 100%; padding: 7px;
+            background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3);
+            color: var(--blue); border-radius: 8px; cursor: pointer;
+            font-size: 11px; font-weight: 600; transition: all 0.2s;
+        }
+        .date-apply-btn:hover { background: rgba(59,130,246,0.25); }
+
+        /* ===== ACTIVITY LEGEND (v3.6) ===== */
+        .activity-legend {
+            display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;
+        }
+        .legend-item {
+            display: flex; align-items: center; gap: 4px;
+            font-size: 10px; color: var(--text-muted);
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 6px; padding: 3px 7px;
+        }
+        .legend-swatch {
+            width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+        }
+
         /* ===== MAP ===== */
         .map-area { flex: 1; position: relative; background: #0a0a1a; }
         #map { width: 100%; height: 100%; }
@@ -209,6 +254,24 @@
         .ctrl-btn:last-child { border-bottom: none; }
         .ctrl-btn:hover { background: rgba(255,255,255,0.08); color: white; }
         .ctrl-btn.active { color: var(--blue); background: rgba(59,130,246,0.1); }
+
+        /* ===== INFO TOGGLE BUTTON (v3.6) ===== */
+        /* زر إظهار/إخفاء القائمة الجانبية - ظاهر دائماً (موبايل + كمبيوتر) */
+        .panel-toggle-btn {
+            position: absolute; top: 12px; right: 12px; z-index: 600;
+            background: linear-gradient(135deg, rgba(59,130,246,0.95), rgba(139,92,246,0.95));
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white; padding: 9px 14px; border-radius: 10px;
+            cursor: pointer; font-size: 13px; font-weight: 700;
+            display: flex; align-items: center; gap: 6px;
+            backdrop-filter: blur(10px); box-shadow: var(--shadow);
+            transition: all 0.2s;
+        }
+        .panel-toggle-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(59,130,246,0.4);
+        }
+        .panel-toggle-btn:active { transform: translateY(0); }
 
         /* Replay Panel */
         .replay-panel {
@@ -248,9 +311,18 @@
         .leaflet-popup-tip { background: rgba(22,33,62,0.97) !important; }
         .leaflet-popup-content { margin: 11px 13px !important; }
 
+        /* Stop cluster marker (v3.6) */
+        .stop-cluster-marker {
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(239,68,68,0.95); color: white;
+            border-radius: 50%; border: 3px solid white;
+            font-weight: 700; font-size: 11px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
         /* ===== PRINT ===== */
         @media print {
-            .header-right, .map-controls, .replay-panel, .map-info { display: none !important; }
+            .header-right, .map-controls, .replay-panel, .map-info, .panel-toggle-btn { display: none !important; }
             body { overflow: visible; height: auto; }
             .main-layout { flex-direction: column; overflow: visible; }
             .left-panel { width: 100%; border: none; overflow: visible; }
@@ -265,13 +337,7 @@
                 z-index: 500; transform: translateX(100%); width: 290px;
             }
             .left-panel.open { transform: translateX(0); }
-            .panel-toggle-btn {
-                position: absolute; top: 12px; right: 12px; z-index: 600;
-                background: rgba(22,33,62,0.95); border: 1px solid var(--border);
-                color: var(--text); padding: 8px 11px; border-radius: 9px;
-                cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px;
-                backdrop-filter: blur(10px);
-            }
+            .left-panel.collapsed { width: 290px; transform: translateX(100%); margin-right: 0; }
             .header { padding: 0 12px; }
             .header-title p, .version-tag { display: none; }
             .replay-panel { min-width: 270px; bottom: 70px; }
@@ -291,7 +357,7 @@
     </div>
     <div class="header-right">
         <div class="live-badge"><div class="live-dot"></div>مباشر</div>
-        <span class="version-tag">v3.3</span>
+        <span class="version-tag">v3.6</span>
         <button class="header-btn green" onclick="exportPDF()">📄 PDF</button>
         <button class="header-btn blue" onclick="exportExcel()">📊 Excel</button>
         <a href="tracking.html" class="header-btn">📍 التتبع</a>
@@ -348,6 +414,16 @@
                 </div>
             </div>
 
+            <!-- v3.6: تحليلات إضافية -->
+            <div class="section-title">تحليلات ذكية</div>
+            <div class="info-card ic-full">
+                <div class="info-row"><span class="ir-label">⏱️ أطول توقف</span><span class="ir-value" id="longestStop">—</span></div>
+                <div class="info-row"><span class="ir-label">📍 موقع أطول توقف</span><span class="ir-value" id="longestStopLoc" style="font-size:10px;font-family:monospace;">—</span></div>
+                <div class="info-row"><span class="ir-label">🚀 سرعات &gt; 100 كم/س</span><span class="ir-value" id="overSpeedCount">—</span></div>
+                <div class="info-row"><span class="ir-label">📡 متوسط دقة GPS</span><span class="ir-value" id="avgGpsAccuracy">—</span></div>
+                <div class="info-row"><span class="ir-label">🆕 آخر نقطة GPS</span><span class="ir-value" id="lastGpsPoint">—</span></div>
+            </div>
+
             <div class="section-title">الموقع الحالي</div>
             <div class="info-card ic-full">
                 <div class="info-row"><span class="ir-label">خط العرض</span><span class="ir-value" id="currentLat" style="font-family:monospace;font-size:11px;">—</span></div>
@@ -377,13 +453,29 @@
 
         <!-- ROUTE TAB -->
         <div class="panel-content tab-pane" id="tab-route">
-            <div class="section-title">نطاق المسار</div>
+            <div class="section-title">نطاق سريع</div>
             <div class="filter-pills">
                 <div class="pill active" onclick="setRouteRange(2, this)">2 ساعة</div>
                 <div class="pill" onclick="setRouteRange(8, this)">8 ساعات</div>
                 <div class="pill" onclick="setRouteRange(24, this)">24 ساعة</div>
                 <div class="pill" onclick="setRouteRange(72, this)">3 أيام</div>
+                <div class="pill" onclick="setRouteRange(168, this)">أسبوع</div>
             </div>
+
+            <!-- v3.6: فلتر يدوي بالتاريخ -->
+            <div class="section-title">📅 تحديد فترة يدوية</div>
+            <div class="date-range-row">
+                <div class="date-input-wrap">
+                    <label>من تاريخ</label>
+                    <input type="datetime-local" id="dateFrom">
+                </div>
+                <div class="date-input-wrap">
+                    <label>إلى تاريخ</label>
+                    <input type="datetime-local" id="dateTo">
+                </div>
+            </div>
+            <button class="date-apply-btn" onclick="applyDateRange()">📊 تطبيق الفلتر</button>
+            <div id="customRangeStatus" style="font-size:10px;color:var(--text-muted);margin-top:5px;text-align:center;display:none;"></div>
 
             <div class="section-title">إحصائيات المسار</div>
             <div class="info-grid">
@@ -404,14 +496,29 @@
                     <button onclick="toggleAutoFollow()" id="autoFollowBtn" style="padding:4px 11px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:var(--blue);border-radius:6px;cursor:pointer;font-size:11px;">تفعيل</button>
                 </div>
                 <div class="info-row">
+                    <span class="ir-label">تجميع التوقفات</span>
+                    <button onclick="toggleStopClustering()" id="stopClusterBtn" style="padding:4px 11px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:var(--green);border-radius:6px;cursor:pointer;font-size:11px;">مفعّل</button>
+                </div>
+                <div class="info-row">
                     <span class="ir-label">لون المسار</span>
                     <div style="display:flex;gap:5px;">
-                        <div onclick="setPathColor('#3b82f6')" title="أزرق" style="width:18px;height:18px;border-radius:50%;background:#3b82f6;cursor:pointer;border:2px solid white;"></div>
+                        <div onclick="setPathColor('#3b82f6')" title="أزرق" style="width:18px;height:18px;border-radius:50%;background:#3b82f6;cursor:pointer;"></div>
                         <div onclick="setPathColor('#10b981')" title="أخضر" style="width:18px;height:18px;border-radius:50%;background:#10b981;cursor:pointer;"></div>
                         <div onclick="setPathColor('#f59e0b')" title="أصفر" style="width:18px;height:18px;border-radius:50%;background:#f59e0b;cursor:pointer;"></div>
-                        <div onclick="setPathColor('#ef4444')" title="أحمر" style="width:18px;height:18px;border-radius:50%;background:#ef4444;cursor:pointer;"></div>
                         <div onclick="setPathColor('speed')" title="حسب السرعة" style="width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#10b981,#f59e0b,#ef4444);cursor:pointer;"></div>
+                        <div onclick="setPathColor('activity')" title="حسب النشاط" style="width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#10b981,#fb923c,#8b5cf6);cursor:pointer;border:2px solid white;"></div>
                     </div>
+                </div>
+            </div>
+
+            <!-- v3.6: مفتاح الألوان للنشاط -->
+            <div id="activityLegend" style="display:none;">
+                <div class="section-title">مفتاح ألوان النشاط</div>
+                <div class="activity-legend">
+                    <div class="legend-item"><div class="legend-swatch" style="background:#10b981"></div>قيادة</div>
+                    <div class="legend-item"><div class="legend-swatch" style="background:#fb923c"></div>مشي</div>
+                    <div class="legend-item"><div class="legend-swatch" style="background:#8b5cf6"></div>جري</div>
+                    <div class="legend-item"><div class="legend-swatch" style="background:#94a3b8"></div>توقف</div>
                 </div>
             </div>
 
@@ -438,8 +545,11 @@
 
     <!-- MAP AREA -->
     <div class="map-area">
-        <!-- Mobile panel toggle -->
-        <button class="panel-toggle-btn" id="panelToggleBtn" onclick="togglePanel()" style="display:none;">☰ المعلومات</button>
+        <!-- v3.6: زر إظهار/إخفاء القائمة - دائماً ظاهر فوق فلاتر الخريطة -->
+        <button class="panel-toggle-btn" id="panelToggleBtn" onclick="togglePanel()">
+            <span id="panelToggleIcon">✕</span>
+            <span id="panelToggleText">إخفاء المعلومات</span>
+        </button>
 
         <!-- Map Controls -->
         <div class="map-controls">
@@ -484,6 +594,7 @@
         <div class="map-info">
             <div class="mi-row"><span>آخر تحديث:</span><span class="mi-val" id="lastUpdateTime">—</span></div>
             <div class="mi-row"><span>نقاط المسار:</span><span class="mi-val" id="mapRoutePoints">0</span></div>
+            <div class="mi-row"><span>التوقفات:</span><span class="mi-val" id="mapStopCount">0</span></div>
             <div class="mi-row"><span>نطاق المسار:</span><span class="mi-val" id="mapRouteRange">2 ساعة</span></div>
         </div>
 
@@ -511,11 +622,6 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 // ===== V3.5: SMART MOVEMENT DETECTION =====
-// يحل مشكلة: الإصدار القديم (2.4.x) ما يسجل isMoving + الإصدار الجديد (2.5.x) يقول "متحرك" حتى لو السائق راكب في سيارة واقفة
-// المنطق:
-// - السرعة >= 5 كم/س = متحرك أكيد (يتجاوز نقص isMoving بالإصدار القديم)
-// - السرعة < 1 كم/س = متوقف أكيد (يصلح false-positive للإصدار الجديد لما السائق راكب في سيارة واقفة)
-// - بالمنتصف (1-5 كم/س) = استخدم isMoving من الإصدار الجديد لو متاح
 function isDriverActuallyMoving(driver) {
     const speedRaw = driver.speed;
     const speedKmh = (speedRaw && speedRaw > 0 ? speedRaw : 0) * 3.6;
@@ -537,8 +643,6 @@ function getDriverActivity(driver) {
 }
 window.isDriverActuallyMoving = isDriverActuallyMoving;
 window.getDriverActivity = getDriverActivity;
-// =========================================
-
 
 // Auth guard
 const userRole = localStorage.getItem('userRole');
@@ -548,19 +652,24 @@ if (!userRole || (userRole !== 'admin' && userRole !== 'owner')) {
 
 const urlParams = new URLSearchParams(window.location.search);
 const driverId = urlParams.get('id') || urlParams.get('driverId') || 'unknown';
-const CURRENT_APP_VERSION = '2.3.7';
+const CURRENT_APP_VERSION = '2.5.11';
 
 let map, tileLayer, mapType = 'streets';
 let currentMarker = null;
 let routePoly = null;
+let routeSegments = []; // v3.6: للمسار الملوّن حسب النشاط/السرعة
 let startMarker = null;
 let stopMarkers = [];
 let locationHistory = [];
 let currentDriverData = null;
 let autoFollow = false;
 let routeVisible = true;
+let panelVisible = true;
 let pathColor = '#3b82f6';
 let routeRangeHours = 2;
+let customRangeFrom = null; // v3.6: فلتر يدوي
+let customRangeTo = null;
+let stopClusteringEnabled = true; // v3.6
 let tlFilter = 'all';
 let tlSort = 'time';
 
@@ -569,7 +678,7 @@ let replayData = [], replayIndex = 0, replayInterval = null;
 let replayPlaying = false, replaySpeed = 5;
 let replayMarker = null;
 
-// V3.4: Heatmap layer
+// Heatmap
 let heatmapLayer = null;
 let heatmapVisible = false;
 
@@ -578,6 +687,18 @@ const activityMap = {
     'walking': '🚶 يمشي', 'on_foot': '🚶 يمشي',
     'running': '🏃 يركض', 'unknown': '❓ غير معروف'
 };
+
+// v3.6: لون لكل نشاط
+function activityColor(act, speedKmh) {
+    if (act === 'in_vehicle') return '#10b981'; // أخضر = قيادة
+    if (act === 'walking' || act === 'on_foot') return '#fb923c'; // برتقالي = مشي
+    if (act === 'running') return '#8b5cf6'; // بنفسجي = جري
+    if (act === 'still') return '#94a3b8'; // رمادي = توقف
+    // unknown: استخدم السرعة كـ fallback
+    if (speedKmh >= 10) return '#10b981';
+    if (speedKmh >= 3) return '#fb923c';
+    return '#94a3b8';
+}
 
 const tiles = {
     streets: { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attr: '© OpenStreetMap' },
@@ -608,6 +729,7 @@ function haversine(lat1, lon1, lat2, lon2) {
     const a = Math.sin(dLat/2)**2 + Math.cos(lat1*d2r)*Math.cos(lat2*d2r)*Math.sin(dLon/2)**2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
+function haversineM(lat1, lon1, lat2, lon2) { return haversine(lat1, lon1, lat2, lon2) * 1000; }
 
 // ===== CURRENT MARKER =====
 function updateCurrentMarker(lat, lng, speed) {
@@ -623,15 +745,89 @@ function updateCurrentMarker(lat, lng, speed) {
     if (autoFollow) map.setView([lat, lng]);
 }
 
-// ===== DRAW ROUTE =====
+// ===== STOP CLUSTERING (v3.6) =====
+// يجمع نقاط التوقف القريبة (شعاع 50م + فاصل 30 دقيقة)
+// ترجع: { stops: [{lat, lng, startT, endT, count, durationMs}], movingPoints: [...] }
+function clusterStops(points) {
+    const stops = [];
+    const moving = [];
+    let currentCluster = null;
+
+    for (const p of points) {
+        const speedKmh = (p.speed || 0) * 3.6;
+        const isStopped = speedKmh < 1;
+
+        if (!isStopped) {
+            // أنه أي تجمع جاري
+            if (currentCluster) {
+                stops.push(finalizeCluster(currentCluster));
+                currentCluster = null;
+            }
+            moving.push(p);
+            continue;
+        }
+
+        // نقطة توقف
+        if (!currentCluster) {
+            currentCluster = { points: [p], startT: p.t, endT: p.t, lat: p.lat, lng: p.lng };
+            continue;
+        }
+
+        const dist = haversineM(currentCluster.lat, currentCluster.lng, p.lat, p.lng);
+        const gapMin = (p.t - currentCluster.endT) / 60000;
+
+        // ضمن نفس التجمع: 50م + 30د
+        if (dist <= 50 && gapMin <= 30) {
+            currentCluster.points.push(p);
+            currentCluster.endT = p.t;
+            // متوسط الموقع لتثبيت المركز
+            currentCluster.lat = (currentCluster.lat * (currentCluster.points.length - 1) + p.lat) / currentCluster.points.length;
+            currentCluster.lng = (currentCluster.lng * (currentCluster.points.length - 1) + p.lng) / currentCluster.points.length;
+        } else {
+            stops.push(finalizeCluster(currentCluster));
+            currentCluster = { points: [p], startT: p.t, endT: p.t, lat: p.lat, lng: p.lng };
+        }
+    }
+    if (currentCluster) stops.push(finalizeCluster(currentCluster));
+
+    return { stops, movingPoints: moving };
+}
+function finalizeCluster(c) {
+    return {
+        lat: c.lat, lng: c.lng,
+        startT: c.startT, endT: c.endT,
+        count: c.points.length,
+        durationMs: c.endT - c.startT,
+    };
+}
+
+function formatDuration(ms) {
+    const totalMin = Math.round(ms / 60000);
+    if (totalMin < 1) return 'لحظة';
+    if (totalMin < 60) return `${totalMin} د`;
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return m > 0 ? `${h} س ${m} د` : `${h} س`;
+}
+
+// ===== DRAW ROUTE (v3.6) =====
 function drawRoute(points) {
+    // امسح القديم
     if (routePoly) { map.removeLayer(routePoly); routePoly = null; }
+    routeSegments.forEach(s => map.removeLayer(s));
+    routeSegments = [];
     if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
     stopMarkers.forEach(m => map.removeLayer(m));
     stopMarkers = [];
-    if (points.length < 2) return;
 
-    // Filter unrealistic jumps
+    if (points.length < 2) {
+        document.getElementById('routePoints').textContent = points.length;
+        document.getElementById('mapRoutePoints').textContent = points.length;
+        document.getElementById('mapStopCount').textContent = 0;
+        return;
+    }
+
+    // فلترة القفزات الغير منطقية
     const filtered = [points[0]];
     for (let i = 1; i < points.length; i++) {
         const prev = filtered[filtered.length - 1], curr = points[i];
@@ -643,28 +839,74 @@ function drawRoute(points) {
 
     const lls = filtered.map(p => [p.lat, p.lng]);
 
+    // ===== رسم الخط =====
     if (pathColor === 'speed') {
         for (let i = 1; i < filtered.length; i++) {
             const s = (filtered[i].speed || 0) * 3.6;
             const c = s < 20 ? '#10b981' : s < 80 ? '#f59e0b' : '#ef4444';
-            L.polyline([[filtered[i-1].lat, filtered[i-1].lng], [filtered[i].lat, filtered[i].lng]], { color: c, weight: 4, opacity: 0.8 }).addTo(map);
+            const seg = L.polyline([[filtered[i-1].lat, filtered[i-1].lng], [filtered[i].lat, filtered[i].lng]], { color: c, weight: 4, opacity: 0.8 }).addTo(map);
+            routeSegments.push(seg);
+        }
+    } else if (pathColor === 'activity') {
+        // v3.6: تلوين حسب النشاط
+        for (let i = 1; i < filtered.length; i++) {
+            const p = filtered[i];
+            const s = (p.speed || 0) * 3.6;
+            const c = activityColor(p.activity || p.currentActivity || 'unknown', s);
+            const seg = L.polyline([[filtered[i-1].lat, filtered[i-1].lng], [p.lat, p.lng]], { color: c, weight: 4, opacity: 0.85 }).addTo(map);
+            routeSegments.push(seg);
         }
     } else {
         routePoly = L.polyline(lls, { color: pathColor, weight: 4, opacity: 0.75, lineJoin: 'round' }).addTo(map);
     }
 
+    // علامة بداية المسار
     startMarker = L.circleMarker(lls[0], { radius: 8, fillColor: '#10b981', color: 'white', weight: 2, fillOpacity: 1 })
         .bindTooltip('بداية المسار', { direction: 'top' }).addTo(map);
 
-    filtered.forEach((p, i) => {
-        if (i > 0 && (p.speed || 0) * 3.6 < 1) {
-            const m = L.circleMarker([p.lat, p.lng], { radius: 5, fillColor: '#ef4444', color: 'white', weight: 1.5, fillOpacity: 0.8 })
-                .bindTooltip(`توقف ${p.t.toLocaleTimeString('ar-SA', {hour:'2-digit',minute:'2-digit'})}`, { direction: 'top' }).addTo(map);
+    // ===== رسم نقاط التوقف =====
+    let stopCount = 0;
+    if (stopClusteringEnabled) {
+        // v3.6: تجميع ذكي
+        const { stops } = clusterStops(filtered);
+        stopCount = stops.length;
+        stops.forEach(s => {
+            // الحجم حسب طول التوقف (max 26px)
+            const minutes = s.durationMs / 60000;
+            const radius = Math.min(26, 12 + Math.sqrt(minutes));
+            const isLong = minutes >= 60;
+            const color = isLong ? '#dc2626' : '#ef4444';
+            const icon = L.divIcon({
+                className: '',
+                iconSize: [radius * 2, radius * 2],
+                iconAnchor: [radius, radius],
+                html: `<div class="stop-cluster-marker" style="width:${radius*2}px;height:${radius*2}px;background:${color};">${s.count > 1 ? s.count : '🅿'}</div>`
+            });
+            const m = L.marker([s.lat, s.lng], { icon, zIndexOffset: 500 })
+                .bindTooltip(
+                    `<div style="direction:rtl;font-size:11px;">
+                        <b>🅿️ توقف ${formatDuration(s.durationMs)}</b><br>
+                        من ${s.startT.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})}
+                        إلى ${s.endT.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})}<br>
+                        ${s.count} نقطة GPS
+                    </div>`,
+                    { direction: 'top' }
+                ).addTo(map);
             stopMarkers.push(m);
-        }
-    });
+        });
+    } else {
+        // الطريقة القديمة: نقطة لكل GPS واقف
+        filtered.forEach((p, i) => {
+            if (i > 0 && (p.speed || 0) * 3.6 < 1) {
+                const m = L.circleMarker([p.lat, p.lng], { radius: 5, fillColor: '#ef4444', color: 'white', weight: 1.5, fillOpacity: 0.8 })
+                    .bindTooltip(`توقف ${p.t.toLocaleTimeString('ar-SA', {hour:'2-digit',minute:'2-digit'})}`, { direction: 'top' }).addTo(map);
+                stopMarkers.push(m);
+                stopCount++;
+            }
+        });
+    }
 
-    // Stats
+    // ===== الإحصائيات =====
     let dist = 0, movPts = 0, maxSpd = 0;
     for (let i = 1; i < filtered.length; i++) {
         dist += haversine(filtered[i-1].lat, filtered[i-1].lng, filtered[i].lat, filtered[i].lng);
@@ -678,61 +920,128 @@ function drawRoute(points) {
     document.getElementById('routeMovingPct').textContent = movPct + '%';
     document.getElementById('routeMaxSpeed').textContent = maxSpd.toFixed(0);
     document.getElementById('mapRoutePoints').textContent = filtered.length;
+    document.getElementById('mapStopCount').textContent = stopCount;
     document.getElementById('totalDistance').textContent = dist.toFixed(1);
 }
 
-// ===== LOAD ROUTE =====
-// V3.4: نقرأ من top-level locationHistory (المكان الصحيح اللي يكتب فيه التطبيق)
-// مع backward compat للـ subcollection القديم
+// ===== LOAD ROUTE (v3.6 — إصلاح الباغ الكبير) =====
+// قبل: limit(2000) بدون orderBy → Firestore يرجع 2000 نقطة عشوائية
+//      → 99% من النقاط خارج النطاق الزمني فينحذفون → المسار يبين فاضي
+// بعد: where(timestamp >=) + orderBy(timestamp desc) + limit(5000)
+//      → Firestore يرجع آخر 5000 نقطة فعلاً ضمن النطاق
 async function loadRoute() {
-    const cutoff = Date.now() - routeRangeHours * 3600000;
-    document.getElementById('mapRouteRange').textContent = routeRangeHours + ' ساعة';
+    let cutoffStart, cutoffEnd, rangeLabel;
+
+    if (customRangeFrom && customRangeTo) {
+        cutoffStart = customRangeFrom;
+        cutoffEnd = customRangeTo;
+        const days = (cutoffEnd - cutoffStart) / 86400000;
+        rangeLabel = days < 1
+            ? `${Math.round((cutoffEnd - cutoffStart) / 3600000)} ساعة`
+            : `${days.toFixed(1)} يوم`;
+    } else {
+        cutoffStart = new Date(Date.now() - routeRangeHours * 3600000);
+        cutoffEnd = new Date();
+        rangeLabel = routeRangeHours >= 24
+            ? `${routeRangeHours / 24} يوم`
+            : `${routeRangeHours} ساعة`;
+    }
+    document.getElementById('mapRouteRange').textContent = rangeLabel;
+
     const pts = [];
     const seen = new Set();
 
     try {
-        // 1) المسار الصحيح: top-level locationHistory مع where(driverId)
+        // v3.6: الاستعلام الصحيح — يحتاج index (driverId ASC, timestamp DESC)
         const q1 = query(
             collection(db, 'locationHistory'),
             where('driverId', '==', driverId),
-            limit(2000)
+            where('timestamp', '>=', cutoffStart),
+            where('timestamp', '<=', cutoffEnd),
+            orderBy('timestamp', 'desc'),
+            limit(5000)
         );
         const snap1 = await getDocs(q1);
         snap1.forEach(d => {
             const v = d.data();
             const t = v.timestamp?.toDate ? v.timestamp.toDate() : (v.timestamp ? new Date(v.timestamp) : null);
-            if (!t || t.getTime() < cutoff) return;
+            if (!t) return;
             const lat = v.latitude || v.location?.latitude;
             const lng = v.longitude || v.location?.longitude;
             if (!lat || !lng) return;
             const key = `${t.getTime()}_${lat.toFixed(5)}_${lng.toFixed(5)}`;
             if (seen.has(key)) return;
             seen.add(key);
-            pts.push({ lat, lng, t, speed: v.speed || 0, isMoving: v.isMoving, activity: v.activity });
+            pts.push({
+                lat, lng, t,
+                speed: v.speed || 0,
+                accuracy: v.accuracy,
+                isMoving: v.isMoving,
+                activity: v.activity || v.currentActivity,
+                appState: v.appState,
+            });
         });
+        console.log(`[loadRoute v3.6] driverId=${driverId} range=${rangeLabel} fetched=${snap1.size} unique=${pts.length}`);
     } catch (e) {
-        console.warn('top-level locationHistory read failed:', e?.message);
+        console.error('[loadRoute] Query failed:', e?.message);
+        // Fallback للاستعلام القديم لو الـ index لسه ما اشتغل
+        try {
+            const q1f = query(
+                collection(db, 'locationHistory'),
+                where('driverId', '==', driverId),
+                limit(2000)
+            );
+            const snap1f = await getDocs(q1f);
+            snap1f.forEach(d => {
+                const v = d.data();
+                const t = v.timestamp?.toDate ? v.timestamp.toDate() : (v.timestamp ? new Date(v.timestamp) : null);
+                if (!t || t < cutoffStart || t > cutoffEnd) return;
+                const lat = v.latitude || v.location?.latitude;
+                const lng = v.longitude || v.location?.longitude;
+                if (!lat || !lng) return;
+                const key = `${t.getTime()}_${lat.toFixed(5)}_${lng.toFixed(5)}`;
+                if (seen.has(key)) return;
+                seen.add(key);
+                pts.push({
+                    lat, lng, t,
+                    speed: v.speed || 0,
+                    accuracy: v.accuracy,
+                    isMoving: v.isMoving,
+                    activity: v.activity || v.currentActivity,
+                    appState: v.appState,
+                });
+            });
+            console.warn(`[loadRoute] Fallback used. fetched=${snap1f.size} unique=${pts.length}`);
+        } catch (e2) {
+            console.error('[loadRoute] Fallback also failed:', e2?.message);
+        }
     }
 
     try {
-        // 2) Backward compat: المسار القديم subcollection (لو فيه بيانات)
+        // Backward compat: subcollection القديم
         const snap2 = await getDocs(query(collection(db, 'drivers', driverId, 'locationHistory'), limit(1000)));
         snap2.forEach(d => {
             const v = d.data();
             const t = v.timestamp?.toDate ? v.timestamp.toDate() : (v.timestamp ? new Date(v.timestamp) : null);
-            if (!t || t.getTime() < cutoff) return;
+            if (!t || t < cutoffStart || t > cutoffEnd) return;
             const lat = v.latitude || v.location?.latitude;
             const lng = v.longitude || v.location?.longitude;
             if (!lat || !lng) return;
             const key = `${t.getTime()}_${lat.toFixed(5)}_${lng.toFixed(5)}`;
             if (seen.has(key)) return;
             seen.add(key);
-            pts.push({ lat, lng, t, speed: v.speed || 0, isMoving: v.isMoving, activity: v.activity });
+            pts.push({
+                lat, lng, t,
+                speed: v.speed || 0,
+                accuracy: v.accuracy,
+                isMoving: v.isMoving,
+                activity: v.activity || v.currentActivity,
+                appState: v.appState,
+            });
         });
     } catch (e) { /* ignore */ }
 
     pts.sort((a, b) => a.t - b.t);
-    console.log(`[loadRoute] driverId=${driverId} range=${routeRangeHours}h points=${pts.length}`);
     locationHistory = pts;
     drawRoute(pts);
     updateTimeline();
@@ -808,11 +1117,16 @@ function startListener() {
     });
 }
 
-// ===== STATISTICS =====
+// ===== STATISTICS (v3.6: + تحليلات ذكية) =====
 function updateStatistics() {
-    if (!locationHistory.length) return;
+    if (!locationHistory.length) {
+        ['totalDistance','avgSpeed','stopsCount','workHours','longestStop','longestStopLoc','overSpeedCount','avgGpsAccuracy','lastGpsPoint'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.textContent = '—';
+        });
+        return;
+    }
     const sorted = [...locationHistory].sort((a, b) => a.t - b.t);
-    let dist = 0, totalSpd = 0, spdCnt = 0, stops = 0, workMs = 0;
+    let dist = 0, totalSpd = 0, spdCnt = 0, workMs = 0, overSpeed = 0, accSum = 0, accCnt = 0;
     for (let i = 1; i < sorted.length; i++) {
         const p = sorted[i-1], c = sorted[i];
         const d = haversine(p.lat, p.lng, c.lat, c.lng);
@@ -821,14 +1135,35 @@ function updateStatistics() {
             dist += d;
             const s = (c.speed || 0) * 3.6;
             if (s > 0) { totalSpd += s; spdCnt++; }
-            if (s < 1) stops++;
+            if (s > 100) overSpeed++;
             if (s > 10 && dt < 300) workMs += dt * 1000;
         }
+        if (c.accuracy) { accSum += c.accuracy; accCnt++; }
     }
+
+    // v3.6: عدد التوقفات الفعلية (clusters) بدل النقاط الفردية
+    const { stops } = clusterStops(sorted);
+    const longestStop = stops.length ? stops.reduce((a, b) => a.durationMs > b.durationMs ? a : b) : null;
+
     document.getElementById('totalDistance').textContent = dist.toFixed(1);
     document.getElementById('avgSpeed').textContent = spdCnt > 0 ? (totalSpd / spdCnt).toFixed(1) : '0';
-    document.getElementById('stopsCount').textContent = stops;
+    document.getElementById('stopsCount').textContent = stops.length;
     document.getElementById('workHours').textContent = (workMs / 3600000).toFixed(1);
+
+    // v3.6: تحليلات إضافية
+    if (longestStop) {
+        document.getElementById('longestStop').textContent = formatDuration(longestStop.durationMs);
+        document.getElementById('longestStopLoc').innerHTML = `<a href="https://maps.google.com/?q=${longestStop.lat},${longestStop.lng}" target="_blank" style="color:var(--blue);text-decoration:none;">📍 ${longestStop.lat.toFixed(4)}, ${longestStop.lng.toFixed(4)}</a>`;
+    }
+    document.getElementById('overSpeedCount').innerHTML = overSpeed > 0
+        ? `<span style="color:var(--red)">⚠️ ${overSpeed} مرة</span>`
+        : '<span style="color:var(--green)">✅ 0</span>';
+    document.getElementById('avgGpsAccuracy').textContent = accCnt > 0 ? `${(accSum / accCnt).toFixed(0)} م` : '—';
+    const lastP = sorted[sorted.length - 1];
+    if (lastP) {
+        const minsAgo = Math.floor((Date.now() - lastP.t.getTime()) / 60000);
+        document.getElementById('lastGpsPoint').textContent = minsAgo < 1 ? 'الآن' : minsAgo < 60 ? `منذ ${minsAgo} د` : lastP.t.toLocaleString('ar-SA', {hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});
+    }
 }
 
 // ===== TIMELINE =====
@@ -847,9 +1182,10 @@ function updateTimeline() {
     data.slice(0, 200).forEach(point => {
         const s = ((point.speed || 0) * 3.6).toFixed(1);
         const sc = s < 20 ? 'spd-slow' : s < 80 ? 'spd-med' : 'spd-fast';
+        const actLabel = activityMap[point.activity] || (point.isMoving ? '🚗 يتحرك' : '🅿️ متوقف');
         const el = document.createElement('div');
         el.className = 'tl-item';
-        el.innerHTML = `<div class="tl-time">${point.t.toLocaleString('ar-SA', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})}</div><div class="tl-row"><span class="spd ${sc}">${s} كم/س</span><span style="font-size:10px;color:var(--text-muted);">${point.isMoving ? '🚗 يتحرك' : '🅿️ متوقف'}</span></div><div class="tl-coords">${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}</div>`;
+        el.innerHTML = `<div class="tl-time">${point.t.toLocaleString('ar-SA', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})}</div><div class="tl-row"><span class="spd ${sc}">${s} كم/س</span><span style="font-size:10px;color:var(--text-muted);">${actLabel}</span></div><div class="tl-coords">${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}</div>`;
         el.addEventListener('click', () => {
             document.querySelectorAll('.tl-item').forEach(e => e.classList.remove('hl'));
             el.classList.add('hl');
@@ -932,6 +1268,7 @@ window.toggleRoute = function() {
     routeVisible = !routeVisible;
     const btn = document.getElementById('toggleRouteBtn');
     if (routePoly) routePoly.setStyle({ opacity: routeVisible ? 0.75 : 0 });
+    routeSegments.forEach(s => s.setStyle({ opacity: routeVisible ? 0.85 : 0 }));
     stopMarkers.forEach(m => routeVisible ? map.addLayer(m) : map.removeLayer(m));
     btn.textContent = routeVisible ? 'إخفاء' : 'إظهار';
     btn.style.color = routeVisible ? 'var(--green)' : 'var(--red)';
@@ -942,11 +1279,48 @@ window.toggleAutoFollow = function() {
     btn.textContent = autoFollow ? 'إيقاف' : 'تفعيل';
     btn.style.color = autoFollow ? 'var(--green)' : 'var(--blue)';
 };
-window.setPathColor = function(c) { pathColor = c; drawRoute(locationHistory); };
+// v3.6: تبديل تجميع التوقفات
+window.toggleStopClustering = function() {
+    stopClusteringEnabled = !stopClusteringEnabled;
+    const btn = document.getElementById('stopClusterBtn');
+    btn.textContent = stopClusteringEnabled ? 'مفعّل' : 'معطّل';
+    btn.style.background = stopClusteringEnabled ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)';
+    btn.style.color = stopClusteringEnabled ? 'var(--green)' : 'var(--red)';
+    btn.style.borderColor = stopClusteringEnabled ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)';
+    drawRoute(locationHistory);
+};
+window.setPathColor = function(c) {
+    pathColor = c;
+    document.getElementById('activityLegend').style.display = (c === 'activity') ? 'block' : 'none';
+    drawRoute(locationHistory);
+};
 window.setRouteRange = function(h, el) {
     routeRangeHours = h;
-    document.querySelectorAll('#tab-route .pill').forEach(b => b.classList.remove('active'));
+    customRangeFrom = null;
+    customRangeTo = null;
+    document.getElementById('customRangeStatus').style.display = 'none';
+    document.querySelectorAll('#tab-route .filter-pills .pill').forEach(b => b.classList.remove('active'));
     if (el) el.classList.add('active');
+    loadRoute();
+};
+// v3.6: تطبيق نطاق يدوي
+window.applyDateRange = function() {
+    const fromVal = document.getElementById('dateFrom').value;
+    const toVal = document.getElementById('dateTo').value;
+    if (!fromVal || !toVal) { alert('الرجاء تحديد التاريخ "من" و "إلى"'); return; }
+    const from = new Date(fromVal);
+    const to = new Date(toVal);
+    if (from >= to) { alert('تاريخ "من" لازم يكون قبل "إلى"'); return; }
+    if ((to - from) > 30 * 86400000) {
+        if (!confirm('النطاق أكثر من 30 يوم، قد يكون التحميل بطيء. هل تريد المتابعة؟')) return;
+    }
+    customRangeFrom = from;
+    customRangeTo = to;
+    document.querySelectorAll('#tab-route .filter-pills .pill').forEach(b => b.classList.remove('active'));
+    const status = document.getElementById('customRangeStatus');
+    status.style.display = 'block';
+    status.style.color = 'var(--blue)';
+    status.innerHTML = `📅 ${from.toLocaleString('ar-SA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} ← ${to.toLocaleString('ar-SA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
     loadRoute();
 };
 window.filterTL = function(f, el) {
@@ -967,12 +1341,11 @@ window.fitRoute = function() {
 };
 window.toggleReplayPanel = function() { document.getElementById('replayPanel').classList.toggle('show'); };
 
-// V3.4: Heatmap (نقاط التوقف الذكية - وين السائق يقعد كثير)
+// Heatmap
 window.updateHeatmap = function() {
     if (!heatmapVisible) return;
     if (heatmapLayer) { map.removeLayer(heatmapLayer); heatmapLayer = null; }
     if (!locationHistory.length) return;
-    // وزن النقطة = كم تقريباً سكنها (سرعة <2 = ساكن، نعطيها وزن أعلى)
     const heatPoints = locationHistory.map(p => {
         const spdKmh = (p.speed || 0) * 3.6;
         const weight = spdKmh < 2 ? 1.0 : spdKmh < 10 ? 0.5 : 0.2;
@@ -994,7 +1367,23 @@ window.toggleHeatmap = function(btn) {
         if (heatmapLayer) { map.removeLayer(heatmapLayer); heatmapLayer = null; }
     }
 };
-window.togglePanel = function() { document.getElementById('leftPanel').classList.toggle('open'); };
+
+// v3.6: زر تبديل القائمة - يشتغل دائماً (موبايل + كمبيوتر)
+window.togglePanel = function() {
+    panelVisible = !panelVisible;
+    const panel = document.getElementById('leftPanel');
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+        panel.classList.toggle('open');
+    } else {
+        panel.classList.toggle('collapsed');
+    }
+    document.getElementById('panelToggleIcon').textContent = panelVisible ? '✕' : '☰';
+    document.getElementById('panelToggleText').textContent = panelVisible ? 'إخفاء المعلومات' : 'إظهار المعلومات';
+    // إعادة حساب حجم الخريطة
+    setTimeout(() => map?.invalidateSize(), 350);
+};
+
 window.switchTab = function(tab, el) {
     document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
@@ -1019,30 +1408,42 @@ window.exportExcel = function() {
         ['متوسط السرعة', `${document.getElementById('avgSpeed').textContent} كم/س`],
         ['عدد التوقفات', document.getElementById('stopsCount').textContent],
         ['ساعات العمل', `${document.getElementById('workHours').textContent} ساعة`],
+        ['أطول توقف', document.getElementById('longestStop').textContent],
+        ['تجاوزات السرعة', document.getElementById('overSpeedCount').textContent],
         ['إصدار التطبيق', d?.appVersion || '—'],
         ['البطارية', d?.battery != null ? `${d.battery}%` : '—'],
     ];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'ملخص');
     if (locationHistory.length) {
-        const hist = [['الوقت', 'خط العرض', 'خط الطول', 'السرعة كم/س', 'يتحرك']];
-        locationHistory.forEach(p => hist.push([p.t.toLocaleString('ar-SA'), p.lat.toFixed(6), p.lng.toFixed(6), ((p.speed||0)*3.6).toFixed(1), p.isMoving ? 'نعم' : 'لا']));
+        const hist = [['الوقت', 'خط العرض', 'خط الطول', 'السرعة كم/س', 'يتحرك', 'النشاط', 'حالة التطبيق']];
+        locationHistory.forEach(p => hist.push([
+            p.t.toLocaleString('ar-SA'),
+            p.lat.toFixed(6), p.lng.toFixed(6),
+            ((p.speed||0)*3.6).toFixed(1),
+            p.isMoving ? 'نعم' : 'لا',
+            activityMap[p.activity] || p.activity || '—',
+            p.appState || '—'
+        ]));
         XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hist), 'سجل المواقع');
     }
     XLSX.writeFile(wb, `driver_${driverId}_${new Date().toISOString().slice(0,10)}.xlsx`);
 };
 
-// ===== RESPONSIVE =====
-function checkMobile() {
-    const isMobile = window.innerWidth <= 768;
-    document.getElementById('panelToggleBtn').style.display = isMobile ? 'flex' : 'none';
-}
-window.addEventListener('resize', checkMobile);
-checkMobile();
-
 // ===== INIT =====
 window.addEventListener('load', () => {
     initMap();
     startListener();
+
+    // v3.6: تعبئة افتراضية للـ date picker (آخر 24 ساعة)
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 3600000);
+    const fmt = (d) => {
+        const pad = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+    document.getElementById('dateFrom').value = fmt(yesterday);
+    document.getElementById('dateTo').value = fmt(now);
+
     loadRoute();
 });
 </script>
