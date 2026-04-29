@@ -425,6 +425,14 @@
             if (!version) { toast('⚠️ رقم النسخة مطلوب', 'error'); return; }
             if (!/^\d+\.\d+\.\d+$/.test(version)) { toast('⚠️ صيغة النسخة خطأ (مثال: 2.6.0)', 'error'); return; }
             if (!downloadUrl) { toast('⚠️ رابط التحميل مطلوب', 'error'); return; }
+            if (!downloadUrl.toLowerCase().endsWith('.apk')) {
+                toast('⚠️ الرابط يجب أن ينتهي بـ .apk (تأكد من نسخه كاملاً وبدون زيادات)', 'error');
+                return;
+            }
+            if (!downloadUrl.startsWith('https://github.com/') && !downloadUrl.startsWith('https://')) {
+                toast('⚠️ الرابط يجب أن يبدأ بـ https://', 'error');
+                return;
+            }
             if (currentTarget === 'specific' && selectedDriverIds.size === 0) {
                 toast('⚠️ اختر سائق واحد على الأقل أو غيّر الاستهداف', 'error');
                 return;
