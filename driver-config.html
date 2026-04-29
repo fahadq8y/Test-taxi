@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إعدادات تتبع السائقين - White Horse</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; direction: rtl; padding-bottom: 4rem; }
+        .header {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white; padding: 1rem 2rem; display: flex;
+            justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); flex-wrap: wrap; gap: 0.5rem;
+        }
+        .header h1 { font-size: 1.4rem; }
+        .nav-buttons { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+        .nav-btn {
+            background: rgba(255,255,255,0.2); color: white; border: none;
+            padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;
+            text-decoration: none; transition: background 0.2s; font-size: 0.9rem;
+        }
+        .nav-btn:hover { background: rgba(255,255,255,0.35); }
+
+        .container { max-width: 1100px; margin: 1.5rem auto; padding: 0 1rem; }
+        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 1.25rem; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+        .card {
+            background: white; border-radius: 12px; padding: 1.25rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 1.25rem;
+        }
+        .card-title { font-size: 1.1rem; color: #1e293b; margin-bottom: 1rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
+        .card-subtitle { font-size: 0.85rem; color: #64748b; margin-bottom: 1rem; line-height: 1.6; }
+
+        .driver-list { max-height: 65vh; overflow-y: auto; }
+        .driver-search { width: 100%; padding: 0.6rem; border: 1.5px solid #cbd5e1; border-radius: 8px; margin-bottom: 0.75rem; font-size: 0.95rem; direction: rtl; }
+        .driver-item {
+            padding: 0.75rem; border-radius: 8px; cursor: pointer;
+            border: 2px solid transparent; margin-bottom: 0.4rem; background: #f8fafc;
+            transition: all 0.15s; display: flex; justify-content: space-between; align-items: center;
+        }
+        .driver-item:hover { background: #e2e8f0; }
+        .driver-item.selected { background: #dbeafe; border-color: #2563eb; }
+        .driver-item.global { background: linear-gradient(135deg, #fef3c7, #fde68a); border-color: #f59e0b; font-weight: 700; }
+        .driver-item.global.selected { background: linear-gradient(135deg, #fde68a, #fcd34d); border-color: #d97706; }
+        .driver-info { flex: 1; }
+        .driver-name { font-weight: 600; color: #1e293b; font-size: 0.95rem; }
+        .driver-meta { font-size: 0.78rem; color: #64748b; margin-top: 0.15rem; }
+        .badge {
+            font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 10px;
+            background: #e2e8f0; color: #475569; font-weight: 600;
+        }
+        .badge.has-config { background: #d1fae5; color: #065f46; }
+        .badge.online { background: #dcfce7; color: #166534; }
+
+        .profiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem; margin-bottom: 1.25rem; }
+        .profile-card {
+            padding: 0.85rem 0.7rem; border: 2px solid #e2e8f0; border-radius: 10px;
+            cursor: pointer; text-align: center; background: #f8fafc;
+            transition: all 0.15s;
+        }
+        .profile-card:hover { background: #f1f5f9; transform: translateY(-1px); }
+        .profile-card.selected { background: #dbeafe; border-color: #2563eb; }
+        .profile-card .icon { font-size: 1.7rem; margin-bottom: 0.3rem; }
+        .profile-card .label { font-weight: 700; color: #1e293b; font-size: 0.95rem; }
+        .profile-card .desc { font-size: 0.72rem; color: #64748b; margin-top: 0.2rem; line-height: 1.4; }
+
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
+        @media (max-width: 600px) { .field-row { grid-template-columns: 1fr; } }
+        .form-group { margin-bottom: 0.75rem; }
+        .form-group label { display: block; margin-bottom: 0.3rem; font-weight: 600; color: #334155; font-size: 0.9rem; }
+        .form-group .help-text { display: block; font-size: 0.75rem; color: #64748b; margin-top: 0.25rem; line-height: 1.5; }
+        .form-group input[type="number"], .form-group select {
+            width: 100%; padding: 0.6rem; border: 1.5px solid #cbd5e1;
+            border-radius: 8px; font-size: 0.95rem; font-family: inherit;
+            direction: ltr; text-align: left;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none; border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .actions { display: flex; gap: 0.6rem; margin-top: 1rem; flex-wrap: wrap; }
+        .btn { padding: 0.7rem 1.25rem; border-radius: 8px; border: none; cursor: pointer; font-size: 0.95rem; font-weight: 600; transition: all 0.15s; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-secondary { background: #e2e8f0; color: #1e293b; }
+        .btn-secondary:hover { background: #cbd5e1; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .alert { padding: 0.85rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; }
+        .alert-info { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+        .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+        .alert-warning { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+        .effective-config { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 0.85rem; margin-top: 1rem; }
+        .effective-config-title { font-weight: 700; color: #075985; margin-bottom: 0.5rem; font-size: 0.9rem; }
+        .effective-row { display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.85rem; border-bottom: 1px dashed #bae6fd; }
+        .effective-row:last-child { border-bottom: none; }
+        .effective-row .key { color: #0369a1; font-weight: 600; font-family: monospace; }
+        .effective-row .val { color: #1e293b; font-weight: 600; }
+        .effective-row .src { font-size: 0.7rem; color: #64748b; margin-right: 0.5rem; }
+
+        .empty-state { text-align: center; padding: 3rem 1rem; color: #64748b; }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 0.5rem; opacity: 0.5; }
+
+        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 0.8rem 1.5rem; border-radius: 8px; color: white; font-weight: 600; z-index: 1000; opacity: 0; transition: opacity 0.3s; pointer-events: none; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+        #toast.show { opacity: 1; }
+        #toast.success { background: #10b981; }
+        #toast.error { background: #ef4444; }
+        #toast.info { background: #2563eb; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>⚙️ إعدادات تتبع السائقين</h1>
+        <div class="nav-buttons">
+            <a href="admin-dashboard.html" class="nav-btn">← لوحة الإدارة</a>
+            <a href="app-version-control.html" class="nav-btn">📱 إدارة النسخ</a>
+            <button class="nav-btn" id="logoutBtn">🚪 خروج</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="alert alert-info">
+            <strong>💡 شلون يشتغل:</strong>
+            تقدر تحدد إعدادات تتبع GPS لكل سائق على حدة. الإعداد العام يطبّق على الكل، ولو سويت إعداد خاص لسائق معين راح يطغى على العام. التغييرات تطبق <strong>فوراً</strong> على التطبيق بدون ما السائق يحتاج يعيد تسجيل الدخول (v2.7.0+).
+        </div>
+
+        <div class="grid">
+            <!-- DRIVERS LIST -->
+            <div class="card">
+                <div class="card-title">👥 السائقين</div>
+                <input type="text" class="driver-search" id="driverSearch" placeholder="🔍 ابحث بالاسم أو الرقم..." />
+                <div class="driver-list" id="driverList">
+                    <div class="empty-state"><div class="icon">⏳</div>جاري التحميل...</div>
+                </div>
+            </div>
+
+            <!-- CONFIG EDITOR -->
+            <div>
+                <div class="card" id="configCard" style="display:none">
+                    <div class="card-title" id="configTitle">⚙️ إعدادات السائق</div>
+                    <div class="card-subtitle" id="configSubtitle"></div>
+
+                    <div class="form-group">
+                        <label>📊 نمط التتبع (Profile)</label>
+                        <div class="profiles">
+                            <div class="profile-card" data-profile="ultra">
+                                <div class="icon">🚀</div>
+                                <div class="label">فائق الدقة</div>
+                                <div class="desc">5م / 2ث<br>أعلى دقة، بطارية مرتفع</div>
+                            </div>
+                            <div class="profile-card" data-profile="high">
+                                <div class="icon">🎯</div>
+                                <div class="label">دقة عالية</div>
+                                <div class="desc">5م / 3ث<br>الموصى به</div>
+                            </div>
+                            <div class="profile-card" data-profile="balanced">
+                                <div class="icon">⚖️</div>
+                                <div class="label">متوازن</div>
+                                <div class="desc">10م / 5ث<br>دقة ووفر بطارية</div>
+                            </div>
+                            <div class="profile-card" data-profile="battery_saver">
+                                <div class="icon">🔋</div>
+                                <div class="label">توفير بطارية</div>
+                                <div class="desc">25م / 10ث<br>أقل استهلاك</div>
+                            </div>
+                            <div class="profile-card" data-profile="custom">
+                                <div class="icon">🛠️</div>
+                                <div class="label">مخصص</div>
+                                <div class="desc">عدّل كل قيمة بنفسك</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <details id="advancedSettings" style="background:#f8fafc;padding:1rem;border-radius:8px;border:1px solid #e2e8f0;">
+                        <summary style="cursor:pointer;font-weight:700;color:#1e293b;">🛠️ إعدادات متقدمة (تجاوز قيم الـ Profile)</summary>
+                        <div style="margin-top:1rem;">
+                            <div class="field-row">
+                                <div class="form-group">
+                                    <label>📏 distanceFilter (متر)</label>
+                                    <input type="number" id="distanceFilter" min="1" max="100" step="1" placeholder="5" />
+                                    <span class="help-text">احفظ نقطة جديدة بعد كل X متر حركة</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>⏱ locationUpdateInterval (مللي ثانية)</label>
+                                    <input type="number" id="locationUpdateInterval" min="500" max="60000" step="500" placeholder="3000" />
+                                    <span class="help-text">معدل طلب الموقع من GPS</span>
+                                </div>
+                            </div>
+
+                            <div class="field-row">
+                                <div class="form-group">
+                                    <label>📐 saveDistanceMeters (متر)</label>
+                                    <input type="number" id="saveDistanceMeters" min="5" max="500" step="5" placeholder="20" />
+                                    <span class="help-text">احفظ في Firestore بعد X متر</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>🕐 saveIntervalMs (مللي ثانية)</label>
+                                    <input type="number" id="saveIntervalMs" min="5000" max="600000" step="1000" placeholder="30000" />
+                                    <span class="help-text">احفظ في Firestore كل X مللي ثانية</span>
+                                </div>
+                            </div>
+
+                            <div class="field-row">
+                                <div class="form-group">
+                                    <label>🛑 stillBackupIntervalMs (متوقف)</label>
+                                    <input type="number" id="stillBackupIntervalMs" min="60000" max="3600000" step="60000" placeholder="1800000" />
+                                    <span class="help-text">backup point لما متوقف (افتراضي 30 دقيقة)</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>🎯 desiredAccuracy</label>
+                                    <select id="desiredAccuracy">
+                                        <option value="">— استخدم Profile —</option>
+                                        <option value="NAVIGATION">NAVIGATION (أعلى دقة)</option>
+                                        <option value="HIGH">HIGH</option>
+                                        <option value="MEDIUM">MEDIUM</option>
+                                        <option value="LOW">LOW (وفر بطارية)</option>
+                                    </select>
+                                    <span class="help-text">جودة GPS المطلوبة</span>
+                                </div>
+                            </div>
+
+                            <div class="field-row">
+                                <div class="form-group">
+                                    <label>❌ maxAccuracy (متر)</label>
+                                    <input type="number" id="maxAccuracy" min="10" max="500" step="5" placeholder="50" />
+                                    <span class="help-text">ارفض النقاط بدقة أسوأ من X متر</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>🚫 maxSpeedKmh (كم/س)</label>
+                                    <input type="number" id="maxSpeedKmh" min="50" max="500" step="10" placeholder="200" />
+                                    <span class="help-text">ارفض السرعات الوهمية فوق X كم/س</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>🔁 elasticityMultiplier</label>
+                                <input type="number" id="elasticityMultiplier" min="1" max="10" step="1" placeholder="2" />
+                                <span class="help-text">distanceFilter ينمو X مرة مع السرعة (1=ثابت، 3=أكبر زيادة)</span>
+                            </div>
+                        </div>
+                    </details>
+
+                    <div class="effective-config" id="effectiveConfig" style="display:none;"></div>
+
+                    <div class="actions">
+                        <button class="btn btn-success" id="saveBtn">💾 حفظ</button>
+                        <button class="btn btn-danger" id="deleteBtn">🗑️ حذف الإعداد الخاص (يرجع للعام)</button>
+                        <button class="btn btn-secondary" id="resetFormBtn">↺ إعادة ضبط النموذج</button>
+                    </div>
+                </div>
+
+                <div class="card" id="emptyCard">
+                    <div class="empty-state">
+                        <div class="icon">👈</div>
+                        <h3 style="color:#1e293b;margin-bottom:0.5rem;">اختر سائق</h3>
+                        <p>اختر سائق من القائمة عشان تعدّل إعدادات التتبع الخاصة فيه، أو اختر "<strong>الإعداد العام</strong>" عشان تعدّل الافتراضي للجميع.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+            authDomain: "taxi-management-system-d8210.firebaseapp.com",
+            projectId: "taxi-management-system-d8210",
+            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+            messagingSenderId: "720874424166",
+            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+            measurementId: "G-GY8820W410"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Profile presets (يجب تطابق DEFAULT_CONFIG و PROFILES في LocationService.js)
+        const PROFILES = {
+            ultra: { distanceFilter: 5, locationUpdateInterval: 2000, saveDistanceMeters: 15, saveIntervalMs: 20000 },
+            high: { distanceFilter: 5, locationUpdateInterval: 3000, saveDistanceMeters: 20, saveIntervalMs: 30000 },
+            balanced: { distanceFilter: 10, locationUpdateInterval: 5000, saveDistanceMeters: 30, saveIntervalMs: 60000 },
+            battery_saver: { distanceFilter: 25, locationUpdateInterval: 10000, saveDistanceMeters: 50, saveIntervalMs: 120000 },
+        };
+        const DEFAULTS = {
+            distanceFilter: 5, locationUpdateInterval: 3000, fastestLocationUpdateInterval: 1000,
+            elasticityMultiplier: 2, desiredAccuracy: 'NAVIGATION',
+            saveDistanceMeters: 20, saveIntervalMs: 30000, stillBackupIntervalMs: 1800000,
+            maxAccuracy: 50, maxSpeedKmh: 200, trackingProfile: 'high'
+        };
+
+        // Auth check
+        onAuthStateChanged(auth, (user) => {
+            if (!user) { window.location.href = 'index.html'; return; }
+            init();
+        });
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            await signOut(auth);
+            window.location.href = 'index.html';
+        });
+
+        let drivers = [];
+        let currentSelection = null; // { type: 'global'|'driver', id: string }
+        let globalConfig = null;
+        let driverConfigsMap = {}; // { driverId: config }
+
+        async function init() {
+            await loadAll();
+            renderDriverList();
+
+            document.getElementById('driverSearch').addEventListener('input', renderDriverList);
+            document.querySelectorAll('.profile-card').forEach(card => {
+                card.addEventListener('click', () => selectProfile(card.dataset.profile));
+            });
+            document.getElementById('saveBtn').addEventListener('click', saveConfig);
+            document.getElementById('deleteBtn').addEventListener('click', deleteConfig);
+            document.getElementById('resetFormBtn').addEventListener('click', () => loadConfigToForm());
+
+            // Live updates
+            ['distanceFilter','locationUpdateInterval','saveDistanceMeters','saveIntervalMs',
+             'stillBackupIntervalMs','desiredAccuracy','maxAccuracy','maxSpeedKmh','elasticityMultiplier'
+            ].forEach(id => {
+                document.getElementById(id).addEventListener('input', updateEffectivePreview);
+            });
+        }
+
+        async function loadAll() {
+            try {
+                // 1) global config
+                const globalSnap = await getDoc(doc(db, 'appConfig', 'global'));
+                globalConfig = globalSnap.exists() ? globalSnap.data() : null;
+
+                // 2) all driver-specific configs
+                const driverConfigsSnap = await getDocs(collection(db, 'appConfig', 'driverConfigs', 'drivers'));
+                driverConfigsMap = {};
+                driverConfigsSnap.forEach(d => { driverConfigsMap[d.id] = d.data(); });
+
+                // 3) drivers list
+                const driversSnap = await getDocs(collection(db, 'drivers'));
+                drivers = [];
+                driversSnap.forEach(d => {
+                    const data = d.data();
+                    drivers.push({
+                        id: d.id,
+                        name: data.name || d.id,
+                        phone: data.phone || '',
+                        appVersion: data.appVersion || '—',
+                        isActive: data.isActive,
+                        archived: data.archived === true
+                    });
+                });
+                drivers = drivers.filter(x => !x.archived);
+                drivers.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+            } catch (e) {
+                console.error(e);
+                showToast('فشل تحميل البيانات: ' + e.message, 'error');
+            }
+        }
+
+        function renderDriverList() {
+            const list = document.getElementById('driverList');
+            const search = document.getElementById('driverSearch').value.trim().toLowerCase();
+
+            let html = '';
+            // Global item always on top
+            html += `<div class="driver-item global ${currentSelection?.type==='global'?'selected':''}" data-type="global">
+                <div class="driver-info">
+                    <div class="driver-name">🌍 الإعداد العام (الافتراضي)</div>
+                    <div class="driver-meta">يطبّق على كل السائقين بدون إعداد خاص</div>
+                </div>
+                ${globalConfig ? '<span class="badge has-config">✓ مُعدّل</span>' : '<span class="badge">افتراضي</span>'}
+            </div>`;
+
+            const filtered = drivers.filter(d => {
+                if (!search) return true;
+                return d.name.toLowerCase().includes(search) || d.phone.includes(search) || d.id.toLowerCase().includes(search);
+            });
+
+            filtered.forEach(d => {
+                const hasConfig = !!driverConfigsMap[d.id];
+                const isActive = d.isActive ? '<span class="badge online">شغّال</span>' : '';
+                const isSel = currentSelection?.type==='driver' && currentSelection?.id===d.id;
+                html += `<div class="driver-item ${isSel?'selected':''}" data-type="driver" data-id="${d.id}">
+                    <div class="driver-info">
+                        <div class="driver-name">${d.name}</div>
+                        <div class="driver-meta">${d.id} · ${d.phone || ''} · v${d.appVersion}</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:0.25rem;align-items:flex-end;">
+                        ${hasConfig ? '<span class="badge has-config">⚙️ خاص</span>' : ''}
+                        ${isActive}
+                    </div>
+                </div>`;
+            });
+
+            list.innerHTML = html;
+            list.querySelectorAll('.driver-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    const type = el.dataset.type;
+                    const id = el.dataset.id;
+                    selectItem(type, id);
+                });
+            });
+        }
+
+        function selectItem(type, id) {
+            currentSelection = { type, id };
+            renderDriverList();
+            document.getElementById('emptyCard').style.display = 'none';
+            document.getElementById('configCard').style.display = 'block';
+
+            if (type === 'global') {
+                document.getElementById('configTitle').innerHTML = '🌍 الإعداد العام (الافتراضي)';
+                document.getElementById('configSubtitle').innerHTML = 'هذا الإعداد يطبّق على كل السائقين اللي ما لهم إعداد خاص. لو حذفته، التطبيق راح يستخدم القيم الافتراضية المضمّنة في الكود (Profile: High).';
+                document.getElementById('deleteBtn').style.display = globalConfig ? 'inline-block' : 'none';
+            } else {
+                const driver = drivers.find(d => d.id === id);
+                document.getElementById('configTitle').innerHTML = `👤 ${driver.name}`;
+                document.getElementById('configSubtitle').innerHTML = `<strong>${id}</strong> · ${driver.phone} · إصدار التطبيق: <strong>v${driver.appVersion}</strong><br>الإعداد الخاص بهذا السائق راح يطغى على الإعداد العام.`;
+                document.getElementById('deleteBtn').style.display = driverConfigsMap[id] ? 'inline-block' : 'none';
+            }
+            loadConfigToForm();
+        }
+
+        function loadConfigToForm() {
+            const cfg = currentSelection.type === 'global'
+                ? (globalConfig || {})
+                : (driverConfigsMap[currentSelection.id] || {});
+
+            // Profile
+            const profile = cfg.trackingProfile || (currentSelection.type === 'global' ? 'high' : '');
+            document.querySelectorAll('.profile-card').forEach(c => c.classList.remove('selected'));
+            if (profile && document.querySelector(`.profile-card[data-profile="${profile}"]`)) {
+                document.querySelector(`.profile-card[data-profile="${profile}"]`).classList.add('selected');
+            }
+
+            // Fields (إذا فيه قيمة override، اعرضها، وإلا فارغ)
+            const fields = ['distanceFilter','locationUpdateInterval','saveDistanceMeters','saveIntervalMs',
+                            'stillBackupIntervalMs','maxAccuracy','maxSpeedKmh','elasticityMultiplier'];
+            fields.forEach(f => {
+                document.getElementById(f).value = cfg[f] !== undefined ? cfg[f] : '';
+            });
+            document.getElementById('desiredAccuracy').value = cfg.desiredAccuracy || '';
+
+            // Auto-open advanced if any custom field set
+            const hasCustom = fields.some(f => cfg[f] !== undefined) || cfg.desiredAccuracy;
+            document.getElementById('advancedSettings').open = hasCustom;
+
+            updateEffectivePreview();
+        }
+
+        function selectProfile(profile) {
+            document.querySelectorAll('.profile-card').forEach(c => c.classList.remove('selected'));
+            const card = document.querySelector(`.profile-card[data-profile="${profile}"]`);
+            if (card) card.classList.add('selected');
+
+            if (profile === 'custom') {
+                document.getElementById('advancedSettings').open = true;
+            } else if (PROFILES[profile]) {
+                // Pre-fill advanced fields with profile values (clearable)
+                const p = PROFILES[profile];
+                document.getElementById('distanceFilter').value = p.distanceFilter;
+                document.getElementById('locationUpdateInterval').value = p.locationUpdateInterval;
+                document.getElementById('saveDistanceMeters').value = p.saveDistanceMeters;
+                document.getElementById('saveIntervalMs').value = p.saveIntervalMs;
+            }
+            updateEffectivePreview();
+        }
+
+        function getFormData() {
+            const profileEl = document.querySelector('.profile-card.selected');
+            const profile = profileEl ? profileEl.dataset.profile : null;
+
+            const data = {};
+            if (profile && profile !== 'custom') data.trackingProfile = profile;
+
+            const numFields = ['distanceFilter','locationUpdateInterval','saveDistanceMeters','saveIntervalMs',
+                              'stillBackupIntervalMs','maxAccuracy','maxSpeedKmh','elasticityMultiplier'];
+            numFields.forEach(f => {
+                const v = document.getElementById(f).value.trim();
+                if (v !== '') data[f] = parseInt(v, 10);
+            });
+            const acc = document.getElementById('desiredAccuracy').value;
+            if (acc) data.desiredAccuracy = acc;
+
+            return data;
+        }
+
+        function updateEffectivePreview() {
+            const formData = getFormData();
+            // Effective = DEFAULTS → global → profile (if set) → individual overrides
+            const eff = { ...DEFAULTS };
+            // Apply global (لو عنا global config وحناا في view driver)
+            if (currentSelection.type === 'driver' && globalConfig) {
+                if (globalConfig.trackingProfile && PROFILES[globalConfig.trackingProfile]) {
+                    Object.assign(eff, PROFILES[globalConfig.trackingProfile]);
+                    eff.trackingProfile = globalConfig.trackingProfile;
+                }
+                Object.keys(globalConfig).forEach(k => { if (globalConfig[k] !== undefined && k !== 'updatedAt' && k !== 'updatedBy') eff[k] = globalConfig[k]; });
+            }
+            // Apply current form
+            if (formData.trackingProfile && PROFILES[formData.trackingProfile]) {
+                Object.assign(eff, PROFILES[formData.trackingProfile]);
+                eff.trackingProfile = formData.trackingProfile;
+            }
+            Object.keys(formData).forEach(k => { eff[k] = formData[k]; });
+
+            const box = document.getElementById('effectiveConfig');
+            box.style.display = 'block';
+            const rows = [
+                ['📊 trackingProfile', eff.trackingProfile, 'نمط'],
+                ['📏 distanceFilter', eff.distanceFilter + ' م', 'GPS'],
+                ['⏱ locationUpdateInterval', eff.locationUpdateInterval + ' ms', 'GPS'],
+                ['🎯 desiredAccuracy', eff.desiredAccuracy, 'GPS'],
+                ['🔁 elasticityMultiplier', eff.elasticityMultiplier + 'x', 'GPS'],
+                ['📐 saveDistanceMeters', eff.saveDistanceMeters + ' م', 'حفظ'],
+                ['🕐 saveIntervalMs', (eff.saveIntervalMs/1000) + ' ث', 'حفظ'],
+                ['🛑 stillBackupIntervalMs', (eff.stillBackupIntervalMs/60000) + ' دقيقة', 'حفظ'],
+                ['❌ maxAccuracy', eff.maxAccuracy + ' م', 'فلتر'],
+                ['🚫 maxSpeedKmh', eff.maxSpeedKmh + ' كم/س', 'فلتر'],
+            ];
+            box.innerHTML = '<div class="effective-config-title">📋 الإعداد الفعلي اللي راح يطبّق:</div>' +
+                rows.map(r => `<div class="effective-row"><span><span class="src">[${r[2]}]</span><span class="key">${r[0]}</span></span><span class="val">${r[1]}</span></div>`).join('');
+        }
+
+        async function saveConfig() {
+            try {
+                const data = getFormData();
+                if (Object.keys(data).length === 0) {
+                    showToast('ما فيه أي إعداد للحفظ', 'error');
+                    return;
+                }
+                data.updatedAt = serverTimestamp();
+                data.updatedBy = auth.currentUser?.email || 'admin';
+
+                const docRef = currentSelection.type === 'global'
+                    ? doc(db, 'appConfig', 'global')
+                    : doc(db, 'appConfig', 'driverConfigs', 'drivers', currentSelection.id);
+
+                await setDoc(docRef, data, { merge: false });
+
+                if (currentSelection.type === 'global') globalConfig = data;
+                else driverConfigsMap[currentSelection.id] = data;
+
+                renderDriverList();
+                document.getElementById('deleteBtn').style.display = 'inline-block';
+                showToast('✅ تم الحفظ. التغييرات راح تطبق على التطبيق فوراً (لو السائق متصل)', 'success');
+            } catch (e) {
+                console.error(e);
+                showToast('فشل الحفظ: ' + e.message, 'error');
+            }
+        }
+
+        async function deleteConfig() {
+            const what = currentSelection.type === 'global' ? 'الإعداد العام' : 'الإعداد الخاص لهذا السائق';
+            if (!confirm(`متأكد؟ راح يتحذف ${what} ويرجع للإعداد ${currentSelection.type==='global'?'الافتراضي بالكود':'العام'}`)) return;
+            try {
+                const docRef = currentSelection.type === 'global'
+                    ? doc(db, 'appConfig', 'global')
+                    : doc(db, 'appConfig', 'driverConfigs', 'drivers', currentSelection.id);
+                await deleteDoc(docRef);
+                if (currentSelection.type === 'global') globalConfig = null;
+                else delete driverConfigsMap[currentSelection.id];
+                renderDriverList();
+                loadConfigToForm();
+                document.getElementById('deleteBtn').style.display = 'none';
+                showToast('✅ تم الحذف', 'success');
+            } catch (e) {
+                console.error(e);
+                showToast('فشل الحذف: ' + e.message, 'error');
+            }
+        }
+
+        function showToast(msg, type='info') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = type + ' show';
+            setTimeout(() => t.classList.remove('show'), 3500);
+        }
+    </script>
+</body>
+</html>
