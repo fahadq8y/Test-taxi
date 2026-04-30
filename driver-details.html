@@ -977,24 +977,38 @@ function drawRoute(points) {
         return;
     }
 
-    // V4 (v3.7): فلترة متعددة المراحل
-    //   1. ارفض النقاط بدقة سيئة (accuracy > 50م) - حماية من cell tower fixes
-    //   2. ارفض النقاط المكررة (نفس مكان نفس ثانية) - حماية من batch upload
-    //   3. ارفض القفزات الوهمية (>250 km/h محسوبة)
-    const qualityPoints = points.filter(p => !p.accuracy || p.accuracy <= 50);
-    const filtered = [];
-    for (let i = 0; i < qualityPoints.length; i++) {
-        const curr = qualityPoints[i];
-        if (filtered.length === 0) { filtered.push(curr); continue; }
-        const prev = filtered[filtered.length - 1];
-        const dist = haversine(prev.lat, prev.lng, curr.lat, curr.lng); // km
-        const dt = (curr.t - prev.t) / 1000; // s
-        // منع التكرار: <5م في <5 ثوان
-        if (dist * 1000 < 5 && Math.abs(dt) < 5) continue;
-        // فلتر القفزات
-        if (dt > 0 && (dist / dt) * 3600 < 250) filtered.push(curr);
-        else if (dist < 0.1) filtered.push(curr);
-    }
+    // V5 (v3.8): فلترة محسّنة - حماية من batch upload بعد wake-up
+      //   1. ارفض النقاط بدقة سيئة (accuracy > 50م)
+      //   2. ارفض النقاط المكررة (<5م في <5 ثوان)
+      //   3. كشف القفزات بطريقتين:
+      //      • dt >= 2ث: السرعة المحسوبة موثوقة (مسافة/زمن)
+      //      • dt < 2ث: نستخدم سرعة GPS من الجهاز (لأن batch upload يخرّب الزمن)
+      //   4. تفضيل deviceTimestamp إذا متوفر (وقت GPS الفعلي)
+      const qualityPoints = points.filter(p => !p.accuracy || p.accuracy <= 50);
+      const filtered = [];
+      for (let i = 0; i < qualityPoints.length; i++) {
+          const curr = qualityPoints[i];
+          if (filtered.length === 0) { filtered.push(curr); continue; }
+          const prev = filtered[filtered.length - 1];
+          const dist = haversine(prev.lat, prev.lng, curr.lat, curr.lng); // km
+          // V5: تفضيل deviceTimestamp (وقت GPS الفعلي) إذا متوفر
+          const tCurr = curr.deviceT || curr.t;
+          const tPrev = prev.deviceT || prev.t;
+          const dt = (tCurr - tPrev) / 1000; // s
+          // منع التكرار الحقيقي: <5م في <5 ثوان
+          if (dist * 1000 < 5 && Math.abs(dt) < 5) continue;
+          // كشف القفزات بطريقتين
+          if (dt >= 2) {
+              // فترة زمنية كافية → السرعة المحسوبة موثوقة
+              if ((dist / dt) * 3600 < 250) filtered.push(curr);
+              else if (dist < 0.1) filtered.push(curr);
+          } else {
+              // dt < 2ث = batch upload محتمل → استخدم سرعة GPS من الجهاز
+              const deviceSpeedKmh = ((curr.speed || prev.speed || 0)) * 3.6;
+              if (deviceSpeedKmh < 250) filtered.push(curr);
+              else if (dist < 0.1) filtered.push(curr);
+          }
+      }
 
     const lls = filtered.map(p => [p.lat, p.lng]);
 
@@ -1241,16 +1255,17 @@ async function loadRoute() {
             const key = `${t.getTime()}_${lat.toFixed(5)}_${lng.toFixed(5)}`;
             if (seen.has(key)) return;
             seen.add(key);
-            pts.push({
-                lat, lng, t,
-                speed: v.speed || 0,
-                accuracy: v.accuracy,
-                isMoving: v.isMoving,
-                activity: v.activity || v.currentActivity,
-                appState: v.appState,
-            });
-        });
-        console.log(`[loadRoute v3.6] driverId=${driverId} range=${rangeLabel} fetched=${snap1.size} unique=${pts.length}`);
+            const deviceT = v.deviceTimestamp?.toDate ? v.deviceTimestamp.toDate() : (v.deviceTimestamp ? new Date(v.deviceTimestamp) : null);
+              pts.push({
+                  lat, lng, t, deviceT,
+                  speed: v.speed || 0,
+                  accuracy: v.accuracy,
+                  isMoving: v.isMoving,
+                  activity: v.activity || v.currentActivity,
+                  appState: v.appState,
+              });
+          });
+          console.log(`[loadRoute v3.8] driverId=${driverId} range=${rangeLabel} fetched=${snap1.size} unique=${pts.length}`);
     } catch (e) {
         console.error('[loadRoute] Query failed:', e?.message);
         // Fallback للاستعلام القديم لو الـ index لسه ما اشتغل
@@ -1271,16 +1286,17 @@ async function loadRoute() {
                 const key = `${t.getTime()}_${lat.toFixed(5)}_${lng.toFixed(5)}`;
                 if (seen.has(key)) return;
                 seen.add(key);
-                pts.push({
-                    lat, lng, t,
-                    speed: v.speed || 0,
-                    accuracy: v.accuracy,
-                    isMoving: v.isMoving,
-                    activity: v.activity || v.currentActivity,
-                    appState: v.appState,
-                });
-            });
-            console.warn(`[loadRoute] Fallback used. fetched=${snap1f.size} unique=${pts.length}`);
+                const deviceT = v.deviceTimestamp?.toDate ? v.deviceTimestamp.toDate() : (v.deviceTimestamp ? new Date(v.deviceTimestamp) : null);
+                  pts.push({
+                      lat, lng, t, deviceT,
+                      speed: v.speed || 0,
+                      accuracy: v.accuracy,
+                      isMoving: v.isMoving,
+                      activity: v.activity || v.currentActivity,
+                      appState: v.appState,
+                  });
+              });
+              console.warn(`[loadRoute] Fallback used. fetched=${snap1f.size} unique=${pts.length}`);
         } catch (e2) {
             console.error('[loadRoute] Fallback also failed:', e2?.message);
         }
@@ -1299,16 +1315,17 @@ async function loadRoute() {
             const key = `${t.getTime()}_${lat.toFixed(5)}_${lng.toFixed(5)}`;
             if (seen.has(key)) return;
             seen.add(key);
-            pts.push({
-                lat, lng, t,
-                speed: v.speed || 0,
-                accuracy: v.accuracy,
-                isMoving: v.isMoving,
-                activity: v.activity || v.currentActivity,
-                appState: v.appState,
-            });
-        });
-    } catch (e) { /* ignore */ }
+            const deviceT = v.deviceTimestamp?.toDate ? v.deviceTimestamp.toDate() : (v.deviceTimestamp ? new Date(v.deviceTimestamp) : null);
+              pts.push({
+                  lat, lng, t, deviceT,
+                  speed: v.speed || 0,
+                  accuracy: v.accuracy,
+                  isMoving: v.isMoving,
+                  activity: v.activity || v.currentActivity,
+                  appState: v.appState,
+              });
+          });
+      } catch (e) { /* ignore */ }
 
     pts.sort((a, b) => a.t - b.t);
     locationHistory = pts;
