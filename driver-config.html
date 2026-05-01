@@ -1,598 +1,1133 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إعدادات تتبع السائقين - White Horse</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2563eb">
-    <link rel="stylesheet" href="style.css">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; direction: rtl; padding-bottom: 4rem; }
-        .header {
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white; padding: 1rem 2rem; display: flex;
-            justify-content: space-between; align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); flex-wrap: wrap; gap: 0.5rem;
-        }
-        .header h1 { font-size: 1.4rem; }
-        .nav-buttons { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
-        .nav-btn {
-            background: rgba(255,255,255,0.2); color: white; border: none;
-            padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;
-            text-decoration: none; transition: background 0.2s; font-size: 0.9rem;
-        }
-        .nav-btn:hover { background: rgba(255,255,255,0.35); }
-
-        .container { max-width: 1100px; margin: 1.5rem auto; padding: 0 1rem; }
-        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 1.25rem; }
-        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
-
-        .card {
-            background: white; border-radius: 12px; padding: 1.25rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 1.25rem;
-        }
-        .card-title { font-size: 1.1rem; color: #1e293b; margin-bottom: 1rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
-        .card-subtitle { font-size: 0.85rem; color: #64748b; margin-bottom: 1rem; line-height: 1.6; }
-
-        .driver-list { max-height: 65vh; overflow-y: auto; }
-        .driver-search { width: 100%; padding: 0.6rem; border: 1.5px solid #cbd5e1; border-radius: 8px; margin-bottom: 0.75rem; font-size: 0.95rem; direction: rtl; }
-        .driver-item {
-            padding: 0.75rem; border-radius: 8px; cursor: pointer;
-            border: 2px solid transparent; margin-bottom: 0.4rem; background: #f8fafc;
-            transition: all 0.15s; display: flex; justify-content: space-between; align-items: center;
-        }
-        .driver-item:hover { background: #e2e8f0; }
-        .driver-item.selected { background: #dbeafe; border-color: #2563eb; }
-        .driver-item.global { background: linear-gradient(135deg, #fef3c7, #fde68a); border-color: #f59e0b; font-weight: 700; }
-        .driver-item.global.selected { background: linear-gradient(135deg, #fde68a, #fcd34d); border-color: #d97706; }
-        .driver-info { flex: 1; }
-        .driver-name { font-weight: 600; color: #1e293b; font-size: 0.95rem; }
-        .driver-meta { font-size: 0.78rem; color: #64748b; margin-top: 0.15rem; }
-        .badge {
-            font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 10px;
-            background: #e2e8f0; color: #475569; font-weight: 600;
-        }
-        .badge.has-config { background: #d1fae5; color: #065f46; }
-        .badge.online { background: #dcfce7; color: #166534; }
-
-        .profiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem; margin-bottom: 1.25rem; }
-        .profile-card {
-            padding: 0.85rem 0.7rem; border: 2px solid #e2e8f0; border-radius: 10px;
-            cursor: pointer; text-align: center; background: #f8fafc;
-            transition: all 0.15s;
-        }
-        .profile-card:hover { background: #f1f5f9; transform: translateY(-1px); }
-        .profile-card.selected { background: #dbeafe; border-color: #2563eb; }
-        .profile-card .icon { font-size: 1.7rem; margin-bottom: 0.3rem; }
-        .profile-card .label { font-weight: 700; color: #1e293b; font-size: 0.95rem; }
-        .profile-card .desc { font-size: 0.72rem; color: #64748b; margin-top: 0.2rem; line-height: 1.4; }
-
-        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
-        @media (max-width: 600px) { .field-row { grid-template-columns: 1fr; } }
-        .form-group { margin-bottom: 0.75rem; }
-        .form-group label { display: block; margin-bottom: 0.3rem; font-weight: 600; color: #334155; font-size: 0.9rem; }
-        .form-group .help-text { display: block; font-size: 0.75rem; color: #64748b; margin-top: 0.25rem; line-height: 1.5; }
-        .form-group input[type="number"], .form-group select {
-            width: 100%; padding: 0.6rem; border: 1.5px solid #cbd5e1;
-            border-radius: 8px; font-size: 0.95rem; font-family: inherit;
-            direction: ltr; text-align: left;
-        }
-        .form-group input:focus, .form-group select:focus {
-            outline: none; border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
-        }
-
-        .actions { display: flex; gap: 0.6rem; margin-top: 1rem; flex-wrap: wrap; }
-        .btn { padding: 0.7rem 1.25rem; border-radius: 8px; border: none; cursor: pointer; font-size: 0.95rem; font-weight: 600; transition: all 0.15s; }
-        .btn-primary { background: #2563eb; color: white; }
-        .btn-primary:hover { background: #1d4ed8; }
-        .btn-success { background: #10b981; color: white; }
-        .btn-success:hover { background: #059669; }
-        .btn-danger { background: #ef4444; color: white; }
-        .btn-danger:hover { background: #dc2626; }
-        .btn-secondary { background: #e2e8f0; color: #1e293b; }
-        .btn-secondary:hover { background: #cbd5e1; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .alert { padding: 0.85rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; }
-        .alert-info { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
-        .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
-        .alert-warning { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
-        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
-
-        .effective-config { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 0.85rem; margin-top: 1rem; }
-        .effective-config-title { font-weight: 700; color: #075985; margin-bottom: 0.5rem; font-size: 0.9rem; }
-        .effective-row { display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.85rem; border-bottom: 1px dashed #bae6fd; }
-        .effective-row:last-child { border-bottom: none; }
-        .effective-row .key { color: #0369a1; font-weight: 600; font-family: monospace; }
-        .effective-row .val { color: #1e293b; font-weight: 600; }
-        .effective-row .src { font-size: 0.7rem; color: #64748b; margin-right: 0.5rem; }
-
-        .empty-state { text-align: center; padding: 3rem 1rem; color: #64748b; }
-        .empty-state .icon { font-size: 3rem; margin-bottom: 0.5rem; opacity: 0.5; }
-
-        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 0.8rem 1.5rem; border-radius: 8px; color: white; font-weight: 600; z-index: 1000; opacity: 0; transition: opacity 0.3s; pointer-events: none; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
-        #toast.show { opacity: 1; }
-        #toast.success { background: #10b981; }
-        #toast.error { background: #ef4444; }
-        #toast.info { background: #2563eb; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>إعدادات تتبع السائقين - White Horse</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{font-family:'Cairo',system-ui,-apple-system,sans-serif}
+  body{background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);min-height:100vh;color:#e2e8f0}
+  .glass{background:rgba(30,41,59,.7);backdrop-filter:blur(12px);border:1px solid rgba(148,163,184,.15)}
+  .glass-light{background:rgba(51,65,85,.5);backdrop-filter:blur(8px);border:1px solid rgba(148,163,184,.1)}
+  .scroll-thin::-webkit-scrollbar{width:6px;height:6px}
+  .scroll-thin::-webkit-scrollbar-track{background:rgba(15,23,42,.3)}
+  .scroll-thin::-webkit-scrollbar-thumb{background:rgba(148,163,184,.3);border-radius:3px}
+  .tab-btn.active{background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:white;box-shadow:0 4px 12px rgba(59,130,246,.4)}
+  .driver-card.selected{background:linear-gradient(135deg,rgba(59,130,246,.2),rgba(139,92,246,.2));border-color:#3b82f6}
+  .badge-override{background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-weight:600}
+  .badge-profile{background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;font-weight:600}
+  .badge-global{background:linear-gradient(135deg,#64748b,#475569);color:white;font-weight:600}
+  .badge-default{background:linear-gradient(135deg,#10b981,#059669);color:white;font-weight:600}
+  .badge-online{background:#10b981;color:white;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+  .modal-bg{background:rgba(0,0,0,.75);backdrop-filter:blur(8px)}
+  .toast-slide{animation:slideIn .3s ease-out}
+  @keyframes slideIn{from{transform:translateY(-20px);opacity:0}to{transform:translateY(0);opacity:1}}
+  input[type=number],input[type=text],select{background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.2);color:#e2e8f0;padding:.5rem .75rem;border-radius:.5rem;width:100%;font-size:.95rem;transition:all .2s}
+  input[type=number]:focus,input[type=text]:focus,select:focus{outline:none;border-color:#3b82f6;background:rgba(15,23,42,.9);box-shadow:0 0 0 3px rgba(59,130,246,.2)}
+  .toggle{position:relative;width:48px;height:26px;background:#475569;border-radius:13px;cursor:pointer;transition:background .2s}
+  .toggle.on{background:#10b981}
+  .toggle::after{content:'';position:absolute;top:3px;right:3px;width:20px;height:20px;background:white;border-radius:50%;transition:transform .2s}
+  .toggle.on::after{transform:translateX(-22px)}
+  .info-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:rgba(59,130,246,.2);color:#60a5fa;font-size:.75rem;cursor:pointer;border:1px solid rgba(59,130,246,.3);font-weight:700;transition:all .2s}
+  .info-btn:hover{background:#3b82f6;color:white;transform:scale(1.1)}
+  .reset-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:rgba(239,68,68,.2);color:#f87171;font-size:.75rem;cursor:pointer;border:1px solid rgba(239,68,68,.3);transition:all .2s}
+  .reset-btn:hover{background:#ef4444;color:white;transform:scale(1.1)}
+  .setting-card{background:rgba(15,23,42,.4);border:1px solid rgba(148,163,184,.1);border-radius:.75rem;padding:1rem;transition:all .2s}
+  .setting-card:hover{border-color:rgba(59,130,246,.3);background:rgba(15,23,42,.6)}
+  .setting-card.changed{border-color:#f59e0b;background:rgba(245,158,11,.05)}
+  @media (max-width:640px){.setting-card{padding:.75rem}}
+  .pulse-save{animation:pulseSave 1s infinite}
+  @keyframes pulseSave{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.6)}50%{box-shadow:0 0 0 8px rgba(245,158,11,0)}}
+</style>
 </head>
-<body>
-    <header class="header">
-        <h1>⚙️ إعدادات تتبع السائقين</h1>
-        <div class="nav-buttons">
-            <a href="admin-dashboard.html" class="nav-btn">← لوحة الإدارة</a>
-            <a href="app-version-control.html" class="nav-btn">📱 إدارة النسخ</a>
-            <button class="nav-btn" id="logoutBtn">🚪 خروج</button>
-        </div>
-    </header>
+<body class="min-h-screen">
 
-    <div class="container">
-        <div class="alert alert-info">
-            <strong>💡 شلون يشتغل:</strong>
-            تقدر تحدد إعدادات تتبع GPS لكل سائق على حدة. الإعداد العام يطبّق على الكل، ولو سويت إعداد خاص لسائق معين راح يطغى على العام. التغييرات تطبق <strong>فوراً</strong> على التطبيق بدون ما السائق يحتاج يعيد تسجيل الدخول (v2.7.0+).
-        </div>
-
-        <div class="grid">
-            <!-- DRIVERS LIST -->
-            <div class="card">
-                <div class="card-title">👥 السائقين</div>
-                <input type="text" class="driver-search" id="driverSearch" placeholder="🔍 ابحث بالاسم أو الرقم..." />
-                <div class="driver-list" id="driverList">
-                    <div class="empty-state"><div class="icon">⏳</div>جاري التحميل...</div>
-                </div>
-            </div>
-
-            <!-- CONFIG EDITOR -->
-            <div>
-                <div class="card" id="configCard" style="display:none">
-                    <div class="card-title" id="configTitle">⚙️ إعدادات السائق</div>
-                    <div class="card-subtitle" id="configSubtitle"></div>
-
-                    <div class="form-group">
-                        <label>📊 نمط التتبع (Profile)</label>
-                        <div class="profiles">
-                            <div class="profile-card" data-profile="ultra">
-                                <div class="icon">🚀</div>
-                                <div class="label">فائق الدقة</div>
-                                <div class="desc">5م / 2ث<br>أعلى دقة، بطارية مرتفع</div>
-                            </div>
-                            <div class="profile-card" data-profile="high">
-                                <div class="icon">🎯</div>
-                                <div class="label">دقة عالية</div>
-                                <div class="desc">5م / 3ث<br>الموصى به</div>
-                            </div>
-                            <div class="profile-card" data-profile="balanced">
-                                <div class="icon">⚖️</div>
-                                <div class="label">متوازن</div>
-                                <div class="desc">10م / 5ث<br>دقة ووفر بطارية</div>
-                            </div>
-                            <div class="profile-card" data-profile="battery_saver">
-                                <div class="icon">🔋</div>
-                                <div class="label">توفير بطارية</div>
-                                <div class="desc">25م / 10ث<br>أقل استهلاك</div>
-                            </div>
-                            <div class="profile-card" data-profile="custom">
-                                <div class="icon">🛠️</div>
-                                <div class="label">مخصص</div>
-                                <div class="desc">عدّل كل قيمة بنفسك</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <details id="advancedSettings" style="background:#f8fafc;padding:1rem;border-radius:8px;border:1px solid #e2e8f0;">
-                        <summary style="cursor:pointer;font-weight:700;color:#1e293b;">🛠️ إعدادات متقدمة (تجاوز قيم الـ Profile)</summary>
-                        <div style="margin-top:1rem;">
-                            <div class="field-row">
-                                <div class="form-group">
-                                    <label>📏 distanceFilter (متر)</label>
-                                    <input type="number" id="distanceFilter" min="1" max="100" step="1" placeholder="5" />
-                                    <span class="help-text">احفظ نقطة جديدة بعد كل X متر حركة</span>
-                                </div>
-                                <div class="form-group">
-                                    <label>⏱ locationUpdateInterval (مللي ثانية)</label>
-                                    <input type="number" id="locationUpdateInterval" min="500" max="60000" step="500" placeholder="3000" />
-                                    <span class="help-text">معدل طلب الموقع من GPS</span>
-                                </div>
-                            </div>
-
-                            <div class="field-row">
-                                <div class="form-group">
-                                    <label>📐 saveDistanceMeters (متر)</label>
-                                    <input type="number" id="saveDistanceMeters" min="5" max="500" step="5" placeholder="20" />
-                                    <span class="help-text">احفظ في Firestore بعد X متر</span>
-                                </div>
-                                <div class="form-group">
-                                    <label>🕐 saveIntervalMs (مللي ثانية)</label>
-                                    <input type="number" id="saveIntervalMs" min="5000" max="600000" step="1000" placeholder="30000" />
-                                    <span class="help-text">احفظ في Firestore كل X مللي ثانية</span>
-                                </div>
-                            </div>
-
-                            <div class="field-row">
-                                <div class="form-group">
-                                    <label>🛑 stillBackupIntervalMs (متوقف)</label>
-                                    <input type="number" id="stillBackupIntervalMs" min="60000" max="3600000" step="60000" placeholder="1800000" />
-                                    <span class="help-text">backup point لما متوقف (افتراضي 30 دقيقة)</span>
-                                </div>
-                                <div class="form-group">
-                                    <label>🎯 desiredAccuracy</label>
-                                    <select id="desiredAccuracy">
-                                        <option value="">— استخدم Profile —</option>
-                                        <option value="NAVIGATION">NAVIGATION (أعلى دقة)</option>
-                                        <option value="HIGH">HIGH</option>
-                                        <option value="MEDIUM">MEDIUM</option>
-                                        <option value="LOW">LOW (وفر بطارية)</option>
-                                    </select>
-                                    <span class="help-text">جودة GPS المطلوبة</span>
-                                </div>
-                            </div>
-
-                            <div class="field-row">
-                                <div class="form-group">
-                                    <label>❌ maxAccuracy (متر)</label>
-                                    <input type="number" id="maxAccuracy" min="10" max="500" step="5" placeholder="50" />
-                                    <span class="help-text">ارفض النقاط بدقة أسوأ من X متر</span>
-                                </div>
-                                <div class="form-group">
-                                    <label>🚫 maxSpeedKmh (كم/س)</label>
-                                    <input type="number" id="maxSpeedKmh" min="50" max="500" step="10" placeholder="200" />
-                                    <span class="help-text">ارفض السرعات الوهمية فوق X كم/س</span>
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label>🔁 elasticityMultiplier</label>
-                                <input type="number" id="elasticityMultiplier" min="1" max="10" step="1" placeholder="2" />
-                                <span class="help-text">distanceFilter ينمو X مرة مع السرعة (1=ثابت، 3=أكبر زيادة)</span>
-                            </div>
-                        </div>
-                    </details>
-
-                    <div class="effective-config" id="effectiveConfig" style="display:none;"></div>
-
-                    <div class="actions">
-                        <button class="btn btn-success" id="saveBtn">💾 حفظ</button>
-                        <button class="btn btn-danger" id="deleteBtn">🗑️ حذف الإعداد الخاص (يرجع للعام)</button>
-                        <button class="btn btn-secondary" id="resetFormBtn">↺ إعادة ضبط النموذج</button>
-                    </div>
-                </div>
-
-                <div class="card" id="emptyCard">
-                    <div class="empty-state">
-                        <div class="icon">👈</div>
-                        <h3 style="color:#1e293b;margin-bottom:0.5rem;">اختر سائق</h3>
-                        <p>اختر سائق من القائمة عشان تعدّل إعدادات التتبع الخاصة فيه، أو اختر "<strong>الإعداد العام</strong>" عشان تعدّل الافتراضي للجميع.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+<!-- ========== HEADER ========== -->
+<header class="glass sticky top-0 z-40 border-b border-slate-700/50">
+  <div class="max-w-[1600px] mx-auto px-3 sm:px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
+    <div class="flex items-center gap-3">
+      <a href="/admin-dashboard.html" class="text-slate-400 hover:text-white transition" title="رجوع">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+      </a>
+      <h1 class="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+        ⚙️ إعدادات تتبع السائقين
+      </h1>
     </div>
+    <div class="flex items-center gap-2 text-xs sm:text-sm">
+      <button id="historyBtn" class="px-3 py-1.5 rounded-lg bg-slate-700/50 hover:bg-slate-600 transition flex items-center gap-1">
+        <span>📜</span><span class="hidden sm:inline">تاريخ التعديلات</span>
+      </button>
+      <button id="multiApplyBtn" class="px-3 py-1.5 rounded-lg bg-purple-600/80 hover:bg-purple-600 transition flex items-center gap-1">
+        <span>👥</span><span class="hidden sm:inline">تطبيق على عدة سائقين</span>
+      </button>
+    </div>
+  </div>
+</header>
 
-    <div id="toast"></div>
+<!-- ========== MAIN LAYOUT ========== -->
+<div class="max-w-[1600px] mx-auto p-3 sm:p-4 grid gap-4" style="grid-template-columns: 1fr">
+  <div class="grid gap-4" id="layoutGrid" style="grid-template-columns: 1fr">
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    <!-- ========== SIDEBAR: DRIVERS LIST ========== -->
+    <aside class="glass rounded-xl p-3 sm:p-4 lg:max-h-[calc(100vh-100px)] lg:sticky lg:top-20 lg:overflow-y-auto scroll-thin" id="driversSidebar">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-bold text-base">👥 السائقين</h2>
+        <span class="text-xs text-slate-400" id="driverCount">0</span>
+      </div>
+      <input type="text" id="driverSearch" placeholder="🔍 بحث..." class="w-full mb-3">
+      <div id="driversList" class="space-y-2"></div>
+    </aside>
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
-            authDomain: "taxi-management-system-d8210.firebaseapp.com",
-            projectId: "taxi-management-system-d8210",
-            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
-            messagingSenderId: "720874424166",
-            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
-            measurementId: "G-GY8820W410"
-        };
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+    <!-- ========== MAIN CONTENT: SETTINGS ========== -->
+    <main class="space-y-4">
+      <!-- Selected entity header -->
+      <div class="glass rounded-xl p-4" id="selectedHeader">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <div class="text-xs text-slate-400">اختر سائق أو الإعداد العام</div>
+            <div class="text-lg font-bold mt-1" id="selectedTitle">— لم يتم الاختيار —</div>
+            <div class="text-xs text-slate-400 mt-1" id="selectedMeta"></div>
+          </div>
+          <div class="flex gap-2 flex-wrap" id="selectedBadges"></div>
+        </div>
+      </div>
 
-        // Profile presets (يجب تطابق DEFAULT_CONFIG و PROFILES في LocationService.js)
-        const PROFILES = {
-            ultra: { distanceFilter: 5, locationUpdateInterval: 2000, saveDistanceMeters: 15, saveIntervalMs: 20000 },
-            high: { distanceFilter: 5, locationUpdateInterval: 3000, saveDistanceMeters: 20, saveIntervalMs: 30000 },
-            balanced: { distanceFilter: 10, locationUpdateInterval: 5000, saveDistanceMeters: 30, saveIntervalMs: 60000 },
-            battery_saver: { distanceFilter: 25, locationUpdateInterval: 10000, saveDistanceMeters: 50, saveIntervalMs: 120000 },
-        };
-        const DEFAULTS = {
-            distanceFilter: 5, locationUpdateInterval: 3000, fastestLocationUpdateInterval: 1000,
-            elasticityMultiplier: 2, desiredAccuracy: 'NAVIGATION',
-            saveDistanceMeters: 20, saveIntervalMs: 30000, stillBackupIntervalMs: 1800000,
-            maxAccuracy: 50, maxSpeedKmh: 200, trackingProfile: 'high'
-        };
+      <!-- Tabs -->
+      <div class="glass rounded-xl p-2 overflow-x-auto scroll-thin">
+        <div class="flex gap-1 min-w-max" id="tabsContainer"></div>
+      </div>
 
-        // Auth check
-        onAuthStateChanged(auth, (user) => {
-            if (!user) { window.location.href = 'index.html'; return; }
-            init();
-        });
-        document.getElementById('logoutBtn').addEventListener('click', async () => {
-            await signOut(auth);
-            window.location.href = 'index.html';
-        });
+      <!-- Settings panel -->
+      <div class="glass rounded-xl p-3 sm:p-4 lg:p-5">
+        <div id="settingsPanel" class="space-y-3"></div>
+        <div class="mt-6 flex flex-wrap gap-2 justify-end pt-4 border-t border-slate-700/50">
+          <button id="resetTabBtn" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-600 transition text-sm">↺ إعادة تعيين هذا التاب</button>
+          <button id="resetAllBtn" class="px-4 py-2 rounded-lg bg-red-600/80 hover:bg-red-600 transition text-sm">🗑️ مسح كل الإعدادات الخاصة</button>
+          <button id="saveBtn" class="px-6 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 transition font-semibold text-sm">💾 حفظ التغييرات</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
 
-        let drivers = [];
-        let currentSelection = null; // { type: 'global'|'driver', id: string }
-        let globalConfig = null;
-        let driverConfigsMap = {}; // { driverId: config }
+<!-- ========== INFO MODAL ========== -->
+<div id="infoModal" class="modal-bg fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+  <div class="glass rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto scroll-thin p-5 sm:p-7">
+    <div class="flex items-start justify-between gap-4 mb-4">
+      <div>
+        <div class="text-xs text-blue-400 font-semibold" id="infoCategory">—</div>
+        <h3 class="text-xl font-bold mt-1" id="infoTitle">—</h3>
+      </div>
+      <button onclick="closeInfo()" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+    </div>
+    <div class="text-slate-300 mb-4 leading-relaxed" id="infoExplanation"></div>
+    <div class="grid sm:grid-cols-2 gap-3 mb-4">
+      <div class="bg-emerald-900/20 border border-emerald-500/30 rounded-lg p-3">
+        <div class="font-bold text-emerald-400 mb-2">⬆️ عند الزيادة:</div>
+        <ul class="text-sm space-y-1" id="infoProsHigh"></ul>
+      </div>
+      <div class="bg-rose-900/20 border border-rose-500/30 rounded-lg p-3">
+        <div class="font-bold text-rose-400 mb-2">⚠️ عيوب الزيادة:</div>
+        <ul class="text-sm space-y-1" id="infoConsHigh"></ul>
+      </div>
+      <div class="bg-emerald-900/20 border border-emerald-500/30 rounded-lg p-3">
+        <div class="font-bold text-emerald-400 mb-2">⬇️ عند النقصان:</div>
+        <ul class="text-sm space-y-1" id="infoProsLow"></ul>
+      </div>
+      <div class="bg-rose-900/20 border border-rose-500/30 rounded-lg p-3">
+        <div class="font-bold text-rose-400 mb-2">⚠️ عيوب النقصان:</div>
+        <ul class="text-sm space-y-1" id="infoConsLow"></ul>
+      </div>
+    </div>
+    <div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3">
+      <div class="text-sm"><span class="font-bold text-blue-400">💡 الموصى به:</span> <span id="infoRecommended">—</span></div>
+      <div class="text-xs text-slate-400 mt-1" id="infoRange"></div>
+    </div>
+  </div>
+</div>
 
-        async function init() {
-            await loadAll();
-            renderDriverList();
+<!-- ========== CONFIRM MODAL ========== -->
+<div id="confirmModal" class="modal-bg fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+  <div class="glass rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto scroll-thin p-5 sm:p-7">
+    <h3 class="text-xl font-bold mb-3">⚠️ تأكيد التغييرات</h3>
+    <div id="confirmContent" class="text-sm text-slate-300 space-y-3 mb-5"></div>
+    <div class="flex gap-2 justify-end">
+      <button onclick="closeConfirm()" class="px-5 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition">إلغاء</button>
+      <button id="confirmSaveBtn" class="px-5 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 transition font-semibold">✓ تأكيد الحفظ</button>
+    </div>
+  </div>
+</div>
 
-            document.getElementById('driverSearch').addEventListener('input', renderDriverList);
-            document.querySelectorAll('.profile-card').forEach(card => {
-                card.addEventListener('click', () => selectProfile(card.dataset.profile));
-            });
-            document.getElementById('saveBtn').addEventListener('click', saveConfig);
-            document.getElementById('deleteBtn').addEventListener('click', deleteConfig);
-            document.getElementById('resetFormBtn').addEventListener('click', () => loadConfigToForm());
+<!-- ========== MULTI APPLY MODAL ========== -->
+<div id="multiModal" class="modal-bg fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+  <div class="glass rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto scroll-thin p-5 sm:p-7">
+    <h3 class="text-xl font-bold mb-2">👥 تطبيق الإعدادات على عدة سائقين</h3>
+    <p class="text-sm text-slate-400 mb-4">اختر السائقين اللي تبي تطبق عليهم نفس إعدادات السائق الحالي:</p>
+    <div class="mb-3 flex gap-2 flex-wrap">
+      <button onclick="multiSelectAll(true)" class="px-3 py-1 text-xs rounded-lg bg-blue-600/50 hover:bg-blue-600">اختر الكل</button>
+      <button onclick="multiSelectAll(false)" class="px-3 py-1 text-xs rounded-lg bg-slate-600/50 hover:bg-slate-600">إلغاء الكل</button>
+      <button onclick="multiSelectActive()" class="px-3 py-1 text-xs rounded-lg bg-emerald-600/50 hover:bg-emerald-600">الشغّالين فقط</button>
+    </div>
+    <div id="multiList" class="space-y-1 max-h-[40vh] overflow-y-auto scroll-thin border border-slate-700 rounded-lg p-2"></div>
+    <div class="mt-5 flex gap-2 justify-end">
+      <button onclick="closeMulti()" class="px-5 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition">إلغاء</button>
+      <button id="multiApplyConfirmBtn" class="px-5 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-600 hover:opacity-90 transition font-semibold">تطبيق على المختارين</button>
+    </div>
+  </div>
+</div>
 
-            // Live updates
-            ['distanceFilter','locationUpdateInterval','saveDistanceMeters','saveIntervalMs',
-             'stillBackupIntervalMs','desiredAccuracy','maxAccuracy','maxSpeedKmh','elasticityMultiplier'
-            ].forEach(id => {
-                document.getElementById(id).addEventListener('input', updateEffectivePreview);
-            });
-        }
+<!-- ========== HISTORY MODAL ========== -->
+<div id="historyModal" class="modal-bg fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+  <div class="glass rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto scroll-thin p-5 sm:p-7">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-bold">📜 تاريخ التعديلات</h3>
+      <button onclick="closeHistory()" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+    </div>
+    <div id="historyContent" class="space-y-2"></div>
+  </div>
+</div>
 
-        async function loadAll() {
-            try {
-                // 1) global config
-                const globalSnap = await getDoc(doc(db, 'appConfig', 'global'));
-                globalConfig = globalSnap.exists() ? globalSnap.data() : null;
+<!-- ========== TOAST CONTAINER ========== -->
+<div id="toastContainer" class="fixed top-20 left-1/2 -translate-x-1/2 z-[60] space-y-2 pointer-events-none"></div>
 
-                // 2) all driver-specific configs
-                const driverConfigsSnap = await getDocs(collection(db, 'appConfig', 'driverConfigs', 'drivers'));
-                driverConfigsMap = {};
-                driverConfigsSnap.forEach(d => { driverConfigsMap[d.id] = d.data(); });
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-                // 3) drivers list
-                const driversSnap = await getDocs(collection(db, 'drivers'));
-                drivers = [];
-                driversSnap.forEach(d => {
-                    const data = d.data();
-                    drivers.push({
-                        id: d.id,
-                        name: data.name || d.id,
-                        phone: data.phone || '',
-                        appVersion: data.appVersion || '—',
-                        isActive: data.isActive,
-                        archived: data.archived === true
-                    });
-                });
-                drivers = drivers.filter(x => !x.archived);
-                drivers.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-            } catch (e) {
-                console.error(e);
-                showToast('فشل تحميل البيانات: ' + e.message, 'error');
-            }
-        }
+const firebaseConfig = {
+  apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+  authDomain: "taxi-management-system-d8210.firebaseapp.com",
+  projectId: "taxi-management-system-d8210",
+  storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+  messagingSenderId: "720874424166",
+  appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7",
+  measurementId: "G-GY8820W410"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-        function renderDriverList() {
-            const list = document.getElementById('driverList');
-            const search = document.getElementById('driverSearch').value.trim().toLowerCase();
+// ============================================================
+// SETTINGS REGISTRY - Single source of truth for all 49 settings
+// ============================================================
+const PROFILES = {
+  ultra:        { distanceFilter: 5,  locationUpdateInterval: 2000, saveDistanceMeters: 15, saveIntervalMs: 20000 },
+  high:         { distanceFilter: 5,  locationUpdateInterval: 3000, saveDistanceMeters: 20, saveIntervalMs: 30000 },
+  balanced:     { distanceFilter: 10, locationUpdateInterval: 5000, saveDistanceMeters: 30, saveIntervalMs: 60000 },
+  battery_saver:{ distanceFilter: 25, locationUpdateInterval: 10000,saveDistanceMeters: 50, saveIntervalMs: 120000 }
+};
 
-            let html = '';
-            // Global item always on top
-            html += `<div class="driver-item global ${currentSelection?.type==='global'?'selected':''}" data-type="global">
-                <div class="driver-info">
-                    <div class="driver-name">🌍 الإعداد العام (الافتراضي)</div>
-                    <div class="driver-meta">يطبّق على كل السائقين بدون إعداد خاص</div>
-                </div>
-                ${globalConfig ? '<span class="badge has-config">✓ مُعدّل</span>' : '<span class="badge">افتراضي</span>'}
-            </div>`;
+const TABS = [
+  { id:'basic',     icon:'⭐', label:'أساسي',  color:'from-amber-500 to-orange-500' },
+  { id:'upload',    icon:'📡', label:'رفع',     color:'from-blue-500 to-cyan-500' },
+  { id:'fcm',       icon:'🔔', label:'FCM',     color:'from-purple-500 to-pink-500', globalOnly:true },
+  { id:'watchdog',  icon:'🛡️', label:'حماية',  color:'from-red-500 to-rose-500' },
+  { id:'health',    icon:'💚', label:'صحة',    color:'from-emerald-500 to-green-500' },
+  { id:'smart',     icon:'🧠', label:'ذكي',    color:'from-indigo-500 to-violet-500' },
+  { id:'filters',   icon:'🔬', label:'فلاتر',  color:'from-teal-500 to-cyan-500' },
+  { id:'diag',      icon:'🛠️', label:'تشخيص',  color:'from-slate-500 to-gray-500' }
+];
 
-            const filtered = drivers.filter(d => {
-                if (!search) return true;
-                return d.name.toLowerCase().includes(search) || d.phone.includes(search) || d.id.toLowerCase().includes(search);
-            });
+const SETTINGS = {
+  // ============== TAB: BASIC (10 settings) ==============
+  profile: { tab:'basic', label:'📊 نمط التتبع', type:'select', default:'high',
+    options:[{v:'ultra',l:'🚀 Ultra - دقة قصوى'},{v:'high',l:'⭐ High - موصى به'},{v:'balanced',l:'⚖️ Balanced - متوازن'},{v:'battery_saver',l:'🔋 Battery Saver - توفير'}],
+    explanation:'يحدد نمط جاهز للتتبع. كل profile يحدد قيم مختلفة لـ distanceFilter, locationUpdateInterval, saveDistanceMeters, saveIntervalMs تلقائياً. تقدر بعدها تخصص أي قيمة فردية.',
+    prosHigh:['دقة وتفاصيل أكثر','مراقبة أحسن'], consHigh:['استهلاك بطارية أعلى','تكلفة Firestore أعلى'],
+    prosLow:['توفير بطارية','تكلفة أقل'], consLow:['تتبع أقل دقة','نقاط متباعدة'],
+    recommended:'high للتاكسي العادي', range:'4 خيارات'
+  },
+  distanceFilter: { tab:'basic', label:'📏 فلتر المسافة', type:'number', unit:'متر', min:1, max:100, default:10,
+    explanation:'أقل مسافة بالأمتار يلازم السائق يتحركها قبل ما يحفظ نقطة جديدة. مثلاً لو 10م، السائق يلازم يتحرك 10م الأقل قبل تسجيل نقطة.',
+    prosHigh:['توفير بطارية كبير','بيانات أقل (Firestore أرخص)','نقاط أقل في الخريطة'],
+    consHigh:['مسار خشن في الخريطة','يفوت تفاصيل المنعطفات','تتبع غير دقيق'],
+    prosLow:['تتبع دقيق جداً','تفاصيل كاملة للمسار','مفيد لتاكسي وقت الذروة'],
+    consLow:['استهلاك بطارية أعلى','Firestore writes أكثر','تكلفة شهرية أعلى'],
+    recommended:'5-10م', range:'1-100م'
+  },
+  locationUpdateInterval: { tab:'basic', label:'⏱ فاصل تحديث الموقع', type:'number', unit:'مللي ثانية', min:1000, max:30000, step:500, default:5000,
+    explanation:'كل كم مللي ثانية الموبايل يحاول يقرا موقع GPS. 5000=كل 5 ثواني.',
+    prosHigh:['بطارية أحسن بكثير','استهلاك CPU أقل'],
+    consHigh:['تأخر في التحديث','السائق يبان متجمد','ممكن يفوت اللحظات السريعة'],
+    prosLow:['تحديث فوري للموقع','مراقبة لحظية'],
+    consLow:['استهلاك بطارية كبير','استهلاك CPU عالي'],
+    recommended:'3000-5000ms', range:'1000-30000ms'
+  },
+  saveDistanceMeters: { tab:'basic', label:'📐 مسافة الحفظ القسري', type:'number', unit:'متر', min:5, max:200, default:20,
+    explanation:'المسافة اللي بعدها التطبيق يجبر حفظ نقطة، حتى لو distanceFilter ما تحقق.',
+    prosHigh:['نقاط أقل = خريطة نظيفة','توفير bandwidth'],
+    consHigh:['مسار غير دقيق','فقد تفاصيل'],
+    prosLow:['تفاصيل أكثر','مسار سلس'],
+    consLow:['نقاط مكررة كثيرة','تكلفة أعلى'],
+    recommended:'15-30م', range:'5-200م'
+  },
+  saveIntervalMs: { tab:'basic', label:'🕐 فاصل الحفظ الزمني', type:'number', unit:'مللي ثانية', min:5000, max:600000, step:1000, default:30000,
+    explanation:'أقصى وقت بين نقطتين محفوظتين، حتى لو السائق ما تحرك. 60000=كل دقيقة.',
+    prosHigh:['بطارية ممتازة','بيانات قليلة'],
+    consHigh:['ممكن السائق يكون واقف بدون نقاط لفترة طويلة','يصعّب التشخيص'],
+    prosLow:['نعرف موقعه بانتظام','مراقبة دقيقة'],
+    consLow:['نقاط ثابتة كثيرة','تكلفة عالية'],
+    recommended:'30000-60000 (30ث-1د)', range:'5000-600000ms'
+  },
+  stillBackupIntervalMs: { tab:'basic', label:'🛑 فاصل النقاط وقت السكون', type:'number', unit:'مللي ثانية', min:30000, max:1800000, step:30000, default:300000,
+    explanation:'لما السائق واقف تماماً، كل كم وقت يرسل ping يقول "أنا هنا". 300000=5 دقايق.',
+    prosHigh:['توفير بطارية كبير وقت الانتظار'],
+    consHigh:['ما نعرف إذا التطبيق وقف فجأة'],
+    prosLow:['نعرف إنه online دائماً'],
+    consLow:['استهلاك بطارية وقت الوقوف'],
+    recommended:'5-10 دقايق', range:'30000-1800000ms'
+  },
+  desiredAccuracy: { tab:'basic', label:'🎯 الدقة المطلوبة', type:'select', default:'HIGH',
+    options:[{v:'HIGH',l:'HIGH - الأدق'},{v:'MEDIUM',l:'MEDIUM - متوسط'},{v:'LOW',l:'LOW - تقريبي'},{v:'NAVIGATION',l:'NAVIGATION - أعلى دقة'}],
+    explanation:'مستوى دقة GPS المطلوب من النظام.',
+    prosHigh:['موقع دقيق ضمن 5م'], consHigh:['استهلاك بطارية كبير'],
+    prosLow:['بطارية ممتازة'], consLow:['موقع تقريبي 100م+'],
+    recommended:'HIGH للتاكسي', range:'4 خيارات'
+  },
+  maxAccuracy: { tab:'basic', label:'❌ أقصى انحراف مقبول', type:'number', unit:'متر', min:10, max:500, default:50,
+    explanation:'لو الـ GPS قال "أنا واثق بنسبة X متر"، إذا X أقل من القيمة دي نقبل النقطة، أكثر نرفضها.',
+    prosHigh:['نقبل نقاط أكثر','ما نخسر نقاط في المباني'],
+    consHigh:['نقاط مغلوطة قد تظهر','مسار غير دقيق'],
+    prosLow:['نقاط دقيقة فقط','مسار نظيف'],
+    consLow:['نخسر نقاط في الأماكن الصعبة','فجوات في المسار'],
+    recommended:'50م', range:'10-500م'
+  },
+  maxSpeedKmh: { tab:'basic', label:'🚫 أقصى سرعة مقبولة', type:'number', unit:'كم/س', min:50, max:500, default:250,
+    explanation:'لو الـ GPS قال إن السائق سرعته أعلى من القيمة دي، نرفض النقطة (مستحيل فيزيائياً).',
+    prosHigh:['ما نخسر سيارة سريعة في خط سريع'],
+    consHigh:['نقبل قفزات وهمية كانت تترفض'],
+    prosLow:['نمنع قفزات GPS الوهمية'],
+    consLow:['نرفض سرعات شرعية في الطرق السريعة'],
+    recommended:'200-250 كم/س', range:'50-500 كم/س'
+  },
+  elasticityMultiplier: { tab:'basic', label:'🔁 مضاعف المرونة', type:'number', unit:'×', min:1, max:5, step:0.5, default:1,
+    explanation:'كم التطبيق "ذكي" في تعديل التتبع تلقائياً حسب حركة السائق. سرعة عالية=نقاط أكثر، بطيء=نقاط أقل.',
+    prosHigh:['توفير بطارية ذكي','تكيف تلقائي'],
+    consHigh:['ممكن يفوت تفاصيل في الازدحام'],
+    prosLow:['نقاط ثابتة منتظمة','سلوك متوقع'],
+    consLow:['ما يستفيد من الذكاء','بطارية تستهلك أكثر'],
+    recommended:'1-2', range:'1-5'
+  },
 
-            filtered.forEach(d => {
-                const hasConfig = !!driverConfigsMap[d.id];
-                const isActive = d.isActive ? '<span class="badge online">شغّال</span>' : '';
-                const isSel = currentSelection?.type==='driver' && currentSelection?.id===d.id;
-                html += `<div class="driver-item ${isSel?'selected':''}" data-type="driver" data-id="${d.id}">
-                    <div class="driver-info">
-                        <div class="driver-name">${d.name}</div>
-                        <div class="driver-meta">${d.id} · ${d.phone || ''} · v${d.appVersion}</div>
-                    </div>
-                    <div style="display:flex;flex-direction:column;gap:0.25rem;align-items:flex-end;">
-                        ${hasConfig ? '<span class="badge has-config">⚙️ خاص</span>' : ''}
-                        ${isActive}
-                    </div>
-                </div>`;
-            });
+  // ============== TAB: UPLOAD (11 settings) ==============
+  heartbeatIntervalSec: { tab:'upload', label:'💓 فاصل النبضة', type:'number', unit:'ثانية', min:30, max:600, default:60,
+    explanation:'كل كم ثانية التطبيق ينبض ويتأكد من الاتصال. النبضة كمان تجبر رفع النقاط (لو forceSyncOnHeartbeat مفعّل).',
+    prosHigh:['بطارية أحسن'], consHigh:['تأخر تحديث الموقع','تأخر رفع النقاط'],
+    prosLow:['تحديث أسرع','رفع فوري'], consLow:['استهلاك بطارية'],
+    recommended:'60 ثانية', range:'30-600 ثانية'
+  },
+  forceSyncOnHeartbeat: { tab:'upload', label:'⚡ إجبار الرفع مع كل نبضة', type:'toggle', default:true,
+    explanation:'(الحل #2) لما تكون مفعّلة، التطبيق يجبر رفع كل النقاط المخزنة محلياً مع كل نبضة. هذا يحل مشكلة تأخر الرفع الكبير.',
+    prosHigh:['ضمان رفع كل دقيقة كحد أقصى','حل مشكلة تأخر الرفع لساعات','تتبع حي تقريباً'],
+    consHigh:[],
+    prosLow:['اعتماد على RNBG التلقائي'],
+    consLow:['تأخر كبير في الرفع','ضياع المراقبة الحية'],
+    recommended:'مفعّل دائماً', range:'تشغيل/إيقاف'
+  },
+  autoSyncThreshold: { tab:'upload', label:'📊 حد التجميع قبل الرفع', type:'number', unit:'نقطة', min:1, max:50, default:5,
+    explanation:'كم نقطة تتجمع قبل ما RNBG يرفعها تلقائياً.',
+    prosHigh:['بطارية أحسن','استهلاك data أقل'], consHigh:['تأخر ظهور النقاط'],
+    prosLow:['ظهور فوري للنقاط'], consLow:['network calls كثيرة','بطارية أسوأ'],
+    recommended:'5-10 نقاط', range:'1-50 نقطة'
+  },
+  batchSync: { tab:'upload', label:'📦 رفع بدفعات', type:'toggle', default:true,
+    explanation:'رفع عدة نقاط في request واحد بدل request لكل نقطة.',
+    prosHigh:['network calls أقل','أسرع','بطارية أحسن'], consHigh:[],
+    prosLow:[], consLow:['استهلاك أكبر للبطارية والشبكة'],
+    recommended:'مفعّل دائماً', range:'تشغيل/إيقاف'
+  },
+  maxBatchSize: { tab:'upload', label:'📚 حد الدفعة', type:'number', unit:'نقطة', min:5, max:200, default:50,
+    explanation:'أقصى عدد نقاط في batch واحد.',
+    prosHigh:['كفاءة شبكة عالية'], consHigh:['ممكن يفشل لو الشبكة ضعيفة'],
+    prosLow:['محاولات أكثر = نجاح أعلى'], consLow:['network calls أكثر'],
+    recommended:'50 نقطة', range:'5-200 نقطة'
+  },
+  compressionEnabled: { tab:'upload', label:'🗜️ تفعيل الضغط', type:'toggle', default:false,
+    explanation:'(الحل #12) دمج عدة نقاط في document واحد بدل document لكل نقطة. الجودة نفسها 100%، فقط التكلفة تنخفض.',
+    prosHigh:['تكلفة Firestore أقل بنسبة 80%','أسرع 50×','data أقل'],
+    consHigh:['صفحات القراءة لازم تدعم الصيغتين'],
+    prosLow:['توافق كامل مع البيانات القديمة'],
+    consLow:['تكلفة عالية على المدى الطويل'],
+    recommended:'مفعّل (بعد التأكد من توافق صفحة driver-details)', range:'تشغيل/إيقاف'
+  },
+  pointsPerCompressedBatch: { tab:'upload', label:'🔢 نقاط لكل document مضغوط', type:'number', unit:'نقطة', min:10, max:200, default:50,
+    explanation:'كم نقطة تُجمع في document واحد قبل الرفع.',
+    prosHigh:['تكلفة أقل'], consHigh:['تأخر ظهور النقاط','حجم document كبير'],
+    prosLow:['ظهور أسرع'], consLow:['تكلفة أعلى'],
+    recommended:'50 نقطة', range:'10-200 نقطة'
+  },
+  maxBatchAgeSec: { tab:'upload', label:'⌛ أقصى عمر للدفعة', type:'number', unit:'ثانية', min:30, max:1800, default:300,
+    explanation:'لو ما اكتملت الدفعة في الوقت ده، نرفعها مهما كانت ناقصة.',
+    prosHigh:['تكلفة أقل'], consHigh:['تأخر ظهور'],
+    prosLow:['ظهور أسرع'], consLow:['دفعات صغيرة = تكلفة أعلى'],
+    recommended:'5 دقايق', range:'30-1800 ثانية'
+  },
+  realtimeConfigEnabled: { tab:'upload', label:'🔄 مزامنة الإعدادات فورياً', type:'toggle', default:true,
+    explanation:'(الحل #7) التطبيق يستمع لتغييرات Firebase ويطبقها فوراً بدون فتح. لازم مفعّل عشان التغييرات هنا تطبق فوراً.',
+    prosHigh:['تطبيق فوري بدون فتح التطبيق','تحكم كامل عن بُعد'],
+    consHigh:['استهلاك بطارية بسيط (خط Firebase مفتوح)','استهلاك data بسيط'],
+    prosLow:['بطارية أحسن قليلاً'],
+    consLow:['التغييرات تحتاج فتح التطبيق'],
+    recommended:'مفعّل دائماً', range:'تشغيل/إيقاف'
+  },
+  backgroundFetchEnabled: { tab:'upload', label:'🌙 تفعيل WorkManager backup', type:'toggle', default:false,
+    explanation:'(الحل #4) تفعيل react-native-background-fetch كحزام أمان. يشتغل كل 15 دقيقة (الحد الأدنى لـ Android).',
+    prosHigh:['ضمان رفع حتى في Doze العميق','حماية إضافية'],
+    consHigh:['استهلاك بطارية إضافي','تعقيد إضافي'],
+    prosLow:['بساطة'], consLow:['اعتماد كامل على RNBG'],
+    recommended:'مفعّل', range:'تشغيل/إيقاف'
+  },
+  backgroundFetchIntervalMin: { tab:'upload', label:'⏰ فاصل WorkManager', type:'number', unit:'دقيقة', min:15, max:60, default:15,
+    explanation:'كل كم دقيقة WorkManager يشتغل ويرفع النقاط المخزنة. (Android لا يسمح بأقل من 15).',
+    prosHigh:['بطارية أحسن'], consHigh:['تأخر backup أكثر'],
+    prosLow:['اطمئنان أكثر'], consLow:['استهلاك أعلى'],
+    recommended:'15 دقيقة', range:'15-60 دقيقة'
+  },
 
-            list.innerHTML = html;
-            list.querySelectorAll('.driver-item').forEach(el => {
-                el.addEventListener('click', () => {
-                    const type = el.dataset.type;
-                    const id = el.dataset.id;
-                    selectItem(type, id);
-                });
-            });
-        }
+  // ============== TAB: FCM (4 settings - GLOBAL ONLY) ==============
+  fcmPingIntervalMin: { tab:'fcm', globalOnly:true, label:'⏰ فاصل ping من السيرفر', type:'number', unit:'دقيقة', min:1, max:30, default:1,
+    explanation:'كل كم دقيقة Cloud Function تشتغل وترسل FCM للسائقين.',
+    prosHigh:['تكلفة FCM أقل','استهلاك Firebase أقل'], consHigh:['موثوقية أقل','تأخر اكتشاف المشاكل'],
+    prosLow:['موثوقية عالية جداً'], consLow:['تكلفة FCM credits','ضغط على Firebase'],
+    recommended:'1 دقيقة', range:'1-30 دقيقة'
+  },
+  fcmPingMode: { tab:'fcm', globalOnly:true, label:'🎯 وضع الـ ping', type:'select', default:'stale-only',
+    options:[{v:'stale-only',l:'🟡 فقط المتأخرين (الحالي)'},{v:'all-active',l:'🔴 كل السائقين النشطين (أقوى)'}],
+    explanation:'(الحل #3) "stale-only" يرسل FCM فقط للسائقين المتأخرين. "all-active" يرسل لكل السائقين النشطين دورياً (أقوى ضد Doze).',
+    prosHigh:['موثوقية قصوى','يكسر Doze دورياً'],
+    consHigh:['تكلفة FCM credits أعلى','استهلاك بطارية أعلى للسائقين'],
+    prosLow:['تكلفة منخفضة'], consLow:['موثوقية أقل'],
+    recommended:'all-active', range:'2 خيارات'
+  },
+  staleThresholdMin: { tab:'fcm', globalOnly:true, label:'⚠️ حد اعتبار السائق متأخر', type:'number', unit:'دقيقة', min:2, max:30, default:5,
+    explanation:'بعد كم دقيقة بدون نقطة جديدة نعتبر السائق "stale" ونوقّظه.',
+    prosHigh:['تنبيهات أقل','ضغط أقل'], consHigh:['تأخر اكتشاف المشاكل'],
+    prosLow:['اكتشاف سريع للمشاكل'], consLow:['تنبيهات كثيرة','wakeups كثيرة'],
+    recommended:'5 دقايق', range:'2-30 دقيقة'
+  },
+  abandonedThresholdHours: { tab:'fcm', globalOnly:true, label:'😴 حد اعتبار السائق مهجور', type:'number', unit:'ساعة', min:6, max:168, default:48,
+    explanation:'السائقين اللي ما أرسلوا شي منذ هذه الفترة يُتجاهلون لتوفير FCM credits.',
+    prosHigh:['ما نفوّت سائق'], consHigh:['تكلفة FCM credits أعلى'],
+    prosLow:['توفير FCM credits'], consLow:['ممكن نفوّت سائق رجع بعد فترة'],
+    recommended:'48 ساعة', range:'6-168 ساعة'
+  },
 
-        function selectItem(type, id) {
-            currentSelection = { type, id };
-            renderDriverList();
-            document.getElementById('emptyCard').style.display = 'none';
-            document.getElementById('configCard').style.display = 'block';
+  // ============== TAB: WATCHDOG (5 settings) ==============
+  forceTrackingServiceEnabled: { tab:'watchdog', label:'🛡️ ForceTrackingService', type:'toggle', default:true,
+    explanation:'(الحل #5) خدمة Android إضافية كحزام أمان فوق RNBG. تستخدم Handler بدل AlarmManager (آمن).',
+    prosHigh:['حماية إضافية على مستوى نظام Android','استرداد سريع لو RNBG قُتلت'],
+    consHigh:['استهلاك بطارية بسيط'],
+    prosLow:['بطارية أحسن قليلاً'], consLow:['اعتماد كامل على RNBG وحدها'],
+    recommended:'مفعّل', range:'تشغيل/إيقاف'
+  },
+  watchdogEnabled: { tab:'watchdog', label:'🐕 Watchdog (المراقب الذاتي)', type:'toggle', default:true,
+    explanation:'(الحل #9) فحص ذاتي للتطبيق كل دقيقة، يعيد تشغيل RNBG لو وقفت.',
+    prosHigh:['استرداد تلقائي من الأعطال','اطمئنان أعلى'],
+    consHigh:['استهلاك بطارية بسيط'],
+    prosLow:['بساطة'], consLow:['الأعطال تحتاج تدخل يدوي'],
+    recommended:'مفعّل', range:'تشغيل/إيقاف'
+  },
+  watchdogCheckIntervalSec: { tab:'watchdog', label:'⏱ فاصل فحص Watchdog', type:'number', unit:'ثانية', min:30, max:600, default:60,
+    explanation:'كل كم ثانية Watchdog يفحص حالة RNBG.',
+    prosHigh:['بطارية أحسن'], consHigh:['تأخر اكتشاف الأعطال'],
+    prosLow:['اكتشاف فوري'], consLow:['استهلاك بطارية'],
+    recommended:'60 ثانية', range:'30-600 ثانية'
+  },
+  watchdogMaxDeadTimeSec: { tab:'watchdog', label:'💀 أقصى وقت ميت قبل إعادة التشغيل', type:'number', unit:'ثانية', min:60, max:1800, default:180,
+    explanation:'بعد كم ثانية بدون أي نقطة جديدة، Watchdog يعتبر RNBG ميتة ويعيد تشغيلها.',
+    prosHigh:['تجنب restarts غير ضرورية'], consHigh:['تأخر استرداد'],
+    prosLow:['استرداد سريع'], consLow:['restarts كثيرة في حالات الانتظار الطبيعي'],
+    recommended:'180 ثانية (3 دقايق)', range:'60-1800 ثانية'
+  },
+  autoRestartOnDestroy: { tab:'watchdog', label:'🔄 إعادة تشغيل تلقائية عند القتل', type:'toggle', default:true,
+    explanation:'لو Android قتل الخدمة، تنبعث تلقائياً.',
+    prosHigh:['اطمئنان كامل','مقاومة لقتل النظام'],
+    consHigh:['ممكن يستهلك بطارية لو في loop'],
+    prosLow:[], consLow:['الخدمة تموت ولا تنبعث'],
+    recommended:'مفعّل دائماً', range:'تشغيل/إيقاف'
+  },
 
-            if (type === 'global') {
-                document.getElementById('configTitle').innerHTML = '🌍 الإعداد العام (الافتراضي)';
-                document.getElementById('configSubtitle').innerHTML = 'هذا الإعداد يطبّق على كل السائقين اللي ما لهم إعداد خاص. لو حذفته، التطبيق راح يستخدم القيم الافتراضية المضمّنة في الكود (Profile: High).';
-                document.getElementById('deleteBtn').style.display = globalConfig ? 'inline-block' : 'none';
-            } else {
-                const driver = drivers.find(d => d.id === id);
-                document.getElementById('configTitle').innerHTML = `👤 ${driver.name}`;
-                document.getElementById('configSubtitle').innerHTML = `<strong>${id}</strong> · ${driver.phone} · إصدار التطبيق: <strong>v${driver.appVersion}</strong><br>الإعداد الخاص بهذا السائق راح يطغى على الإعداد العام.`;
-                document.getElementById('deleteBtn').style.display = driverConfigsMap[id] ? 'inline-block' : 'none';
-            }
-            loadConfigToForm();
-        }
+  // ============== TAB: HEALTH (8 settings) ==============
+  healthReportEnabled: { tab:'health', label:'💚 تفعيل تقارير الصحة', type:'toggle', default:true,
+    explanation:'(الحل #8) التطبيق يرسل تقارير صحته (بطارية، شبكة، أذونات، طابور محلي) للخادم دورياً.',
+    prosHigh:['معرفة كاملة بحالة كل سائق','debugging أسهل','تنبيهات استباقية'],
+    consHigh:['استهلاك Firestore writes','استهلاك data بسيط'],
+    prosLow:['بساطة','تكلفة أقل'], consLow:['عمى عن مشاكل السائق'],
+    recommended:'مفعّل', range:'تشغيل/إيقاف'
+  },
+  healthReportIntervalMin: { tab:'health', label:'⏰ فاصل تقارير الصحة', type:'number', unit:'دقيقة', min:1, max:60, default:5,
+    explanation:'كل كم دقيقة التطبيق يرسل تقرير صحة جديد.',
+    prosHigh:['بطارية أحسن','تكلفة أقل'], consHigh:['تأخر اكتشاف المشاكل'],
+    prosLow:['تحديث فوري لحالة الصحة'], consLow:['استهلاك أكثر'],
+    recommended:'5 دقايق', range:'1-60 دقيقة'
+  },
+  reportBatteryLevel: { tab:'health', label:'🔋 إرسال نسبة البطارية', type:'toggle', default:true,
+    explanation:'يرسل نسبة بطارية الموبايل في كل تقرير صحة.',
+    prosHigh:['تنبيه قبل ما البطارية تخلص'], consHigh:[],
+    prosLow:[], consLow:['عمى عن البطارية'],
+    recommended:'مفعّل', range:'تشغيل/إيقاف'
+  },
+  reportNetworkType: { tab:'health', label:'📶 إرسال نوع الإنترنت', type:'toggle', default:true,
+    explanation:'WiFi / 4G / 3G / Offline.',
+    prosHigh:['تشخيص مشاكل الإنترنت'], consHigh:[],
+    prosLow:[], consLow:['ما نعرف نوع الاتصال'],
+    recommended:'مفعّل', range:'تشغيل/إيقاف'
+  },
+  reportPermissionsStatus: { tab:'health', label:'🔐 إرسال حالة الأذونات', type:'toggle', default:true,
+    explanation:'حالة إذن الموقع، الإشعارات، Battery Optimization.',
+    prosHigh:['نعرف لو السائق ألغى إذن مهم'], consHigh:[],
+    prosLow:[], consLow:['اكتشاف متأخر للمشاكل'],
+    recommended:'مفعّل', range:'تشغيل/إيقاف'
+  },
+  reportLocalQueueSize: { tab:'health', label:'📦 إرسال حجم الطابور المحلي', type:'toggle', default:true,
+    explanation:'كم نقطة مخزنة محلياً في انتظار الرفع.',
+    prosHigh:['تشخيص مشاكل الرفع'], consHigh:[],
+    prosLow:[], consLow:['عمى عن مشاكل التخزين'],
+    recommended:'مفعّل', range:'تشغيل/إيقاف'
+  },
+  lowBatteryAlertThreshold: { tab:'health', label:'⚠️ حد تنبيه البطارية المنخفضة', type:'number', unit:'%', min:5, max:50, default:20,
+    explanation:'تنبيه يطلع للمدير لما بطارية السائق تنزل تحت هذا الحد.',
+    prosHigh:['تنبيهات مبكرة'], consHigh:['تنبيهات كثيرة مزعجة'],
+    prosLow:['تنبيهات قليلة جداً'], consLow:['ممكن السائق يخلص بطارية فجأة'],
+    recommended:'20%', range:'5-50%'
+  },
+  lowBatteryAdjustTracking: { tab:'health', label:'🪫 تخفيف التتبع عند بطارية منخفضة', type:'toggle', default:true,
+    explanation:'لما بطارية السائق تنخفض، يتغير profile تلقائياً إلى battery_saver.',
+    prosHigh:['عمر بطارية أطول للسائق','تتبع مستمر'],
+    consHigh:['دقة منخفضة وقت البطارية المنخفضة'],
+    prosLow:['دقة كاملة دائماً'], consLow:['ممكن البطارية تخلص'],
+    recommended:'مفعّل', range:'تشغيل/إيقاف'
+  },
 
-        function loadConfigToForm() {
-            const cfg = currentSelection.type === 'global'
-                ? (globalConfig || {})
-                : (driverConfigsMap[currentSelection.id] || {});
+  // ============== TAB: SMART - Activity-Based (6 settings) ==============
+  activityBasedTrackingEnabled: { tab:'smart', label:'🧠 تفعيل التتبع الذكي', type:'toggle', default:false,
+    explanation:'(الحل #11) تغيير إعدادات التتبع تلقائياً حسب نشاط السائق (سيارة/مشي/واقف).',
+    prosHigh:['توفير بطارية ذكي 40-60%','نقاط أدق وقت الحاجة'],
+    consHigh:['تعقيد إضافي','يحتاج Google Play Services'],
+    prosLow:['سلوك متوقع وثابت'], consLow:['استهلاك بطارية أعلى'],
+    recommended:'مفعّل', range:'تشغيل/إيقاف'
+  },
+  inVehicleDistanceFilter: { tab:'smart', label:'🚗 distanceFilter وقت السواقة', type:'number', unit:'متر', min:1, max:50, default:5,
+    explanation:'distanceFilter لما RNBG يكتشف إن السائق في سيارة.',
+    prosHigh:['نقاط أقل أثناء السواقة'], consHigh:['تتبع أقل دقة'],
+    prosLow:['تتبع دقيق وقت السواقة'], consLow:['نقاط كثيرة'],
+    recommended:'5م', range:'1-50م'
+  },
+  inVehicleIntervalMs: { tab:'smart', label:'🚗 فاصل القراءة وقت السواقة', type:'number', unit:'مللي ثانية', min:1000, max:15000, step:500, default:3000,
+    explanation:'locationUpdateInterval وقت السواقة.',
+    prosHigh:['بطارية أحسن'], consHigh:['تأخر تحديث وقت الحركة السريعة'],
+    prosLow:['تحديث فوري'], consLow:['استهلاك بطارية'],
+    recommended:'3000ms', range:'1000-15000ms'
+  },
+  onFootDistanceFilter: { tab:'smart', label:'🚶 distanceFilter وقت المشي', type:'number', unit:'متر', min:1, max:30, default:10,
+    explanation:'distanceFilter لما RNBG يكتشف إن السائق ماشي (مثلاً للزبون).',
+    prosHigh:['نقاط أقل وقت المشي'], consHigh:['ما نعرف وين راح بالضبط'],
+    prosLow:['تتبع دقيق للسائق وقت المشي'], consLow:['نقاط كثيرة'],
+    recommended:'10م', range:'1-30م'
+  },
+  onFootIntervalMs: { tab:'smart', label:'🚶 فاصل القراءة وقت المشي', type:'number', unit:'مللي ثانية', min:1000, max:30000, step:500, default:10000,
+    explanation:'locationUpdateInterval وقت المشي.',
+    prosHigh:['بطارية أحسن'], consHigh:['تأخر تحديث'],
+    prosLow:['تحديث فوري'], consLow:['استهلاك أعلى'],
+    recommended:'10000ms', range:'1000-30000ms'
+  },
+  stillIntervalSec: { tab:'smart', label:'🛑 فاصل النقاط وقت الوقوف', type:'number', unit:'ثانية', min:30, max:3600, default:300,
+    explanation:'كم وقت بين كل نقطتين لما السائق واقف تماماً (still).',
+    prosHigh:['بطارية ممتازة وقت الانتظار'], consHigh:['ما نعرف لو طاف فترة طويلة'],
+    prosLow:['نقاط منتظمة دائماً'], consLow:['استهلاك بطارية'],
+    recommended:'300 ثانية (5 دقايق)', range:'30-3600 ثانية'
+  },
 
-            // Profile
-            const profile = cfg.trackingProfile || (currentSelection.type === 'global' ? 'high' : '');
-            document.querySelectorAll('.profile-card').forEach(c => c.classList.remove('selected'));
-            if (profile && document.querySelector(`.profile-card[data-profile="${profile}"]`)) {
-                document.querySelector(`.profile-card[data-profile="${profile}"]`).classList.add('selected');
-            }
+  // ============== TAB: FILTERS (2 settings) ==============
+  minTimeDeltaSec: { tab:'filters', label:'⏱ أقل فاصل زمني للسرعة المحسوبة', type:'number', unit:'ثانية', min:1, max:30, default:2,
+    explanation:'(فلتر V5) لو الفاصل بين نقطتين أقل من هذا، نستخدم سرعة GPS الفعلية بدل السرعة المحسوبة (لتجنب رفض نقاط batch upload خطأً).',
+    prosHigh:['دقة في كشف القفزات'], consHigh:['ممكن يرفض نقاط batch شرعية'],
+    prosLow:['يقبل نقاط batch'], consLow:['ممكن يقبل قفزات وهمية'],
+    recommended:'2 ثانية', range:'1-30 ثانية'
+  },
+  jumpDistanceThresholdM: { tab:'filters', label:'🦘 حد رفض القفزة', type:'number', unit:'متر', min:50, max:5000, step:50, default:100,
+    explanation:'لو نقطة بعيدة أكثر من X متر عن السابقة + سرعتها مستحيلة، نرفضها.',
+    prosHigh:['ما نرفض حركات شرعية'], consHigh:['نقبل قفزات وهمية كبيرة'],
+    prosLow:['نرفض قفزات صغيرة'], consLow:['ممكن نرفض حركات شرعية'],
+    recommended:'100م', range:'50-5000م'
+  },
 
-            // Fields (إذا فيه قيمة override، اعرضها، وإلا فارغ)
-            const fields = ['distanceFilter','locationUpdateInterval','saveDistanceMeters','saveIntervalMs',
-                            'stillBackupIntervalMs','maxAccuracy','maxSpeedKmh','elasticityMultiplier'];
-            fields.forEach(f => {
-                document.getElementById(f).value = cfg[f] !== undefined ? cfg[f] : '';
-            });
-            document.getElementById('desiredAccuracy').value = cfg.desiredAccuracy || '';
+  // ============== TAB: DIAGNOSTICS (3 settings) ==============
+  diagnosticsAccessTaps: { tab:'diag', label:'👆 عدد ضغطات فتح التشخيص', type:'number', unit:'ضغطة', min:3, max:10, default:5,
+    explanation:'(الحل #10) عدد الضغطات السريعة على الشعار لفتح شاشة التشخيص المخفية.',
+    prosHigh:['أمان أعلى من اكتشاف عرضي'], consHigh:['الوصول صعب للمدير'],
+    prosLow:['وصول أسرع'], consLow:['ممكن السائق يكتشفها بالصدفة'],
+    recommended:'5 ضغطات', range:'3-10 ضغطات'
+  },
+  localLogsRetentionDays: { tab:'diag', label:'📅 أيام الاحتفاظ بالسجلات المحلية', type:'number', unit:'يوم', min:1, max:30, default:7,
+    explanation:'كم يوم نخزن سجلات التشخيص محلياً على الموبايل.',
+    prosHigh:['معلومات تشخيص أكثر'], consHigh:['مساحة تخزين أكبر على الموبايل'],
+    prosLow:['مساحة أقل'], consLow:['معلومات تشخيص أقل'],
+    recommended:'7 أيام', range:'1-30 يوم'
+  },
+  localQueueMaxRecords: { tab:'diag', label:'📦 أقصى نقاط مخزنة محلياً', type:'number', unit:'نقطة', min:1000, max:50000, step:500, default:10000,
+    explanation:'أقصى عدد نقاط RNBG يخزنها محلياً قبل ما يبدأ يحذف الأقدم.',
+    prosHigh:['اطمئنان أكبر لو الإنترنت ميت لفترة'], consHigh:['مساحة تخزين أكبر'],
+    prosLow:['مساحة أقل'], consLow:['ممكن نخسر نقاط لو الإنترنت ميت'],
+    recommended:'10000 نقطة', range:'1000-50000 نقطة'
+  }
+};
 
-            // Auto-open advanced if any custom field set
-            const hasCustom = fields.some(f => cfg[f] !== undefined) || cfg.desiredAccuracy;
-            document.getElementById('advancedSettings').open = hasCustom;
+// ============================================================
+// STATE & DATA LOADING
+// ============================================================
+let drivers = [];
+let globalConfig = {};
+let driverConfigsMap = {};
+let currentSelection = { type:'global', id:null };
+let currentTab = 'basic';
+let pendingChanges = {};
+let selectedMultiDrivers = new Set();
 
-            updateEffectivePreview();
-        }
+async function loadAll() {
+  try {
+    const globalSnap = await getDoc(doc(db,'appConfig','global'));
+    globalConfig = globalSnap.exists() ? globalSnap.data() : {};
 
-        function selectProfile(profile) {
-            document.querySelectorAll('.profile-card').forEach(c => c.classList.remove('selected'));
-            const card = document.querySelector(`.profile-card[data-profile="${profile}"]`);
-            if (card) card.classList.add('selected');
+    const driverConfigsSnap = await getDocs(collection(db,'appConfig','driverConfigs','drivers'));
+    driverConfigsMap = {};
+    driverConfigsSnap.forEach(d => driverConfigsMap[d.id] = d.data());
 
-            if (profile === 'custom') {
-                document.getElementById('advancedSettings').open = true;
-            } else if (PROFILES[profile]) {
-                // Pre-fill advanced fields with profile values (clearable)
-                const p = PROFILES[profile];
-                document.getElementById('distanceFilter').value = p.distanceFilter;
-                document.getElementById('locationUpdateInterval').value = p.locationUpdateInterval;
-                document.getElementById('saveDistanceMeters').value = p.saveDistanceMeters;
-                document.getElementById('saveIntervalMs').value = p.saveIntervalMs;
-            }
-            updateEffectivePreview();
-        }
+    const driversSnap = await getDocs(collection(db,'drivers'));
+    drivers = [];
+    driversSnap.forEach(d => {
+      const data = d.data();
+      if (data.archived === true) return;
+      drivers.push({
+        id: d.id,
+        name: data.name || d.id,
+        phone: data.phone || '',
+        appVersion: data.appVersion || '—',
+        isActive: data.isActive,
+        lastUpdate: data.lastUpdate?.toDate?.() || null
+      });
+    });
+    drivers.sort((a,b) => a.name.localeCompare(b.name,'ar'));
+  } catch (e) {
+    console.error('loadAll error:', e);
+    toast('فشل تحميل البيانات: '+e.message,'error');
+  }
+}
 
-        function getFormData() {
-            const profileEl = document.querySelector('.profile-card.selected');
-            const profile = profileEl ? profileEl.dataset.profile : null;
+// ============================================================
+// EFFECTIVE VALUE CALCULATION (override > profile > global > default)
+// ============================================================
+function getEffectiveValue(key, scope) {
+  // scope: 'global' or { type:'driver', id:'DRV030' }
+  const setting = SETTINGS[key];
+  if (!setting) return null;
 
-            const data = {};
-            if (profile && profile !== 'custom') data.trackingProfile = profile;
+  // For global scope: just return what's in globalConfig or default
+  if (scope === 'global' || scope?.type === 'global') {
+    if (key in globalConfig) return { value: globalConfig[key], source: 'global-set' };
+    return { value: setting.default, source: 'default' };
+  }
 
-            const numFields = ['distanceFilter','locationUpdateInterval','saveDistanceMeters','saveIntervalMs',
-                              'stillBackupIntervalMs','maxAccuracy','maxSpeedKmh','elasticityMultiplier'];
-            numFields.forEach(f => {
-                const v = document.getElementById(f).value.trim();
-                if (v !== '') data[f] = parseInt(v, 10);
-            });
-            const acc = document.getElementById('desiredAccuracy').value;
-            if (acc) data.desiredAccuracy = acc;
+  // For driver scope: override > profile > global > default
+  const driverConfig = driverConfigsMap[scope.id] || {};
 
-            return data;
-        }
+  // 1) Direct override
+  if (key in driverConfig) {
+    return { value: driverConfig[key], source: 'override' };
+  }
 
-        function updateEffectivePreview() {
-            const formData = getFormData();
-            // Effective = DEFAULTS → global → profile (if set) → individual overrides
-            const eff = { ...DEFAULTS };
-            // Apply global (لو عنا global config وحناا في view driver)
-            if (currentSelection.type === 'driver' && globalConfig) {
-                if (globalConfig.trackingProfile && PROFILES[globalConfig.trackingProfile]) {
-                    Object.assign(eff, PROFILES[globalConfig.trackingProfile]);
-                    eff.trackingProfile = globalConfig.trackingProfile;
-                }
-                Object.keys(globalConfig).forEach(k => { if (globalConfig[k] !== undefined && k !== 'updatedAt' && k !== 'updatedBy') eff[k] = globalConfig[k]; });
-            }
-            // Apply current form
-            if (formData.trackingProfile && PROFILES[formData.trackingProfile]) {
-                Object.assign(eff, PROFILES[formData.trackingProfile]);
-                eff.trackingProfile = formData.trackingProfile;
-            }
-            Object.keys(formData).forEach(k => { eff[k] = formData[k]; });
+  // 2) Profile-derived (only for the 4 profile-controlled basic settings)
+  const profileKeys = ['distanceFilter','locationUpdateInterval','saveDistanceMeters','saveIntervalMs'];
+  if (profileKeys.includes(key)) {
+    const profileName = driverConfig.profile || globalConfig.profile || setting.default;
+    if (PROFILES[profileName] && key in PROFILES[profileName]) {
+      return { value: PROFILES[profileName][key], source: 'profile', profile: profileName };
+    }
+  }
 
-            const box = document.getElementById('effectiveConfig');
-            box.style.display = 'block';
-            const rows = [
-                ['📊 trackingProfile', eff.trackingProfile, 'نمط'],
-                ['📏 distanceFilter', eff.distanceFilter + ' م', 'GPS'],
-                ['⏱ locationUpdateInterval', eff.locationUpdateInterval + ' ms', 'GPS'],
-                ['🎯 desiredAccuracy', eff.desiredAccuracy, 'GPS'],
-                ['🔁 elasticityMultiplier', eff.elasticityMultiplier + 'x', 'GPS'],
-                ['📐 saveDistanceMeters', eff.saveDistanceMeters + ' م', 'حفظ'],
-                ['🕐 saveIntervalMs', (eff.saveIntervalMs/1000) + ' ث', 'حفظ'],
-                ['🛑 stillBackupIntervalMs', (eff.stillBackupIntervalMs/60000) + ' دقيقة', 'حفظ'],
-                ['❌ maxAccuracy', eff.maxAccuracy + ' م', 'فلتر'],
-                ['🚫 maxSpeedKmh', eff.maxSpeedKmh + ' كم/س', 'فلتر'],
-            ];
-            box.innerHTML = '<div class="effective-config-title">📋 الإعداد الفعلي اللي راح يطبّق:</div>' +
-                rows.map(r => `<div class="effective-row"><span><span class="src">[${r[2]}]</span><span class="key">${r[0]}</span></span><span class="val">${r[1]}</span></div>`).join('');
-        }
+  // 3) Global config
+  if (key in globalConfig) {
+    return { value: globalConfig[key], source: 'global' };
+  }
 
-        async function saveConfig() {
-            try {
-                const data = getFormData();
-                if (Object.keys(data).length === 0) {
-                    showToast('ما فيه أي إعداد للحفظ', 'error');
-                    return;
-                }
-                data.updatedAt = serverTimestamp();
-                data.updatedBy = auth.currentUser?.email || 'admin';
+  // 4) Default
+  return { value: setting.default, source: 'default' };
+}
 
-                const docRef = currentSelection.type === 'global'
-                    ? doc(db, 'appConfig', 'global')
-                    : doc(db, 'appConfig', 'driverConfigs', 'drivers', currentSelection.id);
+// ============================================================
+// RENDERING
+// ============================================================
+function renderDriversList() {
+  const list = document.getElementById('driversList');
+  const search = document.getElementById('driverSearch').value.trim().toLowerCase();
+  const filtered = drivers.filter(d => !search || d.name.toLowerCase().includes(search) || d.id.toLowerCase().includes(search) || d.phone.includes(search));
 
-                await setDoc(docRef, data, { merge: false });
+  document.getElementById('driverCount').textContent = `${filtered.length}/${drivers.length}`;
 
-                if (currentSelection.type === 'global') globalConfig = data;
-                else driverConfigsMap[currentSelection.id] = data;
+  let html = `<div class="driver-card glass-light rounded-lg p-3 cursor-pointer transition ${currentSelection.type==='global'?'selected':''}" data-type="global">
+    <div class="flex items-center justify-between gap-2">
+      <div>
+        <div class="font-bold text-sm">🌍 الإعداد العام</div>
+        <div class="text-xs text-slate-400 mt-0.5">يطبق على كل السائقين بدون override</div>
+      </div>
+      ${Object.keys(globalConfig).length ? '<span class="text-xs px-2 py-0.5 rounded badge-override">✏️ مُعدّل</span>' : '<span class="text-xs px-2 py-0.5 rounded badge-default">افتراضي</span>'}
+    </div>
+  </div>`;
 
-                renderDriverList();
-                document.getElementById('deleteBtn').style.display = 'inline-block';
-                showToast('✅ تم الحفظ. التغييرات راح تطبق على التطبيق فوراً (لو السائق متصل)', 'success');
-            } catch (e) {
-                console.error(e);
-                showToast('فشل الحفظ: ' + e.message, 'error');
-            }
-        }
+  filtered.forEach(d => {
+    const hasOverride = !!driverConfigsMap[d.id] && Object.keys(driverConfigsMap[d.id]).length > 0;
+    const isSel = currentSelection.type==='driver' && currentSelection.id===d.id;
+    const lastSeen = d.lastUpdate ? Math.round((Date.now() - d.lastUpdate.getTime())/60000) : null;
+    const lastSeenTxt = lastSeen===null ? '' : (lastSeen < 60 ? `قبل ${lastSeen}د` : `قبل ${Math.round(lastSeen/60)}س`);
+    html += `<div class="driver-card glass-light rounded-lg p-2.5 cursor-pointer transition ${isSel?'selected':''}" data-type="driver" data-id="${d.id}">
+      <div class="flex items-center justify-between gap-2">
+        <div class="min-w-0 flex-1">
+          <div class="font-bold text-sm truncate">${d.name}</div>
+          <div class="text-[11px] text-slate-400 truncate">${d.id} · v${d.appVersion}</div>
+          ${lastSeenTxt ? `<div class="text-[10px] text-slate-500 mt-0.5">${lastSeenTxt}</div>`:''}
+        </div>
+        <div class="flex flex-col items-end gap-1 shrink-0">
+          ${d.isActive ? '<span class="text-[10px] px-1.5 py-0.5 rounded badge-online">●</span>' : ''}
+          ${hasOverride ? '<span class="text-[10px] px-1.5 py-0.5 rounded badge-override">✏️</span>' : ''}
+        </div>
+      </div>
+    </div>`;
+  });
 
-        async function deleteConfig() {
-            const what = currentSelection.type === 'global' ? 'الإعداد العام' : 'الإعداد الخاص لهذا السائق';
-            if (!confirm(`متأكد؟ راح يتحذف ${what} ويرجع للإعداد ${currentSelection.type==='global'?'الافتراضي بالكود':'العام'}`)) return;
-            try {
-                const docRef = currentSelection.type === 'global'
-                    ? doc(db, 'appConfig', 'global')
-                    : doc(db, 'appConfig', 'driverConfigs', 'drivers', currentSelection.id);
-                await deleteDoc(docRef);
-                if (currentSelection.type === 'global') globalConfig = null;
-                else delete driverConfigsMap[currentSelection.id];
-                renderDriverList();
-                loadConfigToForm();
-                document.getElementById('deleteBtn').style.display = 'none';
-                showToast('✅ تم الحذف', 'success');
-            } catch (e) {
-                console.error(e);
-                showToast('فشل الحذف: ' + e.message, 'error');
-            }
-        }
+  list.innerHTML = html;
+  list.querySelectorAll('.driver-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const type = card.dataset.type;
+      currentSelection = type==='global' ? { type:'global', id:null } : { type:'driver', id: card.dataset.id };
+      pendingChanges = {};
+      renderAll();
+    });
+  });
+}
 
-        function showToast(msg, type='info') {
-            const t = document.getElementById('toast');
-            t.textContent = msg;
-            t.className = type + ' show';
-            setTimeout(() => t.classList.remove('show'), 3500);
-        }
-    </script>
+function renderTabs() {
+  const wrap = document.getElementById('tabsContainer');
+  const isGlobal = currentSelection.type === 'global';
+  let html = '';
+  TABS.forEach(t => {
+    if (t.globalOnly && !isGlobal) return;
+    html += `<button class="tab-btn px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition ${currentTab===t.id?'active':'text-slate-300 hover:bg-slate-700/50'}" data-tab="${t.id}">
+      <span>${t.icon}</span> <span>${t.label}</span>
+    </button>`;
+  });
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => {
+    currentTab = b.dataset.tab;
+    renderTabs();
+    renderSettings();
+  }));
+}
+
+function renderHeader() {
+  const isGlobal = currentSelection.type === 'global';
+  const titleEl = document.getElementById('selectedTitle');
+  const metaEl = document.getElementById('selectedMeta');
+  const badgesEl = document.getElementById('selectedBadges');
+
+  if (isGlobal) {
+    titleEl.textContent = '🌍 الإعداد العام (يطبّق على كل السائقين بدون override)';
+    metaEl.textContent = `يحتوي على ${Object.keys(globalConfig).length} إعداد مُخصّص`;
+    badgesEl.innerHTML = '';
+  } else {
+    const d = drivers.find(x => x.id===currentSelection.id);
+    if (!d) { titleEl.textContent = '— غير موجود —'; metaEl.textContent=''; badgesEl.innerHTML=''; return; }
+    titleEl.textContent = `👤 ${d.name} (${d.id})`;
+    const overrideCount = Object.keys(driverConfigsMap[d.id] || {}).length;
+    metaEl.textContent = `📱 v${d.appVersion} ${d.phone?'· '+d.phone:''} ${overrideCount?'· '+overrideCount+' إعداد مُخصّص':'· يستخدم الإعداد العام'}`;
+    const badges = [];
+    if (d.isActive) badges.push('<span class="text-xs px-2 py-1 rounded badge-online">شغّال 🟢</span>');
+    if (overrideCount > 0) badges.push(`<span class="text-xs px-2 py-1 rounded badge-override">✏️ ${overrideCount} مُخصّص</span>`);
+    badgesEl.innerHTML = badges.join('');
+  }
+}
+
+function renderSettings() {
+  const panel = document.getElementById('settingsPanel');
+  const tabSettings = Object.entries(SETTINGS).filter(([k,s]) => s.tab === currentTab);
+  if (tabSettings.length === 0) { panel.innerHTML = '<div class="text-center py-8 text-slate-400">لا توجد إعدادات في هذا التاب</div>'; return; }
+
+  let html = '';
+  tabSettings.forEach(([key, s]) => {
+    const eff = getEffectiveValue(key, currentSelection);
+    const currentValue = (key in pendingChanges) ? pendingChanges[key] : eff.value;
+    const isPending = (key in pendingChanges);
+    const sourceBadge = renderSourceBadge(eff, currentSelection);
+
+    html += `<div class="setting-card ${isPending?'changed':''}" data-key="${key}">
+      <div class="flex items-start justify-between gap-2 mb-2 flex-wrap">
+        <div class="flex items-center gap-2 flex-1 min-w-0">
+          <span class="font-semibold text-sm sm:text-base">${s.label}</span>
+          <button class="info-btn" onclick="window.showInfo('${key}')" title="شرح">ⓘ</button>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          ${sourceBadge}
+          <button class="reset-btn" onclick="window.resetSetting('${key}')" title="إعادة لـ default">↺</button>
+        </div>
+      </div>
+      <div class="grid sm:grid-cols-[1fr_auto] gap-2 items-center">
+        <div>${renderInput(key, s, currentValue)}</div>
+        <div class="text-xs text-slate-400 sm:text-right">
+          <div>الافتراضي: <span class="font-mono text-slate-300">${formatVal(s.default,s)}</span></div>
+          <div>الموصى: <span class="text-emerald-400">${s.recommended}</span></div>
+        </div>
+      </div>
+      ${isPending ? `<div class="mt-2 text-xs text-amber-400 flex items-center gap-1"><span>⚠️</span>تغيير معلق: <span class="font-mono">${formatVal(eff.value,s)}</span> → <span class="font-mono font-bold">${formatVal(pendingChanges[key],s)}</span></div>` : ''}
+    </div>`;
+  });
+
+  panel.innerHTML = html;
+
+  // Wire up inputs
+  panel.querySelectorAll('input,select').forEach(el => {
+    el.addEventListener('input', () => {
+      const key = el.closest('.setting-card').dataset.key;
+      const s = SETTINGS[key];
+      let val;
+      if (s.type === 'toggle') val = el.checked;
+      else if (s.type === 'number') val = parseFloat(el.value);
+      else val = el.value;
+      pendingChanges[key] = val;
+      renderSettings();
+      updateSaveButton();
+    });
+  });
+
+  panel.querySelectorAll('.toggle').forEach(t => {
+    t.addEventListener('click', () => {
+      const key = t.closest('.setting-card').dataset.key;
+      const s = SETTINGS[key];
+      const eff = getEffectiveValue(key, currentSelection);
+      const curr = (key in pendingChanges) ? pendingChanges[key] : eff.value;
+      pendingChanges[key] = !curr;
+      renderSettings();
+      updateSaveButton();
+    });
+  });
+}
+
+function renderInput(key, s, value) {
+  if (s.type === 'toggle') {
+    return `<div class="toggle ${value?'on':''}" role="switch" aria-checked="${!!value}"></div>`;
+  }
+  if (s.type === 'select') {
+    return `<select>${s.options.map(o => `<option value="${o.v}" ${value===o.v?'selected':''}>${o.l}</option>`).join('')}</select>`;
+  }
+  // number
+  return `<div class="flex items-center gap-2">
+    <input type="number" min="${s.min||''}" max="${s.max||''}" step="${s.step||1}" value="${value??s.default}">
+    <span class="text-xs text-slate-400 whitespace-nowrap">${s.unit||''}</span>
+  </div>`;
+}
+
+function renderSourceBadge(eff, scope) {
+  const map = {
+    'override':   `<span class="text-[10px] px-1.5 py-0.5 rounded badge-override" title="إعداد خاص بهذا السائق">✏️ مُخصّص</span>`,
+    'profile':    `<span class="text-[10px] px-1.5 py-0.5 rounded badge-profile" title="من profile">📋 من ${eff.profile}</span>`,
+    'global':     `<span class="text-[10px] px-1.5 py-0.5 rounded badge-global" title="من الإعداد العام">🌍 عام</span>`,
+    'global-set': `<span class="text-[10px] px-1.5 py-0.5 rounded badge-override" title="عام مُعدّل">✏️ مُعدّل</span>`,
+    'default':    `<span class="text-[10px] px-1.5 py-0.5 rounded badge-default" title="القيمة الافتراضية">🟢 افتراضي</span>`
+  };
+  return map[eff.source] || '';
+}
+
+function formatVal(v, s) {
+  if (s.type === 'toggle') return v ? '✅ مفعّل' : '❌ مُعطّل';
+  if (s.type === 'select') return s.options.find(o => o.v===v)?.l || v;
+  return `${v} ${s.unit||''}`;
+}
+
+function updateSaveButton() {
+  const btn = document.getElementById('saveBtn');
+  const cnt = Object.keys(pendingChanges).length;
+  if (cnt > 0) {
+    btn.textContent = `💾 حفظ ${cnt} تغيير`;
+    btn.classList.add('pulse-save');
+  } else {
+    btn.textContent = `💾 حفظ التغييرات`;
+    btn.classList.remove('pulse-save');
+  }
+}
+
+function renderAll() {
+  renderDriversList();
+  renderHeader();
+  renderTabs();
+  renderSettings();
+  updateSaveButton();
+  // Adapt layout
+  const grid = document.getElementById('layoutGrid');
+  if (window.innerWidth >= 1024) grid.style.gridTemplateColumns = '320px 1fr';
+  else grid.style.gridTemplateColumns = '1fr';
+}
+
+window.addEventListener('resize', () => {
+  const grid = document.getElementById('layoutGrid');
+  if (window.innerWidth >= 1024) grid.style.gridTemplateColumns = '320px 1fr';
+  else grid.style.gridTemplateColumns = '1fr';
+});
+
+// ============================================================
+// MODALS & ACTIONS
+// ============================================================
+window.showInfo = function(key) {
+  const s = SETTINGS[key];
+  const tab = TABS.find(t => t.id===s.tab);
+  document.getElementById('infoCategory').textContent = `${tab?.icon} ${tab?.label}`;
+  document.getElementById('infoTitle').textContent = s.label;
+  document.getElementById('infoExplanation').textContent = s.explanation;
+  const renderList = (arr) => arr.length ? arr.map(x => `<li>• ${x}</li>`).join('') : '<li class="text-slate-500">— لا يوجد —</li>';
+  document.getElementById('infoProsHigh').innerHTML = renderList(s.prosHigh);
+  document.getElementById('infoConsHigh').innerHTML = renderList(s.consHigh);
+  document.getElementById('infoProsLow').innerHTML = renderList(s.prosLow);
+  document.getElementById('infoConsLow').innerHTML = renderList(s.consLow);
+  document.getElementById('infoRecommended').textContent = s.recommended;
+  document.getElementById('infoRange').textContent = 'النطاق المسموح: ' + s.range;
+  document.getElementById('infoModal').classList.remove('hidden');
+};
+window.closeInfo = () => document.getElementById('infoModal').classList.add('hidden');
+
+window.resetSetting = function(key) {
+  // Remove from pending if present
+  if (key in pendingChanges) delete pendingChanges[key];
+  // Mark for deletion (set null = delete from override)
+  pendingChanges[key] = '__DELETE__';
+  renderSettings();
+  updateSaveButton();
+  toast(`سيتم حذف override لـ ${SETTINGS[key].label} عند الحفظ`,'info');
+};
+window.closeConfirm = () => document.getElementById('confirmModal').classList.add('hidden');
+window.closeMulti = () => document.getElementById('multiModal').classList.add('hidden');
+window.closeHistory = () => document.getElementById('historyModal').classList.add('hidden');
+
+window.multiSelectAll = function(state) {
+  if (state) drivers.forEach(d => selectedMultiDrivers.add(d.id));
+  else selectedMultiDrivers.clear();
+  renderMultiList();
+};
+window.multiSelectActive = function() {
+  selectedMultiDrivers.clear();
+  drivers.filter(d => d.isActive).forEach(d => selectedMultiDrivers.add(d.id));
+  renderMultiList();
+};
+
+function renderMultiList() {
+  const list = document.getElementById('multiList');
+  let html = '';
+  drivers.forEach(d => {
+    const sel = selectedMultiDrivers.has(d.id);
+    html += `<label class="flex items-center gap-2 p-2 rounded hover:bg-slate-700/50 cursor-pointer">
+      <input type="checkbox" data-id="${d.id}" ${sel?'checked':''} class="w-4 h-4">
+      <span class="flex-1 text-sm">${d.name} <span class="text-slate-400 text-xs">(${d.id})</span></span>
+      ${d.isActive ? '<span class="text-[10px] px-1.5 py-0.5 rounded badge-online">●</span>':''}
+    </label>`;
+  });
+  list.innerHTML = html;
+  list.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) selectedMultiDrivers.add(cb.dataset.id);
+      else selectedMultiDrivers.delete(cb.dataset.id);
+    });
+  });
+}
+
+// ============================================================
+// SAVE / DELETE / HISTORY
+// ============================================================
+async function saveChanges() {
+  if (Object.keys(pendingChanges).length === 0) { toast('لا توجد تغييرات','info'); return; }
+
+  // Show confirm modal with summary
+  const content = document.getElementById('confirmContent');
+  let html = `<div class="font-semibold text-base mb-2">${currentSelection.type==='global' ? '🌍 الإعداد العام' : '👤 ' + (drivers.find(x=>x.id===currentSelection.id)?.name || currentSelection.id)}</div>`;
+  html += '<div class="space-y-1.5">';
+  Object.entries(pendingChanges).forEach(([k,v]) => {
+    const s = SETTINGS[k];
+    const eff = getEffectiveValue(k, currentSelection);
+    if (v === '__DELETE__') {
+      html += `<div class="text-rose-300">🗑️ حذف override لـ <strong>${s.label}</strong> (سيرجع لـ ${formatVal(eff.value,s)})</div>`;
+    } else {
+      html += `<div>✏️ <strong>${s.label}</strong>: <span class="font-mono text-slate-400">${formatVal(eff.value,s)}</span> → <span class="font-mono text-emerald-400 font-bold">${formatVal(v,s)}</span></div>`;
+    }
+  });
+  html += '</div>';
+  content.innerHTML = html;
+  document.getElementById('confirmModal').classList.remove('hidden');
+
+  document.getElementById('confirmSaveBtn').onclick = doSave;
+}
+
+async function doSave() {
+  closeConfirm();
+  try {
+    const isGlobal = currentSelection.type === 'global';
+    const path = isGlobal
+      ? doc(db,'appConfig','global')
+      : doc(db,'appConfig','driverConfigs','drivers',currentSelection.id);
+
+    // Build updates: split deletes vs sets
+    const sets = {};
+    const deletes = {};
+    Object.entries(pendingChanges).forEach(([k,v]) => {
+      if (v === '__DELETE__') deletes[k] = deleteField();
+      else sets[k] = v;
+    });
+    sets.lastModified = serverTimestamp();
+    sets.lastModifiedBy = 'admin'; // TODO: hook up to auth user
+
+    const updatePayload = { ...sets, ...deletes };
+    await setDoc(path, updatePayload, { merge: true });
+
+    // Add to history collection
+    await addDoc(collection(db,'appConfig','configHistory','entries'), {
+      timestamp: serverTimestamp(),
+      scope: isGlobal ? 'global' : 'driver',
+      driverId: isGlobal ? null : currentSelection.id,
+      changes: Object.fromEntries(Object.entries(pendingChanges).map(([k,v]) => [k, v==='__DELETE__'?'__DELETED__':v])),
+      modifiedBy: 'admin'
+    }).catch(()=>{});
+
+    toast(`تم حفظ ${Object.keys(pendingChanges).length} تغيير ✓`,'success');
+    pendingChanges = {};
+    await loadAll();
+    renderAll();
+  } catch (e) {
+    console.error(e);
+    toast('فشل الحفظ: '+e.message,'error');
+  }
+}
+
+async function resetAllForCurrent() {
+  if (currentSelection.type === 'global') {
+    if (!confirm('هل تريد فعلاً مسح كل الإعدادات العامة المُخصّصة؟')) return;
+    try {
+      await deleteDoc(doc(db,'appConfig','global'));
+      toast('تم مسح كل الإعدادات العامة','success');
+      await loadAll(); renderAll();
+    } catch (e) { toast('فشل: '+e.message,'error'); }
+  } else {
+    if (!confirm(`هل تريد فعلاً مسح كل الإعدادات الخاصة بـ ${currentSelection.id}؟`)) return;
+    try {
+      await deleteDoc(doc(db,'appConfig','driverConfigs','drivers',currentSelection.id));
+      toast(`تم مسح إعدادات ${currentSelection.id}`,'success');
+      await loadAll(); renderAll();
+    } catch (e) { toast('فشل: '+e.message,'error'); }
+  }
+}
+
+async function applyToMultiple() {
+  if (selectedMultiDrivers.size === 0) { toast('اختر سائق على الأقل','error'); return; }
+  if (currentSelection.type === 'global') { toast('اختر سائق المصدر أولاً','error'); return; }
+  const sourceConfig = driverConfigsMap[currentSelection.id] || {};
+  if (Object.keys(sourceConfig).length === 0) { toast('السائق المصدر ما عنده إعدادات مُخصّصة','error'); return; }
+
+  if (!confirm(`تطبيق ${Object.keys(sourceConfig).length} إعداد على ${selectedMultiDrivers.size} سائق؟`)) return;
+
+  try {
+    const promises = [];
+    selectedMultiDrivers.forEach(driverId => {
+      const path = doc(db,'appConfig','driverConfigs','drivers',driverId);
+      promises.push(setDoc(path, { ...sourceConfig, lastModified: serverTimestamp(), lastModifiedBy: 'admin (multi-apply from '+currentSelection.id+')' }, { merge: true }));
+    });
+    await Promise.all(promises);
+    await addDoc(collection(db,'appConfig','configHistory','entries'), {
+      timestamp: serverTimestamp(), scope:'multi', sourceDriver: currentSelection.id,
+      targetDrivers: Array.from(selectedMultiDrivers), changes: sourceConfig, modifiedBy:'admin'
+    }).catch(()=>{});
+    toast(`تم تطبيق الإعدادات على ${selectedMultiDrivers.size} سائق ✓`,'success');
+    closeMulti();
+    selectedMultiDrivers.clear();
+    await loadAll(); renderAll();
+  } catch (e) { toast('فشل: '+e.message,'error'); }
+}
+
+async function loadHistory() {
+  try {
+    const q = query(collection(db,'appConfig','configHistory','entries'), orderBy('timestamp','desc'), limit(50));
+    const snap = await getDocs(q);
+    const content = document.getElementById('historyContent');
+    if (snap.empty) { content.innerHTML = '<div class="text-center py-6 text-slate-400">لا يوجد سجل تعديلات</div>'; return; }
+    let html = '';
+    snap.forEach(d => {
+      const e = d.data();
+      const t = e.timestamp?.toDate?.();
+      const tStr = t ? t.toLocaleString('ar-KW') : '—';
+      const scopeLabel = e.scope === 'global' ? '🌍 الإعداد العام' :
+                        e.scope === 'multi' ? `👥 ${e.targetDrivers?.length||0} سائق (مصدر: ${e.sourceDriver})` :
+                        `👤 ${e.driverId}`;
+      const changesCount = Object.keys(e.changes || {}).length;
+      html += `<div class="glass-light rounded-lg p-3">
+        <div class="flex justify-between items-start gap-2 flex-wrap">
+          <div>
+            <div class="font-semibold text-sm">${scopeLabel}</div>
+            <div class="text-xs text-slate-400 mt-1">${tStr} · ${e.modifiedBy||'admin'}</div>
+          </div>
+          <span class="text-xs px-2 py-1 rounded bg-blue-600/30 text-blue-300">${changesCount} تغيير</span>
+        </div>
+        <details class="mt-2"><summary class="text-xs text-slate-400 cursor-pointer hover:text-white">عرض التفاصيل</summary>
+          <div class="mt-2 text-xs space-y-1 pl-3 border-r-2 border-slate-700">
+            ${Object.entries(e.changes||{}).map(([k,v]) => {
+              const s = SETTINGS[k];
+              if (!s) return `<div>${k}: ${v}</div>`;
+              if (v === '__DELETED__') return `<div class="text-rose-400">🗑️ حذف ${s.label}</div>`;
+              return `<div>✏️ ${s.label}: <span class="font-mono">${formatVal(v,s)}</span></div>`;
+            }).join('')}
+          </div>
+        </details>
+      </div>`;
+    });
+    content.innerHTML = html;
+  } catch (e) { document.getElementById('historyContent').innerHTML = '<div class="text-rose-400 py-4">فشل التحميل: '+e.message+'</div>'; }
+}
+
+// ============================================================
+// TOASTS
+// ============================================================
+function toast(msg, type='info') {
+  const colors = { success:'bg-emerald-600', error:'bg-rose-600', info:'bg-blue-600' };
+  const c = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = `toast-slide ${colors[type]} text-white px-4 py-2 rounded-lg shadow-lg pointer-events-auto text-sm font-semibold`;
+  el.textContent = msg;
+  c.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(() => el.remove(), 300); }, 3000);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+async function init() {
+  await loadAll();
+  renderAll();
+  document.getElementById('driverSearch').addEventListener('input', renderDriversList);
+  document.getElementById('saveBtn').addEventListener('click', saveChanges);
+  document.getElementById('resetTabBtn').addEventListener('click', () => {
+    const tabKeys = Object.keys(SETTINGS).filter(k => SETTINGS[k].tab === currentTab);
+    tabKeys.forEach(k => pendingChanges[k] = '__DELETE__');
+    renderSettings(); updateSaveButton();
+    toast('سيتم حذف override لإعدادات هذا التاب عند الحفظ','info');
+  });
+  document.getElementById('resetAllBtn').addEventListener('click', resetAllForCurrent);
+  document.getElementById('multiApplyBtn').addEventListener('click', () => {
+    if (currentSelection.type !== 'driver') { toast('اختر سائق أولاً','error'); return; }
+    selectedMultiDrivers.clear();
+    renderMultiList();
+    document.getElementById('multiModal').classList.remove('hidden');
+  });
+  document.getElementById('multiApplyConfirmBtn').addEventListener('click', applyToMultiple);
+  document.getElementById('historyBtn').addEventListener('click', () => {
+    document.getElementById('historyModal').classList.remove('hidden');
+    loadHistory();
+  });
+}
+
+init();
+</script>
 </body>
 </html>
