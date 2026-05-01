@@ -444,6 +444,20 @@
                 <div class="info-row"><span class="ir-label">رقم الهاتف</span><span class="ir-value" id="phoneNum">—</span></div>
             </div>
 
+            <!-- v2.7.8 (الحل #8): تقرير الصحة من driverHealth/{id} -->
+            <div class="section-title">تقرير الصحة (آخر فحص)</div>
+            <div class="info-card ic-full" id="healthCard">
+                <div class="info-row"><span class="ir-label">آخر فحص</span><span class="ir-value" id="health_lastReport">—</span></div>
+                <div class="info-row"><span class="ir-label">حالة GPS</span><span class="ir-value" id="health_gps">—</span></div>
+                <div class="info-row"><span class="ir-label">الإذن</span><span class="ir-value" id="health_permission">—</span></div>
+                <div class="info-row"><span class="ir-label">الشبكة</span><span class="ir-value" id="health_network">—</span></div>
+                <div class="info-row"><span class="ir-label">طابور الإرسال</span><span class="ir-value" id="health_queue">—</span></div>
+                <div class="info-row"><span class="ir-label">RNBG شغال</span><span class="ir-value" id="health_rnbg">—</span></div>
+                <div class="info-row"><span class="ir-label">آخر heartbeat</span><span class="ir-value" id="health_heartbeat">—</span></div>
+                <div class="info-row"><span class="ir-label">آخر BG-Fetch</span><span class="ir-value" id="health_bgfetch">—</span></div>
+                <div class="info-row"><span class="ir-label">إعفاء البطارية</span><span class="ir-value" id="health_batteryOpt">—</span></div>
+            </div>
+
             <div class="section-title">إجراءات</div>
             <div style="display:flex;gap:7px;">
                 <button id="callBtn" onclick="callDriver()" style="flex:1;padding:9px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:var(--green);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;display:none;">📞 اتصال</button>
@@ -1327,6 +1341,82 @@ async function loadRoute() {
           });
       } catch (e) { /* ignore */ }
 
+    // v2.7.8 (الحل #12 — قراءة): locationHistoryBatched (compressed format)
+    try {
+        const qBatched = query(
+            collection(db, 'locationHistoryBatched'),
+            where('driverId', '==', driverId),
+            where('endTimestamp', '>=', cutoffStart),
+            where('endTimestamp', '<=', cutoffEnd),
+            orderBy('endTimestamp', 'desc'),
+            limit(500)
+        );
+        const snapB = await getDocs(qBatched);
+        let expandedCount = 0;
+        snapB.forEach(d => {
+            const batch = d.data();
+            const points = Array.isArray(batch.points) ? batch.points : [];
+            points.forEach(p => {
+                const tMs = p.timestamp || p.deviceTimestamp;
+                if (!tMs) return;
+                const t = new Date(tMs);
+                if (t < cutoffStart || t > cutoffEnd) return;
+                const lat = p.latitude;
+                const lng = p.longitude;
+                if (!lat || !lng) return;
+                const key = `${t.getTime()}_${lat.toFixed(5)}_${lng.toFixed(5)}`;
+                if (seen.has(key)) return;
+                seen.add(key);
+                const deviceT = p.deviceTimestamp ? new Date(p.deviceTimestamp) : null;
+                pts.push({
+                    lat, lng, t, deviceT,
+                    speed: p.speed || 0,
+                    accuracy: p.accuracy,
+                    isMoving: p.isMoving,
+                    activity: p.activity || p.currentActivity,
+                    appState: batch.appState || 'background',
+                    _batched: true,
+                });
+                expandedCount++;
+            });
+        });
+        if (snapB.size > 0) {
+            console.log(`[loadRoute] locationHistoryBatched: ${snapB.size} batches → ${expandedCount} points expanded`);
+        }
+    } catch (e) {
+        // Fallback: query without orderBy (في حال index ناقص)
+        try {
+            const qBatchedF = query(
+                collection(db, 'locationHistoryBatched'),
+                where('driverId', '==', driverId),
+                limit(200)
+            );
+            const snapBF = await getDocs(qBatchedF);
+            let expF = 0;
+            snapBF.forEach(d => {
+                const batch = d.data();
+                const points = Array.isArray(batch.points) ? batch.points : [];
+                points.forEach(p => {
+                    const tMs = p.timestamp || p.deviceTimestamp;
+                    if (!tMs) return;
+                    const t = new Date(tMs);
+                    if (t < cutoffStart || t > cutoffEnd) return;
+                    const lat = p.latitude, lng = p.longitude;
+                    if (!lat || !lng) return;
+                    const key = `${t.getTime()}_${lat.toFixed(5)}_${lng.toFixed(5)}`;
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    pts.push({ lat, lng, t,
+                      speed: p.speed||0, accuracy: p.accuracy,
+                      isMoving: p.isMoving, activity: p.activity||p.currentActivity,
+                      appState: batch.appState||'background', _batched: true });
+                    expF++;
+                });
+            });
+            if (expF > 0) console.warn(`[loadRoute] batched fallback: ${expF} points (index missing)`);
+        } catch (e2) { /* ignore */ }
+    }
+
     pts.sort((a, b) => a.t - b.t);
     locationHistory = pts;
     drawRoute(pts);
@@ -1400,6 +1490,50 @@ function startListener() {
             window._phone = phone;
         }
         document.getElementById('profileLink').href = `driver-view.html?driverId=${encodeURIComponent(empNum)}`;
+    });
+
+    // v2.7.8 (الحل #8): listener على driverHealth/{id}
+    onSnapshot(doc(db, 'driverHealth', driverId), snap => {
+        if (!snap.exists()) {
+            document.getElementById('health_lastReport').innerHTML = '<span style="color:var(--text-muted)">لا توجد بيانات صحة بعد</span>';
+            return;
+        }
+        const h = snap.data();
+        const fmtTs = (ts) => {
+            if (!ts) return '—';
+            const d = ts.toDate ? ts.toDate() : new Date(ts);
+            const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+            if (mins < 1) return 'الآن';
+            if (mins < 60) return `منذ ${mins} د`;
+            if (mins < 1440) return `منذ ${Math.floor(mins/60)} س`;
+            return d.toLocaleString('ar-SA');
+        };
+        const yesNo = (v, goodIsTrue=true) => {
+            if (v === undefined || v === null) return '—';
+            const good = goodIsTrue ? !!v : !v;
+            return good ? `<span style="color:var(--green)">✅ ${v?'نعم':'لا'}</span>` : `<span style="color:var(--red)">❌ ${v?'نعم':'لا'}</span>`;
+        };
+        document.getElementById('health_lastReport').innerHTML = fmtTs(h.lastReport || h.timestamp || h.lastUpdate);
+        document.getElementById('health_gps').innerHTML = h.gpsEnabled !== undefined ? yesNo(h.gpsEnabled) : (h.gps || '—');
+        document.getElementById('health_permission').innerHTML = h.permissionGranted !== undefined ? yesNo(h.permissionGranted) : (h.permissions || h.locationPermission || '—');
+        document.getElementById('health_network').innerHTML = h.networkType ? `<span style="color:var(--green)">${h.networkType}</span>` : (h.networkConnected !== undefined ? yesNo(h.networkConnected) : '—');
+        const queueSize = h.queueSize ?? h.queueCount;
+        if (queueSize !== undefined) {
+            const qCol = queueSize === 0 ? 'var(--green)' : queueSize < 50 ? 'var(--yellow)' : 'var(--red)';
+            document.getElementById('health_queue').innerHTML = `<span style="color:${qCol}">${queueSize} نقطة</span>`;
+        }
+        document.getElementById('health_rnbg').innerHTML = h.rnbgEnabled !== undefined ? yesNo(h.rnbgEnabled) : (h.trackingEnabled !== undefined ? yesNo(h.trackingEnabled) : '—');
+        document.getElementById('health_heartbeat').innerHTML = fmtTs(h.lastHeartbeat || h.lastHeartbeatAt);
+        // From drivers/{id}: lastBgFetchAt
+        const bgF = currentDriverData?.lastBgFetchAt;
+        document.getElementById('health_bgfetch').innerHTML = fmtTs(bgF);
+        if (h.batteryOptimizationDisabled !== undefined) {
+            document.getElementById('health_batteryOpt').innerHTML = yesNo(h.batteryOptimizationDisabled);
+        } else if (h.ignoringBatteryOptimizations !== undefined) {
+            document.getElementById('health_batteryOpt').innerHTML = yesNo(h.ignoringBatteryOptimizations);
+        }
+    }, (err) => {
+        console.warn('[driverHealth] listener error:', err.message);
     });
 }
 
