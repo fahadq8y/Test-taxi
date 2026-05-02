@@ -357,7 +357,7 @@
     </div>
     <div class="header-right">
         <div class="live-badge"><div class="live-dot"></div>مباشر</div>
-        <span class="version-tag">v3.8</span>
+        <span class="version-tag">v3.9</span>
         <button class="header-btn green" onclick="exportPDF()">📄 PDF</button>
         <button class="header-btn blue" onclick="exportExcel()">📊 Excel</button>
         <a href="tracking.html" class="header-btn">📍 التتبع</a>
@@ -546,13 +546,59 @@
                 </div>
                 <div class="info-row">
                     <span class="ir-label">لون المسار</span>
-                    <div style="display:flex;gap:5px;">
+                    <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
                         <div onclick="setPathColor('#3b82f6')" title="أزرق" style="width:18px;height:18px;border-radius:50%;background:#3b82f6;cursor:pointer;"></div>
                         <div onclick="setPathColor('#10b981')" title="أخضر" style="width:18px;height:18px;border-radius:50%;background:#10b981;cursor:pointer;"></div>
                         <div onclick="setPathColor('#f59e0b')" title="أصفر" style="width:18px;height:18px;border-radius:50%;background:#f59e0b;cursor:pointer;"></div>
                         <div onclick="setPathColor('speed')" title="حسب السرعة" style="width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#10b981,#f59e0b,#ef4444);cursor:pointer;"></div>
                         <div onclick="setPathColor('activity')" title="حسب النشاط" style="width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#10b981,#fb923c,#8b5cf6);cursor:pointer;border:2px solid white;"></div>
+                        <!-- v3.9: لوحة ألوان مخصّصة -->
+                        <input type="color" id="customColorPicker" value="#3b82f6" onchange="setPathColor(this.value)" title="اختر لون مخصص" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:transparent;padding:0;">
                     </div>
+                </div>
+                <!-- v3.9: أوضاع تلوين إضافية -->
+                <div class="info-row">
+                    <span class="ir-label">وضع التلوين الذكي</span>
+                    <select id="colorModeSelect" onchange="setPathColor(this.value)" style="background:var(--card-bg);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:6px;font-size:11px;cursor:pointer;">
+                        <option value="activity">🎨 حسب النشاط</option>
+                        <option value="speed">🚦 حسب السرعة</option>
+                        <option value="time_of_day">🕐 حسب الوقت</option>
+                        <option value="accuracy">🎯 حسب الدقة</option>
+                    </select>
+                </div>
+                <!-- v3.9: مسطرة عرض الخط -->
+                <div class="info-row">
+                    <span class="ir-label">سُمك الخط: <span id="pathWidthVal" style="color:var(--blue);">4</span></span>
+                    <input type="range" min="2" max="10" value="4" id="pathWidthRange" oninput="setPathWidth(this.value)" style="flex:1;max-width:100px;">
+                </div>
+                <!-- v3.9: مسطرة شفافية الخط -->
+                <div class="info-row">
+                    <span class="ir-label">شفافية: <span id="pathOpacityVal" style="color:var(--blue);">85%</span></span>
+                    <input type="range" min="30" max="100" value="85" id="pathOpacityRange" oninput="setPathOpacity(this.value)" style="flex:1;max-width:100px;">
+                </div>
+                <!-- v3.9: أسهم الاتجاه -->
+                <div class="info-row">
+                    <span class="ir-label">أسهم اتجاه السير</span>
+                    <button onclick="toggleArrows()" id="arrowsBtn" style="padding:4px 11px;background:rgba(148,163,184,0.15);border:1px solid rgba(148,163,184,0.3);color:var(--text-muted);border-radius:6px;cursor:pointer;font-size:11px;">معطّل</button>
+                </div>
+            </div>
+
+            <!-- v3.9: فلتر النشاط على المسار -->
+            <div class="section-title">🎯 فلترة المسار</div>
+            <div class="filter-pills">
+                <div class="pill active" onclick="setRouteActivityFilter('all', this)">الكل</div>
+                <div class="pill" onclick="setRouteActivityFilter('drive', this)">🚗 سياقة فقط</div>
+                <div class="pill" onclick="setRouteActivityFilter('walk', this)">🚶 مشي فقط</div>
+                <div class="pill" onclick="setRouteActivityFilter('stops', this)">🅿️ توقفات فقط</div>
+            </div>
+            <div class="info-card ic-full" style="margin-top:6px;">
+                <div class="info-row" style="cursor:pointer;" onclick="toggleHideBrief()">
+                    <span class="ir-label">إخفاء التوقفات القصيرة (&lt;5د)</span>
+                    <span id="hideBriefBtn" style="font-size:14px;">⬜</span>
+                </div>
+                <div class="info-row" style="cursor:pointer;" onclick="toggleHideRecurring()">
+                    <span class="ir-label">إخفاء الأماكن المتكررة (منزل/عمل)</span>
+                    <span id="hideRecurringBtn" style="font-size:14px;">⬜</span>
                 </div>
             </div>
 
@@ -592,6 +638,22 @@
                 <button class="sort-btn" onclick="sortTL('speed_desc')">🚀 الأسرع</button>
                 <button class="sort-btn" onclick="sortTL('speed_asc')">🐌 الأبطأ</button>
             </div>
+            <!-- v3.9: تجميع السجل -->
+            <div style="font-size:10px;color:var(--text-muted);margin:6px 0 3px;">📦 طريقة عرض السجل:</div>
+            <div class="filter-pills">
+                <div class="pill active" onclick="setTLGroup('none', this)">قائمة</div>
+                <div class="pill" onclick="setTLGroup('activity', this)">حسب النشاط</div>
+                <div class="pill" onclick="setTLGroup('trip', this)">رحلات</div>
+                <div class="pill" onclick="setTLGroup('hour', this)">حسب الساعة</div>
+            </div>
+            <!-- v3.9: بحث -->
+            <input type="search" id="tlSearchInput" placeholder="🔎 ابحث (وقت، نشاط، إحداثيات...)" oninput="setTLSearch(this.value)" style="width:100%;background:var(--card-bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:7px;font-size:11px;margin:6px 0;direction:rtl;">
+            <!-- v3.9: مسطرة فلتر السرعة -->
+            <div style="font-size:10px;color:var(--text-muted);display:flex;justify-content:space-between;margin-bottom:3px;">
+                <span>⚡ سرعة دنيا: <b id="tlSpeedMinVal" style="color:var(--blue);">0</b> كم/س</span>
+                <button onclick="exportFilteredExcel()" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:var(--green);padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer;">📥 تصدير المرئي</button>
+            </div>
+            <input type="range" min="0" max="120" value="0" id="tlSpeedRange" oninput="setTLSpeedMin(this.value)" style="width:100%;margin-bottom:8px;">
             <div id="timeline"><div class="no-data">📡 جاري تحميل السجل...</div></div>
         </div>
     </div>
@@ -705,7 +767,7 @@ if (!userRole || (userRole !== 'admin' && userRole !== 'owner')) {
 
 const urlParams = new URLSearchParams(window.location.search);
 const driverId = urlParams.get('id') || urlParams.get('driverId') || 'unknown';
-const CURRENT_APP_VERSION = '2.5.11';
+const CURRENT_APP_VERSION = '2.7.11';
 
 let map, tileLayer, mapType = 'streets';
 let currentMarker = null;
@@ -725,6 +787,18 @@ let customRangeTo = null;
 let stopClusteringEnabled = true; // v3.6
 let tlFilter = 'all';
 let tlSort = 'time';
+// v3.9: route customization
+let pathWidth = 4;
+let pathOpacity = 0.85;
+let showArrows = false;
+let routeActivityFilter = 'all'; // all | drive | walk | stops
+let hideBriefStops = false;
+let hideRecurringPlaces = false;
+let arrowMarkers = [];
+// v3.9: timeline customization
+let tlGroup = 'none'; // none | activity | trip | hour
+let tlSearch = '';
+let tlSpeedMin = 0;
 
 // Replay
 let replayData = [], replayIndex = 0, replayInterval = null;
@@ -739,7 +813,13 @@ const activityMap = {
     'in_vehicle': '🚗 يقود', 'still': '🅿️ متوقف',
     'walking': '🚶 يمشي', 'on_foot': '🚶 يمشي',
     'running': '🏃 يركض', 'on_bicycle': '🚲 دراجة',
-    'tilting': '📱 يحرك الجوال', 'unknown': '❓ غير معروف'
+    'tilting': '📱 يحرك الجوال', 'unknown': '❓ غير معروف',
+    // v3.9: smart enriched activities
+    'at_home': '🏠 في المنزل', 'at_work': '💼 في العمل',
+    'at_mall': '🛍️ في مول', 'at_restaurant': '🍽️ في مطعم',
+    'at_gas_station': '⛽ تعبئة وقود', 'at_traffic_light': '🚦 إشارة',
+    'in_traffic_jam': '🚙 زحمة', 'highway_drive': '🛣️ طريق سريع',
+    'micro_walking': '👣 مشي قصير'
 };
 
 // v3.8: Reverse Geocoding cache (Nominatim - مجاني، لا يحتاج API key)
@@ -823,16 +903,72 @@ function inferStopContext(stop, allStops) {
     return { type: 'long', icon: '🏠', label: 'توقف طويل' };
 }
 
-// v3.6: لون لكل نشاط
+// v3.6: لون لكل نشاط (محدّث في v3.9 ليدعم enriched activities)
 function activityColor(act, speedKmh) {
-    if (act === 'in_vehicle') return '#10b981'; // أخضر = قيادة
-    if (act === 'walking' || act === 'on_foot') return '#fb923c'; // برتقالي = مشي
+    if (act === 'in_vehicle' || act === 'highway_drive') return '#10b981'; // أخضر = قيادة
+    if (act === 'walking' || act === 'on_foot' || act === 'micro_walking') return '#fb923c'; // برتقالي = مشي
     if (act === 'running') return '#8b5cf6'; // بنفسجي = جري
-    if (act === 'still') return '#94a3b8'; // رمادي = توقف
+    if (act === 'still' || act === 'at_home' || act === 'at_work') return '#94a3b8'; // رمادي = توقف
+    if (act === 'at_traffic_light' || act === 'in_traffic_jam') return '#f59e0b'; // أصفر = إشارة/زحمة
+    if (act === 'at_mall' || act === 'at_restaurant' || act === 'at_gas_station') return '#a78bfa';
     // unknown: استخدم السرعة كـ fallback
     if (speedKmh >= 10) return '#10b981';
     if (speedKmh >= 3) return '#fb923c';
     return '#94a3b8';
+}
+
+// v3.9: ألوان متدرّجة حسب الوقت (24 ساعة → قوس قزح)
+function timeOfDayColor(date) {
+    const hour = date.getHours() + (date.getMinutes() / 60);
+    // 0=ليل أزرق، 6=صباح أصفر، 12=ظهر أحمر، 18=مساء بنفسجي
+    if (hour < 6) return `hsl(${220 + hour*8}, 70%, 50%)`;        // أزرق إلى تركواز
+    if (hour < 12) return `hsl(${50 - (hour-6)*5}, 80%, 55%)`;    // أصفر إلى برتقالي
+    if (hour < 18) return `hsl(${10 - (hour-12)*2}, 75%, 55%)`;   // أحمر
+    return `hsl(${290 + (hour-18)*6}, 60%, 55%)`;                 // بنفسجي إلى نيلي
+}
+
+// v3.9: ألوان حسب دقة GPS (أخضر=ممتاز، أحمر=سيئ)
+function accuracyColor(acc) {
+    if (!acc || acc <= 10) return '#10b981';   // أخضر < 10م
+    if (acc <= 20) return '#84cc16';            // أصفر-أخضر
+    if (acc <= 30) return '#eab308';            // أصفر
+    if (acc <= 50) return '#f97316';            // برتقالي
+    return '#ef4444';                            // أحمر > 50م
+}
+
+// v3.9: تصنيف ذكي لـ enriched activity من نقطة + سياق
+// - يستخدم: السرعة، النشاط، التوقف، المكان (إن توفر)
+// - يرجع: at_home/at_work/at_mall/at_traffic_light/in_traffic_jam/at_gas_station/at_restaurant/highway_drive/...
+function inferEnrichedActivity(point, context) {
+    const speedKmh = (point.speed || 0) * 3.6;
+    const baseAct = point.activity || point.currentActivity || 'unknown';
+    const isStopped = (point.isMoving === false) || (point.isMoving === undefined && speedKmh < 1);
+    const place = context?.place;
+    const stopMin = context?.stopMin || 0;
+    const ctx = context?.stopContext;
+    // 1) متوقف: حدد المكان حسب context
+    if (isStopped) {
+        if (ctx?.type === 'home') return 'at_home';
+        if (ctx?.type === 'work') return 'at_work';
+        if (place?.category) {
+            const lbl = place.category.label;
+            if (/مول|مجمع/.test(lbl)) return 'at_mall';
+            if (/مطعم|مقهى/.test(lbl)) return 'at_restaurant';
+            if (/وقود|محطة/.test(lbl)) return 'at_gas_station';
+        }
+        // توقف قصير جداً (<3د) في طريق → غالباً إشارة مرور
+        if (stopMin > 0 && stopMin < 3) return 'at_traffic_light';
+        return baseAct === 'still' ? 'still' : baseAct;
+    }
+    // 2) متحرك: زحمة (سرعة بطيئة في طريق رئيسي)
+    if (speedKmh > 0 && speedKmh < 20 && baseAct === 'in_vehicle') {
+        return 'in_traffic_jam';
+    }
+    // 3) سرعة عالية (>= 80 كم/س) = طريق سريع
+    if (speedKmh >= 80) return 'highway_drive';
+    // 4) مشي قصير (مسافة قصيرة بين سيارات)
+    if (baseAct === 'walking' && stopMin > 0 && stopMin < 5) return 'micro_walking';
+    return baseAct;
 }
 
 const tiles = {
@@ -1024,27 +1160,83 @@ function drawRoute(points) {
           }
       }
 
-    const lls = filtered.map(p => [p.lat, p.lng]);
+    // v3.9: امسح الأسهم القديمة
+    arrowMarkers.forEach(a => map.removeLayer(a));
+    arrowMarkers = [];
 
-    // ===== رسم الخط =====
+    // v3.9: تطبيق فلتر النشاط على المسار
+    let routePoints = filtered;
+    if (routeActivityFilter === 'drive') {
+        routePoints = filtered.filter(p => {
+            const a = p.activity || p.currentActivity;
+            const s = (p.speed||0) * 3.6;
+            return a === 'in_vehicle' || (s >= 8 && a !== 'walking' && a !== 'on_foot');
+        });
+    } else if (routeActivityFilter === 'walk') {
+        routePoints = filtered.filter(p => {
+            const a = p.activity || p.currentActivity;
+            return a === 'walking' || a === 'on_foot' || a === 'running';
+        });
+    } else if (routeActivityFilter === 'stops') {
+        routePoints = filtered.filter(p => {
+            const s = (p.speed||0) * 3.6;
+            return p.isMoving === false || (p.isMoving === undefined && s < 1);
+        });
+    }
+
+    const lls = routePoints.map(p => [p.lat, p.lng]);
+
+    // ===== رسم الخط (v3.9: عرض/شفافية مخصّصة + 4 أوضاع تلوين) =====
+    const w = pathWidth;
+    const op = pathOpacity;
     if (pathColor === 'speed') {
-        for (let i = 1; i < filtered.length; i++) {
-            const s = (filtered[i].speed || 0) * 3.6;
+        for (let i = 1; i < routePoints.length; i++) {
+            const s = (routePoints[i].speed || 0) * 3.6;
             const c = s < 20 ? '#10b981' : s < 80 ? '#f59e0b' : '#ef4444';
-            const seg = L.polyline([[filtered[i-1].lat, filtered[i-1].lng], [filtered[i].lat, filtered[i].lng]], { color: c, weight: 4, opacity: 0.8 }).addTo(map);
+            const seg = L.polyline([[routePoints[i-1].lat, routePoints[i-1].lng], [routePoints[i].lat, routePoints[i].lng]], { color: c, weight: w, opacity: op }).addTo(map);
             routeSegments.push(seg);
         }
     } else if (pathColor === 'activity') {
-        // v3.6: تلوين حسب النشاط
-        for (let i = 1; i < filtered.length; i++) {
-            const p = filtered[i];
+        for (let i = 1; i < routePoints.length; i++) {
+            const p = routePoints[i];
             const s = (p.speed || 0) * 3.6;
             const c = activityColor(p.activity || p.currentActivity || 'unknown', s);
-            const seg = L.polyline([[filtered[i-1].lat, filtered[i-1].lng], [p.lat, p.lng]], { color: c, weight: 4, opacity: 0.85 }).addTo(map);
+            const seg = L.polyline([[routePoints[i-1].lat, routePoints[i-1].lng], [p.lat, p.lng]], { color: c, weight: w, opacity: op }).addTo(map);
+            routeSegments.push(seg);
+        }
+    } else if (pathColor === 'time_of_day') {
+        // v3.9: تلوين حسب وقت اليوم (24 ساعة)
+        for (let i = 1; i < routePoints.length; i++) {
+            const c = timeOfDayColor(routePoints[i].t);
+            const seg = L.polyline([[routePoints[i-1].lat, routePoints[i-1].lng], [routePoints[i].lat, routePoints[i].lng]], { color: c, weight: w, opacity: op }).addTo(map);
+            routeSegments.push(seg);
+        }
+    } else if (pathColor === 'accuracy') {
+        // v3.9: تلوين حسب دقة GPS
+        for (let i = 1; i < routePoints.length; i++) {
+            const c = accuracyColor(routePoints[i].accuracy);
+            const seg = L.polyline([[routePoints[i-1].lat, routePoints[i-1].lng], [routePoints[i].lat, routePoints[i].lng]], { color: c, weight: w, opacity: op }).addTo(map);
             routeSegments.push(seg);
         }
     } else {
-        routePoly = L.polyline(lls, { color: pathColor, weight: 4, opacity: 0.75, lineJoin: 'round' }).addTo(map);
+        // لون ثابت (HEX من color picker أو الألوان الجاهزة)
+        routePoly = L.polyline(lls, { color: pathColor, weight: w, opacity: op, lineJoin: 'round' }).addTo(map);
+    }
+
+    // v3.9: رسم أسهم اتجاه السير (كل ~10% من النقاط)
+    if (showArrows && routePoints.length >= 5) {
+        const step = Math.max(1, Math.floor(routePoints.length / 12));
+        for (let i = step; i < routePoints.length; i += step) {
+            const p1 = routePoints[i-1], p2 = routePoints[i];
+            const angle = Math.atan2(p2.lng - p1.lng, p2.lat - p1.lat) * 180 / Math.PI;
+            const arrowIcon = L.divIcon({
+                className: '',
+                iconSize: [16, 16], iconAnchor: [8, 8],
+                html: `<div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:12px solid #fbbf24;transform:rotate(${angle}deg);filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"></div>`
+            });
+            const arr = L.marker([p2.lat, p2.lng], { icon: arrowIcon, interactive: false, zIndexOffset: 100 }).addTo(map);
+            arrowMarkers.push(arr);
+        }
     }
 
     // علامة بداية المسار
@@ -1056,7 +1248,10 @@ function drawRoute(points) {
     let lastStopsData = []; // v3.8: نخزّنها للإحصائيات والتقرير
     if (stopClusteringEnabled) {
         // v3.6: تجميع ذكي
-        const { stops } = clusterStops(filtered);
+        let { stops } = clusterStops(filtered);
+        // v3.9: فلاتر التوقفات
+        if (hideBriefStops) stops = stops.filter(s => (s.durationMs / 60000) >= 5);
+        if (hideRecurringPlaces) stops = stops.filter(s => !s.isRecurring);
         stopCount = stops.length;
         lastStopsData = stops;
         // v3.8: لون حسب نوع التوقف
@@ -1586,35 +1781,159 @@ function updateStatistics() {
     }
 }
 
-// ===== TIMELINE =====
-function updateTimeline() {
-    const container = document.getElementById('timeline');
-    if (!locationHistory.length) { container.innerHTML = '<div class="no-data">لا توجد بيانات لهذا السائق</div>'; return; }
+// ===== TIMELINE (v3.9: تجميع + بحث + فلتر سرعة + تصدير مرئي) =====
+function getFilteredTimelineData() {
+    if (!locationHistory.length) return [];
     let data = [...locationHistory];
     const now = new Date();
     if (tlFilter === 'today') { const s = new Date(now); s.setHours(0,0,0,0); data = data.filter(p => p.t >= s); }
     else if (tlFilter === 'yesterday') { const s = new Date(now); s.setDate(s.getDate()-1); s.setHours(0,0,0,0); const e = new Date(now); e.setHours(0,0,0,0); data = data.filter(p => p.t >= s && p.t < e); }
     else if (tlFilter === 'week') { const s = new Date(now); s.setDate(s.getDate()-7); data = data.filter(p => p.t >= s); }
+    // v3.9: فلتر السرعة الدنيا
+    if (tlSpeedMin > 0) data = data.filter(p => ((p.speed||0) * 3.6) >= tlSpeedMin);
+    // v3.9: بحث (وقت/نشاط/إحداثيات)
+    if (tlSearch) {
+        data = data.filter(p => {
+            const tStr = p.t.toLocaleString('ar-SA').toLowerCase();
+            const aStr = (activityMap[p.activity] || p.activity || '').toLowerCase();
+            const cStr = `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`;
+            return tStr.includes(tlSearch) || aStr.includes(tlSearch) || cStr.includes(tlSearch);
+        });
+    }
     if (tlSort === 'time') data.sort((a, b) => b.t - a.t);
     else if (tlSort === 'speed_desc') data.sort((a, b) => (b.speed||0) - (a.speed||0));
     else if (tlSort === 'speed_asc') data.sort((a, b) => (a.speed||0) - (b.speed||0));
+    return data;
+}
+
+window._lastFilteredTimeline = []; // عشان exportFilteredExcel
+
+function updateTimeline() {
+    const container = document.getElementById('timeline');
+    if (!locationHistory.length) { container.innerHTML = '<div class="no-data">لا توجد بيانات لهذا السائق</div>'; return; }
+    const data = getFilteredTimelineData();
+    window._lastFilteredTimeline = data;
+    if (!data.length) { container.innerHTML = '<div class="no-data">لا توجد نتائج تطابق الفلتر</div>'; return; }
+
     container.innerHTML = '';
-    data.slice(0, 200).forEach(point => {
-        const s = ((point.speed || 0) * 3.6).toFixed(1);
-        const sc = s < 20 ? 'spd-slow' : s < 80 ? 'spd-med' : 'spd-fast';
-        const actLabel = activityMap[point.activity] || (point.isMoving ? '🚗 يتحرك' : '🅿️ متوقف');
-        const el = document.createElement('div');
-        el.className = 'tl-item';
-        el.innerHTML = `<div class="tl-time">${point.t.toLocaleString('ar-SA', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})}</div><div class="tl-row"><span class="spd ${sc}">${s} كم/س</span><span style="font-size:10px;color:var(--text-muted);">${actLabel}</span></div><div class="tl-coords">${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}</div>`;
-        el.addEventListener('click', () => {
-            document.querySelectorAll('.tl-item').forEach(e => e.classList.remove('hl'));
-            el.classList.add('hl');
-            map.setView([point.lat, point.lng], 17);
-            L.popup().setLatLng([point.lat, point.lng]).setContent(`<div style="direction:rtl;color:var(--text);font-size:12px;"><div style="font-weight:700;margin-bottom:5px;">📍 نقطة من السجل</div><div>السرعة: ${s} كم/س</div><div>الوقت: ${point.t.toLocaleTimeString('ar-SA')}</div></div>`).openOn(map);
+
+    // v3.9: التجميع
+    if (tlGroup === 'none') {
+        renderTLFlat(container, data.slice(0, 300));
+    } else if (tlGroup === 'activity') {
+        renderTLGrouped(container, data.slice(0, 500), p => activityMap[p.activity] || (p.isMoving ? '🚗 يتحرك' : '🅿️ متوقف'));
+    } else if (tlGroup === 'hour') {
+        renderTLGrouped(container, data.slice(0, 500), p => {
+            const d = p.t;
+            return `${d.toLocaleDateString('ar-SA',{day:'2-digit',month:'2-digit'})} الساعة ${String(d.getHours()).padStart(2,'0')}:00`;
         });
-        container.appendChild(el);
+    } else if (tlGroup === 'trip') {
+        renderTLTrips(container, data);
+    }
+}
+
+function renderTLFlat(container, data) {
+    data.forEach(point => {
+        container.appendChild(buildTLItem(point));
     });
-    if (!data.length) container.innerHTML = '<div class="no-data">لا توجد بيانات في هذه الفترة</div>';
+}
+
+function renderTLGrouped(container, data, keyFn) {
+    const groups = {};
+    data.forEach(p => {
+        const k = keyFn(p);
+        if (!groups[k]) groups[k] = [];
+        groups[k].push(p);
+    });
+    Object.entries(groups).forEach(([key, pts]) => {
+        // حساب مدة و مسافة المجموعة
+        const sortedG = [...pts].sort((a,b)=>a.t-b.t);
+        const startT = sortedG[0].t, endT = sortedG[sortedG.length-1].t;
+        let dist = 0;
+        for (let i=1;i<sortedG.length;i++) dist += haversine(sortedG[i-1].lat, sortedG[i-1].lng, sortedG[i].lat, sortedG[i].lng);
+        const header = document.createElement('div');
+        header.style.cssText = 'background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);border-radius:7px;padding:7px 10px;margin:8px 0 4px;cursor:pointer;font-size:11px;font-weight:600;color:var(--blue);';
+        header.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;"><span>${key}</span><span style="font-size:10px;color:var(--text-muted);font-weight:400;">${pts.length} نقطة • ${dist.toFixed(1)} كم • ${formatDuration(endT-startT)}</span></div>`;
+        const body = document.createElement('div');
+        body.style.cssText = 'display:none;';
+        header.addEventListener('click', () => {
+            body.style.display = body.style.display === 'none' ? 'block' : 'none';
+        });
+        pts.forEach(p => body.appendChild(buildTLItem(p)));
+        container.appendChild(header);
+        container.appendChild(body);
+    });
+}
+
+function renderTLTrips(container, data) {
+    // رحلة = سلسلة نقاط متحركة بينهما توقف >= 3 دقايق
+    const sorted = [...data].sort((a,b)=>a.t-b.t);
+    const trips = [];
+    let curr = null;
+    for (let i=0;i<sorted.length;i++) {
+        const p = sorted[i];
+        const speedKmh = (p.speed||0)*3.6;
+        const moving = p.isMoving === true || speedKmh >= 3;
+        if (moving) {
+            if (!curr) curr = { points: [p], startT: p.t };
+            else curr.points.push(p);
+        } else {
+            if (curr && curr.points.length >= 3) {
+                curr.endT = curr.points[curr.points.length-1].t;
+                trips.push(curr);
+            }
+            curr = null;
+        }
+    }
+    if (curr && curr.points.length >= 3) { curr.endT = curr.points[curr.points.length-1].t; trips.push(curr); }
+    if (!trips.length) {
+        container.innerHTML = '<div class="no-data">لم يتم اكتشاف رحلات (لا توجد فترات حركة طويلة)</div>';
+        return;
+    }
+    // عكس الترتيب لو الفرز بالأحدث
+    if (tlSort === 'time') trips.reverse();
+    trips.forEach((trip, idx) => {
+        let dist = 0, maxSpd = 0;
+        for (let i=1;i<trip.points.length;i++) {
+            dist += haversine(trip.points[i-1].lat, trip.points[i-1].lng, trip.points[i].lat, trip.points[i].lng);
+            const s = (trip.points[i].speed||0)*3.6;
+            if (s > maxSpd) maxSpd = s;
+        }
+        const header = document.createElement('div');
+        header.style.cssText = 'background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:7px;padding:9px 11px;margin:8px 0 4px;cursor:pointer;';
+        header.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;color:var(--green);font-size:12px;">
+            <span>🚗 رحلة #${trips.length - idx}</span>
+            <span style="font-size:10px;color:var(--text-muted);font-weight:400;">${dist.toFixed(1)} كم • ${formatDuration(trip.endT-trip.startT)} • أقصى ${maxSpd.toFixed(0)} كم/س</span>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">من ${trip.startT.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})} إلى ${trip.endT.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})}</div>`;
+        const body = document.createElement('div');
+        body.style.cssText = 'display:none;';
+        trip.points.forEach(p => body.appendChild(buildTLItem(p)));
+        header.addEventListener('click', () => {
+            body.style.display = body.style.display === 'none' ? 'block' : 'none';
+            // fly إلى الرحلة
+            const bounds = trip.points.map(p => [p.lat, p.lng]);
+            if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40] });
+        });
+        container.appendChild(header);
+        container.appendChild(body);
+    });
+}
+
+function buildTLItem(point) {
+    const s = ((point.speed || 0) * 3.6).toFixed(1);
+    const sc = s < 20 ? 'spd-slow' : s < 80 ? 'spd-med' : 'spd-fast';
+    const actLabel = activityMap[point.activity] || (point.isMoving ? '🚗 يتحرك' : '🅿️ متوقف');
+    const el = document.createElement('div');
+    el.className = 'tl-item';
+    el.innerHTML = `<div class="tl-time">${point.t.toLocaleString('ar-SA', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})}</div><div class="tl-row"><span class="spd ${sc}">${s} كم/س</span><span style="font-size:10px;color:var(--text-muted);">${actLabel}</span></div><div class="tl-coords">${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}</div>`;
+    el.addEventListener('click', () => {
+        document.querySelectorAll('.tl-item').forEach(e => e.classList.remove('hl'));
+        el.classList.add('hl');
+        map.setView([point.lat, point.lng], 17);
+        L.popup().setLatLng([point.lat, point.lng]).setContent(`<div style="direction:rtl;color:var(--text);font-size:12px;"><div style="font-weight:700;margin-bottom:5px;">📍 نقطة من السجل</div><div>السرعة: ${s} كم/س</div><div>الوقت: ${point.t.toLocaleTimeString('ar-SA')}</div></div>`).openOn(map);
+    });
+    return el;
 }
 
 // ===== REPLAY =====
@@ -1711,8 +2030,72 @@ window.toggleStopClustering = function() {
 };
 window.setPathColor = function(c) {
     pathColor = c;
+    // v3.9: مزامنة الـ select لو القيمة تطابق
+    const sel = document.getElementById('colorModeSelect');
+    if (sel && (c === 'activity' || c === 'speed' || c === 'time_of_day' || c === 'accuracy')) sel.value = c;
     // v3.8: legend دائماً ظاهر (يحتوي مفتاح المسار + التوقفات)
     drawRoute(locationHistory);
+};
+// v3.9: عناصر التحكم الجديدة
+window.setPathWidth = function(v) {
+    pathWidth = parseInt(v);
+    document.getElementById('pathWidthVal').textContent = v;
+    drawRoute(locationHistory);
+};
+window.setPathOpacity = function(v) {
+    pathOpacity = parseInt(v) / 100;
+    document.getElementById('pathOpacityVal').textContent = v + '%';
+    drawRoute(locationHistory);
+};
+window.toggleArrows = function() {
+    showArrows = !showArrows;
+    const btn = document.getElementById('arrowsBtn');
+    btn.textContent = showArrows ? 'مفعّل' : 'معطّل';
+    btn.style.color = showArrows ? 'var(--green)' : 'var(--text-muted)';
+    btn.style.background = showArrows ? 'rgba(16,185,129,0.15)' : 'rgba(148,163,184,0.15)';
+    btn.style.borderColor = showArrows ? 'rgba(16,185,129,0.3)' : 'rgba(148,163,184,0.3)';
+    drawRoute(locationHistory);
+};
+window.setRouteActivityFilter = function(f, el) {
+    routeActivityFilter = f;
+    document.querySelectorAll('#tab-route .filter-pills').forEach((wrap, idx) => {
+        // الـ filter-pills الثاني هو فلتر النشاط (الأول هو نطاق سريع)
+        if (wrap.querySelector('.pill[onclick*="setRouteActivityFilter"]')) {
+            wrap.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+        }
+    });
+    if (el) el.classList.add('active');
+    drawRoute(locationHistory);
+};
+window.toggleHideBrief = function() {
+    hideBriefStops = !hideBriefStops;
+    document.getElementById('hideBriefBtn').textContent = hideBriefStops ? '☑️' : '⬜';
+    drawRoute(locationHistory);
+};
+window.toggleHideRecurring = function() {
+    hideRecurringPlaces = !hideRecurringPlaces;
+    document.getElementById('hideRecurringBtn').textContent = hideRecurringPlaces ? '☑️' : '⬜';
+    drawRoute(locationHistory);
+};
+// v3.9: عناصر التحكم في السجل
+window.setTLGroup = function(g, el) {
+    tlGroup = g;
+    document.querySelectorAll('#tab-timeline .filter-pills').forEach(wrap => {
+        if (wrap.querySelector('.pill[onclick*="setTLGroup"]')) {
+            wrap.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+        }
+    });
+    if (el) el.classList.add('active');
+    updateTimeline();
+};
+window.setTLSearch = function(v) {
+    tlSearch = (v || '').toLowerCase().trim();
+    updateTimeline();
+};
+window.setTLSpeedMin = function(v) {
+    tlSpeedMin = parseFloat(v) || 0;
+    document.getElementById('tlSpeedMinVal').textContent = v;
+    updateTimeline();
 };
 window.setRouteRange = function(h, el) {
     routeRangeHours = h;
@@ -1847,6 +2230,37 @@ window.exportExcel = function() {
         XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hist), 'سجل المواقع');
     }
     XLSX.writeFile(wb, `driver_${driverId}_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+// v3.9: تصدير ما يظهر فقط في السجل (بعد تطبيق الفلاتر)
+window.exportFilteredExcel = function() {
+    if (typeof XLSX === 'undefined') { alert('مكتبة Excel لم تُحمّل بعد، جرب بعد ثانية'); return; }
+    const data = window._lastFilteredTimeline || [];
+    if (!data.length) { alert('لا توجد بيانات مرئية للتصدير'); return; }
+    const wb = XLSX.utils.book_new();
+    const meta = [
+        ['تصدير السجل المرئي', ''],
+        ['السائق', currentDriverData?.name || driverId],
+        ['عدد النقاط', data.length],
+        ['الفلتر الزمني', tlFilter === 'all' ? 'الكل' : tlFilter === 'today' ? 'اليوم' : tlFilter === 'yesterday' ? 'أمس' : 'الأسبوع'],
+        ['التجميع', tlGroup === 'none' ? 'لا' : tlGroup === 'activity' ? 'حسب النشاط' : tlGroup === 'trip' ? 'رحلات' : 'حسب الساعة'],
+        ['سرعة دنيا', tlSpeedMin + ' كم/س'],
+        ['البحث', tlSearch || '—'],
+        ['وقت التصدير', new Date().toLocaleString('ar-SA')],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(meta), 'معلومات الفلتر');
+    const hist = [['الوقت', 'خط العرض', 'خط الطول', 'السرعة كم/س', 'الدقة م', 'يتحرك', 'النشاط', 'حالة التطبيق']];
+    data.forEach(p => hist.push([
+        p.t.toLocaleString('ar-SA'),
+        p.lat.toFixed(6), p.lng.toFixed(6),
+        ((p.speed||0)*3.6).toFixed(1),
+        (p.accuracy||0).toFixed(0),
+        p.isMoving === true ? 'نعم' : p.isMoving === false ? 'لا' : '—',
+        activityMap[p.activity] || p.activity || '—',
+        p.appState || '—'
+    ]));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hist), 'النقاط المرئية');
+    XLSX.writeFile(wb, `driver_${driverId}_filtered_${new Date().toISOString().slice(0,10)}.xlsx`);
 };
 
 // ===== INIT =====
