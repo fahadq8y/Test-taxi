@@ -459,10 +459,18 @@
             </div>
 
             <div class="section-title">إجراءات</div>
-            <div style="display:flex;gap:7px;">
-                <button id="callBtn" onclick="callDriver()" style="flex:1;padding:9px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:var(--green);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;display:none;">📞 اتصال</button>
-                <a href="#" id="profileLink" style="flex:1;padding:9px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:var(--blue);border-radius:8px;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">👤 الملف الكامل</a>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;">
+                <button id="callBtn" onclick="callDriver()" style="flex:1;min-width:90px;padding:9px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:var(--green);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;display:none;">📞 اتصال</button>
+                <a href="#" id="profileLink" style="flex:1;min-width:90px;padding:9px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:var(--blue);border-radius:8px;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">👤 الملف الكامل</a>
+                <a href="#" id="diagnosticsLink" style="flex:1;min-width:90px;padding:9px;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:#8b5cf6;border-radius:8px;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">🔍 تشخيص الصلاحيات</a>
             </div>
+            <script>
+                (function(){
+                    var p = new URLSearchParams(location.search);
+                    var id = p.get('id');
+                    if (id) document.getElementById('diagnosticsLink').href = 'driver-diagnostics.html?id=' + encodeURIComponent(id);
+                })();
+            </script>
         </div>
 
         <!-- ROUTE TAB -->
