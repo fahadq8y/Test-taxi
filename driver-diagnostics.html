@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تشخيص الصلاحيات - نظام إدارة التاكسي</title>
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <style>
+        :root {
+            --primary: #1a1a2e; --secondary: #16213e; --accent: #0f3460;
+            --green: #10b981; --red: #ef4444; --yellow: #f59e0b;
+            --blue: #3b82f6; --purple: #8b5cf6; --gold: #e94560;
+            --text: #e2e8f0; --text-muted: #94a3b8;
+            --card-bg: rgba(255,255,255,0.05);
+            --card-bg-hover: rgba(255,255,255,0.08);
+            --border: rgba(255,255,255,0.1);
+            --shadow: 0 4px 24px rgba(0,0,0,0.4);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, #0d0d1f 100%);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 16px;
+        }
+        .header {
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            border-radius: 14px; padding: 18px 22px;
+            margin-bottom: 18px;
+            box-shadow: var(--shadow);
+            display: flex; align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 12px;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .back-btn {
+            background: var(--card-bg); border: 1px solid var(--border);
+            color: var(--text); padding: 8px 14px; border-radius: 8px;
+            text-decoration: none; font-size: 13px;
+            transition: all 0.2s;
+        }
+        .back-btn:hover { background: var(--card-bg-hover); }
+        h1 { font-size: 18px; color: white; }
+        .header-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+        .last-update {
+            font-size: 11px; color: var(--text-muted);
+            background: var(--card-bg); padding: 5px 10px; border-radius: 6px;
+        }
+
+        .summary-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+        .summary-item {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            padding: 12px; border-radius: 10px;
+            text-align: center;
+        }
+        .summary-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .summary-value { font-size: 18px; font-weight: bold; }
+        .summary-good { color: var(--green); }
+        .summary-warn { color: var(--yellow); }
+        .summary-bad { color: var(--red); }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: var(--shadow);
+        }
+        .card h2 {
+            font-size: 14px; font-weight: 700; color: var(--blue);
+            margin-bottom: 14px; padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .perm-item {
+            background: rgba(255,255,255,0.03);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+        }
+        .perm-header {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .perm-icon { font-size: 22px; }
+        .perm-info { flex: 1; }
+        .perm-label { font-size: 13px; font-weight: 600; color: var(--text); }
+        .perm-key { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+        .perm-status {
+            font-size: 11px; padding: 4px 10px; border-radius: 12px;
+            font-weight: 600;
+        }
+        .perm-granted { background: rgba(16,185,129,0.15); color: var(--green); }
+        .perm-denied { background: rgba(239,68,68,0.15); color: var(--red); }
+        .perm-reason {
+            margin-top: 8px; font-size: 11px; color: var(--yellow);
+            padding: 6px 10px; background: rgba(245,158,11,0.08);
+            border-radius: 6px;
+        }
+        .conf-bar {
+            margin-top: 8px;
+        }
+        .conf-label {
+            font-size: 11px; color: var(--text-muted);
+            display: flex; justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        .conf-track {
+            height: 6px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .conf-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+
+        .info-row {
+            display: flex; justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: var(--text-muted); }
+        .info-value { color: var(--text); font-weight: 600; }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 10px;
+        }
+        .action-btn {
+            background: rgba(59,130,246,0.1);
+            border: 1px solid rgba(59,130,246,0.3);
+            color: var(--text);
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .action-btn:hover {
+            background: rgba(59,130,246,0.2);
+            transform: translateY(-1px);
+        }
+        .action-btn.danger {
+            background: rgba(239,68,68,0.1);
+            border-color: rgba(239,68,68,0.3);
+            color: var(--red);
+        }
+        .action-btn.danger:hover { background: rgba(239,68,68,0.2); }
+        .action-btn.success {
+            background: rgba(16,185,129,0.1);
+            border-color: rgba(16,185,129,0.3);
+            color: var(--green);
+        }
+        .action-btn.success:hover { background: rgba(16,185,129,0.2); }
+        .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .kill-list {
+            margin-top: 8px;
+        }
+        .kill-item {
+            display: flex; justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px dashed var(--border);
+            font-size: 12px;
+        }
+        .kill-reason {
+            font-weight: 600;
+            padding: 2px 8px; border-radius: 10px;
+            font-size: 11px;
+        }
+        .kill-honor { background: rgba(239,68,68,0.15); color: var(--red); }
+        .kill-normal { background: rgba(148,163,184,0.15); color: var(--text-muted); }
+
+        .loading-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 100;
+        }
+        .loading-spinner {
+            width: 50px; height: 50px;
+            border: 4px solid var(--border);
+            border-top-color: var(--blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .toast {
+            position: fixed; bottom: 20px; left: 50%;
+            transform: translateX(-50%);
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 12px 20px; border-radius: 8px;
+            box-shadow: var(--shadow);
+            z-index: 200;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp { from { transform: translate(-50%, 50px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+        .toast.success { border-color: var(--green); }
+        .toast.error { border-color: var(--red); }
+
+        .empty-state {
+            text-align: center; padding: 30px 20px;
+            color: var(--text-muted); font-size: 13px;
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .header { padding: 14px; }
+            h1 { font-size: 15px; }
+            .summary-value { font-size: 16px; }
+            .actions-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <a href="javascript:history.back()" class="back-btn">← رجوع</a>
+            <div>
+                <h1 id="pageTitle">🔍 تشخيص الصلاحيات</h1>
+                <div class="header-meta" id="pageSubtitle">جاري التحميل...</div>
+            </div>
+        </div>
+        <div class="last-update" id="lastUpdate">—</div>
+    </div>
+
+    <!-- ملخص سريع -->
+    <div class="summary-card">
+        <h2 style="font-size:14px; color:var(--blue); margin-bottom:14px;">📊 ملخص سريع</h2>
+        <div class="summary-grid" id="summaryGrid">
+            <div class="summary-item"><div class="summary-label">الحالة</div><div class="summary-value" id="sumStatus">—</div></div>
+            <div class="summary-item"><div class="summary-label">الصلاحيات</div><div class="summary-value" id="sumPerms">—</div></div>
+            <div class="summary-item"><div class="summary-label">آخر موقع</div><div class="summary-value" id="sumLastLoc">—</div></div>
+            <div class="summary-item"><div class="summary-label">قتلات HONOR (24س)</div><div class="summary-value" id="sumKills">—</div></div>
+            <div class="summary-item"><div class="summary-label">البطارية</div><div class="summary-value" id="sumBattery">—</div></div>
+            <div class="summary-item"><div class="summary-label">إصدار التطبيق</div><div class="summary-value" id="sumVersion">—</div></div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- الصلاحيات الأساسية -->
+        <div class="card">
+            <h2>🔐 الصلاحيات الأساسية (6)</h2>
+            <div id="basicPerms"></div>
+        </div>
+
+        <!-- صلاحيات HONOR -->
+        <div class="card" id="honorCard" style="display:none;">
+            <h2>📱 صلاحيات HONOR (3)</h2>
+            <div id="honorPerms"></div>
+        </div>
+
+        <!-- معلومات الجهاز -->
+        <div class="card">
+            <h2>📊 معلومات الجهاز</h2>
+            <div id="deviceInfo"></div>
+        </div>
+
+        <!-- ExitReasons -->
+        <div class="card">
+            <h2>💀 تحليل قتل التطبيق (24 ساعة)</h2>
+            <div id="exitInfo"></div>
+        </div>
+    </div>
+
+    <!-- أوامر التشخيص -->
+    <div class="card">
+        <h2>🛠 أوامر التشخيص</h2>
+        <div class="actions-grid">
+            <button class="action-btn" onclick="sendCmd('snapshot_now', 'طلب snapshot جديد')">📊 طلب snapshot</button>
+            <button class="action-btn" onclick="sendCmd('cycle_wakelock', 'تنفيذ cycle wakelock')">⚡ Cycle wakelock</button>
+            <button class="action-btn" onclick="sendCmd('get_current_position', 'طلب الموقع الحالي')">📍 موقع الآن</button>
+            <button class="action-btn" onclick="sendCmd('flush_queue', 'مسح قائمة الانتظار')">🧹 مسح القائمة</button>
+            <button class="action-btn" onclick="sendCmd('reset_counters', 'تصفير العدّادات')">🧮 صفّر عدّادات</button>
+            <button class="action-btn success" onclick="sendCmd('run_full_diagnostic', 'تشخيص شامل')">🧪 اختبار شامل</button>
+            <button class="action-btn danger" onclick="sendCmd('invalidate_honor_perms', 'إلغاء صلاحيات HONOR')">♻️ إلغاء صلاحيات HONOR</button>
+            <button class="action-btn danger" onclick="sendCmd('reload_app', 'إعادة تشغيل التطبيق')">🔃 إعادة التطبيق</button>
+        </div>
+    </div>
+
+    <!-- آخر تقارير التشخيص -->
+    <div class="card">
+        <h2>📜 آخر تقارير التشخيص</h2>
+        <div id="reportsList"><div class="empty-state">جاري التحميل...</div></div>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Firebase v10 compat -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script>
+    firebase.initializeApp({
+        apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+        authDomain: "taxi-management-system-d8210.firebaseapp.com",
+        projectId: "taxi-management-system-d8210",
+        storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+        messagingSenderId: "720874424166",
+        appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7"
+    });
+    </script>
+    <script>
+    (function() {
+        const params = new URLSearchParams(location.search);
+        const driverId = params.get('id');
+        if (!driverId) {
+            document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#fff;">❌ لم يتم تحديد السائق<br><a href="drivers.html" style="color:#3b82f6;">رجوع</a></div>';
+            return;
+        }
+
+        document.getElementById('pageTitle').innerHTML = '🔍 تشخيص ' + driverId;
+        const db = firebase.firestore();
+
+        const PERM_LABELS = {
+            p1: 'الموقع (Fine Location)',
+            p2: 'الموقع في الخلفية',
+            p3: 'استثناء البطارية',
+            p4: 'الإشعارات',
+            p5: 'العرض فوق التطبيقات',
+            p6: 'مدير الجهاز',
+            p7: 'HONOR — التطبيقات المحمية',
+            p8: 'HONOR — التشغيل التلقائي',
+            p9: 'HONOR — الاستخدام المكثف للبطارية',
+        };
+
+        function fmtTime(ts) {
+            if (!ts) return '—';
+            try {
+                const d = ts.toDate ? ts.toDate() : new Date(ts);
+                const ageMs = Date.now() - d.getTime();
+                const min = Math.floor(ageMs / 60000);
+                if (min < 1) return 'الآن';
+                if (min < 60) return `قبل ${min} د`;
+                const h = Math.floor(min / 60);
+                if (h < 24) return `قبل ${h} ساعة`;
+                return `قبل ${Math.floor(h/24)} يوم`;
+            } catch (e) { return '—'; }
+        }
+
+        function confColor(score) {
+            if (score >= 75) return '#10b981';
+            if (score >= 50) return '#f59e0b';
+            if (score >= 25) return '#ef4444';
+            return '#7f1d1d';
+        }
+        function confLabel(level) {
+            return { high: 'عالية', medium: 'متوسطة', low: 'منخفضة', critical: 'حرجة' }[level] || level || '—';
+        }
+
+        function renderPerm(key, granted, reason, conf) {
+            const div = document.createElement('div');
+            div.className = 'perm-item';
+            let html = `
+                <div class="perm-header">
+                    <div class="perm-icon">${granted ? '✅' : '❌'}</div>
+                    <div class="perm-info">
+                        <div class="perm-label">${PERM_LABELS[key] || key}</div>
+                        <div class="perm-key">${key}</div>
+                    </div>
+                    <div class="perm-status ${granted ? 'perm-granted' : 'perm-denied'}">
+                        ${granted ? 'مفعّلة' : 'غير مفعّلة'}
+                    </div>
+                </div>`;
+            if (reason) {
+                html += `<div class="perm-reason">⚠️ سبب الإلغاء: ${reason}</div>`;
+            }
+            if (conf && typeof conf.score === 'number') {
+                html += `
+                    <div class="conf-bar">
+                        <div class="conf-label">
+                            <span>درجة الثقة</span>
+                            <span style="color:${confColor(conf.score)};font-weight:700;">${conf.score}% (${confLabel(conf.level)})</span>
+                        </div>
+                        <div class="conf-track">
+                            <div class="conf-fill" style="width:${conf.score}%;background:${confColor(conf.score)};"></div>
+                        </div>
+                    </div>`;
+            }
+            div.innerHTML = html;
+            return div;
+        }
+
+        function renderInfoRows(container, rows) {
+            container.innerHTML = '';
+            rows.forEach(([label, value, color]) => {
+                const div = document.createElement('div');
+                div.className = 'info-row';
+                div.innerHTML = `<span class="info-label">${label}</span><span class="info-value" ${color ? `style="color:${color}"` : ''}>${value}</span>`;
+                container.appendChild(div);
+            });
+        }
+
+        function setSummary(snap) {
+            const allBasic = snap.permissions && snap.permissions.p1 && snap.permissions.p2 &&
+                snap.permissions.p3 && snap.permissions.p4 && snap.permissions.p5 && snap.permissions.p6;
+            const allHonor = !snap.permissions?.isHonor || (snap.permissions.p7 && snap.permissions.p8 && snap.permissions.p9);
+            const ok = allBasic && allHonor;
+            const sumStatus = document.getElementById('sumStatus');
+            sumStatus.textContent = ok ? '🟢 جيدة' : '🔴 تحتاج تدخل';
+            sumStatus.className = 'summary-value ' + (ok ? 'summary-good' : 'summary-bad');
+
+            let granted = 0, total = 6;
+            if (snap.permissions) {
+                ['p1','p2','p3','p4','p5','p6'].forEach(k => snap.permissions[k] && granted++);
+                if (snap.permissions.isHonor) {
+                    total = 9;
+                    ['p7','p8','p9'].forEach(k => snap.permissions[k] && granted++);
+                }
+            }
+            const sumPerms = document.getElementById('sumPerms');
+            sumPerms.textContent = `${granted}/${total}`;
+            sumPerms.className = 'summary-value ' + (granted === total ? 'summary-good' : (granted >= total - 2 ? 'summary-warn' : 'summary-bad'));
+
+            const lastLoc = snap.lastLocationAgeMin;
+            const sumLastLoc = document.getElementById('sumLastLoc');
+            sumLastLoc.textContent = lastLoc !== undefined ? `قبل ${lastLoc} د` : '—';
+            sumLastLoc.className = 'summary-value ' + (lastLoc < 5 ? 'summary-good' : lastLoc < 30 ? 'summary-warn' : 'summary-bad');
+
+            const exitKills = snap.exitAnalysis?.honorKills || 0;
+            const sumKills = document.getElementById('sumKills');
+            sumKills.textContent = exitKills;
+            sumKills.className = 'summary-value ' + (exitKills === 0 ? 'summary-good' : exitKills < 3 ? 'summary-warn' : 'summary-bad');
+
+            const bat = snap.device?.battery;
+            const sumBat = document.getElementById('sumBattery');
+            if (bat !== undefined) {
+                const pct = Math.round(bat * 100);
+                sumBat.textContent = pct + '%';
+                sumBat.className = 'summary-value ' + (pct > 30 ? 'summary-good' : pct > 15 ? 'summary-warn' : 'summary-bad');
+            } else {
+                sumBat.textContent = '—';
+            }
+
+            document.getElementById('sumVersion').textContent = snap.appVersion || '—';
+        }
+
+        function renderAll(snap) {
+            const subtitle = `${snap.device?.brand || '?'} ${snap.device?.model || ''} • Android ${snap.device?.androidVersion || '?'}`;
+            document.getElementById('pageSubtitle').textContent = subtitle;
+            document.getElementById('lastUpdate').textContent = 'آخر تحديث: ' + fmtTime(snap.ts);
+
+            setSummary(snap);
+
+            // الصلاحيات الأساسية
+            const basicEl = document.getElementById('basicPerms');
+            basicEl.innerHTML = '';
+            ['p1','p2','p3','p4','p5','p6'].forEach(k => {
+                const granted = snap.permissions ? !!snap.permissions[k] : false;
+                basicEl.appendChild(renderPerm(k, granted, null, null));
+            });
+
+            // HONOR
+            if (snap.permissions?.isHonor) {
+                document.getElementById('honorCard').style.display = '';
+                const honorEl = document.getElementById('honorPerms');
+                honorEl.innerHTML = '';
+                const reasons = {
+                    p7: snap.honor?.p7_invalidated,
+                    p8: snap.honor?.p8_invalidated,
+                    p9: snap.honor?.p9_invalidated,
+                };
+                ['p7','p8','p9'].forEach(k => {
+                    const granted = snap.permissions[k];
+                    const conf = snap.confidences?.[k] || null;
+                    honorEl.appendChild(renderPerm(k, granted, reasons[k], conf));
+                });
+            }
+
+            // الجهاز
+            renderInfoRows(document.getElementById('deviceInfo'), [
+                ['الموديل', `${snap.device?.brand || '?'} ${snap.device?.model || ''}`],
+                ['نظام التشغيل', `Android ${snap.device?.androidVersion || '?'}`],
+                ['البطارية', snap.device?.battery !== undefined ? `${Math.round(snap.device.battery * 100)}%` : '—'],
+                ['Power Save', snap.device?.powerSaveMode ? 'مفعّل ⚠️' : 'مغلق'],
+                ['RNBG', snap.rnbg?.enabled ? '✅ شغّال' : '❌ متوقف'],
+                ['Queue', `${snap.rnbg?.queueCount ?? '—'} نقطة`],
+                ['Odometer', snap.rnbg?.odometer ? `${(snap.rnbg.odometer/1000).toFixed(1)} كم` : '—'],
+                ['آخر موقع', `قبل ${snap.lastLocationAgeMin ?? '—'} دقيقة`],
+                ['إصدار التطبيق', snap.appVersion || '—'],
+            ]);
+
+            // ExitReasons
+            const exitEl = document.getElementById('exitInfo');
+            const ex = snap.exitAnalysis;
+            if (!ex || !ex.supported) {
+                exitEl.innerHTML = '<div class="empty-state">⚠️ ExitReasons API غير مدعوم على هذا الجهاز<br>(Android < 11)</div>';
+            } else {
+                renderInfoRows(exitEl, [
+                    ['قتلات HONOR', ex.honorKills, ex.honorKills > 0 ? 'var(--red)' : 'var(--green)'],
+                    ['قتلات طبيعية', ex.normalKills],
+                    ['درجة شك p7', ex.p7SuspectScore + '%', ex.p7SuspectScore >= 60 ? 'var(--red)' : ex.p7SuspectScore >= 30 ? 'var(--yellow)' : 'var(--green)'],
+                    ['آخر قتل HONOR', ex.lastHonorKill ? fmtTime(ex.lastHonorKill) : 'لا يوجد'],
+                ]);
+                if (ex.recent && ex.recent.length) {
+                    const list = document.createElement('div');
+                    list.className = 'kill-list';
+                    list.innerHTML = '<div style="font-size:12px;color:var(--text-muted);margin:8px 0 4px;">آخر 5 موتات:</div>';
+                    ex.recent.slice(0, 5).forEach(r => {
+                        const isHonor = [8, 9, 13, 14].includes(r.reason);
+                        list.innerHTML += `
+                            <div class="kill-item">
+                                <span class="kill-reason ${isHonor ? 'kill-honor' : 'kill-normal'}">${r.reasonName}</span>
+                                <span style="color:var(--text-muted);">${fmtTime(r.timestamp)}</span>
+                            </div>`;
+                    });
+                    exitEl.appendChild(list);
+                }
+            }
+        }
+
+        async function loadDiagnostics() {
+            try {
+                const doc = await db.collection('driverDiagnostics').doc(driverId).get();
+                if (!doc.exists) {
+                    document.getElementById('pageSubtitle').textContent = '⚠️ لا توجد بيانات تشخيص لهذا السائق';
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    return;
+                }
+                renderAll(doc.data());
+            } catch (e) {
+                showToast('خطأ في التحميل: ' + e.message, 'error');
+            } finally {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
+        }
+
+        async function loadReports() {
+            try {
+                const snap = await db.collection('driverDiagnostics').doc(driverId)
+                    .collection('diagnosticReports')
+                    .orderBy(firebase.firestore.FieldPath.documentId(), 'desc')
+                    .limit(5).get();
+                const el = document.getElementById('reportsList');
+                if (snap.empty) {
+                    el.innerHTML = '<div class="empty-state">لا توجد تقارير سابقة. اضغط "اختبار شامل" لإنشاء أول تقرير.</div>';
+                    return;
+                }
+                el.innerHTML = '';
+                snap.forEach(d => {
+                    const r = d.data();
+                    const div = document.createElement('div');
+                    div.className = 'info-row';
+                    div.style.cursor = 'pointer';
+                    const ok = r.permissions && r.permissions.allGranted;
+                    div.innerHTML = `
+                        <span class="info-label">${fmtTime(r.ts)}</span>
+                        <span class="info-value" style="color:${ok ? 'var(--green)' : 'var(--red)'};">
+                            ${ok ? '✅' : '❌'} ${r.permissions?.allGranted ? 'كل الصلاحيات OK' : 'صلاحيات ناقصة'}
+                            ${r.queueCount !== undefined ? ` • Queue: ${r.queueCount}` : ''}
+                        </span>`;
+                    el.appendChild(div);
+                });
+            } catch (e) {
+                console.warn(e);
+            }
+        }
+
+        window.sendCmd = async function(cmdType, label) {
+            if (!confirm(`هل تريد إرسال أمر "${label}" للسائق ${driverId}؟`)) return;
+            try {
+                const cmdId = 'cmd_' + Date.now();
+                await db.collection('driverDiagnostics').doc(driverId)
+                    .collection('commands').doc(cmdId).set({
+                    type: cmdType,
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    triggeredBy: 'admin_diagnostics',
+                });
+                showToast(`✅ أُرسل أمر: ${label}`, 'success');
+                if (cmdType === 'run_full_diagnostic') {
+                    setTimeout(() => loadReports(), 8000);
+                }
+            } catch (e) {
+                showToast('❌ فشل الإرسال: ' + e.message, 'error');
+            }
+        };
+
+        function showToast(msg, type) {
+            const t = document.createElement('div');
+            t.className = 'toast ' + (type || '');
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 3500);
+        }
+
+        // تحميل أولي + تحديث تلقائي
+        loadDiagnostics();
+        loadReports();
+        setInterval(() => { loadDiagnostics(); }, 30000);
+    })();
+    </script>
+</body>
+</html>
