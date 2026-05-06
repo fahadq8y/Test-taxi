@@ -451,7 +451,23 @@
         }
 
         // Update car registration expiry when car is selected
-        window.updateCarRegistrationExpiry = () => {
+        
+          // 🔧 FIX #020 (2026-05-06): Helper موحد لتسجيل تعديلات السائق في editHistory
+          async function logEditHistory(payload) {
+              try {
+                  const userName = (typeof currentUser !== 'undefined' && currentUser && (currentUser.name || currentUser.email)) 
+                      || localStorage.getItem('userName') || 'غير محدد';
+                  const userRole = localStorage.getItem('userRole') || 'admin';
+                  await addDoc(collection(db, 'editHistory'), {
+                      editedBy: userName, editedByRole: userRole,
+                      timestamp: new Date(), ...payload
+                  });
+                  console.log('📝 logEditHistory:', payload.recordType, payload.action);
+              } catch (e) { console.error('❌ logEditHistory:', e); }
+          }
+          window.logEditHistory = logEditHistory;
+
+          window.updateCarRegistrationExpiry = () => {
             const carId = document.getElementById('assignedCar').value;
             const car = cars.find(c => c.id === carId);
             
@@ -945,7 +961,27 @@
                       if (__cleanupCount > 0) { await __batch.commit(); console.log('✅ FIX #016: حذف ' + __cleanupCount + ' سجل أصلي'); }
                   } catch (__cleanupErr) { console.error('⚠️ FIX #016 فشل (الأرشيف موجود):', __cleanupErr); }
 
-                  await deleteDoc(doc(db, 'drivers', driverId));
+                  // 🔧 FIX #020: تسجيل أرشفة السائق في editHistory (قبل الحذف)
+                    try {
+                        await logEditHistory({
+                            recordType: 'driver', recordId: driverId, action: 'archive',
+                            driverId: driverId,
+                            driverName: (driverToDelete && driverToDelete.name) || '',
+                            description: 'أرشفة وحذف السائق - ' + (driverToDelete?.name || '') + ' (' + (driverToDelete?.employeeNumber || '') + ')',
+                            editReason: 'حذف السائق من النظام',
+                            archiveData: {
+                                employeeNumber: driverToDelete?.employeeNumber || null,
+                                phone: driverToDelete?.phone || null,
+                                totalPayments: driverPayments?.length || 0,
+                                totalExpenses: driverExpenses?.length || 0,
+                                totalRevenues: driverRevenues?.length || 0,
+                                cleanupCount: __cleanupCount
+                            },
+                            fullSnapshot: driverToDelete || null
+                        });
+                    } catch (__lge) { console.error('⚠️ FIX #020 archive log:', __lge); }
+                    
+                    await deleteDoc(doc(db, 'drivers', driverId));
                 alert('تم حذف السائق بنجاح وأرشفة جميع بياناته\n\n' + 
                       `📊 تم أرشفة:\n` +
                       `• ${driverPayments?.length || 0} دفعة\n` +
@@ -1084,6 +1120,54 @@
                           }
                       }
                       await updateDoc(doc(db, 'drivers', editingDriverId), driverData);
+                      
+                      // 🔧 FIX #020: تسجيل تعديل السائق في editHistory
+                      try {
+                          const __old = __existingDrv || {};
+                          const __changes = [];
+                          const __fmap = [
+                              ['name', 'الاسم'], ['phone', 'رقم الهاتف'],
+                              ['nationality', 'الجنسية'], ['address', 'العنوان'],
+                              ['notes', 'الملاحظات'], ['assignedCar', 'السيارة'],
+                              ['contractType', 'نوع العقد'],
+                              ['dailyRent', 'الإيجار اليومي'], ['monthlyPayment', 'الدفعة الشهرية'],
+                              ['contractDurationMonths', 'مدة العقد (أشهر)'],
+                              ['contractDurationDays', 'مدة العقد (أيام)']
+                          ];
+                          for (const [k, label] of __fmap) {
+                              const ov = __old[k] ?? '';
+                              const nv = driverData[k] ?? '';
+                              if (String(ov) !== String(nv)) {
+                                  __changes.push({ field: k, fieldLabel: label, oldValue: ov, newValue: nv });
+                              }
+                          }
+                          const __dateFields = [
+                              ['contractStartDate', 'تاريخ بداية العقد'],
+                              ['contractEndDate', 'تاريخ نهاية العقد'],
+                              ['carRegistrationExpiry', 'انتهاء استمارة السيارة'],
+                              ['residencyExpiry', 'انتهاء الإقامة'],
+                              ['licenseExpiry', 'انتهاء الرخصة'],
+                              ['permitExpiry', 'انتهاء التصريح'],
+                              ['passportExpiry', 'انتهاء جواز السفر']
+                          ];
+                          for (const [k, label] of __dateFields) {
+                              const ovd = __old[k] ? (__old[k].toDate ? __old[k].toDate() : new Date(__old[k])) : null;
+                              const nvd = driverData[k] || null;
+                              const ovs = ovd ? ovd.toISOString().split('T')[0] : '';
+                              const nvs = nvd ? nvd.toISOString().split('T')[0] : '';
+                              if (ovs !== nvs) __changes.push({ field: k, fieldLabel: label, oldValue: ovs, newValue: nvs });
+                          }
+                          if (__changes.length > 0) {
+                              await logEditHistory({
+                                  recordType: 'driver', recordId: editingDriverId, action: 'edit',
+                                  driverId: editingDriverId,
+                                  driverName: driverData.name || (__old.name || ''),
+                                  changes: __changes,
+                                  description: 'تعديل بيانات السائق (' + __changes.length + ' حقل)',
+                                  editReason: 'تعديل من نموذج السائق'
+                              });
+                          }
+                      } catch (__lge) { console.error('⚠️ FIX #020 driver edit log:', __lge); }
                     alert('تم تحديث بيانات السائق بنجاح');
                 } else {
                     // إضافة سائق جديد - استخدام employeeNumber كـ Document ID
@@ -1322,6 +1406,23 @@
                 }
 
                 await updateDoc(doc(db, 'drivers', newContractDriverId), updateData);
+                  
+                  // 🔧 FIX #020: تسجيل عقد جديد في editHistory
+                  try {
+                      await logEditHistory({
+                          recordType: 'contract', recordId: newContractDriverId, action: 'newContract',
+                          driverId: newContractDriverId, driverName: driver.name || '',
+                          description: 'عقد جديد - ' + (newType === 'daily' ? 'يومي' : 'شهري') + ' ' + newRate.toFixed(3) + ' د.ك',
+                          editReason: note || 'تجديد عقد',
+                          newContract: {
+                              type: newType, rate: newRate,
+                              startDate: newStart, endDate: newEnd,
+                              carryOver: finalCarryOver, carryOverLabel: carryOverLabel,
+                              oldDebtsBefore: parseFloat(driver.oldDebts || 0),
+                              oldDebtsAfter: newOldDebts
+                          }
+                      });
+                  } catch (__lge) { console.error('⚠️ FIX #020 newContract log:', __lge); }
 
                 alert(`✅ تم إنشاء العقد الجديد بنجاح!\n` +
                     `الرصيد المرحَّل (${Math.abs(finalCarryOver).toFixed(3)} د.ك) تم إضافته للديون القديمة`);
@@ -1604,6 +1705,24 @@
                       updatedBy: currentUser.name || currentUser.email,
                       endContractReason: reason,
                   });
+                    
+                    // 🔧 FIX #020: تسجيل إنهاء عقد في editHistory
+                    try {
+                        await logEditHistory({
+                            recordType: 'contract', recordId: endContractDriverId, action: 'endContract',
+                            driverId: endContractDriverId, driverName: driver.name || '',
+                            description: 'إنهاء عقد - ' + reason,
+                            editReason: note || reason,
+                            endContractData: {
+                                actualEndDate: calc.actualEndDate.toISOString().split('T')[0],
+                                expectedRent: calc.expectedRent, paidRent: calc.paidRent,
+                                carryOver: calc.carryOver,
+                                oldDebtsBefore: parseFloat(driver.oldDebts || 0),
+                                oldDebtsAfter: calc.oldDebtsNew,
+                                reason: reason
+                            }
+                        });
+                    } catch (__lge) { console.error('⚠️ FIX #020 endContract log:', __lge); }
                   
                   alert('✅ تم إنهاء العقد بنجاح');
                   closeEndContractModal();
@@ -1656,6 +1775,18 @@
                     oldDebts: newValue,
                     contractHistory: updatedHistory
                 });
+                  
+                  // 🔧 FIX #020: تسجيل تعديل ديون قديمة في editHistory
+                  try {
+                      await logEditHistory({
+                          recordType: 'oldDebts', recordId: editOldDebtsDriverId, action: 'edit',
+                          driverId: editOldDebtsDriverId, driverName: driver.name || '',
+                          field: 'oldDebts', fieldLabel: 'الديون القديمة',
+                          oldValue: oldValue, newValue: newValue,
+                          description: 'تعديل ديون قديمة من ' + oldValue.toFixed(3) + ' إلى ' + newValue.toFixed(3) + ' د.ك',
+                          editReason: note
+                      });
+                  } catch (__lge) { console.error('⚠️ FIX #020 oldDebts log:', __lge); }
 
                 alert(`✅ تم تعديل الديون القديمة بنجاح!\nمن: ${oldValue.toFixed(3)} د.ك → إلى: ${newValue.toFixed(3)} د.ك`);
                 closeEditOldDebtsModal();
