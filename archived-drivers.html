@@ -107,7 +107,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, getDocs, doc, getDoc, deleteDoc, updateDoc, addDoc, setDoc, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, doc, getDoc, deleteDoc, updateDoc, addDoc, setDoc, query, where, writeBatch } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -398,7 +398,20 @@
 
             try {
                 console.log('🗑️ بدء الحذف النهائي للسائق بالمعرف:', archiveDocId);
-                await deleteDoc(doc(db, 'archivedDrivers', archiveDocId));
+                // FIX #017 (2026-05-06): تنظيف البيانات اليتيمة قبل الحذف النهائي
+                  let __orphanCount = 0;
+                  try {
+                      const __cb = writeBatch(db);
+                      const __pSnap = await getDocs(query(collection(db, 'driverPayments'), where('driverId', '==', archiveDocId)));
+                      __pSnap.forEach(d => { __cb.delete(d.ref); __orphanCount++; });
+                      const __eSnap = await getDocs(query(collection(db, 'expenses'), where('driverId', '==', archiveDocId)));
+                      __eSnap.forEach(d => { __cb.delete(d.ref); __orphanCount++; });
+                      const __rSnap = await getDocs(query(collection(db, 'revenues'), where('driverId', '==', archiveDocId)));
+                      __rSnap.forEach(d => { __cb.delete(d.ref); __orphanCount++; });
+                      if (__orphanCount > 0) { await __cb.commit(); console.log('FIX #017: deleted ' + __orphanCount + ' orphan records'); }
+                  } catch (__oe) { console.error('FIX #017 cleanup failed:', __oe); }
+
+                  await deleteDoc(doc(db, 'archivedDrivers', archiveDocId));
                 console.log('✅ تم حذف السائق من Firebase بنجاح');
                 
                 alert('تم الحذف النهائي بنجاح');
