@@ -277,7 +277,23 @@
         }
 
         // Restore driver using employeeNumber
-        window.restoreDriver = async (employeeNumber) => {
+        
+          // 🔧 FIX #020 (2026-05-06): Helper موحد لتسجيل في editHistory
+          async function logEditHistory(payload) {
+              try {
+                  const userName = (typeof currentUser !== 'undefined' && currentUser && (currentUser.name || currentUser.email)) 
+                      || localStorage.getItem('userName') || 'غير محدد';
+                  const userRole = localStorage.getItem('userRole') || 'admin';
+                  await addDoc(collection(db, 'editHistory'), {
+                      editedBy: userName, editedByRole: userRole,
+                      timestamp: new Date(), ...payload
+                  });
+                  console.log('📝 logEditHistory:', payload.recordType, payload.action);
+              } catch (e) { console.error('❌ logEditHistory:', e); }
+          }
+          window.logEditHistory = logEditHistory;
+
+          window.restoreDriver = async (employeeNumber) => {
             if (!confirm('هل أنت متأكد من استعادة هذا السائق?\nسيتم نقله من الأرشيف إلى قائمة السائقين النشطين.')) {
                 return;
             }
@@ -354,7 +370,23 @@
                     throw deleteError;
                 }
 
-                // Reload archived drivers to update the display
+                // 🔧 FIX #020: تسجيل استعادة السائق في editHistory
+                  try {
+                      await logEditHistory({
+                          recordType: 'restore', recordId: employeeNumber, action: 'restore',
+                          driverId: employeeNumber, driverName: archivedDriver.name || '',
+                          description: 'استعادة السائق من الأرشيف - ' + (archivedDriver.name || '') + ' (' + employeeNumber + ')',
+                          editReason: 'استعادة من قائمة الأرشيف',
+                          restoreData: {
+                              employeeNumber: employeeNumber,
+                              phone: archivedDriver.phone || null,
+                              wasArchivedAt: archivedDriver.archivedAt || null,
+                              wasArchivedBy: archivedDriver.archivedBy || null
+                          }
+                      });
+                  } catch (__lge) { console.error('⚠️ FIX #020 restore log:', __lge); }
+                  
+                  // Reload archived drivers to update the display
                 console.log('🔄 تحديث قائمة الأرشيف...');
                 await loadArchivedDrivers();
                 displayArchivedDrivers(archivedDrivers);
@@ -411,7 +443,26 @@
                       if (__orphanCount > 0) { await __cb.commit(); console.log('FIX #017: deleted ' + __orphanCount + ' orphan records'); }
                   } catch (__oe) { console.error('FIX #017 cleanup failed:', __oe); }
 
-                  await deleteDoc(doc(db, 'archivedDrivers', archiveDocId));
+                  // 🔧 FIX #020: تسجيل حذف نهائي في editHistory (قبل الحذف)
+                    try {
+                        const __ad = archivedDrivers.find(d => d.id === archiveDocId || d.employeeNumber === archiveDocId) || {};
+                        await logEditHistory({
+                            recordType: 'archive', recordId: archiveDocId, action: 'permanentDelete',
+                            driverId: archiveDocId, driverName: __ad.name || '',
+                            description: 'حذف نهائي من الأرشيف - ' + (__ad.name || '') + ' (' + archiveDocId + ')',
+                            editReason: 'حذف نهائي بدون استعادة',
+                            permanentDeleteData: {
+                                employeeNumber: __ad.employeeNumber || archiveDocId,
+                                phone: __ad.phone || null,
+                                orphanCount: __orphanCount,
+                                wasArchivedAt: __ad.archivedAt || null,
+                                wasArchivedBy: __ad.archivedBy || null
+                            },
+                            fullSnapshot: __ad
+                        });
+                    } catch (__lge) { console.error('⚠️ FIX #020 permanentDelete log:', __lge); }
+                    
+                    await deleteDoc(doc(db, 'archivedDrivers', archiveDocId));
                 console.log('✅ تم حذف السائق من Firebase بنجاح');
                 
                 alert('تم الحذف النهائي بنجاح');
