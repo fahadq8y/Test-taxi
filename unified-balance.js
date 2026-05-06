@@ -189,8 +189,9 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
                 periodEnd = nextContract.startDate ?
                     (nextContract.startDate.toDate ? nextContract.startDate.toDate() : new Date(nextContract.startDate)) : today;
             } else {
-                // العقد الأخير (النشط) - نهايته اليوم
-                periodEnd = today;
+                // العقد الأخير - 🔧 FIX #010: نهايته إما تاريخ النهاية أو اليوم
+                const _pEnd = contract.endDate ? (contract.endDate.toDate ? contract.endDate.toDate() : new Date(contract.endDate)) : (driver.contractEndDate ? (driver.contractEndDate.toDate ? driver.contractEndDate.toDate() : new Date(driver.contractEndDate)) : null);
+                periodEnd = (_pEnd && !isNaN(_pEnd.getTime()) && today > _pEnd) ? _pEnd : today;
             }
             
             // لا نحسب ما بعد اليوم
@@ -222,17 +223,21 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
         const contractType = driver.contractType || 'daily';
         
         if (contractType === 'monthly') {
-            // #004: إصلاح حساب العقود الشهرية
+            // #004 + 🔧 FIX #010: capping
+            const _cEnd = driver.contractEndDate ? (driver.contractEndDate.toDate ? driver.contractEndDate.toDate() : new Date(driver.contractEndDate)) : null;
+            const _eff = (_cEnd && !isNaN(_cEnd.getTime()) && today > _cEnd) ? _cEnd : today;
             const rate = parseFloat(driver.monthlyPayment || 0);
             const startYear = contractStart.getFullYear();
             const startMonth = contractStart.getMonth();
-            const endYear = today.getFullYear();
-            const endMonth = today.getMonth();
+            const endYear = _eff.getFullYear();
+            const endMonth = _eff.getMonth();
             const monthsDiff = (endYear - startYear) * 12 + (endMonth - startMonth);
             expectedRentTotal = monthsDiff * rate;
         } else {
-            // عقد يومي (الطريقة القديمة)
-            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+            // عقد يومي - 🔧 FIX #010: capping at contractEndDate
+            const _cEnd = driver.contractEndDate ? (driver.contractEndDate.toDate ? driver.contractEndDate.toDate() : new Date(driver.contractEndDate)) : null;
+            const _eff = (_cEnd && !isNaN(_cEnd.getTime()) && today > _cEnd) ? _cEnd : today;
+            const daysSinceStart = Math.floor((_eff - contractStart) / (1000 * 60 * 60 * 24));
             const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
             expectedRentTotal = daysSinceStart * dailyWage;
         }
