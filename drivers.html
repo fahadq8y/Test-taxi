@@ -590,8 +590,14 @@
                 const car = cars.find(c => c.id === driver.assignedCar);
                 const carInfo = car ? `${car.plateNumber} - ${car.model}` : 'غير محدد';
 
+                // FIX #010: حالة العقد المنتهي
+                const _cEnd = driver.contractEndDate ? (driver.contractEndDate.toDate ? driver.contractEndDate.toDate() : new Date(driver.contractEndDate)) : null;
+                const _contractEnded = !!(_cEnd && !isNaN(_cEnd.getTime()) && today > _cEnd);
+                const _daysAfterEnd = _contractEnded ? Math.floor((today - _cEnd) / (1000*60*60*24)) : 0;
+                
                 return `
                     <div class="driver-card">
+                        ${_contractEnded ? `<div style="background:#fee2e2;color:#dc2626;padding:6px 12px;border-radius:6px;text-align:center;font-weight:600;margin-bottom:8px;font-size:13px;">⏰ العقد منتهي منذ ${_daysAfterEnd} يوم</div>` : ''}
                         <div class="driver-header">
                             <div class="driver-name">${driver.name}</div>
                             <div class="driver-phone">${driver.phone}</div>
