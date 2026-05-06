@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+  <html lang="ar" dir="rtl">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إصلاح بيانات العقود — White Horse</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Tahoma, Arial; background: #f3f4f6; color: #1f2937; padding: 20px; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  h1 { color: #1e40af; margin-bottom: 8px; }
+  .subtitle { color: #6b7280; margin-bottom: 20px; }
+  .card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  .warning { background: #fef3c7; border-right: 4px solid #f59e0b; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
+  .danger { background: #fee2e2; border-right: 4px solid #dc2626; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+  th { background: #1e40af; color: white; padding: 10px; text-align: right; }
+  td { padding: 10px; border-bottom: 1px solid #e5e7eb; }
+  .before { color: #dc2626; font-weight: 600; }
+  .after { color: #059669; font-weight: 600; }
+  .fix { background: #dbeafe; padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #1e40af; }
+  button { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600; margin-left: 10px; }
+  .btn-primary { background: #1e40af; color: white; }
+  .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
+  .btn-danger { background: #dc2626; color: white; }
+  .btn-secondary { background: #6b7280; color: white; }
+  #status { padding: 15px; border-radius: 6px; margin-top: 20px; display: none; }
+  .status-success { background: #d1fae5; color: #065f46; }
+  .status-error { background: #fee2e2; color: #991b1b; }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .action-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+  </style>
+  </head>
+  <body>
+  <div class="container">
+  <h1>🔧 إصلاح بيانات العقود (FIX #010)</h1>
+  <p class="subtitle">صفحة آمنة لمراجعة وإصلاح 4 سواقين عقودهم تأثرت بمشكلة active=true بعد النهاية</p>
+
+  <div class="warning">
+  <strong>⚠️ مهم:</strong> هذه الصفحة <strong>لا تعدّل أي بيانات تلقائياً</strong>. تشوف المعاينة أولاً، وبعدها تختار التطبيق بنفسك.
+  </div>
+
+  <div class="danger">
+  <strong>🛑 قبل التطبيق:</strong>
+  <ul style="margin-right: 20px; margin-top: 8px;">
+  <li>التغيير يكتب على Firestore مباشرة (drivers collection)</li>
+  <li>راجع كل سائق بدقة قبل الضغط على "تطبيق"</li>
+  <li>كل تعديل يضاف له تعليق "FIX #010 — Phase 2 cleanup" في contractHistory</li>
+  <li>نسخة احتياطية: قبل التطبيق سنخزن snapshot في window.preFixSnapshot</li>
+  </ul>
+  </div>
+
+  <div class="card">
+  <h2>📊 السواقين المتأثرين (4)</h2>
+  <table>
+  <thead><tr>
+  <th>ID</th><th>الاسم</th><th>المشكلة</th><th>المبلغ قبل</th><th>المبلغ بعد</th><th>التغيير</th><th>الإصلاح المقترح</th>
+  </tr></thead>
+  <tbody>
+  <tr>
+  <td>DRV012</td><td>مأمون</td>
+  <td><span class="fix">active=true بعد النهاية</span></td>
+  <td class="before">1302 KD</td><td class="after">952 KD</td><td>−350 KD</td>
+  <td>تعيين active=false (العقد منتهي 2025-05-17 → ?)</td>
+  </tr>
+  <tr>
+  <td>DRV021</td><td>أبواسامة</td>
+  <td><span class="fix">حساب بعد نهاية العقد</span></td>
+  <td class="before">2277 KD</td><td class="after">1234 KD</td><td>−1043 KD</td>
+  <td>تثبيت تاريخ نهاية العقد + إضافة سجل في contractHistory</td>
+  </tr>
+  <tr>
+  <td>DRV025</td><td>نصر</td>
+  <td><span class="fix">9 أيام تأخير وهمي بعد النهاية</span></td>
+  <td class="before">63 KD</td><td class="after">0 KD</td><td>−63 KD</td>
+  <td>تثبيت contractEndDate + إغلاق العقد</td>
+  </tr>
+  <tr>
+  <td>DRV026</td><td>أحمد زاهر</td>
+  <td><span class="fix">active=true بعد النهاية</span></td>
+  <td class="before">1775 KD</td><td class="after">1222 KD</td><td>−553 KD</td>
+  <td>تعيين active=false + سجل contractHistory</td>
+  </tr>
+  </tbody>
+  </table>
+  <p style="margin-top: 15px; font-weight: 600;">إجمالي الديون الوهمية الحالية: <span class="before">2009 KD</span> → سيُحذف بعد الإصلاح</p>
+  </div>
+
+  <div class="card">
+  <h2>🔧 الإجراءات المتاحة</h2>
+  <p><strong>ملاحظة:</strong> بعد نشر FIX #010 على Vercel، الحسابات في الواجهة ستُصحَّح <strong>تلقائياً بدون أي تعديل على البيانات</strong>. هذه الصفحة لتعديل الـ flags المنطقية (active=false) فقط لأغراض الفلترة والإحصائيات.</p>
+
+  <div class="action-row">
+  <button class="btn-secondary" onclick="loadCurrent()">🔄 تحديث البيانات الحالية</button>
+  <button class="btn-primary" id="btnPreview" onclick="previewChanges()">👁️ معاينة التعديلات</button>
+  <button class="btn-danger" id="btnApply" onclick="applyFixes()" disabled>✅ تطبيق التعديلات (يكتب على Firestore)</button>
+  </div>
+
+  <div id="preview" style="margin-top: 20px;"></div>
+  <div id="status"></div>
+  </div>
+
+  <div class="card">
+  <h2>📋 سجل العمليات</h2>
+  <pre id="log" style="background: #1f2937; color: #d1d5db; padding: 15px; border-radius: 6px; max-height: 400px; overflow: auto; font-size: 12px;">في انتظار البدء...</pre>
+  </div>
+  </div>
+
+  <script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBAJlJkRiezgN8rhX-KgdaC44BpomSe0mY",
+    authDomain: "taxi-management-system-d8210.firebaseapp.com",
+    projectId: "taxi-management-system-d8210",
+    storageBucket: "taxi-management-system-d8210.appspot.com",
+    messagingSenderId: "626165741263",
+    appId: "1:626165741263:web:36c61e8a4b8c7e0e00ab2c"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  const TARGETS = ['DRV012', 'DRV021', 'DRV025', 'DRV026'];
+  let currentData = {};
+  let plannedChanges = {};
+
+  function log(msg) {
+    const el = document.getElementById('log');
+    const ts = new Date().toLocaleTimeString('en-GB');
+    el.textContent += '\n[' + ts + '] ' + msg;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function showStatus(msg, kind) {
+    const s = document.getElementById('status');
+    s.textContent = msg;
+    s.className = 'status-' + kind;
+    s.style.display = 'block';
+  }
+
+  async function loadCurrent() {
+    log('قراءة بيانات السواقين الـ 4 من Firestore...');
+    currentData = {};
+    for (const id of TARGETS) {
+      const doc = await db.collection('drivers').doc(id).get();
+      if (doc.exists) {
+        currentData[id] = doc.data();
+        log(`  ✓ ${id} (${currentData[id].name || 'بدون اسم'}) — active=${currentData[id].active} — endDate=${currentData[id].contractEndDate || 'غير محدد'}`);
+      } else {
+        log(`  ✗ ${id} غير موجود!`);
+      }
+    }
+    window.preFixSnapshot = JSON.parse(JSON.stringify(currentData));
+    log('💾 snapshot محفوظ في window.preFixSnapshot');
+    showStatus('✓ تم تحميل بيانات السواقين الـ 4', 'success');
+  }
+
+  function previewChanges() {
+    if (!Object.keys(currentData).length) {
+      showStatus('اضغط أولاً "تحديث البيانات الحالية"', 'error');
+      return;
+    }
+    plannedChanges = {};
+    let html = '<h3>التعديلات المخططة:</h3><table><thead><tr><th>السائق</th><th>الحقل</th><th>قبل</th><th>بعد</th></tr></thead><tbody>';
+    
+    for (const id of TARGETS) {
+      const d = currentData[id];
+      if (!d) continue;
+      const changes = {};
+      
+      // كل السواقين الـ 4: تعيين active=false إذا كان لديهم contractEndDate وانتهى
+      const endDate = d.contractEndDate ? new Date(d.contractEndDate) : null;
+      if (endDate && !isNaN(endDate.getTime()) && new Date() > endDate && d.active !== false) {
+        changes.active = false;
+      }
+      
+      if (Object.keys(changes).length) {
+        plannedChanges[id] = changes;
+        for (const [k, v] of Object.entries(changes)) {
+          html += `<tr><td>${id} (${d.name || ''})</td><td>${k}</td><td class="before">${JSON.stringify(d[k])}</td><td class="after">${JSON.stringify(v)}</td></tr>`;
+        }
+      } else {
+        html += `<tr><td>${id}</td><td colspan="3" style="color:#059669">✓ لا توجد تعديلات مطلوبة (تم إصلاحه مسبقاً)</td></tr>`;
+      }
+    }
+    html += '</tbody></table>';
+    document.getElementById('preview').innerHTML = html;
+    
+    if (Object.keys(plannedChanges).length) {
+      document.getElementById('btnApply').disabled = false;
+      showStatus(`جاهز لتطبيق التعديلات على ${Object.keys(plannedChanges).length} سائق. راجع الجدول أعلاه ثم اضغط "تطبيق".`, 'success');
+    } else {
+      showStatus('✓ كل السواقين متوافقين — لا حاجة لأي تعديل', 'success');
+    }
+  }
+
+  async function applyFixes() {
+    if (!Object.keys(plannedChanges).length) {
+      showStatus('لا توجد تعديلات للتطبيق', 'error');
+      return;
+    }
+    if (!confirm('هل أنت متأكد من تطبيق التعديلات على Firestore؟ هذه العملية لا يمكن التراجع عنها بسهولة.')) return;
+    
+    document.getElementById('btnApply').disabled = true;
+    log('🚀 بدء التطبيق...');
+    let ok = 0, fail = 0;
+    
+    for (const [id, changes] of Object.entries(plannedChanges)) {
+      try {
+        const updates = { ...changes };
+        // إضافة سجل في contractHistory
+        const historyEntry = {
+          action: 'FIX #010 — Phase 2 cleanup',
+          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          changes: changes,
+          note: 'تم تعيين active=false لأن العقد منتهي (تطبيق آلي بإذن المالك)',
+        };
+        updates.contractHistory = firebase.firestore.FieldValue.arrayUnion(historyEntry);
+        
+        await db.collection('drivers').doc(id).update(updates);
+        log(`  ✓ ${id}: تم التحديث`);
+        ok++;
+      } catch (e) {
+        log(`  ✗ ${id}: فشل — ${e.message}`);
+        fail++;
+      }
+    }
+    
+    showStatus(`اكتمل: ${ok} نجح، ${fail} فشل`, fail === 0 ? 'success' : 'error');
+    log('🏁 انتهى');
+  }
+
+  window.addEventListener('load', () => {
+    log('الصفحة جاهزة. اضغط "تحديث البيانات الحالية" للبدء.');
+  });
+  </script>
+  </body>
+  </html>
