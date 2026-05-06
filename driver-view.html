@@ -544,8 +544,15 @@
             console.log('Contract Start:', contractStart);
             console.log('Today:', today);
             
-            // Calculate days since contract start
-            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+            // 🔧 FIX #010: contractEndDate guard
+            const contractEnd = driver.contractEndDate ? parseDate(driver.contractEndDate) : null;
+            const contractEnded = !!(contractEnd && !isNaN(contractEnd.getTime()) && today > contractEnd);
+            const effectiveToday = contractEnded ? contractEnd : today;
+            const daysAfterEnd = contractEnded ? Math.floor((today - contractEnd) / (1000 * 60 * 60 * 24)) : 0;
+            console.log('[FIX#010] Contract End:', contractEnd, 'Ended:', contractEnded, 'Days after end:', daysAfterEnd);
+            
+            // Days since contract start (CAPPED at contract end if expired)
+            const daysSinceStart = Math.floor((effectiveToday - contractStart) / (1000 * 60 * 60 * 24));
             
             // Check contract type
             const contractType = driver.contractType || 'daily';
@@ -671,6 +678,10 @@
             }
             
             return {
+                // FIX #010
+                contractEnd,
+                contractEnded,
+                daysAfterEnd,
                 dailyWage: contractType === 'monthly' ? parseFloat(driver.monthlyPayment || 0) : parseFloat(driver.dailyWage || driver.dailyRent || driver.dailyFee || 0),
                 contractStart,
                 lastPayment,
@@ -987,13 +998,18 @@
             // Contract info
             document.getElementById('contractStartDate').textContent = formatDate(driverData.contractStartDate);
             document.getElementById('contractDuration').textContent = driverData.contractDuration ? `${driverData.contractDuration} شهر` : '-';
-            document.getElementById('contractEndDate').textContent = formatDate(driverData.contractEndDate);
+            (function(){
+                const _e = document.getElementById('contractEndDate');
+                if (stats && stats.contractEnded) {
+                    _e.innerHTML = formatDate(driverData.contractEndDate) + ' <span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:6px;font-size:12px;margin-right:8px;font-weight:600">⏰ منتهي منذ ' + stats.daysAfterEnd + ' يوم</span>';
+                } else { _e.textContent = formatDate(driverData.contractEndDate); }
+            })();
 
             // Financial info using new calculations
             document.getElementById('dailyRent').textContent = `${stats.dailyWage} د.ك`;
             document.getElementById('lastPaymentDate').textContent = formatDate(stats.lastPayment);
             document.getElementById('paidUntilDate').textContent = formatDate(stats.paidUntilDate);
-            document.getElementById('overdueDays').textContent = `${stats.daysLate} يوم`;
+            document.getElementById('overdueDays').innerHTML = (stats.contractEnded && stats.daysLate === 0) ? '<span style="color:#059669;font-weight:600">0 يوم ✓ (العقد منتهي)</span>' : (stats.contractEnded ? '<span style="color:#dc2626">' + stats.daysLate + ' يوم (متراكم قبل انتهاء العقد)</span>' : stats.daysLate + ' يوم');
             document.getElementById('overdueAmount').textContent = `${stats.lateAmount.toFixed(3)} د.ك`;
             
             // Set driver balance with proper color
