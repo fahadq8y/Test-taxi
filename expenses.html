@@ -1432,7 +1432,7 @@
             let allExpenseItems = [...expenses];
             
             driverPayments.forEach(payment => {
-                if (['سداد مخالفة', 'سداد رسوم إقامة', 'إجازة سنوية', 'سلفة إلى السائق'].includes(payment.type)) {
+                if (['سداد مخالفة', 'سداد رسوم إقامة', 'سلفة إلى السائق'].includes(payment.type)) {
                     const driverInfo = getDriverInfo(payment.driverId);
                     const driverDisplay = driverInfo.employeeNumber ? 
                         `${driverInfo.name} (${driverInfo.employeeNumber})` : 
@@ -1555,7 +1555,7 @@
             let allExpenseItems = [...expenses];
             
             driverPayments.forEach(payment => {
-                if (['سداد مخالفة', 'سداد رسوم إقامة', 'إجازة سنوية', 'سلفة إلى السائق'].includes(payment.type)) {
+                if (['سداد مخالفة', 'سداد رسوم إقامة', 'سلفة إلى السائق'].includes(payment.type)) {
                     const driverInfo = getDriverInfo(payment.driverId);
                     const driverDisplay = driverInfo.employeeNumber ? 
                         `${driverInfo.name} (${driverInfo.employeeNumber})` : 
