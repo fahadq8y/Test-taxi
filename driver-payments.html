@@ -717,8 +717,24 @@
             }
         }
 
-        // Load driver payments
-        async function loadDriverPayments() {
+        // FIX #010: تحذير عند العقد المنتهي (يتم استدعاؤه بعد loadDriverData)
+          function checkContractStatus(driver) {
+              if (!driver || !driver.contractEndDate) return;
+              const endDate = new Date(driver.contractEndDate);
+              if (isNaN(endDate.getTime())) return;
+              const today = new Date();
+              if (today > endDate) {
+                  const daysAfter = Math.floor((today - endDate) / (1000 * 60 * 60 * 24));
+                  const banner = document.createElement('div');
+                  banner.style.cssText = 'background:#fee2e2;border-right:4px solid #dc2626;padding:15px;margin:15px 0;border-radius:6px;color:#991b1b;font-weight:600;';
+                  banner.innerHTML = '⚠️ تنبيه: عقد هذا السائق <strong>منتهي منذ ' + daysAfter + ' يوم</strong> (انتهى في ' + endDate.toLocaleDateString('en-GB') + '). تأكد قبل تسجيل أي دفعة جديدة.';
+                  const target = document.querySelector('.driver-info, .container, body');
+                  if (target) target.insertBefore(banner, target.firstChild);
+              }
+          }
+          
+          // Load driver payments
+          async function loadDriverPayments() {
             try {
                 const paymentsSnapshot = await db.collection('driverPayments')
                     .where('driverId', '==', currentDriverId)
