@@ -763,6 +763,8 @@
             editingDriverId = null;
             document.getElementById('modalTitle').textContent = 'إضافة سائق جديد';
             document.getElementById('driverForm').reset();
+              // FIX #015: رفع القفل عن الديون القديمة عند الإضافة الجديدة
+              (() => { const f = document.getElementById('oldDebts'); if (f) { f.readOnly = false; f.style.background = ''; f.style.cursor = ''; f.title = ''; } })();
             
             // Generate employee number for new driver
             const empNum = await generateEmployeeNumber();
@@ -786,6 +788,8 @@
             document.getElementById('driverNationality').value = driver.nationality || '';
             document.getElementById('driverAddress').value = driver.address || '';
             document.getElementById('oldDebts').value = driver.oldDebts || 0;
+              // FIX #015 (2026-05-06): قفل حقل الديون القديمة عند التعديل
+              (() => { const f = document.getElementById('oldDebts'); f.readOnly = true; f.style.background = '#f3f4f6'; f.style.cursor = 'not-allowed'; f.title = 'لتعديل الديون القديمة، استخدم زر "💼 تعديل ديون قديمة"'; })();
             document.getElementById('driverNotes').value = driver.notes || '';
             
             // Set contract type and related fields
@@ -931,7 +935,17 @@
                 }
                 
                 // Delete from drivers collection
-                await deleteDoc(doc(db, 'drivers', driverId));
+                // FIX #016 (2026-05-06): حذف الدفعات والمصاريف والإيرادات الأصلية لمنع البيانات اليتيمة
+                  let __cleanupCount = 0;
+                  try {
+                      const __batch = writeBatch(db);
+                      driverPayments.forEach(p => { __batch.delete(doc(db, 'driverPayments', p.id)); __cleanupCount++; });
+                      driverExpenses.forEach(e => { __batch.delete(doc(db, 'expenses', e.id)); __cleanupCount++; });
+                      driverRevenues.forEach(r => { __batch.delete(doc(db, 'revenues', r.id)); __cleanupCount++; });
+                      if (__cleanupCount > 0) { await __batch.commit(); console.log('✅ FIX #016: حذف ' + __cleanupCount + ' سجل أصلي'); }
+                  } catch (__cleanupErr) { console.error('⚠️ FIX #016 فشل (الأرشيف موجود):', __cleanupErr); }
+
+                  await deleteDoc(doc(db, 'drivers', driverId));
                 alert('تم حذف السائق بنجاح وأرشفة جميع بياناته\n\n' + 
                       `📊 تم أرشفة:\n` +
                       `• ${driverPayments?.length || 0} دفعة\n` +
@@ -1043,7 +1057,33 @@
                     driverData.driverId = driverData.employeeNumber;
                     
                     // تحديث السائق الموجود
-                    await updateDoc(doc(db, 'drivers', editingDriverId), driverData);
+                    // FIX #015+#018 (2026-05-06): لا تكتب فوق oldDebts عند التعديل + سجل تغيير العقد
+                      delete driverData.oldDebts;
+                      const __existingDrv = allDrivers.find(d => d.id === editingDriverId);
+                      if (__existingDrv) {
+                          const __changed = (
+                              (__existingDrv.contractType || '') !== (driverData.contractType || '') ||
+                              parseFloat(__existingDrv.dailyRent || 0) !== parseFloat(driverData.dailyRent || 0) ||
+                              parseFloat(__existingDrv.monthlyPayment || 0) !== parseFloat(driverData.monthlyPayment || 0)
+                          );
+                          if (__changed) {
+                              const __hist = {
+                                  type: 'تعديل',
+                                  editedAt: new Date().toISOString(),
+                                  editedBy: currentUser.name || currentUser.email,
+                                  note: 'تعديل بيانات العقد من فورم تعديل السائق',
+                                  oldContractType: __existingDrv.contractType || '',
+                                  newContractType: driverData.contractType || '',
+                                  oldDailyRent: parseFloat(__existingDrv.dailyRent || 0),
+                                  newDailyRent: parseFloat(driverData.dailyRent || 0),
+                                  oldMonthlyPayment: parseFloat(__existingDrv.monthlyPayment || 0),
+                                  newMonthlyPayment: parseFloat(driverData.monthlyPayment || 0)
+                              };
+                              driverData.contractHistory = [...(__existingDrv.contractHistory || []), __hist];
+                              console.log('📝 FIX #018: تم تسجيل تغيير العقد');
+                          }
+                      }
+                      await updateDoc(doc(db, 'drivers', editingDriverId), driverData);
                     alert('تم تحديث بيانات السائق بنجاح');
                 } else {
                     // إضافة سائق جديد - استخدام employeeNumber كـ Document ID
