@@ -1060,17 +1060,23 @@
             let expectedRent = 0;
             let paidRent = 0;
 
+            // 🔧 FIX #011 (2026-05-06): contractEnd guard في openNewContractModal
+            const contractEnd = driver.contractEndDate ? (driver.contractEndDate.toDate ? driver.contractEndDate.toDate() : new Date(driver.contractEndDate)) : null;
+            const contractEnded = !!(contractEnd && !isNaN(contractEnd.getTime()) && today > contractEnd);
+            const effectiveToday = contractEnded ? contractEnd : today;
+            console.log('[FIX#011] contractEnded:', contractEnded, 'effectiveToday:', effectiveToday);
+            
             if (driver.contractType === 'daily') {
-                // عقد يومي: احسب الأيام × الأجرة اليومية
+                // عقد يومي: capping عند نهاية العقد لتفادي دين وهمي
                 const dailyWage = parseFloat(driver.dailyRent || driver.dailyWage || 0);
-                const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+                const daysSinceStart = Math.floor((effectiveToday - contractStart) / (1000 * 60 * 60 * 24));
                 expectedRent = daysSinceStart * dailyWage;
                 const rentPayments = payments.filter(p => p.type === 'أجرة يومية');
                 paidRent = rentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
             } else {
-                // عقد شهري: احسب الأشهر الكاملة المنقضية × المبلغ الشهري
+                // عقد شهري: capping عند نهاية العقد
                 const monthlyPayment = parseFloat(driver.monthlyPayment || 0);
-                const diffDays = (today - contractStart) / (1000 * 60 * 60 * 24);
+                const diffDays = (effectiveToday - contractStart) / (1000 * 60 * 60 * 24);
                 const fullMonths = Math.floor(diffDays / 30.44);
                 expectedRent = fullMonths * monthlyPayment;
                 // الدفعات الشهرية فقط بعد تاريخ بداية العقد الشهري
@@ -1171,6 +1177,12 @@
                 // حفظ العقد القديم في contractHistory
                 const existingHistory = driver.contractHistory ? [...driver.contractHistory] : [];
 
+                // 🔧 FIX #012 (2026-05-06): تاريخ نهاية العقد الفعلي بدل newStart
+                const oldContractEnd = driver.contractEndDate ? (driver.contractEndDate.toDate ? driver.contractEndDate.toDate() : new Date(driver.contractEndDate)) : null;
+                const _today_chk = new Date();
+                const oldContractActuallyEnded = !!(oldContractEnd && !isNaN(oldContractEnd.getTime()) && _today_chk > oldContractEnd);
+                const historyEndDate = oldContractActuallyEnded ? oldContractEnd : new Date(newStart);
+                
                 // إضافة سجل العقد القديم بنوع "عقد جديد"
                 existingHistory.push({
                     type: 'عقد جديد',
@@ -1178,7 +1190,9 @@
                     dailyRent: driver.dailyRent || 0,
                     monthlyPayment: driver.monthlyPayment || 0,
                     startDate: driver.contractStartDate || null,
-                    endDate: new Date(newStart),
+                    endDate: historyEndDate,
+                    actualEndDate: oldContractEnd,
+                    contractWasExpired: oldContractActuallyEnded,
                     carryOver: finalCarryOver,
                     carryOverType: carryOverLabel,
                     archivedAt: new Date(),
@@ -1349,6 +1363,167 @@
             document.getElementById('editOldDebtsModal').style.display = 'none';
             editOldDebtsDriverId = null;
         };
+
+          // ===== FIX #013 (2026-05-06): دوال إنهاء العقد =====
+          let endContractDriverId = null;
+          let endContractCalculation = null;
+
+          window.openEndContractModal = (driverId) => {
+              const driver = allDrivers.find(d => d.id === driverId);
+              if (!driver) return;
+              endContractDriverId = driverId;
+              endContractCalculation = null;
+
+              document.getElementById('endContractDriverName').textContent = driver.name + ' (' + (driver.employeeNumber || '') + ')';
+              const ctype = driver.contractType === 'daily' ? 'يومي' : 'شهري';
+              const rate = driver.contractType === 'daily' ?
+                  (driver.dailyRent || 0) + ' د.ك/يوم' : (driver.monthlyPayment || 0) + ' د.ك/شهر';
+              const startDate = driver.contractStartDate ?
+                  (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)).toLocaleDateString('en-GB') : 'غير محدد';
+              const endDate = driver.contractEndDate ?
+                  (driver.contractEndDate.toDate ? driver.contractEndDate.toDate() : new Date(driver.contractEndDate)).toLocaleDateString('en-GB') : 'غير محدد';
+              const oldDebts = parseFloat(driver.oldDebts || 0);
+              
+              document.getElementById('endContractCurrentInfo').innerHTML = 
+                  'عقد ' + ctype + ' - ' + rate + '<br>📅 من: ' + startDate + ' إلى: ' + endDate + '<br>💼 ديون قديمة حالية: ' + oldDebts.toFixed(3) + ' د.ك';
+              
+              document.getElementById('endContractActualDate').value = new Date().toISOString().split('T')[0];
+              document.getElementById('endContractReason').value = '';
+              document.getElementById('endContractNote').value = '';
+              document.getElementById('endContractDebtPreview').style.display = 'none';
+              document.getElementById('endContractApplyBtn').disabled = true;
+              document.getElementById('endContractApplyBtn').style.opacity = '0.5';
+              document.getElementById('endContractModal').style.display = 'block';
+          };
+
+          window.closeEndContractModal = () => {
+              document.getElementById('endContractModal').style.display = 'none';
+              endContractDriverId = null;
+              endContractCalculation = null;
+          };
+
+          window.previewEndContract = async () => {
+              const actualDateStr = document.getElementById('endContractActualDate').value;
+              if (!actualDateStr) { alert('يرجى تحديد تاريخ الإيقاف الفعلي'); return; }
+              
+              const driver = allDrivers.find(d => d.id === endContractDriverId);
+              if (!driver) return;
+              
+              const actualEndDate = new Date(actualDateStr);
+              const contractStart = driver.contractStartDate ?
+                  (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) : null;
+              
+              if (!contractStart || actualEndDate < contractStart) {
+                  alert('تاريخ الإيقاف لازم يكون بعد بداية العقد');
+                  return;
+              }
+              
+              let payments = [];
+              try {
+                  const paymentsSnap = await getDocs(query(collection(db, 'driverPayments'), where('driverId', '==', endContractDriverId)));
+                  payments = paymentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+              } catch(e) { console.error('فشل جلب الدفعات:', e); alert('فشل جلب دفعات السائق'); return; }
+              
+              let expectedRent = 0, paidRent = 0;
+              if (driver.contractType === 'daily') {
+                  const dailyWage = parseFloat(driver.dailyRent || driver.dailyWage || 0);
+                  const days = Math.floor((actualEndDate - contractStart) / (1000 * 60 * 60 * 24));
+                  expectedRent = days * dailyWage;
+                  paidRent = payments.filter(p => p.type === 'أجرة يومية').reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+              } else {
+                  const monthly = parseFloat(driver.monthlyPayment || 0);
+                  const diffDays = (actualEndDate - contractStart) / (1000 * 60 * 60 * 24);
+                  const fullMonths = Math.floor(diffDays / 30.44);
+                  expectedRent = fullMonths * monthly;
+                  paidRent = payments.filter(p => {
+                      if (p.type !== 'أجرة شهرية' && p.type !== 'أجرة يومية') return false;
+                      const pd = p.date ? (p.date.toDate ? p.date.toDate() : new Date(p.date)) : null;
+                      return pd && pd >= contractStart && pd <= actualEndDate;
+                  }).reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+              }
+              
+              const carryOver = expectedRent - paidRent;
+              const oldDebtsCurrent = parseFloat(driver.oldDebts || 0);
+              const oldDebtsNew = carryOver > 0 ? oldDebtsCurrent + carryOver : Math.max(0, oldDebtsCurrent + carryOver);
+              
+              endContractCalculation = { actualEndDate, expectedRent, paidRent, carryOver, oldDebtsCurrent, oldDebtsNew };
+              
+              const sign = carryOver >= 0 ? '+' : '';
+              const carryColor = carryOver > 0 ? '#dc2626' : carryOver < 0 ? '#059669' : '#64748b';
+              const carryLabel = carryOver > 0 ? '(دين)' : carryOver < 0 ? '(زائد)' : '';
+              
+              document.getElementById('endContractDebtBreakdown').innerHTML = 
+                  '📅 الفترة: من بداية العقد إلى ' + actualEndDate.toLocaleDateString('en-GB') + '<br>' +
+                  '💰 الأجرة المتوقعة: <strong>' + expectedRent.toFixed(3) + ' د.ك</strong><br>' +
+                  '💵 المدفوع: <strong>' + paidRent.toFixed(3) + ' د.ك</strong><br>' +
+                  '📊 الرصيد المرحَّل: <strong style="color:' + carryColor + '">' + sign + carryOver.toFixed(3) + ' د.ك</strong> ' + carryLabel + '<br>' +
+                  '━━━━━━━━━━━━━━━━━━━━<br>' +
+                  '💼 الديون القديمة: ' + oldDebtsCurrent.toFixed(3) + ' → <strong style="color:#dc2626">' + oldDebtsNew.toFixed(3) + ' د.ك</strong>';
+              document.getElementById('endContractDebtPreview').style.display = 'block';
+              document.getElementById('endContractApplyBtn').disabled = false;
+              document.getElementById('endContractApplyBtn').style.opacity = '1';
+          };
+
+          window.saveEndContract = async () => {
+              if (!endContractDriverId || !endContractCalculation) {
+                  alert('يرجى الضغط على "معاينة" أولاً');
+                  return;
+              }
+              const reason = document.getElementById('endContractReason').value;
+              if (!reason) { alert('يرجى اختيار سبب الإنهاء'); return; }
+              
+              const note = document.getElementById('endContractNote').value;
+              const calc = endContractCalculation;
+              const driver = allDrivers.find(d => d.id === endContractDriverId);
+              if (!driver) return;
+              
+              const confirmMsg = 'تأكيد إنهاء عقد ' + driver.name + ':\n\n' +
+                  '• تاريخ الإيقاف: ' + calc.actualEndDate.toLocaleDateString('en-GB') + '\n' +
+                  '• نقل ' + calc.carryOver.toFixed(3) + ' د.ك إلى الديون القديمة\n' +
+                  '• الديون القديمة الجديدة: ' + calc.oldDebtsNew.toFixed(3) + ' د.ك\n' +
+                  '• تعطيل السائق (isActive=false)\n\nمتابعة؟';
+              
+              if (!confirm(confirmMsg)) return;
+              
+              try {
+                  const existingHistory = driver.contractHistory ? [...driver.contractHistory] : [];
+                  existingHistory.push({
+                      type: 'إنهاء عقد',
+                      contractType: driver.contractType,
+                      dailyRent: driver.dailyRent || 0,
+                      monthlyPayment: driver.monthlyPayment || 0,
+                      startDate: driver.contractStartDate || null,
+                      endDate: calc.actualEndDate,
+                      actualEndDate: calc.actualEndDate,
+                      expectedRent: calc.expectedRent,
+                      paidRent: calc.paidRent,
+                      carryOver: calc.carryOver,
+                      transferredToOldDebts: calc.carryOver,
+                      reason: reason,
+                      note: note || '',
+                      archivedAt: new Date(),
+                      archivedBy: currentUser.name || currentUser.email,
+                  });
+                  
+                  await updateDoc(doc(db, 'drivers', endContractDriverId), {
+                      contractEndDate: calc.actualEndDate,
+                      isActive: false,
+                      oldDebts: calc.oldDebtsNew,
+                      contractHistory: existingHistory,
+                      updatedAt: new Date(),
+                      updatedBy: currentUser.name || currentUser.email,
+                      endContractReason: reason,
+                  });
+                  
+                  alert('✅ تم إنهاء العقد بنجاح');
+                  closeEndContractModal();
+                  await loadDrivers();
+                  displayDrivers(allDrivers);
+              } catch (e) {
+                  console.error('خطأ في إنهاء العقد:', e);
+                  alert('حدث خطأ: ' + e.message);
+              }
+          };
 
         window.saveOldDebtsEdit = async () => {
             if (!editOldDebtsDriverId) return;
