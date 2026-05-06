@@ -25,6 +25,15 @@
         }
     </style>
     <script src="driver-payments-permissions-simple.js"></script>
+      <script src="unified-balance.js"></script>
+      <style>
+          .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+          .modal-content { background: white; margin: 5% auto; padding: 0; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+          .modal-header { padding: 18px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+          .modal-header h2 { margin: 0; color: #333; font-size: 18px; }
+          .modal .close { font-size: 28px; cursor: pointer; color: #999; line-height: 1; background: none; border: none; }
+          .modal .close:hover { color: #333; }
+      </style>
     <style>
         * {
             margin: 0;
@@ -485,10 +494,25 @@
                     <div class="info-value" id="lastPayment">جاري التحميل...</div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">إجمالي الدين</div>
-                    <div class="info-value" id="totalDebt">جاري التحميل...</div>
+                    <div class="info-label">💵 إجمالي الدين (موحد)</div>
+                    <div class="info-value" id="totalDebt" style="color: #dc2626; font-weight: bold;">جاري التحميل...</div>
                 </div>
             </div>
+
+              <!-- 🔧 FIX #019: صناديق الديون القديمة وحالة العقد -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 16px;">
+                  <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 10px; padding: 14px; border-right: 4px solid #f59e0b;">
+                      <div style="font-size: 12px; color: #92400e; margin-bottom: 6px; font-weight: 600;">💰 الديون القديمة</div>
+                      <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                          <strong id="oldDebtsBox" style="font-size: 18px; color: #b45309;">0.000 د.ك</strong>
+                          <button onclick="openEditOldDebtsModalLocal()" style="padding: 6px 12px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">✏️ تعديل</button>
+                      </div>
+                  </div>
+                  <div id="contractStatusBox" style="background: linear-gradient(135deg, #dcfce7, #bbf7d0); border-radius: 10px; padding: 14px; border-right: 4px solid #16a34a;">
+                      <div style="font-size: 12px; color: #14532d; margin-bottom: 6px; font-weight: 600;">📅 حالة العقد</div>
+                      <div id="contractStatusText" style="font-size: 15px; color: #166534; font-weight: 600;">جاري التحميل...</div>
+                  </div>
+              </div>
             
             <!-- تنبيه تجديد الإقامة -->
             <div id="renewalNotice" class="renewal-notice" style="display: none;">
@@ -616,40 +640,14 @@
         }
 
         // Calculate driver debt according to new accounting system
-        function calculateDriverDebt(driverId, payments) {
-            let debt = 0;
-            
-            payments.forEach(payment => {
-                const amount = parseFloat(payment.amount || 0);
-                
-                switch(payment.type) {
-                    case 'أجرة يومية':
-                    case 'أجرة شهرية':
-                        debt -= amount; // ينقص الدين
-                        break;
-                    case 'سداد مخالفة':
-                        debt += amount; // يزيد الدين
-                        break;
-                    case 'تحصيل مخالفة':
-                        debt -= amount; // ينقص الدين
-                        break;
-                    case 'سداد رسوم إقامة':
-                        debt += amount; // يزيد الدين
-                        break;
-                    case 'تحصيل رسوم إقامة':
-                        debt -= amount; // ينقص الدين
-                        break;
-                    case 'دين قديم':
-                        debt -= amount; // ينقص الدين
-                        break;
-                    case 'إجازة سنوية':
-                        debt -= amount; // ينقص الدين
-                        break;
-                }
-            });
-            
-            return debt;
-        }
+        // 🔧 FIX #019: محرك الدين الموحد (window.calculateDriverDebt من unified-balance.js)
+          function calculateDriverDebtLocal(driverId, payments) {
+              if (typeof window.calculateDriverDebt !== 'function' || !currentDriver) {
+                  console.warn('⚠️ unified-balance.js غير محمّل أو بيانات السائق غير جاهزة');
+                  return 0;
+              }
+              return window.calculateDriverDebt(driverId, currentDriver, payments);
+          }
 
         // دالة توليد الرقم المرجعي التسلسلي التالي
         // الصيغة: PREFIX + YYYYMMDD + NNN (بدون فواصل)
@@ -704,6 +702,10 @@
                     
                     // تصفية خيارات الدفعة حسب نوع العقد
                     filterPaymentTypes(currentDriver.contractType);
+                      
+                      // 🔧 FIX #019: تحديث الصناديق فور تحميل بيانات السائق
+                      updateOldDebtsBox();
+                      updateContractStatusBox();
                 } else {
                     console.error('Driver not found');
                     alert('السائق غير موجود');
@@ -842,19 +844,66 @@
 
         // Update driver debt
         function updateDriverDebt() {
-            if (!currentDriver) return;
-            
-            const debt = calculateDriverDebt(currentDriverId, driverPayments);
-            document.getElementById('totalDebt').textContent = debt.toFixed(3) + ' د.ك';
-            
-            // Update last payment
-            if (driverPayments.length > 0) {
-                const lastPayment = driverPayments[0];
-                document.getElementById('lastPayment').textContent = formatDate(lastPayment.date);
-            } else {
-                document.getElementById('lastPayment').textContent = 'لا توجد دفعات';
-            }
-        }
+              if (!currentDriver) return;
+              
+              // 🔧 FIX #019: محرك الدين الموحد + تحديث الصناديق
+              const debt = calculateDriverDebtLocal(currentDriverId, driverPayments);
+              document.getElementById('totalDebt').textContent = debt.toFixed(3) + ' د.ك';
+              
+              updateOldDebtsBox();
+              updateContractStatusBox();
+              
+              // Update last payment
+              if (driverPayments.length > 0) {
+                  const lastPayment = driverPayments[0];
+                  document.getElementById('lastPayment').textContent = formatDate(lastPayment.date);
+              } else {
+                  document.getElementById('lastPayment').textContent = 'لا توجد دفعات';
+              }
+          }
+          
+          // 🔧 FIX #019: عرض قيمة الديون القديمة
+          function updateOldDebtsBox() {
+              if (!currentDriver) return;
+              const el = document.getElementById('oldDebtsBox');
+              if (!el) return;
+              el.textContent = parseFloat(currentDriver.oldDebts || 0).toFixed(3) + ' د.ك';
+          }
+          
+          // 🔧 FIX #019: عرض حالة العقد (نشط / منتهي / موقوف)
+          function updateContractStatusBox() {
+              if (!currentDriver) return;
+              const box = document.getElementById('contractStatusBox');
+              const text = document.getElementById('contractStatusText');
+              if (!box || !text) return;
+              
+              const today = new Date();
+              const cEnd = currentDriver.contractEndDate;
+              const endDate = cEnd ? (cEnd.toDate ? cEnd.toDate() : new Date(cEnd)) : null;
+              
+              if (currentDriver.isActive === false) {
+                  box.style.background = 'linear-gradient(135deg, #f3f4f6, #d1d5db)';
+                  box.style.borderRightColor = '#6b7280';
+                  text.style.color = '#374151';
+                  text.innerHTML = '⚫ موقوف' + (endDate ? ' بتاريخ ' + endDate.toLocaleDateString('ar-EG') : '');
+              } else if (endDate && !isNaN(endDate.getTime()) && today > endDate) {
+                  const daysOver = Math.floor((today - endDate) / (1000 * 60 * 60 * 24));
+                  box.style.background = 'linear-gradient(135deg, #fee2e2, #fecaca)';
+                  box.style.borderRightColor = '#dc2626';
+                  text.style.color = '#991b1b';
+                  text.innerHTML = '🔴 منتهي منذ ' + daysOver + ' يوم (' + endDate.toLocaleDateString('ar-EG') + ')';
+              } else if (endDate && !isNaN(endDate.getTime())) {
+                  box.style.background = 'linear-gradient(135deg, #dcfce7, #bbf7d0)';
+                  box.style.borderRightColor = '#16a34a';
+                  text.style.color = '#166534';
+                  text.innerHTML = '🟢 نشط حتى ' + endDate.toLocaleDateString('ar-EG');
+              } else {
+                  box.style.background = 'linear-gradient(135deg, #dbeafe, #bfdbfe)';
+                  box.style.borderRightColor = '#2563eb';
+                  text.style.color = '#1e40af';
+                  text.innerHTML = '🟢 نشط (بدون تاريخ انتهاء محدد)';
+              }
+          }
 
         // تصفية خيارات الدفعة حسب نوع عقد السائق
         function filterPaymentTypes(contractType) {
@@ -1126,6 +1175,114 @@
             </div>
         </div>
     </div>
-</body>
+
+      <!-- 🔧 FIX #019: Modal تعديل الديون القديمة (منسوخ كما هو من drivers.html) -->
+      <div id="editOldDebtsModal" class="modal" style="display:none;">
+          <div class="modal-content" style="max-width: 480px;">
+              <div class="modal-header">
+                  <h2>💼 تعديل الديون القديمة</h2>
+                  <span class="close" onclick="closeEditOldDebtsModal()">&times;</span>
+              </div>
+              <div class="modal-body" style="padding: 20px;">
+                  <div id="editOldDebtsDriverInfo" style="background: #f0f9ff; border-radius: 10px; padding: 14px; margin-bottom: 18px; border-right: 4px solid #3b82f6;">
+                      <strong id="editOldDebtsDriverName"></strong>
+                      <div style="margin-top: 6px; font-size: 13px; color: #64748b;">
+                          الديون القديمة الحالية: <strong id="currentOldDebtsDisplay" style="color: #dc2626;">0.000 د.ك</strong>
+                      </div>
+                  </div>
+
+                  <div style="margin-bottom: 16px;">
+                      <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">القيمة الجديدة للديون القديمة (د.ك) *</label>
+                      <input type="number" id="newOldDebtsValue" step="0.001" min="0" placeholder="0.000" style="width: 100%; padding: 9px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                  </div>
+
+                  <div style="margin-bottom: 16px;">
+                      <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">سبب التعديل (إلزامي) *</label>
+                      <textarea id="oldDebtsEditNote" rows="3" placeholder="اكتب سبب تعديل الديون القديمة..." style="width: 100%; padding: 9px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box; resize: vertical;"></textarea>
+                      <div style="font-size: 11px; color: #dc2626; margin-top: 4px;">⚠️ يجب كتابة سبب واضح لتعديل الديون القديمة</div>
+                  </div>
+
+                  <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                      <button onclick="closeEditOldDebtsModal()" style="padding: 10px 20px; border: 1px solid #d1d5db; border-radius: 8px; background: white; cursor: pointer; font-size: 14px;">إلغاء</button>
+                      <button onclick="saveOldDebtsEdit()" style="padding: 10px 24px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">💾 حفظ التعديل</button>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <script>
+          // 🔧 FIX #019: handlers لـ Modal تعديل الديون القديمة (Firebase compat v8)
+          let editOldDebtsDriverIdLocal = null;
+          
+          window.openEditOldDebtsModalLocal = () => {
+              if (!currentDriver) {
+                  alert('⚠️ لم يتم تحميل بيانات السائق بعد');
+                  return;
+              }
+              editOldDebtsDriverIdLocal = currentDriverId;
+              const empNum = currentDriver.employeeNumber || currentDriverId;
+              document.getElementById('editOldDebtsDriverName').textContent = (currentDriver.name || 'السائق') + ' (' + empNum + ')';
+              const cur = parseFloat(currentDriver.oldDebts || 0);
+              document.getElementById('currentOldDebtsDisplay').textContent = cur.toFixed(3) + ' د.ك';
+              document.getElementById('newOldDebtsValue').value = cur.toFixed(3);
+              document.getElementById('oldDebtsEditNote').value = '';
+              document.getElementById('editOldDebtsModal').style.display = 'block';
+          };
+          
+          window.closeEditOldDebtsModal = () => {
+              document.getElementById('editOldDebtsModal').style.display = 'none';
+              editOldDebtsDriverIdLocal = null;
+          };
+          
+          window.saveOldDebtsEdit = async () => {
+              if (!editOldDebtsDriverIdLocal || !currentDriver) return;
+              
+              const newValue = parseFloat(document.getElementById('newOldDebtsValue').value);
+              const note = document.getElementById('oldDebtsEditNote').value.trim();
+              
+              if (isNaN(newValue) || newValue < 0) {
+                  alert('⚠️ يرجى إدخال قيمة صحيحة للديون القديمة');
+                  return;
+              }
+              if (!note || note.length < 5) {
+                  alert('⚠️ يجب كتابة سبب واضح لتعديل الديون القديمة (على الأقل 5 حروف)');
+                  document.getElementById('oldDebtsEditNote').focus();
+                  return;
+              }
+              
+              const oldValue = parseFloat(currentDriver.oldDebts || 0);
+              const userName = localStorage.getItem('userName') || 'مستخدم';
+              
+              try {
+                  const historyEntry = {
+                      type: 'تعديل',
+                      note: 'تعديل ديون قديمة',
+                      oldValue: oldValue,
+                      newValue: newValue,
+                      reason: note,
+                      editedBy: userName,
+                      editedAt: new Date().toISOString()
+                  };
+                  
+                  const currentHistory = currentDriver.contractHistory || [];
+                  const updatedHistory = [...currentHistory, historyEntry];
+                  
+                  await db.collection('drivers').doc(editOldDebtsDriverIdLocal).update({
+                      oldDebts: newValue,
+                      contractHistory: updatedHistory
+                  });
+                  
+                  alert('✅ تم تعديل الديون القديمة بنجاح!\nمن: ' + oldValue.toFixed(3) + ' د.ك → إلى: ' + newValue.toFixed(3) + ' د.ك');
+                  closeEditOldDebtsModal();
+                  
+                  await loadDriverData();
+                  updateDriverDebt();
+              } catch (error) {
+                  console.error('خطأ في تعديل الديون القديمة:', error);
+                  alert('حدث خطأ: ' + error.message);
+              }
+          };
+      </script>
+  </body>
 </html>
 
