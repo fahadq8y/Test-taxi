@@ -1212,7 +1212,23 @@
 
       <script>
           // 🔧 FIX #019: handlers لـ Modal تعديل الديون القديمة (Firebase compat v8)
-          let editOldDebtsDriverIdLocal = null;
+          
+            // 🔧 FIX #020: Helper موحد لتسجيل في editHistory (compat v8)
+            async function logEditHistoryDP(payload) {
+                try {
+                    const userName = localStorage.getItem('userName') || 'غير محدد';
+                    const userRole = localStorage.getItem('userRole') || 'admin';
+                    await db.collection('editHistory').add({
+                        editedBy: userName, editedByRole: userRole,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                        ...payload
+                    });
+                    console.log('📝 logEditHistoryDP:', payload.recordType, payload.action);
+                } catch (e) { console.error('❌ logEditHistoryDP:', e); }
+            }
+            window.logEditHistoryDP = logEditHistoryDP;
+
+            let editOldDebtsDriverIdLocal = null;
           
           window.openEditOldDebtsModalLocal = () => {
               if (!currentDriver) {
@@ -1271,6 +1287,20 @@
                       oldDebts: newValue,
                       contractHistory: updatedHistory
                   });
+                    
+                    // 🔧 FIX #020: تسجيل تعديل ديون قديمة في editHistory
+                    try {
+                        await logEditHistoryDP({
+                            recordType: 'oldDebts', recordId: editOldDebtsDriverIdLocal, action: 'edit',
+                            driverId: editOldDebtsDriverIdLocal,
+                            driverName: (currentDriver && currentDriver.name) || '',
+                            field: 'oldDebts', fieldLabel: 'الديون القديمة',
+                            oldValue: oldValue, newValue: newValue,
+                            description: 'تعديل ديون قديمة من صفحة الدفعات - من ' + oldValue.toFixed(3) + ' إلى ' + newValue.toFixed(3) + ' د.ك',
+                            editReason: note,
+                            source: 'driver-payments.html'
+                        });
+                    } catch (__lge) { console.error('⚠️ FIX #020 DP oldDebts log:', __lge); }
                   
                   alert('✅ تم تعديل الديون القديمة بنجاح!\nمن: ' + oldValue.toFixed(3) + ' د.ك → إلى: ' + newValue.toFixed(3) + ' د.ك');
                   closeEditOldDebtsModal();
