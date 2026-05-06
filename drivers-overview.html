@@ -662,8 +662,10 @@
                     const completedMonths = rate > 0 ? Math.floor(totalPaid / rate) : 0;
                     totalRentPaid = completedMonths * rate;
                 } else {
-                    // عقد يومي
-                    const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+                    // عقد يومي - 🔧 FIX #010: capping
+                    const _cEnd = driver.contractEndDate ? new Date(driver.contractEndDate) : null;
+                    const _eff = (_cEnd && !isNaN(_cEnd.getTime()) && today > _cEnd) ? _cEnd : today;
+                    const daysSinceStart = Math.floor((_eff - contractStart) / (1000 * 60 * 60 * 24));
                     const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
                     expectedRentTotal = daysSinceStart * dailyWage;
                     
@@ -750,8 +752,12 @@
             const contractStart = parseDate(driver.contractStartDate || driver.createdAt);
             const lastPayment = parseDate(driver.lastPaymentDate || driver.contractStartDate || driver.createdAt);
             
-            // Calculate days since contract start
-            const daysSinceStart = Math.floor((today - contractStart) / (1000 * 60 * 60 * 24));
+            // 🔧 FIX #010: contractEndDate guard
+            const contractEnd = driver.contractEndDate ? parseDate(driver.contractEndDate) : null;
+            const contractEnded = !!(contractEnd && !isNaN(contractEnd.getTime()) && today > contractEnd);
+            const effectiveToday = contractEnded ? contractEnd : today;
+            const daysAfterEnd = contractEnded ? Math.floor((today - contractEnd) / (1000 * 60 * 60 * 24)) : 0;
+            const daysSinceStart = Math.floor((effectiveToday - contractStart) / (1000 * 60 * 60 * 24));
             
             // Check contract type
             const contractType = driver.contractType || 'daily';
