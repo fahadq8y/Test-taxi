@@ -469,7 +469,17 @@
                 align-items: center;
             }
         }
-    </style>
+    
+          /* 🔧 FIX #020 (2026-05-06) */
+          .record-type-badge.type-driver-data { background:#06b6d420;color:#0891b2;border:1px solid #06b6d455; }
+          .record-type-badge.type-contract    { background:#8b5cf620;color:#7c3aed;border:1px solid #8b5cf655; }
+          .record-type-badge.type-olddebts    { background:#f59e0b20;color:#d97706;border:1px solid #f59e0b55; }
+          .record-type-badge.type-archive     { background:#6b728020;color:#4b5563;border:1px solid #6b728055; }
+          .record-type-badge.type-restore     { background:#22c55e20;color:#16a34a;border:1px solid #22c55e55; }
+          .action-badge.action-restore { background:#dcfce7;color:#16a34a; }
+          .action-badge.action-special { background:#ede9fe;color:#7c3aed; }
+          .btn-restore:hover { background:#16a34a !important; }
+      </style>
 </head>
 <body>
     <div class="container">
@@ -496,19 +506,33 @@
                 <div class="form-group">
                     <label>⚡ نوع العملية</label>
                     <select id="actionFilter" onchange="applyFilters()">
-                        <option value="">جميع العمليات</option>
-                        <option value="edit">تعديل</option>
-                        <option value="delete">حذف</option>
-                    </select>
+                          <option value="">جميع العمليات</option>
+                          <option value="edit">✏️ تعديل</option>
+                          <option value="delete">🗑️ حذف</option>
+                          <option value="newContract">📝 عقد جديد</option>
+                          <option value="endContract">🛑 إنهاء عقد</option>
+                          <option value="archive">🗄️ أرشفة</option>
+                          <option value="restore">♻️ استعادة</option>
+                          <option value="permanentDelete">⚠️ حذف نهائي</option>
+                      </select>
                 </div>
                 <div class="form-group">
                     <label>📂 نوع السجل</label>
                     <select id="recordTypeFilter" onchange="applyFilters()">
-                        <option value="">جميع الأنواع</option>
-                        <option value="revenue">إيراد مباشر</option>
-                        <option value="expense">مصروف مباشر</option>
-                        <option value="driverPayment">دفعة سائق</option>
-                    </select>
+                          <option value="">جميع الأنواع</option>
+                          <optgroup label="💵 المالية">
+                              <option value="revenue">💰 إيراد مباشر</option>
+                              <option value="expense">💸 مصروف مباشر</option>
+                              <option value="driverPayment">👤 دفعة سائق</option>
+                          </optgroup>
+                          <optgroup label="🧑 السائقين والعقود">
+                              <option value="driver">🪪 بيانات سائق</option>
+                              <option value="contract">📝 عقد سائق</option>
+                              <option value="oldDebts">💼 ديون قديمة</option>
+                              <option value="archive">🗄️ أرشيف / حذف نهائي</option>
+                              <option value="restore">♻️ استعادة من الأرشيف</option>
+                          </optgroup>
+                      </select>
                 </div>
                 <div class="form-group">
                     <label>👤 من قام بالعملية</label>
@@ -718,7 +742,85 @@
         }
 
         // ======== عرض الجدول ========
-        function displayHistory() {
+        
+          // 🔧 FIX #020 (2026-05-06): دوال مساعدة + restoreRecord
+          function getRecordTypeMeta(rt) {
+              const m = {
+                  revenue:       { label: '💰 إيراد',      cls: 'type-revenue',     color: '#10b981' },
+                  expense:       { label: '💸 مصروف',     cls: 'type-expense',     color: '#ef4444' },
+                  driverPayment: { label: '👤 دفعة سائق', cls: 'type-driver',      color: '#3b82f6' },
+                  driver:        { label: '🪪 سائق',       cls: 'type-driver-data', color: '#06b6d4' },
+                  contract:      { label: '📝 عقد',        cls: 'type-contract',    color: '#8b5cf6' },
+                  oldDebts:      { label: '💼 ديون قديمة', cls: 'type-olddebts',    color: '#f59e0b' },
+                  archive:       { label: '🗄️ أرشيف',     cls: 'type-archive',     color: '#6b7280' },
+                  restore:       { label: '♻️ استعادة',   cls: 'type-restore',     color: '#22c55e' }
+              };
+              return m[rt] || { label: rt || '—', cls: '', color: '#999' };
+          }
+          function getActionLabel(action) {
+              const m = { edit:'✏️ تعديل', delete:'🗑️ حذف', newContract:'📝 عقد جديد',
+                  endContract:'🛑 إنهاء عقد', archive:'🗄️ أرشفة', restore:'♻️ استعادة',
+                  permanentDelete:'⚠️ حذف نهائي' };
+              return m[action] || action;
+          }
+          function isRestorable(item) {
+              return item.action === 'delete'
+                  && ['revenue','expense','driverPayment'].includes(item.recordType)
+                  && item.fullSnapshot && !item.restoredAt;
+          }
+          window.restoreRecord = async function(historyId) {
+              const item = allHistory.find(h => h.id === historyId);
+              if (!item) { alert('⚠️ لم يتم إيجاد السجل'); return; }
+              if (!isRestorable(item)) { alert('⚠️ هذا السجل غير قابل للاستعادة'); return; }
+              const snap = item.fullSnapshot;
+              const amountTxt = snap.amount !== undefined ? parseFloat(snap.amount).toFixed(3) + ' د.ك' : '';
+              const desc = snap.description || snap.type || item.description || '';
+              const refNum = snap.refNum || item.refNum || '';
+              const collMap = { revenue:'revenues', expense:'expenses', driverPayment:'driverPayments' };
+              const collName = collMap[item.recordType];
+              if (!collName) { alert('⚠️ نوع غير مدعوم'); return; }
+              const msg = '♻️ استعادة سجل محذوف:\n\nالنوع: ' + getRecordTypeMeta(item.recordType).label + '\n' +
+                  (refNum ? 'المرجع: ' + refNum + '\n' : '') +
+                  (amountTxt ? 'المبلغ: ' + amountTxt + '\n' : '') +
+                  (desc ? 'الوصف: ' + desc + '\n' : '') +
+                  'تاريخ الحذف: ' + (item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString('ar-EG') : '') +
+                  '\n\nهل تريد استعادة هذا السجل إلى ' + collName + '؟';
+              if (!confirm(msg)) return;
+              try {
+                  const userName = localStorage.getItem('userName') || 'غير محدد';
+                  const userRole = localStorage.getItem('userRole') || 'admin';
+                  const restoreData = { ...snap };
+                  delete restoreData.id;
+                  restoreData.restoredAt = firebase.firestore.FieldValue.serverTimestamp();
+                  restoreData.restoredBy = userName;
+                  restoreData.restoredFromHistoryId = historyId;
+                  const newRef = await db.collection(collName).add(restoreData);
+                  await db.collection('editHistory').doc(historyId).update({
+                      restoredAt: firebase.firestore.FieldValue.serverTimestamp(),
+                      restoredBy: userName,
+                      restoredToId: newRef.id
+                  });
+                  await db.collection('editHistory').add({
+                      recordType: item.recordType, recordId: newRef.id, action: 'restore',
+                      refNum: refNum || null,
+                      description: 'استعادة سجل محذوف - ' + (desc || ''),
+                      driverName: snap.driverName || item.driverName || null,
+                      driverId: snap.driverId || item.driverId || null,
+                      editReason: 'استعادة من شاشة سجل التعديلات',
+                      restoredFromHistoryId: historyId,
+                      fullSnapshotAfter: { id: newRef.id, ...restoreData },
+                      editedBy: userName, editedByRole: userRole,
+                      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                  });
+                  alert('✅ تم استعادة السجل بنجاح\nالـ ID الجديد: ' + newRef.id);
+                  await loadHistory();
+              } catch (e) {
+                  console.error('❌ خطأ في الاستعادة:', e);
+                  alert('حدث خطأ في الاستعادة: ' + e.message);
+              }
+          };
+
+          function displayHistory() {
             const tbody = document.getElementById('historyTableBody');
             const mobileContainer = document.getElementById('mobileHistoryCards');
 
@@ -741,16 +843,16 @@
                 const rowNum = startIndex + idx + 1;
 
                 // نوع العملية
-                const actionBadge = item.action === 'delete'
-                    ? '<span class="action-badge action-delete">🗑️ حذف</span>'
-                    : '<span class="action-badge action-edit">✏️ تعديل</span>';
+                  const __actLabel = getActionLabel(item.action);
+                  const __actCls = (item.action === 'delete' || item.action === 'permanentDelete') ? 'action-delete'
+                                : item.action === 'restore' ? 'action-restore'
+                                : (item.action === 'newContract' || item.action === 'endContract' || item.action === 'archive') ? 'action-special'
+                                : 'action-edit';
+                  const actionBadge = `<span class="action-badge ${__actCls}">${__actLabel}</span>`;
 
                 // نوع السجل
-                let rtClass = '', rtLabel = '';
-                if (item.recordType === 'revenue') { rtClass = 'type-revenue'; rtLabel = '💰 إيراد'; }
-                else if (item.recordType === 'expense') { rtClass = 'type-expense'; rtLabel = '💸 مصروف'; }
-                else if (item.recordType === 'driverPayment') { rtClass = 'type-driver'; rtLabel = '👤 دفعة سائق'; }
-                const typeBadge = `<span class="record-type-badge ${rtClass}">${rtLabel}</span>`;
+                  const __rtMeta = getRecordTypeMeta(item.recordType);
+                  const typeBadge = `<span class="record-type-badge ${__rtMeta.cls}" style="background:${__rtMeta.color}20;color:${__rtMeta.color};border:1px solid ${__rtMeta.color}55;">${__rtMeta.label}</span>`;
 
                 // الرقم المرجعي
                 const refNum = item.refNum
@@ -816,7 +918,11 @@
                     <td style="font-size:12px;">${userCell}</td>
                     <td style="font-size:12px;color:#555;white-space:nowrap;">${timestamp}</td>
                     <td>${reasonCell}</td>
-                    <td><button class="btn-details" onclick="showDetails('${item.id}')">🔍 تفاصيل</button></td>
+                    <td>
+                          <button class="btn-details" onclick="showDetails('${item.id}')">🔍 تفاصيل</button>
+                          ${isRestorable(item) ? `<button class="btn-restore" onclick="restoreRecord('${item.id}')" style="background:#22c55e;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;margin-right:4px;">♻️ استعادة</button>` : ''}
+                          ${item.restoredAt ? '<span style="color:#22c55e;font-size:11px;font-weight:600;display:block;margin-top:4px;">✓ تمت الاستعادة</span>' : ''}
+                      </td>
                 `;
                 tbody.appendChild(tr);
 
@@ -912,11 +1018,8 @@
             const title = document.getElementById('detailsModalTitle');
             const body = document.getElementById('detailsModalBody');
 
-            const actionLabel = item.action === 'delete' ? '🗑️ حذف' : '✏️ تعديل';
-            let rtLabel = '';
-            if (item.recordType === 'revenue') rtLabel = '💰 إيراد مباشر';
-            else if (item.recordType === 'expense') rtLabel = '💸 مصروف مباشر';
-            else if (item.recordType === 'driverPayment') rtLabel = '👤 دفعة سائق';
+            const actionLabel = getActionLabel(item.action);
+              const rtLabel = getRecordTypeMeta(item.recordType).label;
 
             const timestamp = item.timestamp?.toDate
                 ? item.timestamp.toDate().toLocaleString('ar-EG')
@@ -929,22 +1032,78 @@
             title.textContent = `${actionLabel} — ${rtLabel}`;
 
             let changeHtml = '';
-            if (item.action === 'edit') {
-                changeHtml = `
-                    <div class="details-field">
-                        <div class="details-field-label">الحقل المعدَّل</div>
-                        <div class="details-field-value">${item.fieldLabel || item.field || '—'}</div>
-                    </div>
-                    <div class="details-field">
-                        <div class="details-field-label">التغيير</div>
-                        <div class="details-field-value">
-                            <span class="old-value" style="font-size:14px;">${item.oldValue ?? '—'}</span>
-                            <span class="value-arrow" style="font-size:14px;"> ← </span>
-                            <span class="new-value" style="font-size:14px;">${item.newValue ?? '—'}</span>
-                        </div>
-                    </div>
-                `;
-            }
+            if (item.action === 'edit' || item.action === 'newContract' || item.action === 'endContract' || item.action === 'archive' || item.action === 'restore' || item.action === 'permanentDelete') {
+                  if (Array.isArray(item.changes) && item.changes.length > 0) {
+                      const rows = item.changes.map(c => `
+                          <div class="details-field" style="border-right:3px solid #fbbf24;padding-right:10px;">
+                              <div class="details-field-label">${c.fieldLabel || c.field}</div>
+                              <div class="details-field-value">
+                                  <span class="old-value" style="font-size:13px;">${c.oldValue ?? '—'}</span>
+                                  <span class="value-arrow" style="font-size:13px;"> ← </span>
+                                  <span class="new-value" style="font-size:13px;">${c.newValue ?? '—'}</span>
+                              </div>
+                          </div>`).join('');
+                      changeHtml = `<div style="background:#fffbeb;padding:12px;border-radius:8px;"><h4 style="margin:0 0 10px 0;color:#92400e;">📋 جميع التغييرات (${item.changes.length})</h4>${rows}</div>`;
+                  } else if (item.field || item.fieldLabel) {
+                      changeHtml = `
+                          <div class="details-field">
+                              <div class="details-field-label">الحقل المعدَّل</div>
+                              <div class="details-field-value">${item.fieldLabel || item.field || '—'}</div>
+                          </div>
+                          <div class="details-field">
+                              <div class="details-field-label">التغيير</div>
+                              <div class="details-field-value">
+                                  <span class="old-value" style="font-size:14px;">${item.oldValue ?? '—'}</span>
+                                  <span class="value-arrow" style="font-size:14px;"> ← </span>
+                                  <span class="new-value" style="font-size:14px;">${item.newValue ?? '—'}</span>
+                              </div>
+                          </div>`;
+                  }
+                  if (item.newContract) {
+                      const nc = item.newContract;
+                      changeHtml += `<div class="details-field" style="background:#f5f3ff;padding:12px;border-radius:8px;margin-top:10px;">
+                          <h4 style="margin:0 0 8px 0;color:#7c3aed;">📝 تفاصيل العقد الجديد</h4>
+                          <div>النوع: ${nc.type === 'daily' ? 'يومي' : 'شهري'} | الأجرة: ${(nc.rate||0).toFixed(3)} د.ك</div>
+                          <div>من: ${nc.startDate} إلى: ${nc.endDate}</div>
+                          <div>المرحَّل: ${Math.abs(nc.carryOver||0).toFixed(3)} د.ك (${nc.carryOverLabel||'—'})</div>
+                          <div>ديون قديمة: ${(nc.oldDebtsBefore||0).toFixed(3)} ← ${(nc.oldDebtsAfter||0).toFixed(3)}</div>
+                      </div>`;
+                  }
+                  if (item.endContractData) {
+                      const ec = item.endContractData;
+                      changeHtml += `<div class="details-field" style="background:#fef2f2;padding:12px;border-radius:8px;margin-top:10px;">
+                          <h4 style="margin:0 0 8px 0;color:#b91c1c;">🛑 تفاصيل إنهاء العقد</h4>
+                          <div>تاريخ الإيقاف الفعلي: ${ec.actualEndDate||'—'}</div>
+                          <div>الإيجار المتوقع: ${(ec.expectedRent||0).toFixed(3)} د.ك | المدفوع: ${(ec.paidRent||0).toFixed(3)} د.ك</div>
+                          <div>المرحَّل للديون: ${(ec.carryOver||0).toFixed(3)} د.ك</div>
+                          <div>السبب: ${ec.reason||'—'}</div>
+                      </div>`;
+                  }
+                  if (item.archiveData) {
+                      const ad = item.archiveData;
+                      changeHtml += `<div class="details-field" style="background:#f3f4f6;padding:12px;border-radius:8px;margin-top:10px;">
+                          <h4 style="margin:0 0 8px 0;color:#374151;">🗄️ تفاصيل الأرشفة</h4>
+                          <div>الرقم الوظيفي: ${ad.employeeNumber||'—'} | الهاتف: ${ad.phone||'—'}</div>
+                          <div>الدفعات المؤرشفة: ${ad.totalPayments||0} | المصروفات: ${ad.totalExpenses||0} | الإيرادات: ${ad.totalRevenues||0}</div>
+                      </div>`;
+                  }
+                  if (item.restoreData) {
+                      const rd = item.restoreData;
+                      changeHtml += `<div class="details-field" style="background:#f0fdf4;padding:12px;border-radius:8px;margin-top:10px;">
+                          <h4 style="margin:0 0 8px 0;color:#16a34a;">♻️ تفاصيل الاستعادة</h4>
+                          <div>الرقم الوظيفي: ${rd.employeeNumber||'—'}</div>
+                          <div>كان مؤرشفاً بواسطة: ${rd.wasArchivedBy||'—'}</div>
+                      </div>`;
+                  }
+                  if (item.permanentDeleteData) {
+                      const pd = item.permanentDeleteData;
+                      changeHtml += `<div class="details-field" style="background:#fee2e2;padding:12px;border-radius:8px;margin-top:10px;">
+                          <h4 style="margin:0 0 8px 0;color:#991b1b;">⚠️ تفاصيل الحذف النهائي</h4>
+                          <div>الرقم الوظيفي: ${pd.employeeNumber||'—'} | الهاتف: ${pd.phone||'—'}</div>
+                          <div>السجلات المنتمية المحذوفة: ${pd.orphanCount||0}</div>
+                      </div>`;
+                  }
+              }
 
             // بناء لقطة البيانات
             let snapshotHtml = '';
