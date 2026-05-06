@@ -35,16 +35,22 @@ window.restoreDriver = async (archiveId) => {
         restoreData.updatedAt = new Date();
         restoreData.updatedBy = currentUser.name || currentUser.email;
 
-        // Step 1: Add to drivers collection
-        console.log('📝 الخطوة 1: إضافة السائق إلى drivers collection...');
-        let newDriverRef;
-        try {
-            newDriverRef = await addDoc(collection(db, 'drivers'), restoreData);
-            console.log('✅ تم إضافة السائق بنجاح - ID:', newDriverRef.id);
-        } catch (addError) {
-            console.error('❌ فشل في إضافة السائق:', addError);
-            throw new Error('فشل في إضافة السائق إلى القائمة النشطة: ' + addError.message);
-        }
+        // Step 1: Add to drivers collection — 🔧 FIX #014 (2026-05-06)
+          // استخدم setDoc بنفس الـ archiveId عشان دفعات driverPayments تبقى مرتبطة
+          console.log('📝 الخطوة 1: إضافة السائق بنفس الـ ID:', archiveId);
+          let newDriverRef;
+          try {
+              const existingDoc = await getDoc(doc(db, 'drivers', archiveId));
+              if (existingDoc.exists()) {
+                  throw new Error('سائق بنفس الـ ID موجود مسبقاً في drivers — يمنع الكتابة فوقه');
+              }
+              await setDoc(doc(db, 'drivers', archiveId), restoreData);
+              newDriverRef = { id: archiveId };
+              console.log('✅ تم إضافة السائق بنفس الـ ID:', archiveId);
+          } catch (addError) {
+              console.error('❌ فشل في إضافة السائق:', addError);
+              throw new Error('فشل في إضافة السائق إلى القائمة النشطة: ' + addError.message);
+          }
         
         // Step 2: Delete from archived collection
         console.log('🗑️ الخطوة 2: حذف السائق من archivedDrivers collection...');
