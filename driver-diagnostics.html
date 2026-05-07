@@ -1,621 +1,1393 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تشخيص الصلاحيات - نظام إدارة التاكسي</title>
-    <link rel="icon" type="image/png" href="icon-192.png">
-    <style>
-        :root {
-            --primary: #1a1a2e; --secondary: #16213e; --accent: #0f3460;
-            --green: #10b981; --red: #ef4444; --yellow: #f59e0b;
-            --blue: #3b82f6; --purple: #8b5cf6; --gold: #e94560;
-            --text: #e2e8f0; --text-muted: #94a3b8;
-            --card-bg: rgba(255,255,255,0.05);
-            --card-bg-hover: rgba(255,255,255,0.08);
-            --border: rgba(255,255,255,0.1);
-            --shadow: 0 4px 24px rgba(0,0,0,0.4);
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, var(--primary) 0%, #0d0d1f 100%);
-            color: var(--text);
-            min-height: 100vh;
-            padding: 16px;
-        }
-        .header {
-            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
-            border-radius: 14px; padding: 18px 22px;
-            margin-bottom: 18px;
-            box-shadow: var(--shadow);
-            display: flex; align-items: center; justify-content: space-between;
-            flex-wrap: wrap; gap: 12px;
-        }
-        .header-left { display: flex; align-items: center; gap: 12px; }
-        .back-btn {
-            background: var(--card-bg); border: 1px solid var(--border);
-            color: var(--text); padding: 8px 14px; border-radius: 8px;
-            text-decoration: none; font-size: 13px;
-            transition: all 0.2s;
-        }
-        .back-btn:hover { background: var(--card-bg-hover); }
-        h1 { font-size: 18px; color: white; }
-        .header-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-        .last-update {
-            font-size: 11px; color: var(--text-muted);
-            background: var(--card-bg); padding: 5px 10px; border-radius: 6px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔬 تشخيص حي - F12 Style</title>
+<link rel="icon" type="image/png" href="icon-192.png">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#0a0e1a; --bg2:#0f1525; --card:#151c2e; --card2:#1a2238;
+  --border:#2a3349; --text:#e2e8f0; --muted:#94a3b8; --dim:#64748b;
+  --green:#10b981; --red:#ef4444; --yellow:#f59e0b; --blue:#3b82f6;
+  --purple:#8b5cf6; --cyan:#06b6d4; --pink:#ec4899; --orange:#f97316;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:'SF Mono', Menlo, Consolas, 'Segoe UI', Tahoma, sans-serif;
+  background:var(--bg); color:var(--text); min-height:100vh; padding:12px;
+  font-size:13px; line-height:1.5;
+}
+/* === HEADER === */
+.hdr {
+  background:linear-gradient(135deg,var(--card) 0%,var(--card2) 100%);
+  border:1px solid var(--border); border-radius:12px;
+  padding:14px 18px; margin-bottom:12px;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:12px;
+}
+.hdr-left { display:flex; align-items:center; gap:14px; }
+.back-btn {
+  background:var(--card2); border:1px solid var(--border);
+  color:var(--text); padding:7px 12px; border-radius:8px;
+  text-decoration:none; font-size:12px;
+}
+.back-btn:hover { background:var(--border); }
+.hdr h1 { font-size:17px; color:#fff; }
+.hdr-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+.hdr-right { display:flex; align-items:center; gap:8px; }
+.live-dot {
+  display:inline-block; width:8px; height:8px; border-radius:50%;
+  background:var(--green); margin-right:6px;
+  animation:pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% {opacity:1;} 50% {opacity:0.3;} }
+.live-tag { font-size:11px; color:var(--green); font-weight:600; }
+.hdr-btn {
+  background:var(--card2); border:1px solid var(--border);
+  color:var(--text); padding:6px 11px; border-radius:7px;
+  font-size:11px; cursor:pointer;
+}
+.hdr-btn:hover { background:var(--border); }
+.hdr-btn.danger { color:var(--red); border-color:rgba(239,68,68,0.3); }
 
-        .summary-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 18px;
-            margin-bottom: 16px;
-            box-shadow: var(--shadow);
-        }
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 12px;
-        }
-        .summary-item {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid var(--border);
-            padding: 12px; border-radius: 10px;
-            text-align: center;
-        }
-        .summary-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-        .summary-value { font-size: 18px; font-weight: bold; }
-        .summary-good { color: var(--green); }
-        .summary-warn { color: var(--yellow); }
-        .summary-bad { color: var(--red); }
+/* === SUMMARY STRIP === */
+.sumstrip {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(110px, 1fr));
+  gap:8px; margin-bottom:12px;
+}
+.sum {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:10px; padding:10px 12px; text-align:center;
+}
+.sum-lbl { font-size:10px; color:var(--muted); margin-bottom:3px; text-transform:uppercase; letter-spacing:0.5px; }
+.sum-val { font-size:18px; font-weight:700; }
+.sum-sub { font-size:9px; color:var(--dim); margin-top:2px; }
+.s-good { color:var(--green); }
+.s-warn { color:var(--yellow); }
+.s-bad { color:var(--red); }
+.s-info { color:var(--blue); }
 
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 16px;
-            margin-bottom: 16px;
-        }
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 18px;
-            box-shadow: var(--shadow);
-        }
-        .card h2 {
-            font-size: 14px; font-weight: 700; color: var(--blue);
-            margin-bottom: 14px; padding-bottom: 10px;
-            border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; gap: 8px;
-        }
+/* === ALERT BANNER === */
+.alert-banner {
+  background:linear-gradient(90deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05));
+  border:1px solid rgba(239,68,68,0.4); border-right:4px solid var(--red);
+  border-radius:8px; padding:10px 14px; margin-bottom:12px;
+  display:none;
+}
+.alert-banner.show { display:block; }
+.alert-banner.warn { background:linear-gradient(90deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05));
+  border-color:rgba(245,158,11,0.4); border-right-color:var(--yellow); }
+.alert-title { font-size:13px; font-weight:700; color:var(--red); margin-bottom:4px; }
+.alert-banner.warn .alert-title { color:var(--yellow); }
+.alert-body { font-size:12px; color:var(--text); }
+.alert-list { margin-top:6px; padding-right:18px; }
+.alert-list li { margin-top:2px; font-size:11px; color:var(--muted); }
 
-        .perm-item {
-            background: rgba(255,255,255,0.03);
-            border-radius: 10px;
-            padding: 12px;
-            margin-bottom: 8px;
-            border: 1px solid var(--border);
-        }
-        .perm-header {
-            display: flex; align-items: center; gap: 10px;
-        }
-        .perm-icon { font-size: 22px; }
-        .perm-info { flex: 1; }
-        .perm-label { font-size: 13px; font-weight: 600; color: var(--text); }
-        .perm-key { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
-        .perm-status {
-            font-size: 11px; padding: 4px 10px; border-radius: 12px;
-            font-weight: 600;
-        }
-        .perm-granted { background: rgba(16,185,129,0.15); color: var(--green); }
-        .perm-denied { background: rgba(239,68,68,0.15); color: var(--red); }
-        .perm-reason {
-            margin-top: 8px; font-size: 11px; color: var(--yellow);
-            padding: 6px 10px; background: rgba(245,158,11,0.08);
-            border-radius: 6px;
-        }
-        .conf-bar {
-            margin-top: 8px;
-        }
-        .conf-label {
-            font-size: 11px; color: var(--text-muted);
-            display: flex; justify-content: space-between;
-            margin-bottom: 4px;
-        }
-        .conf-track {
-            height: 6px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-        .conf-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+/* === TABS === */
+.tabs {
+  display:flex; gap:4px; margin-bottom:10px;
+  background:var(--card); border:1px solid var(--border);
+  border-radius:10px; padding:5px; overflow-x:auto;
+}
+.tab {
+  padding:7px 14px; font-size:12px; font-weight:600; color:var(--muted);
+  cursor:pointer; border-radius:7px; white-space:nowrap;
+  display:flex; align-items:center; gap:5px;
+}
+.tab:hover { background:var(--card2); color:var(--text); }
+.tab.active { background:var(--blue); color:#fff; }
+.tab-badge {
+  background:rgba(255,255,255,0.2); padding:1px 6px; border-radius:8px;
+  font-size:10px; font-weight:700;
+}
+.tab.active .tab-badge { background:rgba(255,255,255,0.3); }
 
-        .info-row {
-            display: flex; justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--border);
-            font-size: 13px;
-        }
-        .info-row:last-child { border-bottom: none; }
-        .info-label { color: var(--text-muted); }
-        .info-value { color: var(--text); font-weight: 600; }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
 
-        .actions-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 10px;
-        }
-        .action-btn {
-            background: rgba(59,130,246,0.1);
-            border: 1px solid rgba(59,130,246,0.3);
-            color: var(--text);
-            padding: 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 600;
-            transition: all 0.2s;
-        }
-        .action-btn:hover {
-            background: rgba(59,130,246,0.2);
-            transform: translateY(-1px);
-        }
-        .action-btn.danger {
-            background: rgba(239,68,68,0.1);
-            border-color: rgba(239,68,68,0.3);
-            color: var(--red);
-        }
-        .action-btn.danger:hover { background: rgba(239,68,68,0.2); }
-        .action-btn.success {
-            background: rgba(16,185,129,0.1);
-            border-color: rgba(16,185,129,0.3);
-            color: var(--green);
-        }
-        .action-btn.success:hover { background: rgba(16,185,129,0.2); }
-        .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* === CARDS === */
+.grid { display:grid; gap:12px; }
+.grid-2 { grid-template-columns:repeat(auto-fit, minmax(360px, 1fr)); }
+.grid-3 { grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); }
+.card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:10px; padding:14px;
+}
+.card h2 {
+  font-size:13px; font-weight:700; color:var(--blue);
+  margin-bottom:10px; padding-bottom:8px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+}
+.card h2 .right { font-size:10px; color:var(--muted); font-weight:400; }
 
-        .kill-list {
-            margin-top: 8px;
-        }
-        .kill-item {
-            display: flex; justify-content: space-between;
-            padding: 6px 0;
-            border-bottom: 1px dashed var(--border);
-            font-size: 12px;
-        }
-        .kill-reason {
-            font-weight: 600;
-            padding: 2px 8px; border-radius: 10px;
-            font-size: 11px;
-        }
-        .kill-honor { background: rgba(239,68,68,0.15); color: var(--red); }
-        .kill-normal { background: rgba(148,163,184,0.15); color: var(--text-muted); }
+/* === INFO ROWS === */
+.row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:6px 0; border-bottom:1px dashed var(--border); font-size:12px;
+}
+.row:last-child { border-bottom:0; }
+.row-lbl { color:var(--muted); }
+.row-val { color:var(--text); font-weight:600; font-family:'SF Mono', monospace; }
 
-        .loading-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.7);
-            display: flex; align-items: center; justify-content: center;
-            z-index: 100;
-        }
-        .loading-spinner {
-            width: 50px; height: 50px;
-            border: 4px solid var(--border);
-            border-top-color: var(--blue);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
+/* === LOGS VIEWER === */
+.logs-toolbar {
+  display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;
+  align-items:center;
+}
+.logs-toolbar input, .logs-toolbar select {
+  background:var(--bg2); border:1px solid var(--border); color:var(--text);
+  padding:6px 10px; border-radius:6px; font-size:12px;
+}
+.logs-toolbar input { flex:1; min-width:150px; }
+.logs-list {
+  background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+  max-height:500px; overflow-y:auto; font-family:'SF Mono', monospace;
+  font-size:11px;
+}
+.log-item {
+  padding:5px 10px; border-bottom:1px solid rgba(255,255,255,0.04);
+  display:flex; gap:10px; align-items:flex-start;
+  word-break:break-all;
+}
+.log-time { color:var(--dim); flex-shrink:0; min-width:60px; }
+.log-lvl { flex-shrink:0; min-width:48px; font-weight:700; text-transform:uppercase; }
+.log-msg { flex:1; color:var(--text); }
+.log-LOG .log-lvl { color:var(--blue); }
+.log-WARN .log-lvl { color:var(--yellow); }
+.log-WARN { background:rgba(245,158,11,0.05); }
+.log-ERROR .log-lvl { color:var(--red); }
+.log-ERROR { background:rgba(239,68,68,0.06); }
+.log-INFO .log-lvl { color:var(--cyan); }
 
-        .toast {
-            position: fixed; bottom: 20px; left: 50%;
-            transform: translateX(-50%);
-            background: var(--secondary);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 12px 20px; border-radius: 8px;
-            box-shadow: var(--shadow);
-            z-index: 200;
-            animation: slideUp 0.3s ease;
-        }
-        @keyframes slideUp { from { transform: translate(-50%, 50px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
-        .toast.success { border-color: var(--green); }
-        .toast.error { border-color: var(--red); }
+/* === KILL LIST === */
+.kill {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 10px; background:var(--bg2); border:1px solid var(--border);
+  border-radius:7px; margin-bottom:6px; font-size:12px;
+}
+.kill-reason { font-weight:600; padding:2px 8px; border-radius:4px; font-size:11px; }
+.kill-honor { background:rgba(239,68,68,0.15); color:var(--red); }
+.kill-normal { background:rgba(148,163,184,0.15); color:var(--muted); }
+.kill-time { color:var(--dim); font-size:11px; }
 
-        .empty-state {
-            text-align: center; padding: 30px 20px;
-            color: var(--text-muted); font-size: 13px;
-        }
+/* === COMMANDS === */
+.cmd-grid {
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
+  gap:8px;
+}
+.cmd-btn {
+  background:var(--card2); border:1px solid var(--border);
+  color:var(--text); padding:11px 8px; border-radius:8px;
+  font-size:11px; cursor:pointer; text-align:center;
+  display:flex; flex-direction:column; gap:4px; align-items:center;
+  transition:all 0.15s;
+}
+.cmd-btn:hover { background:var(--blue); border-color:var(--blue); color:#fff; transform:translateY(-1px); }
+.cmd-btn.danger:hover { background:var(--red); border-color:var(--red); }
+.cmd-btn.warn:hover { background:var(--yellow); border-color:var(--yellow); }
+.cmd-icon { font-size:20px; }
+.cmd-lbl { font-weight:600; }
+.cmd-desc { font-size:9px; color:var(--dim); line-height:1.3; }
 
-        @media (max-width: 600px) {
-            body { padding: 10px; }
-            .header { padding: 14px; }
-            h1 { font-size: 15px; }
-            .summary-value { font-size: 16px; }
-            .actions-grid { grid-template-columns: 1fr; }
-        }
-    </style>
+.cmd-history {
+  margin-top:14px; max-height:280px; overflow-y:auto;
+  background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+}
+.cmd-row {
+  padding:8px 10px; border-bottom:1px solid rgba(255,255,255,0.05);
+  font-size:11px; display:grid;
+  grid-template-columns:90px 100px 110px 1fr; gap:8px; align-items:center;
+}
+.cmd-status { padding:2px 7px; border-radius:4px; font-size:10px; font-weight:700; text-align:center; }
+.cs-pending { background:rgba(245,158,11,0.15); color:var(--yellow); }
+.cs-processing { background:rgba(6,182,212,0.15); color:var(--cyan); }
+.cs-completed { background:rgba(16,185,129,0.15); color:var(--green); }
+.cs-failed { background:rgba(239,68,68,0.15); color:var(--red); }
+
+/* === LOC LIST === */
+.loc-row {
+  padding:7px 10px; border-bottom:1px solid var(--border);
+  display:grid; grid-template-columns:80px 1fr 60px 70px; gap:10px;
+  font-size:11px; align-items:center;
+}
+.loc-row:nth-child(odd) { background:rgba(255,255,255,0.02); }
+.loc-time { color:var(--muted); }
+.loc-coords { color:var(--cyan); font-family:'SF Mono', monospace; }
+.loc-speed { color:var(--text); font-weight:600; }
+.loc-acc { color:var(--dim); }
+.loc-gap { background:rgba(239,68,68,0.1); border-right:3px solid var(--red); padding-right:7px; }
+.loc-gap .loc-time { color:var(--red); font-weight:700; }
+
+/* === CHARTS === */
+.chart-wrap { position:relative; height:180px; }
+
+/* === EVENT TIMELINE === */
+.evt-row {
+  display:grid; grid-template-columns:80px 90px 1fr;
+  gap:10px; padding:7px 10px;
+  border-bottom:1px solid var(--border); font-size:11px;
+}
+.evt-row:nth-child(odd) { background:rgba(255,255,255,0.02); }
+.evt-time { color:var(--muted); }
+.evt-type { font-weight:700; padding:2px 6px; border-radius:4px; text-align:center; font-size:10px; }
+.evt-fcm { background:rgba(139,92,246,0.15); color:var(--purple); }
+.evt-restart { background:rgba(245,158,11,0.15); color:var(--yellow); }
+.evt-ok { background:rgba(16,185,129,0.15); color:var(--green); }
+.evt-fail { background:rgba(239,68,68,0.15); color:var(--red); }
+.evt-msg { color:var(--text); }
+
+/* === EMPTY STATE === */
+.empty {
+  text-align:center; padding:30px 20px; color:var(--dim);
+  font-size:13px;
+}
+
+/* === TOAST === */
+.toast {
+  position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+  background:var(--card2); border:1px solid var(--border);
+  padding:11px 18px; border-radius:8px; font-size:13px;
+  z-index:9999; max-width:90%; box-shadow:0 10px 30px rgba(0,0,0,0.5);
+  animation:slideUp 0.3s;
+}
+.toast.success { border-color:var(--green); color:var(--green); }
+.toast.error { border-color:var(--red); color:var(--red); }
+@keyframes slideUp { from {opacity:0; transform:translate(-50%, 20px);} to {opacity:1; transform:translate(-50%, 0);} }
+
+/* === MODAL === */
+.modal {
+  position:fixed; inset:0; background:rgba(0,0,0,0.85);
+  display:none; align-items:center; justify-content:center; z-index:1000;
+  padding:20px;
+}
+.modal.show { display:flex; }
+.modal-box {
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:0; max-width:900px; width:100%; max-height:90vh;
+  display:flex; flex-direction:column;
+}
+.modal-hdr {
+  padding:14px 18px; border-bottom:1px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center;
+}
+.modal-hdr h3 { font-size:14px; }
+.modal-close {
+  background:var(--card2); border:0; color:var(--text);
+  width:30px; height:30px; border-radius:6px; cursor:pointer; font-size:16px;
+}
+.modal-body {
+  padding:18px; overflow-y:auto; flex:1;
+}
+.modal-body pre {
+  background:var(--bg2); padding:12px; border-radius:6px;
+  font-size:11px; color:var(--text); white-space:pre-wrap; word-break:break-all;
+  max-height:60vh; overflow-y:auto;
+}
+
+/* === LOADING === */
+.loading {
+  position:fixed; inset:0; background:rgba(10,14,26,0.95);
+  display:flex; align-items:center; justify-content:center;
+  z-index:9998; flex-direction:column; gap:12px;
+}
+.spinner {
+  width:48px; height:48px; border:3px solid var(--border);
+  border-top-color:var(--blue); border-radius:50%;
+  animation:spin 0.8s linear infinite;
+}
+@keyframes spin { to {transform:rotate(360deg);} }
+.loading.hide { display:none; }
+
+@media (max-width: 700px) {
+  body { padding:8px; font-size:12px; }
+  .hdr { padding:10px; }
+  .hdr h1 { font-size:14px; }
+  .sum-val { font-size:15px; }
+  .grid-2, .grid-3 { grid-template-columns:1fr; }
+  .cmd-row { grid-template-columns:1fr; gap:4px; }
+}
+</style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-left">
-            <a href="javascript:history.back()" class="back-btn">← رجوع</a>
-            <div>
-                <h1 id="pageTitle">🔍 تشخيص الصلاحيات</h1>
-                <div class="header-meta" id="pageSubtitle">جاري التحميل...</div>
-            </div>
-        </div>
-        <div class="last-update" id="lastUpdate">—</div>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-left">
+    <a class="back-btn" href="javascript:history.back()">← رجوع</a>
+    <div>
+      <h1 id="pageTitle">🔬 تشخيص حي</h1>
+      <div class="hdr-sub" id="pageSub">جاري التحميل...</div>
     </div>
+  </div>
+  <div class="hdr-right">
+    <span class="live-tag"><span class="live-dot"></span><span id="liveTxt">حي</span></span>
+    <button class="hdr-btn" id="freezeBtn" onclick="toggleFreeze()">⏸️ توقف</button>
+    <button class="hdr-btn" onclick="downloadFullReport()">📥 تنزيل JSON</button>
+    <button class="hdr-btn" onclick="window.print()">🖨️ طباعة</button>
+  </div>
+</div>
 
-    <!-- ملخص سريع -->
-    <div class="summary-card">
-        <h2 style="font-size:14px; color:var(--blue); margin-bottom:14px;">📊 ملخص سريع</h2>
-        <div class="summary-grid" id="summaryGrid">
-            <div class="summary-item"><div class="summary-label">الحالة</div><div class="summary-value" id="sumStatus">—</div></div>
-            <div class="summary-item"><div class="summary-label">الصلاحيات</div><div class="summary-value" id="sumPerms">—</div></div>
-            <div class="summary-item"><div class="summary-label">آخر موقع</div><div class="summary-value" id="sumLastLoc">—</div></div>
-            <div class="summary-item"><div class="summary-label">قتلات HONOR (24س)</div><div class="summary-value" id="sumKills">—</div></div>
-            <div class="summary-item"><div class="summary-label">البطارية</div><div class="summary-value" id="sumBattery">—</div></div>
-            <div class="summary-item"><div class="summary-label">إصدار التطبيق</div><div class="summary-value" id="sumVersion">—</div></div>
-        </div>
-    </div>
+<!-- ALERT BANNER -->
+<div class="alert-banner" id="alertBanner">
+  <div class="alert-title" id="alertTitle"></div>
+  <div class="alert-body" id="alertBody"></div>
+</div>
 
-    <div class="grid">
-        <!-- الصلاحيات الأساسية -->
-        <div class="card">
-            <h2>🔐 الصلاحيات الأساسية (6)</h2>
-            <div id="basicPerms"></div>
-        </div>
+<!-- SUMMARY STRIP -->
+<div class="sumstrip">
+  <div class="sum"><div class="sum-lbl">الحالة</div><div class="sum-val" id="sumStatus">—</div><div class="sum-sub" id="sumStatusSub"></div></div>
+  <div class="sum"><div class="sum-lbl">الصلاحيات</div><div class="sum-val" id="sumPerms">—</div><div class="sum-sub">من 9</div></div>
+  <div class="sum"><div class="sum-lbl">آخر موقع</div><div class="sum-val" id="sumLastLoc">—</div><div class="sum-sub" id="sumLastLocSub">—</div></div>
+  <div class="sum"><div class="sum-lbl">RNBG</div><div class="sum-val" id="sumRnbg">—</div><div class="sum-sub" id="sumRnbgSub">—</div></div>
+  <div class="sum"><div class="sum-lbl">البطارية</div><div class="sum-val" id="sumBat">—</div><div class="sum-sub" id="sumBatSub">—</div></div>
+  <div class="sum"><div class="sum-lbl">Queue</div><div class="sum-val" id="sumQueue">—</div><div class="sum-sub">نقطة</div></div>
+  <div class="sum"><div class="sum-lbl">Doze</div><div class="sum-val" id="sumDoze">—</div><div class="sum-sub" id="sumDozeSub">—</div></div>
+  <div class="sum"><div class="sum-lbl">قتلات 24س</div><div class="sum-val" id="sumKills">—</div><div class="sum-sub" id="sumKillsSub">HONOR/طبيعي</div></div>
+</div>
 
-        <!-- صلاحيات HONOR -->
-        <div class="card" id="honorCard" style="display:none;">
-            <h2>📱 صلاحيات HONOR (3)</h2>
-            <div id="honorPerms"></div>
-        </div>
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" data-tab="overview">📊 نظرة عامة</div>
+  <div class="tab" data-tab="logs">📜 السجلات <span class="tab-badge" id="tabLogsBadge">0</span></div>
+  <div class="tab" data-tab="perf">📈 الأداء</div>
+  <div class="tab" data-tab="net">🌐 الشبكة</div>
+  <div class="tab" data-tab="perms">🔐 الصلاحيات</div>
+  <div class="tab" data-tab="kills">💀 القتلات <span class="tab-badge" id="tabKillsBadge">0</span></div>
+  <div class="tab" data-tab="loc">📍 المواقع المباشرة</div>
+  <div class="tab" data-tab="events">⚡ الأحداث</div>
+  <div class="tab" data-tab="cmds">🎛️ الأوامر</div>
+  <div class="tab" data-tab="reports">📋 التقارير</div>
+</div>
 
-        <!-- معلومات الجهاز -->
-        <div class="card">
-            <h2>📊 معلومات الجهاز</h2>
-            <div id="deviceInfo"></div>
-        </div>
-
-        <!-- ExitReasons -->
-        <div class="card">
-            <h2>💀 تحليل قتل التطبيق (24 ساعة)</h2>
-            <div id="exitInfo"></div>
-        </div>
-    </div>
-
-    <!-- أوامر التشخيص -->
+<!-- TAB: OVERVIEW -->
+<div class="tab-content active" data-tab="overview">
+  <div class="grid grid-2">
     <div class="card">
-        <h2>🛠 أوامر التشخيص</h2>
-        <div class="actions-grid">
-            <button class="action-btn" onclick="sendCmd('snapshot_now', 'طلب snapshot جديد')">📊 طلب snapshot</button>
-            <button class="action-btn" onclick="sendCmd('cycle_wakelock', 'تنفيذ cycle wakelock')">⚡ Cycle wakelock</button>
-            <button class="action-btn" onclick="sendCmd('get_current_position', 'طلب الموقع الحالي')">📍 موقع الآن</button>
-            <button class="action-btn" onclick="sendCmd('flush_queue', 'مسح قائمة الانتظار')">🧹 مسح القائمة</button>
-            <button class="action-btn" onclick="sendCmd('reset_counters', 'تصفير العدّادات')">🧮 صفّر عدّادات</button>
-            <button class="action-btn success" onclick="sendCmd('run_full_diagnostic', 'تشخيص شامل')">🧪 اختبار شامل</button>
-            <button class="action-btn danger" onclick="sendCmd('invalidate_honor_perms', 'إلغاء صلاحيات HONOR')">♻️ إلغاء صلاحيات HONOR</button>
-            <button class="action-btn danger" onclick="sendCmd('reload_app', 'إعادة تشغيل التطبيق')">🔃 إعادة التطبيق</button>
-        </div>
+      <h2>🔍 الحالة الصحية <span class="right" id="hvAge">—</span></h2>
+      <div id="hvIssues"></div>
     </div>
-
-    <!-- آخر تقارير التشخيص -->
     <div class="card">
-        <h2>📜 آخر تقارير التشخيص</h2>
-        <div id="reportsList"><div class="empty-state">جاري التحميل...</div></div>
+      <h2>📱 الجهاز</h2>
+      <div id="deviceInfo"></div>
     </div>
-
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-spinner"></div>
+    <div class="card">
+      <h2>🛰️ RNBG (Background Geolocation)</h2>
+      <div id="rnbgInfo"></div>
     </div>
+    <div class="card">
+      <h2>⏱️ آخر إشارات الحياة</h2>
+      <div id="lifeInfo"></div>
+    </div>
+    <div class="card">
+      <h2>🦁 إحصاءات HONOR</h2>
+      <div id="honorInfo"></div>
+    </div>
+    <div class="card">
+      <h2>⚠️ الأخطاء الأخيرة</h2>
+      <div id="errorsList" style="max-height:280px; overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
 
-    <!-- Firebase v10 compat -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script>
-    firebase.initializeApp({
-        apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
-        authDomain: "taxi-management-system-d8210.firebaseapp.com",
-        projectId: "taxi-management-system-d8210",
-        storageBucket: "taxi-management-system-d8210.firebasestorage.app",
-        messagingSenderId: "720874424166",
-        appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7"
+<!-- TAB: LOGS -->
+<div class="tab-content" data-tab="logs">
+  <div class="card">
+    <h2>📜 سجلات التطبيق <span class="right">آخر <span id="logsCount">0</span> سطر</span></h2>
+    <div class="logs-toolbar">
+      <input type="text" id="logsFilter" placeholder="بحث في السجلات..." oninput="renderLogs()">
+      <select id="logsLevel" onchange="renderLogs()">
+        <option value="">كل المستويات</option>
+        <option value="LOG">LOG</option>
+        <option value="INFO">INFO</option>
+        <option value="WARN">WARN</option>
+        <option value="ERROR">ERROR</option>
+      </select>
+      <button class="hdr-btn" onclick="copyLogs()">📋 نسخ</button>
+      <button class="hdr-btn" onclick="sendCmd('dump_logs','جلب سجلات حية')">🔄 تحديث من الجهاز</button>
+    </div>
+    <div class="logs-list" id="logsList"></div>
+    <div style="margin-top:8px; font-size:11px; color:var(--muted);">
+      💡 السجلات تُحفظ في التطبيق (آخر 200 سطر) وتُرفع تلقائياً مع كل snapshot.
+      اضغط "تحديث من الجهاز" لجلب أحدث 200 سطر فوراً.
+    </div>
+  </div>
+</div>
+
+<!-- TAB: PERF -->
+<div class="tab-content" data-tab="perf">
+  <div class="grid grid-2">
+    <div class="card">
+      <h2>🔋 البطارية (آخر ساعتين)</h2>
+      <div class="chart-wrap"><canvas id="chartBattery"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>💾 الذاكرة (MB)</h2>
+      <div class="chart-wrap"><canvas id="chartMemory"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>📦 طابور الرفع (Queue)</h2>
+      <div class="chart-wrap"><canvas id="chartQueue"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>🕒 آخر موقع (دقائق)</h2>
+      <div class="chart-wrap"><canvas id="chartLocAge"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>🌙 وضع Doze + App Standby</h2>
+      <div id="dozeInfo"></div>
+    </div>
+    <div class="card">
+      <h2>🔄 إعادة التشغيل (آخر ساعة)</h2>
+      <div id="restartInfo"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: NET -->
+<div class="tab-content" data-tab="net">
+  <div class="grid grid-2">
+    <div class="card">
+      <h2>🌐 الشبكة الحالية</h2>
+      <div id="netInfo"></div>
+    </div>
+    <div class="card">
+      <h2>🔥 إحصاءات Firestore (من snapshot)</h2>
+      <div id="fsStats"></div>
+    </div>
+    <div class="card" style="grid-column: 1 / -1;">
+      <h2>📡 آخر استيقاظات FCM</h2>
+      <div id="fcmList" style="max-height:340px; overflow-y:auto;"></div>
+    </div>
+    <div class="card" style="grid-column: 1 / -1;">
+      <h2>🔁 سجلات Background Fetch</h2>
+      <div id="bgfList" style="max-height:240px; overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: PERMS -->
+<div class="tab-content" data-tab="perms">
+  <div class="grid grid-2">
+    <div class="card">
+      <h2>🔐 الصلاحيات الأساسية (Android)</h2>
+      <div id="basicPerms"></div>
+    </div>
+    <div class="card" id="honorCard" style="display:none;">
+      <h2>🦁 صلاحيات HONOR/HUAWEI</h2>
+      <div id="honorPerms"></div>
+    </div>
+    <div class="card" style="grid-column: 1 / -1;">
+      <h2>⚠️ صلاحيات أُلغيت من النظام</h2>
+      <div id="revokedList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: KILLS -->
+<div class="tab-content" data-tab="kills">
+  <div class="card">
+    <h2>💀 آخر قتلات التطبيق (ApplicationExitInfo - Android 11+)</h2>
+    <div id="killsSummary" style="margin-bottom:14px;"></div>
+    <div id="killsFull"></div>
+  </div>
+</div>
+
+<!-- TAB: LOC -->
+<div class="tab-content" data-tab="loc">
+  <div class="card">
+    <h2>📍 آخر 30 موقع (مباشر) <span class="right" id="locLiveTag">🟢 حي</span></h2>
+    <div id="locList" style="max-height:550px; overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- TAB: EVENTS -->
+<div class="tab-content" data-tab="events">
+  <div class="card">
+    <h2>⚡ سجل أحداث التتبع (آخر 50)</h2>
+    <div id="eventsList" style="max-height:600px; overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- TAB: CMDS -->
+<div class="tab-content" data-tab="cmds">
+  <div class="card">
+    <h2>🎛️ أوامر بعيدة (Remote Commands)</h2>
+    <div class="cmd-grid">
+      <button class="cmd-btn" onclick="sendCmd('snapshot','snapshot فوري')">
+        <span class="cmd-icon">📸</span><span class="cmd-lbl">Snapshot فوري</span>
+        <span class="cmd-desc">تحديث البيانات الآن</span></button>
+      <button class="cmd-btn" onclick="sendCmd('run_full_diagnostic','تشخيص شامل')">
+        <span class="cmd-icon">🔬</span><span class="cmd-lbl">تشخيص شامل</span>
+        <span class="cmd-desc">تقرير كامل في diagnosticReports</span></button>
+      <button class="cmd-btn" onclick="sendCmd('dump_logs','جلب السجلات')">
+        <span class="cmd-icon">📜</span><span class="cmd-lbl">جلب السجلات</span>
+        <span class="cmd-desc">آخر 200 console.log</span></button>
+      <button class="cmd-btn" onclick="sendCmd('get_current_position','موقع فوري')">
+        <span class="cmd-icon">📍</span><span class="cmd-lbl">موقع فوري</span>
+        <span class="cmd-desc">getCurrentPosition</span></button>
+      <button class="cmd-btn warn" onclick="sendCmd('flush_queue','رفع الطابور')">
+        <span class="cmd-icon">🚀</span><span class="cmd-lbl">رفع الطابور</span>
+        <span class="cmd-desc">sync() للنقاط المتراكمة</span></button>
+      <button class="cmd-btn warn" onclick="sendCmd('cycle_wakelock','دورة Wakelock')">
+        <span class="cmd-icon">🔋</span><span class="cmd-lbl">دورة Wakelock</span>
+        <span class="cmd-desc">يكسر دورة HwPFWService</span></button>
+      <button class="cmd-btn warn" onclick="sendCmd('cycle_honor_wakelock','دورة HONOR')">
+        <span class="cmd-icon">🦁</span><span class="cmd-lbl">HONOR Wakelock</span>
+        <span class="cmd-desc">إعادة بناء wakelock HONOR</span></button>
+      <button class="cmd-btn danger" onclick="sendCmd('restart_rnbg','إعادة تشغيل RNBG')">
+        <span class="cmd-icon">🔄</span><span class="cmd-lbl">إعادة RNBG</span>
+        <span class="cmd-desc">Hard restart للتتبع</span></button>
+      <button class="cmd-btn danger" onclick="sendCmd('open_power_manager','فتح إعدادات HONOR')">
+        <span class="cmd-icon">⚙️</span><span class="cmd-lbl">إعدادات OEM</span>
+        <span class="cmd-desc">يفتح Protected Apps</span></button>
+      <button class="cmd-btn danger" onclick="sendCmd('invalidate_honor_perms','إلغاء صلاحيات HONOR')">
+        <span class="cmd-icon">❌</span><span class="cmd-lbl">إلغاء HONOR</span>
+        <span class="cmd-desc">يفرض إعادة طلبها</span></button>
+      <button class="cmd-btn warn" onclick="sendCmd('reset_counters','تصفير العدادات')">
+        <span class="cmd-icon">🔢</span><span class="cmd-lbl">تصفير العدادات</span>
+        <span class="cmd-desc">restart/silent_death counts</span></button>
+      <button class="cmd-btn danger" onclick="sendCmd('reload_app','إعادة تحميل التطبيق')">
+        <span class="cmd-icon">♻️</span><span class="cmd-lbl">إعادة التطبيق</span>
+        <span class="cmd-desc">reload JS bundle</span></button>
+    </div>
+    <h2 style="margin-top:18px;">📋 سجل الأوامر السابقة</h2>
+    <div class="cmd-history" id="cmdHistory"></div>
+  </div>
+</div>
+
+<!-- TAB: REPORTS -->
+<div class="tab-content" data-tab="reports">
+  <div class="card">
+    <h2>📋 آخر 20 تقرير شامل <span class="right">اضغط على أي تقرير للعرض</span></h2>
+    <div id="reportsList" style="max-height:600px; overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h3 id="modalTitle">عنوان</h3>
+      <button class="modal-close" onclick="closeModal()">✖</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="loading" id="loading"><div class="spinner"></div><div>جاري التحميل...</div></div>
+
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+  authDomain: "taxi-management-system-d8210.firebaseapp.com",
+  projectId: "taxi-management-system-d8210",
+  storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+  messagingSenderId: "720874424166",
+  appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7"
+});
+const db = firebase.firestore();
+
+// ===== STATE =====
+const params = new URLSearchParams(location.search);
+const driverId = params.get('id');
+if (!driverId) {
+  document.body.innerHTML = '<div style="padding:40px;text-align:center;">❌ معرف السائق مفقود<br><a href="drivers.html" style="color:#3b82f6;">رجوع</a></div>';
+  throw new Error('no driver id');
+}
+
+let currentSnap = null;
+let currentDriverDoc = null;
+let snapshotHistory = []; // آخر 20 snapshot من driverDiagnostics history
+let liveLogs = [];
+let unsubs = [];
+let frozen = false;
+let chartBattery = null, chartMemory = null, chartQueue = null, chartLocAge = null;
+
+document.getElementById('pageTitle').textContent = '🔬 تشخيص ' + driverId;
+
+// ===== TABS =====
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.querySelector(`.tab-content[data-tab="${t.dataset.tab}"]`).classList.add('active');
+    // إعادة رسم الـ charts عند فتح التبويب
+    if (t.dataset.tab === 'perf') setTimeout(refreshCharts, 100);
+  };
+});
+
+// ===== HELPERS =====
+function fmtAge(ms) {
+  if (ms == null || isNaN(ms)) return '—';
+  const s = Math.floor(ms/1000);
+  if (s < 60) return s + ' ث';
+  const m = Math.floor(s/60);
+  if (m < 60) return m + ' د';
+  const h = Math.floor(m/60);
+  if (h < 24) return h + ' س ' + (m%60) + ' د';
+  return Math.floor(h/24) + ' يوم';
+}
+function fmtTime(ts) {
+  if (!ts) return '—';
+  let d;
+  try {
+    if (ts.toDate) d = ts.toDate();
+    else if (typeof ts === 'number') d = new Date(ts);
+    else if (ts.seconds) d = new Date(ts.seconds*1000);
+    else d = new Date(ts);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleTimeString('ar-KW', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  } catch (e) { return '—'; }
+}
+function fmtDateTime(ts) {
+  if (!ts) return '—';
+  try {
+    let d = ts.toDate ? ts.toDate() : (typeof ts === 'number' ? new Date(ts) : (ts.seconds ? new Date(ts.seconds*1000) : new Date(ts)));
+    return d.toLocaleString('ar-KW', {dateStyle:'short', timeStyle:'medium'});
+  } catch (e) { return '—'; }
+}
+function timeAgo(ts) {
+  if (!ts) return '—';
+  let d;
+  try {
+    if (ts.toDate) d = ts.toDate();
+    else if (typeof ts === 'number') d = new Date(ts);
+    else if (ts.seconds) d = new Date(ts.seconds*1000);
+    else d = new Date(ts);
+    return fmtAge(Date.now() - d.getTime()) + ' مضت';
+  } catch (e) { return '—'; }
+}
+function tsToMs(ts) {
+  if (!ts) return null;
+  if (ts.toDate) return ts.toDate().getTime();
+  if (typeof ts === 'number') return ts;
+  if (ts.seconds) return ts.seconds*1000;
+  try { return new Date(ts).getTime(); } catch (e) { return null; }
+}
+
+function setRows(el, rows) {
+  el.innerHTML = '';
+  rows.forEach(([lbl, val, color]) => {
+    const div = document.createElement('div');
+    div.className = 'row';
+    div.innerHTML = `<span class="row-lbl">${lbl}</span><span class="row-val" ${color?`style="color:${color}"`:''}>${val ?? '—'}</span>`;
+    el.appendChild(div);
+  });
+}
+
+function classByVal(val, goodMax, warnMax) {
+  if (val == null) return '';
+  if (val <= goodMax) return 's-good';
+  if (val <= warnMax) return 's-warn';
+  return 's-bad';
+}
+
+// ===== SUMMARY =====
+function renderSummary(snap, driverDoc) {
+  const verdict = snap.healthVerdict || {};
+  const sumStatus = document.getElementById('sumStatus');
+  if (verdict.status === 'healthy') { sumStatus.textContent = '🟢 سليم'; sumStatus.className = 'sum-val s-good'; }
+  else if (verdict.status === 'degraded') { sumStatus.textContent = '🟡 تدهور'; sumStatus.className = 'sum-val s-warn'; }
+  else if (verdict.status === 'critical') { sumStatus.textContent = '🔴 حرج'; sumStatus.className = 'sum-val s-bad'; }
+  else { sumStatus.textContent = '—'; sumStatus.className = 'sum-val'; }
+  document.getElementById('sumStatusSub').textContent = (verdict.issues||[]).length + ' مشاكل';
+
+  // Permissions count
+  const p = snap.permissions || {};
+  let granted = 0, total = 6;
+  ['p1','p2','p3','p4','p5','p6'].forEach(k => p[k] && granted++);
+  if (p.isHonor) { total = 9; ['p7','p8','p9'].forEach(k => p[k] && granted++); }
+  const sumPerms = document.getElementById('sumPerms');
+  sumPerms.textContent = granted + '/' + total;
+  sumPerms.className = 'sum-val ' + (granted===total ? 's-good' : (granted >= total-2 ? 's-warn' : 's-bad'));
+
+  // Last loc age
+  const ageMin = snap.lastLocationAgeMin;
+  const sumLoc = document.getElementById('sumLastLoc');
+  sumLoc.textContent = ageMin != null ? ageMin + 'د' : '—';
+  sumLoc.className = 'sum-val ' + classByVal(ageMin, 5, 30);
+  document.getElementById('sumLastLocSub').textContent = ageMin != null ? 'مضت' : '';
+
+  // RNBG
+  const rnbg = snap.rnbg || {};
+  const sumRnbg = document.getElementById('sumRnbg');
+  sumRnbg.textContent = rnbg.enabled ? '✅' : '❌';
+  sumRnbg.className = 'sum-val ' + (rnbg.enabled ? 's-good' : 's-bad');
+  document.getElementById('sumRnbgSub').textContent = rnbg.isMoving ? 'يتحرك' : 'متوقف';
+
+  // Battery
+  const bat = snap.device?.battery;
+  const sumBat = document.getElementById('sumBat');
+  if (bat != null) {
+    const pct = Math.round(bat * 100);
+    sumBat.textContent = pct + '%';
+    sumBat.className = 'sum-val ' + (pct > 30 ? 's-good' : pct > 15 ? 's-warn' : 's-bad');
+    document.getElementById('sumBatSub').textContent = snap.device.isPowerSaveMode ? '⚠️ توفير' : '';
+  } else { sumBat.textContent = '—'; }
+
+  // Queue
+  const q = rnbg.queueCount;
+  const sumQueue = document.getElementById('sumQueue');
+  sumQueue.textContent = q != null ? q : '—';
+  sumQueue.className = 'sum-val ' + classByVal(q, 20, 100);
+
+  // Doze
+  const doze = snap.doze || {};
+  const sumDoze = document.getElementById('sumDoze');
+  if (doze.idleMode != null) {
+    sumDoze.textContent = doze.idleMode ? '😴' : '✅';
+    sumDoze.className = 'sum-val ' + (doze.idleMode ? 's-bad' : 's-good');
+    document.getElementById('sumDozeSub').textContent = doze.standbyBucket || '—';
+  } else { sumDoze.textContent = '—'; document.getElementById('sumDozeSub').textContent = 'غير متوفر'; }
+
+  // Kills
+  const ex = snap.exitAnalysis || {};
+  const sumKills = document.getElementById('sumKills');
+  if (ex.supported) {
+    const total = (ex.honorKills||0) + (ex.normalKills||0);
+    sumKills.textContent = total;
+    sumKills.className = 'sum-val ' + (total === 0 ? 's-good' : ex.honorKills > 0 ? 's-bad' : 's-warn');
+    document.getElementById('sumKillsSub').textContent = `🦁${ex.honorKills||0} • 📱${ex.normalKills||0}`;
+  } else { sumKills.textContent = '—'; }
+}
+
+// ===== ALERT BANNER =====
+function renderAlertBanner(snap) {
+  const banner = document.getElementById('alertBanner');
+  const verdict = snap.healthVerdict || {};
+  const issues = verdict.issues || [];
+  const revoked = snap.permsRevoked || [];
+
+  if (issues.length === 0 && revoked.length === 0) {
+    banner.classList.remove('show', 'warn');
+    return;
+  }
+
+  const isCritical = verdict.status === 'critical' || revoked.length > 0;
+  banner.classList.add('show');
+  banner.classList.toggle('warn', !isCritical);
+
+  document.getElementById('alertTitle').textContent =
+    isCritical ? '🚨 حالة حرجة - يحتاج تدخل فوري' : '⚠️ تنبيه - مشاكل في النظام';
+
+  let body = '';
+  if (revoked.length) {
+    body += `<strong>صلاحيات أُلغيت من النظام:</strong> ${revoked.join('، ')}<br>`;
+  }
+  if (issues.length) {
+    body += `<strong>المشاكل المكتشفة:</strong><ul class="alert-list">`;
+    issues.forEach(i => body += `<li>${translateIssue(i)}</li>`);
+    body += `</ul>`;
+  }
+  document.getElementById('alertBody').innerHTML = body;
+}
+
+function translateIssue(issue) {
+  const map = {
+    'RNBG_DISABLED': 'خدمة التتبع الأساسية متوقفة (BackgroundGeolocation)',
+    'HONOR_REPEATED_DEATH': 'HONOR قتل التطبيق عدة مرات في الساعة الأخيرة',
+    'HONOR_REPEATED_RESTART': 'إعادة تشغيل متكررة للخدمة (>5 في الساعة)',
+    'PERMS_MISSING': 'صلاحيات ناقصة',
+    'POWER_SAVE_ON': 'وضع توفير الطاقة مفعّل',
+    'LOW_BATTERY': 'بطارية منخفضة (<15%)',
+  };
+  if (map[issue]) return map[issue];
+  if (issue.startsWith('SILENT_DEATH_')) return `موت صامت: لم يصل أي موقع منذ ${issue.replace('SILENT_DEATH_','').replace('min',' دقيقة')}`;
+  if (issue.startsWith('BG_FETCH_DEAD_')) return `Background Fetch متوقف منذ ${issue.replace('BG_FETCH_DEAD_','').replace('min',' دقيقة')}`;
+  if (issue.startsWith('QUEUE_BLOATED_')) return `طابور الرفع منتفخ: ${issue.replace('QUEUE_BLOATED_','')} نقطة`;
+  return issue;
+}
+
+// ===== OVERVIEW TAB =====
+function renderOverview(snap) {
+  // Health Verdict Issues
+  const hv = snap.healthVerdict || {};
+  const hvAge = document.getElementById('hvAge');
+  hvAge.textContent = hv.checkedAtMs ? timeAgo(hv.checkedAtMs) : '—';
+  const hvIssues = document.getElementById('hvIssues');
+  if (!hv.issues || hv.issues.length === 0) {
+    hvIssues.innerHTML = '<div style="text-align:center;color:var(--green);padding:18px;font-size:14px;">🟢 لا توجد مشاكل</div>';
+  } else {
+    hvIssues.innerHTML = hv.issues.map(i =>
+      `<div class="row"><span class="row-lbl">⚠️</span><span class="row-val s-bad">${translateIssue(i)}</span></div>`
+    ).join('');
+  }
+
+  // Device
+  setRows(document.getElementById('deviceInfo'), [
+    ['الموديل', `${snap.device?.brand||'?'} ${snap.device?.model||''}`],
+    ['المُصنّع', snap.device?.manufacturer||'—'],
+    ['Android', `${snap.device?.systemName||''} ${snap.device?.systemVersion||'?'}`],
+    ['البطارية', snap.device?.battery!=null ? Math.round(snap.device.battery*100)+'%' : '—'],
+    ['Power Save', snap.device?.isPowerSaveMode ? '⚠️ مفعّل' : '✅ مغلق', snap.device?.isPowerSaveMode ? 'var(--yellow)' : ''],
+    ['الذاكرة المستخدمة', snap.memoryUsedMB!=null ? snap.memoryUsedMB+' MB' : '—'],
+    ['إصدار التطبيق', snap.appVersion||'—'],
+    ['Platform', `${snap.platform||''} ${snap.platformVersion||''}`],
+  ]);
+
+  // RNBG
+  const rnbg = snap.rnbg || {};
+  setRows(document.getElementById('rnbgInfo'), [
+    ['مفعّل', rnbg.enabled ? '✅ نعم' : '❌ لا', rnbg.enabled ? 'var(--green)' : 'var(--red)'],
+    ['يتحرك', rnbg.isMoving ? '🚗 نعم' : '🛑 لا'],
+    ['وضع التتبع', rnbg.trackingMode ?? '—'],
+    ['Odometer', rnbg.odometer ? (rnbg.odometer/1000).toFixed(1)+' كم' : '—'],
+    ['Schedule', rnbg.schedulerEnabled ? 'مفعّل' : 'مغلق'],
+    ['distanceFilter', rnbg.distanceFilter ?? '—'],
+    ['desiredAccuracy', rnbg.desiredAccuracy ?? '—'],
+    ['stopOnTerminate', rnbg.stopOnTerminate === false ? '✅ false' : rnbg.stopOnTerminate],
+    ['startOnBoot', rnbg.startOnBoot ? '✅ true' : rnbg.startOnBoot],
+    ['Queue Count', rnbg.queueCount ?? '—', classByValColor(rnbg.queueCount, 20, 100)],
+  ]);
+
+  // Life signals
+  setRows(document.getElementById('lifeInfo'), [
+    ['آخر موقع', snap.lastLocationAgeMin!=null ? `قبل ${snap.lastLocationAgeMin} د` : '—', classByValColor(snap.lastLocationAgeMin, 5, 30)],
+    ['آخر BG Fetch', snap.lastBgFetchAgeMin!=null ? `قبل ${snap.lastBgFetchAgeMin} د` : '—', classByValColor(snap.lastBgFetchAgeMin, 20, 60)],
+    ['آخر Wakelock cycle', snap.lastWakelockCycleAgeMin!=null ? `قبل ${snap.lastWakelockCycleAgeMin} د` : '—', classByValColor(snap.lastWakelockCycleAgeMin, 60, 180)],
+    ['Snapshot عمر', snap.collectedAtMs ? timeAgo(snap.collectedAtMs) : '—'],
+    ['آخر FCM wakeup', currentDriverDoc?.lastFcmWakeup ? timeAgo(currentDriverDoc.lastFcmWakeup) : '—'],
+    ['نجاح آخر FCM', currentDriverDoc?.lastFcmWakeupSuccess === true ? '✅' : currentDriverDoc?.lastFcmWakeupSuccess === false ? '❌' : '—'],
+  ]);
+
+  // HONOR
+  const honor = snap.honorStats || {};
+  setRows(document.getElementById('honorInfo'), [
+    ['restart عدد/ساعة', honor.restartCountHour ?? 0, classByValColor(honor.restartCountHour, 1, 4)],
+    ['silent death/ساعة', honor.silentDeathCountHour ?? 0, classByValColor(honor.silentDeathCountHour, 1, 3)],
+    ['آخر Alive Ping', honor.lastAlivePingAgeMin!=null ? `قبل ${honor.lastAlivePingAgeMin} د` : '—'],
+    ['p7 محمي', honor.p7_confirmed ? '✅' : '❌', honor.p7_confirmed ? 'var(--green)' : 'var(--red)'],
+    ['p8 تشغيل تلقائي', honor.p8_confirmed ? '✅' : '❌', honor.p8_confirmed ? 'var(--green)' : 'var(--red)'],
+    ['p9 بطارية مكثف', honor.p9_confirmed ? '✅' : '❌', honor.p9_confirmed ? 'var(--green)' : 'var(--red)'],
+    ['p7 ألغي بـ', honor.p7_invalidated || '—', honor.p7_invalidated ? 'var(--yellow)' : ''],
+    ['p8 ألغي بـ', honor.p8_invalidated || '—', honor.p8_invalidated ? 'var(--yellow)' : ''],
+    ['p9 ألغي بـ', honor.p9_invalidated || '—', honor.p9_invalidated ? 'var(--yellow)' : ''],
+  ]);
+
+  // Errors
+  const errors = snap.recentErrors || [];
+  const errEl = document.getElementById('errorsList');
+  if (errors.length === 0) {
+    errEl.innerHTML = '<div class="empty">🟢 لا توجد أخطاء</div>';
+  } else {
+    errEl.innerHTML = errors.slice(-20).reverse().map(e => `
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px;">
+        <span class="row-lbl" style="font-size:10px;">${e.ts ? fmtTime(e.ts) : '—'}</span>
+        <span style="color:var(--red);font-size:11px;">${(e.message||e.toString()).substring(0,200)}</span>
+      </div>
+    `).join('');
+  }
+}
+
+function classByValColor(val, goodMax, warnMax) {
+  if (val == null) return '';
+  if (val <= goodMax) return 'var(--green)';
+  if (val <= warnMax) return 'var(--yellow)';
+  return 'var(--red)';
+}
+
+// ===== LOGS TAB =====
+function renderLogs() {
+  const logs = (currentSnap?.logs || liveLogs || []).slice(-200);
+  document.getElementById('logsCount').textContent = logs.length;
+  document.getElementById('tabLogsBadge').textContent = logs.length;
+  const filter = document.getElementById('logsFilter').value.toLowerCase();
+  const lvl = document.getElementById('logsLevel').value;
+  const filtered = logs.filter(l => {
+    if (lvl && l.level !== lvl) return false;
+    if (filter && !(l.message||'').toLowerCase().includes(filter)) return false;
+    return true;
+  });
+  const el = document.getElementById('logsList');
+  if (filtered.length === 0) {
+    el.innerHTML = `<div class="empty">${logs.length === 0 ? '⚠️ لا توجد سجلات. اضغط "تحديث من الجهاز".<br>(يحتاج تطبيق v2.7.21+ مع Logs Ring Buffer)' : 'لا نتائج للبحث'}</div>`;
+    return;
+  }
+  el.innerHTML = filtered.reverse().map(l => `
+    <div class="log-item log-${l.level||'LOG'}">
+      <span class="log-time">${l.ts ? new Date(l.ts).toLocaleTimeString('en-US',{hour12:false}) : '—'}</span>
+      <span class="log-lvl">${l.level||'LOG'}</span>
+      <span class="log-msg">${escapeHtml(l.message||'')}</span>
+    </div>
+  `).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function copyLogs() {
+  const logs = currentSnap?.logs || [];
+  const text = logs.map(l => `${l.ts ? new Date(l.ts).toISOString() : ''} [${l.level}] ${l.message}`).join('\n');
+  navigator.clipboard.writeText(text).then(()=> showToast('✅ تم النسخ', 'success'));
+}
+
+// ===== PERF TAB =====
+function refreshCharts() {
+  const hist = snapshotHistory.slice(-24); // آخر 2 ساعة (24*5min)
+  const labels = hist.map(s => s.collectedAtMs ? new Date(s.collectedAtMs).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}) : '');
+  const batData = hist.map(s => s.device?.battery != null ? Math.round(s.device.battery*100) : null);
+  const memData = hist.map(s => s.memoryUsedMB || null);
+  const queueData = hist.map(s => s.rnbg?.queueCount ?? null);
+  const ageData = hist.map(s => s.lastLocationAgeMin ?? null);
+
+  drawChart('chartBattery', chartBattery, labels, batData, 'البطارية %', '#10b981', 0, 100, c => chartBattery = c);
+  drawChart('chartMemory', chartMemory, labels, memData, 'الذاكرة (MB)', '#8b5cf6', 0, null, c => chartMemory = c);
+  drawChart('chartQueue', chartQueue, labels, queueData, 'Queue', '#f59e0b', 0, null, c => chartQueue = c);
+  drawChart('chartLocAge', chartLocAge, labels, ageData, 'عمر آخر موقع (د)', '#ef4444', 0, null, c => chartLocAge = c);
+
+  // Doze + Standby
+  const doze = currentSnap?.doze || {};
+  setRows(document.getElementById('dozeInfo'), [
+    ['Doze Mode', doze.idleMode != null ? (doze.idleMode ? '😴 نعم' : '✅ لا') : '—', doze.idleMode ? 'var(--red)' : 'var(--green)'],
+    ['Light Doze', doze.lightIdleMode != null ? (doze.lightIdleMode ? '⚠️ نعم' : '✅ لا') : '—'],
+    ['App Standby Bucket', doze.standbyBucket || '—', doze.standbyBucket === 'rare' || doze.standbyBucket === 'restricted' ? 'var(--red)' : ''],
+    ['Background Restricted', doze.backgroundRestricted != null ? (doze.backgroundRestricted ? '⚠️ نعم' : '✅ لا') : '—'],
+    ['Power Save', currentSnap?.device?.isPowerSaveMode ? '⚠️ مفعّل' : '✅ مغلق'],
+  ]);
+
+  // Restart info
+  const honor = currentSnap?.honorStats || {};
+  setRows(document.getElementById('restartInfo'), [
+    ['restart counts/ساعة', honor.restartCountHour ?? 0, classByValColor(honor.restartCountHour, 1, 4)],
+    ['silent death/ساعة', honor.silentDeathCountHour ?? 0, classByValColor(honor.silentDeathCountHour, 1, 3)],
+    ['snapshots المحفوظة', snapshotHistory.length],
+    ['آخر تحديث', currentSnap?.collectedAtMs ? timeAgo(currentSnap.collectedAtMs) : '—'],
+  ]);
+}
+
+function drawChart(canvasId, existing, labels, data, label, color, yMin, yMax, setter) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  if (existing) existing.destroy();
+  const c = new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets: [{
+      label, data, borderColor: color, backgroundColor: color + '33',
+      borderWidth: 2, fill: true, tension: 0.3, pointRadius: 2,
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#94a3b8' }}},
+      scales: {
+        y: { min: yMin, max: yMax, ticks: { color: '#94a3b8' }, grid: { color: '#2a3349' }},
+        x: { ticks: { color: '#94a3b8', maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { color: '#2a3349' }},
+      },
+    },
+  });
+  setter(c);
+}
+
+// ===== NET TAB =====
+function renderNet(snap) {
+  const net = snap.network || {};
+  setRows(document.getElementById('netInfo'), [
+    ['نوع الاتصال', net.type || '—'],
+    ['متصل', net.isConnected != null ? (net.isConnected ? '✅' : '❌') : '—'],
+    ['Internet متاح', net.isInternetReachable != null ? (net.isInternetReachable ? '✅' : '❌') : '—'],
+    ['قوة الإشارة', net.strength != null ? net.strength : '—'],
+    ['IP', net.ip || '—'],
+  ]);
+  const fs = snap.firestoreStats || {};
+  setRows(document.getElementById('fsStats'), [
+    ['كتابات locationHistory (ساعة)', fs.writesLocationHistoryHour ?? '—'],
+    ['كتابات drivers (ساعة)', fs.writesDriversHour ?? '—'],
+    ['كتابات driverDiagnostics (يوم)', fs.writesDriverDiagnosticsDay ?? '—'],
+    ['تحديثات config مستلمة', fs.configUpdatesReceived ?? '—'],
+    ['أخطاء كتابة (24س)', fs.writeErrors24h ?? 0, fs.writeErrors24h > 0 ? 'var(--red)' : 'var(--green)'],
+    ['آخر خطأ كتابة', fs.lastWriteError || '—'],
+  ]);
+}
+
+// ===== PERMS TAB =====
+const PERM_LABELS = {
+  p1: '📍 الموقع الدقيق', p2: '🌍 الموقع في الخلفية', p3: '🔋 استثناء البطارية',
+  p4: '🔔 الإشعارات', p5: '👁️ العرض فوق التطبيقات', p6: '🛡️ مدير الجهاز',
+  p7: '🦁 HONOR - التطبيقات المحمية', p8: '🦁 HONOR - التشغيل التلقائي',
+  p9: '🦁 HONOR - البطارية المكثفة',
+};
+function renderPerms(snap) {
+  const p = snap.permissions || {};
+  const conf = snap.confidences || {};
+  const honor = snap.honorStats || {};
+
+  const basic = document.getElementById('basicPerms');
+  basic.innerHTML = '';
+  ['p1','p2','p3','p4','p5','p6'].forEach(k => {
+    basic.appendChild(makePermItem(k, p[k], null, conf[k]));
+  });
+
+  if (p.isHonor) {
+    document.getElementById('honorCard').style.display = '';
+    const hp = document.getElementById('honorPerms');
+    hp.innerHTML = '';
+    ['p7','p8','p9'].forEach(k => {
+      const reason = honor[k+'_invalidated'];
+      hp.appendChild(makePermItem(k, p[k], reason, conf[k]));
     });
-    </script>
-    <script>
-    (function() {
-        const params = new URLSearchParams(location.search);
-        const driverId = params.get('id');
-        if (!driverId) {
-            document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#fff;">❌ لم يتم تحديد السائق<br><a href="drivers.html" style="color:#3b82f6;">رجوع</a></div>';
-            return;
-        }
+  }
 
-        document.getElementById('pageTitle').innerHTML = '🔍 تشخيص ' + driverId;
-        const db = firebase.firestore();
+  const revoked = snap.permsRevoked || [];
+  const rev = document.getElementById('revokedList');
+  if (revoked.length === 0) {
+    rev.innerHTML = '<div class="empty" style="color:var(--green);">🟢 لا توجد صلاحيات أُلغيت من النظام</div>';
+  } else {
+    rev.innerHTML = revoked.map(r => `<div class="row"><span class="row-lbl">⚠️ ${r}</span><span class="row-val s-bad">يحتاج إعادة تفعيل</span></div>`).join('');
+  }
+}
 
-        const PERM_LABELS = {
-            p1: 'الموقع (Fine Location)',
-            p2: 'الموقع في الخلفية',
-            p3: 'استثناء البطارية',
-            p4: 'الإشعارات',
-            p5: 'العرض فوق التطبيقات',
-            p6: 'مدير الجهاز',
-            p7: 'HONOR — التطبيقات المحمية',
-            p8: 'HONOR — التشغيل التلقائي',
-            p9: 'HONOR — الاستخدام المكثف للبطارية',
-        };
+function makePermItem(key, granted, reason, conf) {
+  const div = document.createElement('div');
+  div.className = 'row';
+  div.style.flexDirection = 'column';
+  div.style.alignItems = 'stretch';
+  div.style.padding = '10px 0';
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+    <span>${granted ? '✅' : '❌'} <strong>${PERM_LABELS[key]||key}</strong></span>
+    <span style="font-size:11px;color:${granted?'var(--green)':'var(--red)'};font-weight:700;">${granted?'مفعّلة':'غير مفعّلة'}</span>
+  </div>`;
+  if (reason) {
+    html += `<div style="margin-top:4px;font-size:11px;color:var(--yellow);">⚠️ سبب الإلغاء: ${reason}</div>`;
+  }
+  if (conf && conf.score != null) {
+    const c = conf.score >= 75 ? 'var(--green)' : conf.score >= 50 ? 'var(--yellow)' : 'var(--red)';
+    html += `<div style="margin-top:6px;display:flex;justify-content:space-between;font-size:11px;">
+      <span style="color:var(--muted);">ثقة: ${conf.score}% (${conf.level})</span>
+      <span style="color:var(--dim);font-size:10px;">${(conf.reasons||[]).slice(0,2).join(' • ')}</span>
+    </div>
+    <div style="height:4px;background:var(--bg2);border-radius:2px;margin-top:4px;overflow:hidden;">
+      <div style="height:100%;width:${conf.score}%;background:${c};"></div>
+    </div>`;
+  }
+  div.innerHTML = html;
+  return div;
+}
 
-        function fmtTime(ts) {
-            if (!ts) return '—';
-            try {
-                const d = ts.toDate ? ts.toDate() : new Date(ts);
-                const ageMs = Date.now() - d.getTime();
-                const min = Math.floor(ageMs / 60000);
-                if (min < 1) return 'الآن';
-                if (min < 60) return `قبل ${min} د`;
-                const h = Math.floor(min / 60);
-                if (h < 24) return `قبل ${h} ساعة`;
-                return `قبل ${Math.floor(h/24)} يوم`;
-            } catch (e) { return '—'; }
-        }
+// ===== KILLS TAB =====
+function renderKills(snap) {
+  const ex = snap.exitAnalysis || {};
+  const sumEl = document.getElementById('killsSummary');
+  const fullEl = document.getElementById('killsFull');
 
-        function confColor(score) {
-            if (score >= 75) return '#10b981';
-            if (score >= 50) return '#f59e0b';
-            if (score >= 25) return '#ef4444';
-            return '#7f1d1d';
-        }
-        function confLabel(level) {
-            return { high: 'عالية', medium: 'متوسطة', low: 'منخفضة', critical: 'حرجة' }[level] || level || '—';
-        }
+  if (!ex.supported) {
+    sumEl.innerHTML = '<div class="empty">⚠️ ExitReasons API غير مدعوم<br>(Android < 11)</div>';
+    fullEl.innerHTML = '';
+    document.getElementById('tabKillsBadge').textContent = '0';
+    return;
+  }
 
-        function renderPerm(key, granted, reason, conf) {
-            const div = document.createElement('div');
-            div.className = 'perm-item';
-            let html = `
-                <div class="perm-header">
-                    <div class="perm-icon">${granted ? '✅' : '❌'}</div>
-                    <div class="perm-info">
-                        <div class="perm-label">${PERM_LABELS[key] || key}</div>
-                        <div class="perm-key">${key}</div>
-                    </div>
-                    <div class="perm-status ${granted ? 'perm-granted' : 'perm-denied'}">
-                        ${granted ? 'مفعّلة' : 'غير مفعّلة'}
-                    </div>
-                </div>`;
-            if (reason) {
-                html += `<div class="perm-reason">⚠️ سبب الإلغاء: ${reason}</div>`;
-            }
-            if (conf && typeof conf.score === 'number') {
-                html += `
-                    <div class="conf-bar">
-                        <div class="conf-label">
-                            <span>درجة الثقة</span>
-                            <span style="color:${confColor(conf.score)};font-weight:700;">${conf.score}% (${confLabel(conf.level)})</span>
-                        </div>
-                        <div class="conf-track">
-                            <div class="conf-fill" style="width:${conf.score}%;background:${confColor(conf.score)};"></div>
-                        </div>
-                    </div>`;
-            }
-            div.innerHTML = html;
-            return div;
-        }
+  const totalKills = (ex.honorKills||0) + (ex.normalKills||0);
+  document.getElementById('tabKillsBadge').textContent = totalKills;
 
-        function renderInfoRows(container, rows) {
-            container.innerHTML = '';
-            rows.forEach(([label, value, color]) => {
-                const div = document.createElement('div');
-                div.className = 'info-row';
-                div.innerHTML = `<span class="info-label">${label}</span><span class="info-value" ${color ? `style="color:${color}"` : ''}>${value}</span>`;
-                container.appendChild(div);
-            });
-        }
+  setRows(sumEl, [
+    ['إجمالي القتلات (24س)', totalKills, totalKills>0?'var(--yellow)':'var(--green)'],
+    ['🦁 قتلات HONOR', ex.honorKills||0, ex.honorKills>0?'var(--red)':'var(--green)'],
+    ['📱 قتلات طبيعية', ex.normalKills||0],
+    ['درجة شك p7', (ex.p7SuspectScore||0)+'%', ex.p7SuspectScore>=60?'var(--red)':ex.p7SuspectScore>=30?'var(--yellow)':'var(--green)'],
+    ['آخر قتل HONOR', ex.lastHonorKill ? timeAgo(ex.lastHonorKill) : 'لا يوجد'],
+  ]);
 
-        function setSummary(snap) {
-            const allBasic = snap.permissions && snap.permissions.p1 && snap.permissions.p2 &&
-                snap.permissions.p3 && snap.permissions.p4 && snap.permissions.p5 && snap.permissions.p6;
-            const allHonor = !snap.permissions?.isHonor || (snap.permissions.p7 && snap.permissions.p8 && snap.permissions.p9);
-            const ok = allBasic && allHonor;
-            const sumStatus = document.getElementById('sumStatus');
-            sumStatus.textContent = ok ? '🟢 جيدة' : '🔴 تحتاج تدخل';
-            sumStatus.className = 'summary-value ' + (ok ? 'summary-good' : 'summary-bad');
+  const recent = ex.recent || [];
+  if (recent.length === 0) {
+    fullEl.innerHTML = '<div class="empty" style="color:var(--green);">🟢 لا توجد قتلات في آخر 24 ساعة</div>';
+  } else {
+    fullEl.innerHTML = '<h3 style="font-size:12px;color:var(--muted);margin-bottom:8px;">القائمة الكاملة:</h3>' +
+      recent.map(r => {
+        const isHonor = [8,9,13,14].includes(r.reason);
+        return `<div class="kill">
+          <div>
+            <span class="kill-reason ${isHonor?'kill-honor':'kill-normal'}">${r.reasonName||'—'}</span>
+            <span style="margin-right:10px;font-size:11px;color:var(--muted);">${r.description||''}</span>
+          </div>
+          <span class="kill-time">${fmtDateTime(r.timestamp)}</span>
+        </div>`;
+      }).join('');
+  }
+}
 
-            let granted = 0, total = 6;
-            if (snap.permissions) {
-                ['p1','p2','p3','p4','p5','p6'].forEach(k => snap.permissions[k] && granted++);
-                if (snap.permissions.isHonor) {
-                    total = 9;
-                    ['p7','p8','p9'].forEach(k => snap.permissions[k] && granted++);
-                }
-            }
-            const sumPerms = document.getElementById('sumPerms');
-            sumPerms.textContent = `${granted}/${total}`;
-            sumPerms.className = 'summary-value ' + (granted === total ? 'summary-good' : (granted >= total - 2 ? 'summary-warn' : 'summary-bad'));
+// ===== LOC TAB - Live locations =====
+function setupLocListener() {
+  const unsub = db.collection('locationHistory')
+    .where('driverId', '==', driverId)
+    .orderBy('timestamp', 'desc')
+    .limit(30)
+    .onSnapshot(snap => {
+      const locs = [];
+      snap.forEach(d => locs.push(d.data()));
+      renderLocList(locs);
+    }, e => console.warn('locationHistory listener:', e.message));
+  unsubs.push(unsub);
+}
+function renderLocList(locs) {
+  const el = document.getElementById('locList');
+  if (!locs.length) {
+    el.innerHTML = '<div class="empty">لا توجد مواقع حديثة</div>';
+    return;
+  }
+  let html = '';
+  for (let i = 0; i < locs.length; i++) {
+    const l = locs[i];
+    const t = tsToMs(l.timestamp);
+    let gap = false;
+    if (i < locs.length - 1) {
+      const tNext = tsToMs(locs[i+1].timestamp);
+      if (t && tNext && (t - tNext) > 5*60*1000) gap = true;
+    }
+    html += `<div class="loc-row ${gap?'loc-gap':''}">
+      <span class="loc-time">${fmtTime(l.timestamp)}</span>
+      <span class="loc-coords">${l.latitude?.toFixed(5)}, ${l.longitude?.toFixed(5)}</span>
+      <span class="loc-speed">${l.speed != null ? Math.round((l.speed||0)*3.6)+'km/h' : '—'}</span>
+      <span class="loc-acc">±${Math.round(l.accuracy||0)}م</span>
+    </div>`;
+    if (gap) {
+      const tNext = tsToMs(locs[i+1].timestamp);
+      const gapMin = Math.round((t-tNext)/60000);
+      html += `<div style="text-align:center;color:var(--red);font-size:10px;padding:4px;">⚠️ فجوة ${gapMin} دقيقة</div>`;
+    }
+  }
+  el.innerHTML = html;
+}
 
-            const lastLoc = snap.lastLocationAgeMin;
-            const sumLastLoc = document.getElementById('sumLastLoc');
-            sumLastLoc.textContent = lastLoc !== undefined ? `قبل ${lastLoc} د` : '—';
-            sumLastLoc.className = 'summary-value ' + (lastLoc < 5 ? 'summary-good' : lastLoc < 30 ? 'summary-warn' : 'summary-bad');
+// ===== EVENTS TAB =====
+function setupEventsListener() {
+  // tracking_events
+  const u1 = db.collection('tracking_events')
+    .where('driverId', '==', driverId)
+    .orderBy('timestamp', 'desc').limit(30)
+    .onSnapshot(snap => {
+      const arr = [];
+      snap.forEach(d => arr.push({ kind:'tracking', ...d.data() }));
+      renderEvents(arr);
+    }, e => console.warn('tracking_events:', e.message));
+  unsubs.push(u1);
+}
+let lastEvents = [];
+function renderEvents(events) {
+  lastEvents = events;
+  const el = document.getElementById('eventsList');
+  if (!events.length) {
+    el.innerHTML = '<div class="empty">لا توجد أحداث</div>';
+    return;
+  }
+  el.innerHTML = events.map(e => {
+    const cls = e.success === false ? 'evt-fail' : (e.type === 'fcm_restart' ? 'evt-fcm' : 'evt-ok');
+    return `<div class="evt-row">
+      <span class="evt-time">${fmtTime(e.timestamp)}</span>
+      <span class="evt-type ${cls}">${e.type||'—'}</span>
+      <span class="evt-msg">${e.method||''} ${e.error?'• خطأ: '+e.error:''} ${e.firstLocationOk!=null?(e.firstLocationOk?'✅ موقع':'❌ بدون موقع'):''} ${e.appVersion?'<span style="color:var(--dim);">• v'+e.appVersion+'</span>':''}</span>
+    </div>`;
+  }).join('');
+}
 
-            const exitKills = snap.exitAnalysis?.honorKills || 0;
-            const sumKills = document.getElementById('sumKills');
-            sumKills.textContent = exitKills;
-            sumKills.className = 'summary-value ' + (exitKills === 0 ? 'summary-good' : exitKills < 3 ? 'summary-warn' : 'summary-bad');
+// ===== FCM List =====
+function setupFcmListener() {
+  // ابحث في tracking_events عن fcm_restart
+  // (نستخدم نفس listener الـ tracking_events لكن نفلتر)
+  setInterval(() => {
+    const fcm = lastEvents.filter(e => e.type === 'fcm_restart').slice(0, 20);
+    const el = document.getElementById('fcmList');
+    if (!el) return;
+    if (!fcm.length) { el.innerHTML = '<div class="empty">لا توجد استيقاظات FCM</div>'; return; }
+    el.innerHTML = fcm.map(e => `<div class="evt-row">
+      <span class="evt-time">${fmtTime(e.timestamp)}</span>
+      <span class="evt-type ${e.success===false?'evt-fail':'evt-ok'}">${e.success===false?'❌ فشل':'✅ نجح'}</span>
+      <span class="evt-msg">${e.method||''} ${e.firstLocationOk!=null?(e.firstLocationOk?'+ موقع':'بلا موقع'):''} ${e.error?'• '+e.error:''}</span>
+    </div>`).join('');
+  }, 3000);
+}
 
-            const bat = snap.device?.battery;
-            const sumBat = document.getElementById('sumBattery');
-            if (bat !== undefined) {
-                const pct = Math.round(bat * 100);
-                sumBat.textContent = pct + '%';
-                sumBat.className = 'summary-value ' + (pct > 30 ? 'summary-good' : pct > 15 ? 'summary-warn' : 'summary-bad');
-            } else {
-                sumBat.textContent = '—';
-            }
+// ===== COMMANDS =====
+window.sendCmd = async function(cmdType, label) {
+  if (!confirm(`إرسال أمر "${label}" للسائق ${driverId}؟`)) return;
+  try {
+    const cmdId = 'cmd_' + Date.now();
+    await db.collection('driverDiagnostics').doc(driverId)
+      .collection('commands').doc(cmdId).set({
+        type: cmdType, status: 'pending',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        triggeredBy: 'admin_diagnostics',
+      });
+    showToast(`✅ أُرسل: ${label}`, 'success');
+  } catch (e) { showToast('❌ ' + e.message, 'error'); }
+};
 
-            document.getElementById('sumVersion').textContent = snap.appVersion || '—';
-        }
+function setupCmdHistoryListener() {
+  const unsub = db.collection('driverDiagnostics').doc(driverId)
+    .collection('commands').orderBy('createdAt','desc').limit(20)
+    .onSnapshot(snap => {
+      const el = document.getElementById('cmdHistory');
+      if (snap.empty) { el.innerHTML = '<div class="empty">لا توجد أوامر سابقة</div>'; return; }
+      let html = '';
+      snap.forEach(d => {
+        const c = d.data();
+        html += `<div class="cmd-row">
+          <span style="color:var(--muted);">${fmtTime(c.createdAt)}</span>
+          <span class="cmd-status cs-${c.status||'pending'}">${c.status||'pending'}</span>
+          <span style="color:var(--cyan);">${c.type}</span>
+          <span style="color:var(--text);font-size:10px;">${c.result?'✅ '+(typeof c.result==='object'?JSON.stringify(c.result).substring(0,80):c.result):c.error?'❌ '+c.error:''}</span>
+        </div>`;
+      });
+      el.innerHTML = html;
+    }, e => console.warn('cmd history:', e.message));
+  unsubs.push(unsub);
+}
 
-        function renderAll(snap) {
-            const subtitle = `${snap.device?.brand || '?'} ${snap.device?.model || ''} • Android ${snap.device?.androidVersion || '?'}`;
-            document.getElementById('pageSubtitle').textContent = subtitle;
-            document.getElementById('lastUpdate').textContent = 'آخر تحديث: ' + fmtTime(snap.ts);
+// ===== REPORTS =====
+function setupReportsListener() {
+  const unsub = db.collection('driverDiagnostics').doc(driverId)
+    .collection('diagnosticReports').orderBy(firebase.firestore.FieldPath.documentId(),'desc').limit(20)
+    .onSnapshot(snap => {
+      const el = document.getElementById('reportsList');
+      if (snap.empty) { el.innerHTML = '<div class="empty">لا توجد تقارير. اضغط "تشخيص شامل" في تبويب الأوامر.</div>'; return; }
+      let html = '';
+      snap.forEach(d => {
+        const r = d.data();
+        const ok = r.permissions?.allGranted;
+        html += `<div class="row" style="cursor:pointer;" onclick='viewReport(${JSON.stringify(d.id)})'>
+          <span class="row-lbl">${fmtDateTime(r.ts || d.id)}</span>
+          <span class="row-val" style="color:${ok?'var(--green)':'var(--red)'};">${ok?'✅':'❌'} ${ok?'OK':'صلاحيات ناقصة'} ${r.queueCount!=null?'• Queue: '+r.queueCount:''}</span>
+        </div>`;
+      });
+      el.innerHTML = html;
+      window.__reports = {};
+      snap.forEach(d => window.__reports[d.id] = d.data());
+    }, e => console.warn('reports:', e.message));
+  unsubs.push(unsub);
+}
+window.viewReport = function(id) {
+  const r = window.__reports?.[id];
+  if (!r) return;
+  document.getElementById('modalTitle').textContent = '📋 تقرير: ' + id;
+  document.getElementById('modalBody').innerHTML = '<pre>' + escapeHtml(JSON.stringify(r, null, 2)) + '</pre>';
+  document.getElementById('modal').classList.add('show');
+};
+window.closeModal = function() { document.getElementById('modal').classList.remove('show'); };
 
-            setSummary(snap);
+// ===== SNAPSHOT HISTORY =====
+// نخزن آخر 24 snapshot في الذاكرة من driverDiagnostics history collection (لو موجود)
+async function loadSnapshotHistory() {
+  try {
+    const snap = await db.collection('driverDiagnostics').doc(driverId)
+      .collection('snapshotHistory').orderBy('collectedAtMs','desc').limit(24).get();
+    snapshotHistory = [];
+    snap.forEach(d => snapshotHistory.unshift(d.data()));
+  } catch (e) {
+    // لو ما موجود collection — استخدم only current snap
+    snapshotHistory = currentSnap ? [currentSnap] : [];
+  }
+}
 
-            // الصلاحيات الأساسية
-            const basicEl = document.getElementById('basicPerms');
-            basicEl.innerHTML = '';
-            ['p1','p2','p3','p4','p5','p6'].forEach(k => {
-                const granted = snap.permissions ? !!snap.permissions[k] : false;
-                basicEl.appendChild(renderPerm(k, granted, null, null));
-            });
+// ===== MAIN LIVE LISTENERS =====
+function setupMainListener() {
+  // Driver doc
+  const u1 = db.collection('drivers').doc(driverId).onSnapshot(d => {
+    currentDriverDoc = d.exists ? d.data() : null;
+    if (currentSnap) renderAll();
+  }, e => console.warn('driver:', e.message));
+  unsubs.push(u1);
 
-            // HONOR
-            if (snap.permissions?.isHonor) {
-                document.getElementById('honorCard').style.display = '';
-                const honorEl = document.getElementById('honorPerms');
-                honorEl.innerHTML = '';
-                const reasons = {
-                    p7: snap.honor?.p7_invalidated,
-                    p8: snap.honor?.p8_invalidated,
-                    p9: snap.honor?.p9_invalidated,
-                };
-                ['p7','p8','p9'].forEach(k => {
-                    const granted = snap.permissions[k];
-                    const conf = snap.confidences?.[k] || null;
-                    honorEl.appendChild(renderPerm(k, granted, reasons[k], conf));
-                });
-            }
+  // Diagnostics doc (snapshot)
+  const u2 = db.collection('driverDiagnostics').doc(driverId).onSnapshot(d => {
+    if (frozen) return;
+    if (!d.exists) {
+      document.getElementById('pageSub').textContent = '⚠️ لا توجد بيانات تشخيص. اضغط "Snapshot فوري".';
+      document.getElementById('loading').classList.add('hide');
+      return;
+    }
+    currentSnap = d.data();
+    snapshotHistory.push(currentSnap);
+    if (snapshotHistory.length > 24) snapshotHistory.shift();
+    renderAll();
+    document.getElementById('loading').classList.add('hide');
+  }, e => {
+    console.error('diagnostics:', e);
+    document.getElementById('loading').classList.add('hide');
+    showToast('خطأ: ' + e.message, 'error');
+  });
+  unsubs.push(u2);
+}
 
-            // الجهاز
-            renderInfoRows(document.getElementById('deviceInfo'), [
-                ['الموديل', `${snap.device?.brand || '?'} ${snap.device?.model || ''}`],
-                ['نظام التشغيل', `Android ${snap.device?.androidVersion || '?'}`],
-                ['البطارية', snap.device?.battery !== undefined ? `${Math.round(snap.device.battery * 100)}%` : '—'],
-                ['Power Save', snap.device?.powerSaveMode ? 'مفعّل ⚠️' : 'مغلق'],
-                ['RNBG', snap.rnbg?.enabled ? '✅ شغّال' : '❌ متوقف'],
-                ['Queue', `${snap.rnbg?.queueCount ?? '—'} نقطة`],
-                ['Odometer', snap.rnbg?.odometer ? `${(snap.rnbg.odometer/1000).toFixed(1)} كم` : '—'],
-                ['آخر موقع', `قبل ${snap.lastLocationAgeMin ?? '—'} دقيقة`],
-                ['إصدار التطبيق', snap.appVersion || '—'],
-            ]);
+function renderAll() {
+  if (!currentSnap) return;
+  const snap = currentSnap;
+  const sub = `${snap.device?.brand||'?'} ${snap.device?.model||''} • Android ${snap.device?.systemVersion||'?'} • v${snap.appVersion||'—'}`;
+  document.getElementById('pageSub').textContent = sub;
+  document.getElementById('liveTxt').textContent = 'حي • ' + (snap.collectedAtMs ? timeAgo(snap.collectedAtMs) : '—');
 
-            // ExitReasons
-            const exitEl = document.getElementById('exitInfo');
-            const ex = snap.exitAnalysis;
-            if (!ex || !ex.supported) {
-                exitEl.innerHTML = '<div class="empty-state">⚠️ ExitReasons API غير مدعوم على هذا الجهاز<br>(Android < 11)</div>';
-            } else {
-                renderInfoRows(exitEl, [
-                    ['قتلات HONOR', ex.honorKills, ex.honorKills > 0 ? 'var(--red)' : 'var(--green)'],
-                    ['قتلات طبيعية', ex.normalKills],
-                    ['درجة شك p7', ex.p7SuspectScore + '%', ex.p7SuspectScore >= 60 ? 'var(--red)' : ex.p7SuspectScore >= 30 ? 'var(--yellow)' : 'var(--green)'],
-                    ['آخر قتل HONOR', ex.lastHonorKill ? fmtTime(ex.lastHonorKill) : 'لا يوجد'],
-                ]);
-                if (ex.recent && ex.recent.length) {
-                    const list = document.createElement('div');
-                    list.className = 'kill-list';
-                    list.innerHTML = '<div style="font-size:12px;color:var(--text-muted);margin:8px 0 4px;">آخر 5 موتات:</div>';
-                    ex.recent.slice(0, 5).forEach(r => {
-                        const isHonor = [8, 9, 13, 14].includes(r.reason);
-                        list.innerHTML += `
-                            <div class="kill-item">
-                                <span class="kill-reason ${isHonor ? 'kill-honor' : 'kill-normal'}">${r.reasonName}</span>
-                                <span style="color:var(--text-muted);">${fmtTime(r.timestamp)}</span>
-                            </div>`;
-                    });
-                    exitEl.appendChild(list);
-                }
-            }
-        }
+  renderSummary(snap);
+  renderAlertBanner(snap);
+  renderOverview(snap);
+  renderLogs();
+  renderNet(snap);
+  renderPerms(snap);
+  renderKills(snap);
+  refreshCharts();
+}
 
-        async function loadDiagnostics() {
-            try {
-                const doc = await db.collection('driverDiagnostics').doc(driverId).get();
-                if (!doc.exists) {
-                    document.getElementById('pageSubtitle').textContent = '⚠️ لا توجد بيانات تشخيص لهذا السائق';
-                    document.getElementById('loadingOverlay').style.display = 'none';
-                    return;
-                }
-                renderAll(doc.data());
-            } catch (e) {
-                showToast('خطأ في التحميل: ' + e.message, 'error');
-            } finally {
-                document.getElementById('loadingOverlay').style.display = 'none';
-            }
-        }
+// ===== FREEZE =====
+window.toggleFreeze = function() {
+  frozen = !frozen;
+  document.getElementById('freezeBtn').textContent = frozen ? '▶️ استئناف' : '⏸️ توقف';
+  document.querySelector('.live-dot').style.animation = frozen ? 'none' : '';
+  document.getElementById('liveTxt').textContent = frozen ? 'متوقف مؤقتاً' : 'حي';
+};
 
-        async function loadReports() {
-            try {
-                const snap = await db.collection('driverDiagnostics').doc(driverId)
-                    .collection('diagnosticReports')
-                    .orderBy(firebase.firestore.FieldPath.documentId(), 'desc')
-                    .limit(5).get();
-                const el = document.getElementById('reportsList');
-                if (snap.empty) {
-                    el.innerHTML = '<div class="empty-state">لا توجد تقارير سابقة. اضغط "اختبار شامل" لإنشاء أول تقرير.</div>';
-                    return;
-                }
-                el.innerHTML = '';
-                snap.forEach(d => {
-                    const r = d.data();
-                    const div = document.createElement('div');
-                    div.className = 'info-row';
-                    div.style.cursor = 'pointer';
-                    const ok = r.permissions && r.permissions.allGranted;
-                    div.innerHTML = `
-                        <span class="info-label">${fmtTime(r.ts)}</span>
-                        <span class="info-value" style="color:${ok ? 'var(--green)' : 'var(--red)'};">
-                            ${ok ? '✅' : '❌'} ${r.permissions?.allGranted ? 'كل الصلاحيات OK' : 'صلاحيات ناقصة'}
-                            ${r.queueCount !== undefined ? ` • Queue: ${r.queueCount}` : ''}
-                        </span>`;
-                    el.appendChild(div);
-                });
-            } catch (e) {
-                console.warn(e);
-            }
-        }
+// ===== DOWNLOAD =====
+window.downloadFullReport = async function() {
+  showToast('جاري تجميع التقرير...', '');
+  try {
+    const [reports, cmds, locs, events] = await Promise.all([
+      db.collection('driverDiagnostics').doc(driverId).collection('diagnosticReports').orderBy(firebase.firestore.FieldPath.documentId(),'desc').limit(20).get(),
+      db.collection('driverDiagnostics').doc(driverId).collection('commands').orderBy('createdAt','desc').limit(50).get(),
+      db.collection('locationHistory').where('driverId','==',driverId).orderBy('timestamp','desc').limit(100).get(),
+      db.collection('tracking_events').where('driverId','==',driverId).orderBy('timestamp','desc').limit(50).get(),
+    ]);
+    const full = {
+      driverId, generatedAt: new Date().toISOString(),
+      currentSnap, currentDriverDoc, snapshotHistory,
+      reports: reports.docs.map(d => ({id:d.id, ...d.data()})),
+      commands: cmds.docs.map(d => ({id:d.id, ...d.data()})),
+      locations: locs.docs.map(d => d.data()),
+      trackingEvents: events.docs.map(d => d.data()),
+    };
+    const blob = new Blob([JSON.stringify(full, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `diagnostics_${driverId}_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.json`;
+    a.click();
+    showToast('✅ تم التنزيل', 'success');
+  } catch (e) { showToast('❌ ' + e.message, 'error'); }
+};
 
-        window.sendCmd = async function(cmdType, label) {
-            if (!confirm(`هل تريد إرسال أمر "${label}" للسائق ${driverId}؟`)) return;
-            try {
-                const cmdId = 'cmd_' + Date.now();
-                await db.collection('driverDiagnostics').doc(driverId)
-                    .collection('commands').doc(cmdId).set({
-                    type: cmdType,
-                    status: 'pending',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    triggeredBy: 'admin_diagnostics',
-                });
-                showToast(`✅ أُرسل أمر: ${label}`, 'success');
-                if (cmdType === 'run_full_diagnostic') {
-                    setTimeout(() => loadReports(), 8000);
-                }
-            } catch (e) {
-                showToast('❌ فشل الإرسال: ' + e.message, 'error');
-            }
-        };
+// ===== TOAST =====
+function showToast(msg, type) {
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type||'');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
 
-        function showToast(msg, type) {
-            const t = document.createElement('div');
-            t.className = 'toast ' + (type || '');
-            t.textContent = msg;
-            document.body.appendChild(t);
-            setTimeout(() => t.remove(), 3500);
-        }
-
-        // تحميل أولي + تحديث تلقائي
-        loadDiagnostics();
-        loadReports();
-        setInterval(() => { loadDiagnostics(); }, 30000);
-    })();
-    </script>
+// ===== INIT =====
+(async function init() {
+  await loadSnapshotHistory();
+  setupMainListener();
+  setupLocListener();
+  setupEventsListener();
+  setupCmdHistoryListener();
+  setupReportsListener();
+  setupFcmListener();
+  // Update timestamps every 10s
+  setInterval(() => { if (currentSnap) document.getElementById('liveTxt').textContent = 'حي • ' + timeAgo(currentSnap.collectedAtMs); }, 10000);
+})();
+</script>
 </body>
 </html>
