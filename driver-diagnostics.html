@@ -358,6 +358,7 @@ body {
   <div class="tab" data-tab="perf">📈 الأداء</div>
   <div class="tab" data-tab="net">🌐 الشبكة</div>
   <div class="tab" data-tab="perms">🔐 الصلاحيات</div>
+  <div class="tab" data-tab="history">🎯 تشخيص locationHistory <span class="tab-badge" id="tabHistoryBadge" style="display:none;"></span></div>
   <div class="tab" data-tab="kills">💀 القتلات <span class="tab-badge" id="tabKillsBadge">0</span></div>
   <div class="tab" data-tab="loc">📍 المواقع المباشرة</div>
   <div class="tab" data-tab="events">⚡ الأحداث</div>
@@ -467,6 +468,41 @@ body {
     <div class="card" style="grid-column: 1 / -1;">
       <h2>🔁 سجلات Background Fetch</h2>
       <div id="bgfList" style="max-height:240px; overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: HISTORY (v2.7.23 Silent Drop Detector) -->
+<div class="tab-content" data-tab="history">
+  <div class="card" id="histDiagCard" style="border:2px solid var(--muted);">
+    <h2>🧠 التشخيص الذكي <span class="right" id="histSeverity">—</span></h2>
+    <div id="histPrimaryCause" style="padding:14px;border-radius:8px;background:rgba(255,255,255,0.04);margin-bottom:12px;font-size:15px;font-weight:700;text-align:center;">—</div>
+    <div id="histCauses"></div>
+    <div id="histRecs" style="margin-top:14px;"></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center;">
+      💡 يحلل التشخيص العداد بعد ساعة كاملة من تشغيل التطبيق على v2.7.23+
+    </div>
+  </div>
+
+  <div class="grid grid-2" style="margin-top:14px;">
+    <div class="card">
+      <h2>📊 العدّادات (آخر ساعة)</h2>
+      <div id="histCounters"></div>
+    </div>
+    <div class="card">
+      <h2>⏰ آخر إشارات الحفظ</h2>
+      <div id="histTimestamps"></div>
+    </div>
+    <div class="card">
+      <h2>🚫 أسباب رفض النقاط</h2>
+      <div id="histRejections"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">
+        💡 الرفض ما يعني خطأ — أكثره طبيعي (سائق متوقف، نقاط مكررة).
+      </div>
+    </div>
+    <div class="card">
+      <h2>❌ آخر خطأ كتابة</h2>
+      <div id="histLastError"></div>
     </div>
   </div>
 </div>
@@ -803,7 +839,138 @@ function translateIssue(issue) {
   if (issue.startsWith('SILENT_DEATH_')) return `موت صامت: لم يصل أي موقع منذ ${issue.replace('SILENT_DEATH_','').replace('min',' دقيقة')}`;
   if (issue.startsWith('BG_FETCH_DEAD_')) return `Background Fetch متوقف منذ ${issue.replace('BG_FETCH_DEAD_','').replace('min',' دقيقة')}`;
   if (issue.startsWith('QUEUE_BLOATED_')) return `طابور الرفع منتفخ: ${issue.replace('QUEUE_BLOATED_','')} نقطة`;
+  if (issue.startsWith('HISTORY_DROP_')) {
+    const cause = issue.replace('HISTORY_DROP_','').toLowerCase();
+    const map = {
+      'firestore_write_failing': '🚨 فشل كتابة locationHistory في Firestore (شوف تبويب التشخيص)',
+      'filter_rejecting_all': '🚨 فلتر الحفظ يرفض كل النقاط (شوف تبويب التشخيص)',
+      'no_locations_received': '🚨 RNBG ما يبعث أي موقع للتطبيق (شوف تبويب التشخيص)',
+      'rnbg_silent_death': '🚨 موت صامت لـ RNBG (شوف تبويب التشخيص)',
+      'partial_drop_unexplained': '⚠️ سقوط جزئي غير مفسّر للنقاط (شوف تبويب التشخيص)',
+    };
+    return map[cause] || `سقوط في locationHistory: ${cause}`;
+  }
   return issue;
+}
+
+// ===== HISTORY TAB (v2.7.23 Silent Drop Detector) =====
+function renderHistory(snap) {
+  const ht = snap.historyTracking || {};
+  const dx = snap.historyDiagnosis || {};
+
+  // tab badge
+  const badge = document.getElementById('tabHistoryBadge');
+  if (dx.severity === 'critical') { badge.textContent = '🔴'; badge.style.display = ''; badge.style.background = 'var(--red)'; }
+  else if (dx.severity === 'degraded') { badge.textContent = '🟡'; badge.style.display = ''; badge.style.background = 'var(--yellow)'; }
+  else if (dx.severity === 'ok') { badge.textContent = '🟢'; badge.style.display = ''; badge.style.background = 'var(--green)'; }
+  else { badge.style.display = 'none'; }
+
+  // severity card border
+  const card = document.getElementById('histDiagCard');
+  const sev = document.getElementById('histSeverity');
+  if (dx.severity === 'critical') { card.style.borderColor = 'var(--red)'; sev.innerHTML = '🔴 حرج'; sev.style.color = 'var(--red)'; }
+  else if (dx.severity === 'degraded') { card.style.borderColor = 'var(--yellow)'; sev.innerHTML = '🟡 تدهور'; sev.style.color = 'var(--yellow)'; }
+  else if (dx.severity === 'ok') { card.style.borderColor = 'var(--green)'; sev.innerHTML = '🟢 سليم'; sev.style.color = 'var(--green)'; }
+  else { card.style.borderColor = 'var(--muted)'; sev.innerHTML = '— لا توجد بيانات كافية'; sev.style.color = 'var(--muted)'; }
+
+  // primary cause
+  const pcEl = document.getElementById('histPrimaryCause');
+  const causeMap = {
+    'firestore_write_failing': '🚨 فشل كتابة في Firestore',
+    'filter_rejecting_all': '🚨 الفلتر يرفض كل النقاط',
+    'no_locations_received': '🚨 RNBG ما يبعث مواقع',
+    'rnbg_silent_death': '🚨 موت صامت لـ RNBG',
+    'partial_drop_unexplained': '⚠️ سقوط جزئي',
+    'insufficient_data': 'ℹ️ ما فيه بيانات كافية بعد',
+    'ok': '🟢 الكتابة في locationHistory سليمة',
+  };
+  pcEl.textContent = causeMap[dx.primaryCause] || (dx.primaryCause || '—');
+
+  // possible causes with confidence
+  const causes = dx.possibleCauses || [];
+  const causesEl = document.getElementById('histCauses');
+  if (causes.length === 0) {
+    causesEl.innerHTML = '';
+  } else {
+    causesEl.innerHTML = '<div style="font-size:13px;color:var(--muted);margin-bottom:8px;font-weight:700;">الأسباب المحتملة:</div>' +
+      causes.map(c => {
+        const conf = c.confidence || 0;
+        const color = conf >= 70 ? 'var(--red)' : conf >= 40 ? 'var(--yellow)' : 'var(--muted)';
+        return `<div class="row" style="flex-direction:column;align-items:flex-start;gap:6px;padding:10px;border-right:3px solid ${color};">
+          <div style="display:flex;justify-content:space-between;width:100%;">
+            <strong>${causeMap[c.cause] || c.cause}</strong>
+            <span style="color:${color};font-weight:700;">${conf}%</span>
+          </div>
+          <span style="font-size:11px;color:var(--muted);">${c.evidence || ''}</span>
+        </div>`;
+      }).join('');
+  }
+
+  // recommendations
+  const recs = dx.recommendations || [];
+  const recsEl = document.getElementById('histRecs');
+  if (recs.length === 0) {
+    recsEl.innerHTML = '';
+  } else {
+    recsEl.innerHTML = '<div style="font-size:13px;color:var(--green);margin-bottom:8px;font-weight:700;">💡 التوصيات:</div>' +
+      '<ul style="padding-right:20px;margin:0;">' +
+      recs.map(r => `<li style="margin-bottom:6px;font-size:13px;">${r}</li>`).join('') +
+      '</ul>';
+  }
+
+  // counters
+  const recv = ht.pointsReceivedHour ?? 0;
+  const saved = ht.pointsSavedHour ?? 0;
+  const rejected = ht.pointsRejectedHour ?? 0;
+  const errors = ht.writeErrorsHour ?? 0;
+  const rate = ht.saveRatePercent;
+  setRows(document.getElementById('histCounters'), [
+    ['📥 نقاط مستلمة من RNBG', recv, recv > 0 ? 'var(--green)' : 'var(--red)'],
+    ['✅ نقاط محفوظة في locationHistory', saved, saved > 0 ? 'var(--green)' : 'var(--red)'],
+    ['🚫 نقاط مرفوضة (فلتر)', rejected],
+    ['❌ أخطاء كتابة', errors, errors > 0 ? 'var(--red)' : 'var(--green)'],
+    ['📊 نسبة الحفظ', rate != null ? rate + '%' : '—', rate >= 50 ? 'var(--green)' : rate >= 20 ? 'var(--yellow)' : 'var(--red)'],
+  ]);
+
+  // timestamps
+  setRows(document.getElementById('histTimestamps'), [
+    ['آخر استلام موقع', ht.lastLocationReceivedAgeMin != null ? `قبل ${ht.lastLocationReceivedAgeMin} د` : '—', classByValColor(ht.lastLocationReceivedAgeMin, 5, 30)],
+    ['آخر حفظ في locationHistory', ht.lastHistorySaveAgeMin != null ? `قبل ${ht.lastHistorySaveAgeMin} د` : '—', classByValColor(ht.lastHistorySaveAgeMin, 5, 30)],
+    ['الفجوة بينهم', (ht.lastLocationReceivedAgeMin != null && ht.lastHistorySaveAgeMin != null) ? `${Math.max(0, ht.lastHistorySaveAgeMin - ht.lastLocationReceivedAgeMin)} د` : '—'],
+    ['ساعة العداد بدأت', ht.counterHourStartedAt ? fmtTime(ht.counterHourStartedAt) : '—'],
+  ]);
+
+  // rejection breakdown
+  const rb = ht.rejectionBreakdown || {};
+  const rejMap = {
+    'strict_dedup_2sec': '🔁 نفس الإحداثيات (≤2 ثواني)',
+    'duplicate_5m_5sec': '📍 أقل من 5م خلال 5 ثواني',
+    'still_within_backup_interval': '🛑 متوقف ولم يحن backup',
+    'moving_below_threshold': '🚗 يتحرك لكن أقل من العتبة',
+  };
+  const rbRows = Object.entries(rejMap).map(([k, lbl]) => [lbl, rb[k] ?? 0]);
+  if (rbRows.every(r => r[1] === 0)) {
+    document.getElementById('histRejections').innerHTML = '<div class="empty">🟢 لا يوجد أي رفض في الساعة الأخيرة</div>';
+  } else {
+    setRows(document.getElementById('histRejections'), rbRows);
+  }
+
+  // last write error
+  const err = ht.lastWriteError;
+  const errEl = document.getElementById('histLastError');
+  if (!err) {
+    errEl.innerHTML = '<div class="empty" style="color:var(--green);">🟢 لا توجد أخطاء كتابة</div>';
+  } else {
+    errEl.innerHTML = `
+      <div class="row"><span class="row-lbl">⏰ متى</span><span class="row-val">${err.at ? fmtDateTime(err.at) : '—'}</span></div>
+      <div class="row"><span class="row-lbl">📍 مصدر</span><span class="row-val">${err.source || '—'}</span></div>
+      <div class="row"><span class="row-lbl">🏷️ كود</span><span class="row-val s-bad">${err.code || err.name || '—'}</span></div>
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px;">
+        <span class="row-lbl">💬 رسالة</span>
+        <span style="color:var(--red);font-size:12px;word-break:break-word;">${err.message || '—'}</span>
+      </div>
+    `;
+  }
 }
 
 // ===== OVERVIEW TAB =====
@@ -1329,6 +1496,7 @@ function renderAll() {
   renderNet(snap);
   renderPerms(snap);
   renderKills(snap);
+  renderHistory(snap);
   refreshCharts();
 }
 
