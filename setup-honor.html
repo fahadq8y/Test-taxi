@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+  <html lang="ar" dir="rtl">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>دليل إعداد جهاز HONOR/Huawei — White Horse Taxi</title>
+  <style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card2: #334155;
+    --accent: #f59e0b;
+    --green: #10b981;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --txt: #f1f5f9;
+    --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, "SF Arabic", "Segoe UI", Tahoma, sans-serif;
+    background: var(--bg); color: var(--txt);
+    line-height: 1.7; font-size: 16px;
+  }
+  .container { max-width: 720px; margin: 0 auto; padding: 16px; }
+  header {
+    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+    color: white; padding: 24px 16px; text-align: center; border-radius: 0 0 24px 24px;
+    box-shadow: 0 4px 20px rgba(245,158,11,0.3);
+  }
+  header h1 { margin: 0 0 6px; font-size: 22px; }
+  header .sub { font-size: 14px; opacity: 0.95; }
+  .warning-box {
+    background: rgba(239,68,68,0.15); border: 2px solid var(--red);
+    padding: 16px; border-radius: 12px; margin: 20px 0;
+  }
+  .warning-box .icon { font-size: 32px; margin-bottom: 8px; }
+  .warning-box h3 { margin: 0 0 8px; color: var(--red); }
+  .step {
+    background: var(--card); border-radius: 16px; padding: 20px;
+    margin: 16px 0; border-right: 6px solid var(--accent);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+  .step .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--accent); color: white; font-weight: bold; font-size: 18px;
+    margin-left: 10px;
+  }
+  .step h2 { display: inline; font-size: 18px; margin: 0; vertical-align: middle; }
+  .step .why {
+    background: rgba(59,130,246,0.1); border-right: 3px solid var(--blue);
+    padding: 10px 14px; margin: 12px 0; border-radius: 8px;
+    font-size: 14px; color: #bfdbfe;
+  }
+  .step .why::before { content: "💡 "; }
+  .step .path {
+    background: var(--card2); padding: 12px 16px; border-radius: 8px;
+    margin: 12px 0; font-family: monospace; font-size: 14px;
+    color: var(--accent); word-break: break-word;
+  }
+  .step .toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--card2); padding: 12px 16px; border-radius: 8px;
+    margin: 8px 0;
+  }
+  .toggle .label { font-weight: 600; }
+  .toggle .state.on { color: var(--green); font-weight: bold; }
+  .toggle .state.off { color: var(--red); font-weight: bold; }
+  .checklist {
+    background: var(--card2); padding: 16px; border-radius: 12px; margin: 12px 0;
+  }
+  .checklist .item {
+    display: flex; align-items: flex-start; padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .checklist .item:last-child { border-bottom: none; }
+  .checklist input[type="checkbox"] {
+    width: 24px; height: 24px; margin-left: 12px; flex-shrink: 0; accent-color: var(--green);
+  }
+  .checklist label { flex: 1; cursor: pointer; }
+  .progress {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--bg); padding: 12px 0; border-bottom: 1px solid var(--card2);
+    margin: -16px -16px 0; padding: 12px 16px;
+  }
+  .progress-bar {
+    width: 100%; height: 8px; background: var(--card2); border-radius: 4px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--green), var(--blue));
+    width: 0%; transition: width 0.3s;
+  }
+  .progress-text { text-align: center; font-size: 14px; margin-top: 6px; color: var(--muted); }
+  .success-banner {
+    display: none;
+    background: linear-gradient(135deg, var(--green), #059669);
+    padding: 24px; border-radius: 16px; text-align: center; margin: 20px 0;
+  }
+  .success-banner.show { display: block; animation: pop 0.4s ease; }
+  @keyframes pop { 0%{transform:scale(0.8);opacity:0} 100%{transform:scale(1);opacity:1} }
+  .success-banner .icon { font-size: 64px; }
+  .success-banner h2 { margin: 8px 0; color: white; }
+  .btn {
+    display: block; width: 100%; padding: 14px;
+    background: var(--accent); color: white; border: none; border-radius: 12px;
+    font-size: 16px; font-weight: bold; cursor: pointer; margin: 12px 0;
+    font-family: inherit;
+  }
+  .btn.secondary { background: var(--card2); }
+  .tips {
+    background: rgba(245,158,11,0.1); border: 1px dashed var(--accent);
+    padding: 14px; border-radius: 10px; margin: 12px 0; font-size: 14px;
+  }
+  footer {
+    text-align: center; padding: 24px 16px; color: var(--muted); font-size: 13px;
+  }
+  </style>
+  </head>
+  <body>
+
+  <header>
+    <h1>🐎 White Horse Taxi</h1>
+    <div class="sub">دليل إعداد جهاز HONOR / Huawei</div>
+  </header>
+
+  <div class="container">
+
+    <div class="progress">
+      <div class="progress-bar"><div class="progress-fill" id="pf"></div></div>
+      <div class="progress-text"><span id="pcount">0</span> / 12 خطوة</div>
+    </div>
+
+    <div class="warning-box">
+      <div class="icon">⚠️</div>
+      <h3>قبل ما تبدأ</h3>
+      <p style="margin:0;font-size:14px">
+        أجهزة HONOR و Huawei فيها نظام شديد لإيقاف التطبيقات. لو ما سويت هالخطوات، التطبيق <strong>راح يطفي وحده</strong> بعد ساعات قليلة، والإدارة ما راح تعرف وين أنت.
+        <br><br>
+        هالـ 12 خطوة لازم تسويهم <strong>مرة وحدة فقط</strong>. خذ وقتك (10 دقائق).
+      </p>
+    </div>
+
+    <!-- STEP 1 -->
+    <div class="step">
+      <span class="num">1</span><h2>تجاهل تحسين البطارية</h2>
+      <div class="why">بدون هالخطوة النظام يطفي التطبيق لما البطارية تنزل تحت 50%.</div>
+      <div class="path">الإعدادات ← البطارية ← المزيد من إعدادات البطارية ← تجاهل تحسين البطارية</div>
+      <div class="toggle">
+        <span class="label">White Horse Taxi</span>
+        <span class="state on">مسموح ✓</span>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step">
+      <span class="num">2</span><h2>التشغيل التلقائي (Auto-launch)</h2>
+      <div class="why">يخلي التطبيق يشتغل لحاله بعد إعادة تشغيل الجهاز.</div>
+      <div class="path">الإعدادات ← التطبيقات ← التشغيل ← White Horse Taxi</div>
+      <div class="toggle"><span class="label">إدارة تلقائية</span><span class="state off">معطّل ✗</span></div>
+      <div class="toggle"><span class="label">تشغيل تلقائي</span><span class="state on">مفعّل ✓</span></div>
+      <div class="toggle"><span class="label">تشغيل ثانوي</span><span class="state on">مفعّل ✓</span></div>
+      <div class="toggle"><span class="label">تشغيل بالخلفية</span><span class="state on">مفعّل ✓</span></div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step">
+      <span class="num">3</span><h2>التطبيقات المحمية (Protected Apps)</h2>
+      <div class="why">يمنع النظام من قتل التطبيق لتوفير الذاكرة.</div>
+      <div class="path">الإعدادات ← البطارية ← إغلاق التطبيق بعد قفل الشاشة</div>
+      <div class="toggle"><span class="label">White Horse Taxi</span><span class="state off">معطّل ✗</span></div>
+      <div class="tips">يعني: لو الـ toggle <strong>"إغلاق التطبيق"</strong> = <strong>OFF</strong> → التطبيق يبقى شغال حتى لو قفلت الشاشة.</div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="step">
+      <span class="num">4</span><h2>الموقع — السماح طول الوقت</h2>
+      <div class="why">لازم "السماح طول الوقت" — مو "أثناء استخدام التطبيق فقط".</div>
+      <div class="path">الإعدادات ← التطبيقات ← White Horse Taxi ← الأذونات ← الموقع</div>
+      <div class="toggle"><span class="label">السماح طول الوقت</span><span class="state on">مفعّل ✓</span></div>
+      <div class="toggle"><span class="label">استخدم الموقع الدقيق</span><span class="state on">مفعّل ✓</span></div>
+    </div>
+
+    <!-- STEP 5 -->
+    <div class="step">
+      <span class="num">5</span><h2>الإشعارات</h2>
+      <div class="why">عشان توصلك تنبيهات الإدارة لو في طارئ.</div>
+      <div class="path">الإعدادات ← التطبيقات ← White Horse Taxi ← الإشعارات</div>
+      <div class="toggle"><span class="label">السماح بالإشعارات</span><span class="state on">مفعّل ✓</span></div>
+      <div class="toggle"><span class="label">إشعارات الأولوية</span><span class="state on">مفعّل ✓</span></div>
+    </div>
+
+    <!-- STEP 6 -->
+    <div class="step">
+      <span class="num">6</span><h2>أوقف "وضع توفير الطاقة"</h2>
+      <div class="why">وضع توفير الطاقة يقلل التتبع لمرة كل 5 دقائق بدل كل 30 ثانية.</div>
+      <div class="path">الإعدادات ← البطارية ← وضع توفير الطاقة</div>
+      <div class="toggle"><span class="label">توفير الطاقة</span><span class="state off">معطّل ✗</span></div>
+      <div class="toggle"><span class="label">توفير الطاقة الذكي</span><span class="state off">معطّل ✗</span></div>
+    </div>
+
+    <!-- STEP 7 -->
+    <div class="step">
+      <span class="num">7</span><h2>أوقف "تحسين Wi-Fi/البيانات"</h2>
+      <div class="why">تحسين الشبكة يقطع الإنترنت عن التطبيقات الخلفية.</div>
+      <div class="path">الإعدادات ← التطبيقات ← White Horse Taxi ← استخدام البيانات</div>
+      <div class="toggle"><span class="label">بيانات الخلفية</span><span class="state on">مفعّل ✓</span></div>
+      <div class="toggle"><span class="label">استخدام بيانات بدون قيود</span><span class="state on">مفعّل ✓</span></div>
+    </div>
+
+    <!-- STEP 8 -->
+    <div class="step">
+      <span class="num">8</span><h2>قفّل التطبيق في "Recent Apps"</h2>
+      <div class="why">لو ما قفلته، النظام يقدر يقفله من قائمة الـ Recent.</div>
+      <div class="path">افتح Recent Apps (السحب لفوق من تحت) ← اضغط مطوّل على الـ White Horse Taxi ← اختر "قفل" 🔒</div>
+      <div class="tips">راح يطلع قفل صغير 🔒 فوق الكارد. هذا يعني التطبيق محمي.</div>
+    </div>
+
+    <!-- STEP 9 -->
+    <div class="step">
+      <span class="num">9</span><h2>أذونات الكاميرا والمايك (إذا طلب)</h2>
+      <div class="why">بعض ميزات التطبيق (مثل قراءة الـ QR للراكب) تحتاج الكاميرا.</div>
+      <div class="path">الإعدادات ← التطبيقات ← White Horse Taxi ← الأذونات</div>
+      <div class="toggle"><span class="label">الكاميرا</span><span class="state on">مسموح ✓</span></div>
+      <div class="toggle"><span class="label">الميكروفون</span><span class="state on">مسموح ✓</span></div>
+      <div class="toggle"><span class="label">التخزين</span><span class="state on">مسموح ✓</span></div>
+    </div>
+
+    <!-- STEP 10 -->
+    <div class="step">
+      <span class="num">10</span><h2>الموقع — الدقة العالية</h2>
+      <div class="why">يخلي GPS + WiFi + Cellular كلهم يساعدون في تحديد موقعك بدقة.</div>
+      <div class="path">الإعدادات ← الموقع ← الوضع ← دقة عالية</div>
+      <div class="toggle"><span class="label">دقة عالية (GPS + WiFi + شبكة)</span><span class="state on">مفعّل ✓</span></div>
+    </div>
+
+    <!-- STEP 11 -->
+    <div class="step">
+      <span class="num">11</span><h2>السماح بـ "نشاط الخلفية"</h2>
+      <div class="why">آخر خط دفاع — يضمن إن النظام ما يقتل التطبيق ولو كل شي ثاني صحيح.</div>
+      <div class="path">الإعدادات ← التطبيقات ← White Horse Taxi ← استخدام البطارية</div>
+      <div class="toggle"><span class="label">السماح بنشاط الخلفية</span><span class="state on">مفعّل ✓</span></div>
+      <div class="toggle"><span class="label">السماح بإطلاق تلقائي</span><span class="state on">مفعّل ✓</span></div>
+    </div>
+
+    <!-- STEP 12 -->
+    <div class="step">
+      <span class="num">12</span><h2>أعد تشغيل الجهاز ✋</h2>
+      <div class="why">آخر خطوة! إعادة التشغيل تخلي كل الإعدادات تثبت في الذاكرة.</div>
+      <div class="path">اضغط زر التشغيل ← أعد التشغيل (Restart)</div>
+      <div class="tips">بعد إعادة التشغيل، افتح التطبيق <strong>مرة وحدة</strong> عشان النظام يفعّل التتبع التلقائي.</div>
+    </div>
+
+    <!-- CHECKLIST -->
+    <div class="step">
+      <span class="num">✓</span><h2>قائمة التأكد</h2>
+      <p style="font-size:14px;color:var(--muted)">علم على كل خطوة بعد ما تخلصها:</p>
+      <div class="checklist" id="cl">
+        <div class="item"><input type="checkbox" id="c1"><label for="c1">تجاهل تحسين البطارية</label></div>
+        <div class="item"><input type="checkbox" id="c2"><label for="c2">التشغيل التلقائي + الثانوي + بالخلفية</label></div>
+        <div class="item"><input type="checkbox" id="c3"><label for="c3">"إغلاق التطبيق بعد قفل الشاشة" = OFF</label></div>
+        <div class="item"><input type="checkbox" id="c4"><label for="c4">الموقع: "طول الوقت" + "دقيق"</label></div>
+        <div class="item"><input type="checkbox" id="c5"><label for="c5">الإشعارات مفعّلة</label></div>
+        <div class="item"><input type="checkbox" id="c6"><label for="c6">توفير الطاقة OFF</label></div>
+        <div class="item"><input type="checkbox" id="c7"><label for="c7">بيانات الخلفية مسموحة</label></div>
+        <div class="item"><input type="checkbox" id="c8"><label for="c8">قفلت التطبيق في Recent Apps 🔒</label></div>
+        <div class="item"><input type="checkbox" id="c9"><label for="c9">كاميرا + مايك + تخزين مسموحين</label></div>
+        <div class="item"><input type="checkbox" id="c10"><label for="c10">الموقع: دقة عالية</label></div>
+        <div class="item"><input type="checkbox" id="c11"><label for="c11">نشاط الخلفية مسموح</label></div>
+        <div class="item"><input type="checkbox" id="c12"><label for="c12">أعدت تشغيل الجهاز</label></div>
+      </div>
+    </div>
+
+    <div class="success-banner" id="success">
+      <div class="icon">🎉</div>
+      <h2>برافو! خلصت كل الخطوات</h2>
+      <p style="margin:8px 0;color:white">جهازك الحين جاهز. التطبيق راح يشتغل بشكل مستمر بدون ما يطفي.</p>
+    </div>
+
+    <button class="btn" onclick="window.print()">🖨️ اطبع هذي الصفحة</button>
+    <button class="btn secondary" onclick="location.href='index.html'">🏠 الرجوع للرئيسية</button>
+
+    <footer>
+      White Horse Taxi — Kuwait<br>
+      لو واجهت مشكلة، اتصل بالإدارة.
+    </footer>
+
+  </div>
+
+  <script>
+  const cbs = document.querySelectorAll('#cl input[type="checkbox"]');
+  const fill = document.getElementById('pf');
+  const cnt = document.getElementById('pcount');
+  const banner = document.getElementById('success');
+
+  // استرجاع من localStorage
+  cbs.forEach((cb, i) => {
+    cb.checked = localStorage.getItem('honor_step_' + (i+1)) === 'true';
+    cb.addEventListener('change', () => {
+      localStorage.setItem('honor_step_' + (i+1), cb.checked);
+      update();
+    });
+  });
+
+  function update() {
+    const done = [...cbs].filter(c => c.checked).length;
+    const pct = Math.round(done / cbs.length * 100);
+    fill.style.width = pct + '%';
+    cnt.textContent = done;
+    banner.classList.toggle('show', done === cbs.length);
+    if (done === cbs.length) {
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+      banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+  update();
+  </script>
+  </body>
+  </html>
