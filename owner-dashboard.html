@@ -1,2201 +1,1348 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة المالك — نظام إدارة التاكسي</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+  <html lang="ar" dir="rtl">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>لوحة المالك — White Horse Taxi</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; }
+    .container { max-width: 1600px; margin: 0 auto; padding: 16px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; padding: 18px; background: linear-gradient(135deg,#1f2937,#111827); border-radius: 12px; border: 1px solid #30363d; }
+    .header h1 { font-size: 22px; color: #58a6ff; }
+    .header .meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .header .meta span { font-size: 13px; color: #8b949e; }
+    .btn { background: #1f6feb; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit; }
+    .btn:hover { background: #388bfd; }
+    .btn.danger { background: #da3633; } .btn.danger:hover { background: #f85149; }
+    .btn.success { background: #238636; } .btn.success:hover { background: #2ea043; }
+    .btn.outline { background: transparent; border: 1px solid #30363d; color: #c9d1d9; }
+    .btn.outline:hover { background: #21262d; }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-            background: #0f0f1a;
-            color: #e0e0e0;
-            min-height: 100vh;
-            direction: rtl;
-        }
+    .access-denied { display:none; min-height: 70vh; flex-direction: column; align-items: center; justify-content: center; }
+    .access-denied h2 { color: #f85149; font-size: 28px; margin-bottom: 12px; }
+    .access-denied p { color: #8b949e; }
+    #emailLogin { display:none; flex-direction:column; align-items:center; justify-content:center; min-height:70vh; gap:14px; }
+    #emailLogin input { padding:10px 14px; border-radius:6px; border:1px solid #30363d; background:#161b22; color:#e6edf3; width:280px; font-size:14px; font-family:inherit; }
 
-        /* ===== HEADER ===== */
-        .header {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            padding: 20px 24px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 2px solid #e94560;
-            box-shadow: 0 4px 20px rgba(233,69,96,0.3);
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-        .header-title { display: flex; align-items: center; gap: 14px; }
-        .header-icon {
-            width: 48px; height: 48px;
-            background: linear-gradient(135deg, #e94560, #c62a47);
-            border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 22px;
-            box-shadow: 0 4px 15px rgba(233,69,96,0.4);
-        }
-        .header h1 { font-size: 22px; color: #fff; font-weight: 700; }
-        .header p  { font-size: 12px; color: #aaa; margin-top: 2px; }
-        .header-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-        .last-update {
-            font-size: 12px; color: #888;
-            background: rgba(255,255,255,0.05);
-            padding: 6px 12px; border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .refresh-btn {
-            background: linear-gradient(135deg, #e94560, #c62a47);
-            color: #fff; border: none; padding: 8px 18px;
-            border-radius: 20px; cursor: pointer; font-size: 13px;
-            font-weight: 600; transition: all 0.2s;
-        }
-        .refresh-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(233,69,96,0.5); }
-        .version-badge {
-            font-size: 11px; color: #555;
-            background: rgba(255,255,255,0.03);
-            padding: 4px 10px; border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.07);
-        }
+    .loading { display: flex; align-items: center; justify-content: center; min-height: 60vh; }
+    .spinner { width: 50px; height: 50px; border: 4px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* ===== LOADING ===== */
-        .loading-overlay {
-            position: fixed; inset: 0;
-            background: rgba(15,15,26,0.95);
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            z-index: 9999;
-        }
-        .loading-spinner {
-            width: 60px; height: 60px;
-            border: 4px solid rgba(233,69,96,0.2);
-            border-top-color: #e94560;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-bottom: 16px;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .loading-text { color: #aaa; font-size: 14px; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 18px; flex-wrap: wrap; background:#161b22; padding:6px; border-radius:10px; border:1px solid #30363d; }
+    .tab-btn { background: transparent; color: #8b949e; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit; transition: all 0.2s; }
+    .tab-btn:hover { background: #21262d; color: #c9d1d9; }
+    .tab-btn.active { background: #1f6feb; color: white; }
 
-        /* ===== ACCESS DENIED ===== */
-        .access-denied {
-            display: none;
-            position: fixed; inset: 0;
-            background: #0f0f1a;
-            align-items: center; justify-content: center;
-            flex-direction: column; gap: 16px;
-            z-index: 9998;
-        }
-        .access-denied .icon { font-size: 64px; }
-        .access-denied h2 { color: #e94560; font-size: 24px; }
-        .access-denied p  { color: #888; font-size: 14px; }
-        .access-denied a  {
-            color: #e94560; text-decoration: none;
-            background: rgba(233,69,96,0.1);
-            padding: 10px 24px; border-radius: 20px;
-            border: 1px solid rgba(233,69,96,0.3);
-            margin-top: 8px; display: inline-block;
-        }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
 
-        /* ===== MAIN CONTENT ===== */
-        .main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .kpi { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 14px; }
+    .kpi .lbl { font-size: 12px; color: #8b949e; margin-bottom: 6px; }
+    .kpi .val { font-size: 22px; font-weight: 700; color: #e6edf3; }
+    .kpi .sub { font-size: 11px; color: #6e7681; margin-top: 4px; }
+    .kpi.red .val { color: #f85149; }
+    .kpi.orange .val { color: #fb8500; }
+    .kpi.green .val { color: #3fb950; }
+    .kpi.blue .val { color: #58a6ff; }
+    .kpi.purple .val { color: #a371f7; }
 
-        /* ===== SECTION TITLE ===== */
-        .section-title {
-            display: flex; align-items: center; gap: 10px;
-            margin: 28px 0 16px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid rgba(255,255,255,0.08);
-        }
-        .section-title .icon {
-            width: 36px; height: 36px;
-            border-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 18px;
-        }
-        .section-title h2 { font-size: 18px; color: #fff; font-weight: 700; }
-        .section-title .count-badge {
-            background: rgba(233,69,96,0.2);
-            color: #e94560; font-size: 12px; font-weight: 700;
-            padding: 2px 10px; border-radius: 20px;
-            border: 1px solid rgba(233,69,96,0.3);
-        }
+    .alert { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 8px; margin-bottom: 8px; background: #161b22; border: 1px solid #30363d; cursor: pointer; transition: all 0.2s; }
+    .alert:hover { background: #1c2128; transform: translateX(-3px); }
+    .alert.red { border-left: 4px solid #f85149; }
+    .alert.orange { border-left: 4px solid #fb8500; }
+    .alert.yellow { border-left: 4px solid #d29922; }
+    .alert .icon { font-size: 22px; }
+    .alert .body { flex: 1; }
+    .alert .title { font-size: 14px; font-weight: 600; color: #e6edf3; }
+    .alert .desc { font-size: 12px; color: #8b949e; margin-top: 2px; }
+    .alert .amount { font-size: 14px; font-weight: 700; color: #f85149; }
 
-        /* ===== TABS ===== */
-        .tabs {
-            display: flex; gap: 8px; flex-wrap: wrap;
-            margin-bottom: 24px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-        }
-        .tab-btn {
-            background: rgba(255,255,255,0.05);
-            color: #aaa; border: 1px solid rgba(255,255,255,0.1);
-            padding: 10px 18px; border-radius: 20px;
-            cursor: pointer; font-size: 13px; font-weight: 600;
-            transition: all 0.2s; white-space: nowrap;
-        }
-        .tab-btn.active {
-            background: linear-gradient(135deg, #e94560, #c62a47);
-            color: #fff; border-color: transparent;
-            box-shadow: 0 4px 15px rgba(233,69,96,0.3);
-        }
-        .tab-btn:hover:not(.active) { background: rgba(255,255,255,0.08); color: #fff; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+    table { width: 100%; border-collapse: collapse; background: #161b22; border-radius: 10px; overflow: hidden; }
+    th, td { padding: 10px 8px; text-align: center; border-bottom: 1px solid #21262d; font-size: 13px; }
+    th { background: #21262d; color: #8b949e; font-weight: 600; font-size: 12px; position: sticky; top: 0; z-index: 5; }
+    tr:hover td { background: #1c2128; }
+    td.name { text-align: right; font-weight: 600; color: #58a6ff; cursor: pointer; }
+    td.name:hover { color: #79b8ff; text-decoration: underline; }
+    .table-wrap { overflow-x: auto; max-height: 70vh; border-radius: 10px; border: 1px solid #30363d; }
 
-        /* ===== ALERTS GRID ===== */
-        .alerts-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 12px;
-        }
-        .alert-card {
-            background: rgba(255,255,255,0.04);
-            border-radius: 12px;
-            padding: 16px;
-            border-right: 4px solid;
-            display: flex; align-items: flex-start; gap: 12px;
-            transition: transform 0.2s;
-            cursor: pointer;
-        }
-        .alert-card:hover { transform: translateY(-2px); }
-        .alert-card.red    { border-color: #e94560; background: rgba(233,69,96,0.08); }
-        .alert-card.orange { border-color: #ff8c00; background: rgba(255,140,0,0.08); }
-        .alert-card.yellow { border-color: #ffd700; background: rgba(255,215,0,0.06); }
-        .alert-card.green  { border-color: #00c853; background: rgba(0,200,83,0.06); }
-        .alert-icon { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
-        .alert-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px; }
-        .alert-desc  { font-size: 12px; color: #aaa; line-height: 1.5; }
-        .alert-amount { font-size: 16px; font-weight: 700; margin-top: 6px; }
-        .alert-card.red    .alert-amount { color: #e94560; }
-        .alert-card.orange .alert-amount { color: #ff8c00; }
-        .alert-card.yellow .alert-amount { color: #ffd700; }
-        .alert-card.green  .alert-amount { color: #00c853; }
-        .no-alerts {
-            background: rgba(0,200,83,0.06);
-            border: 1px solid rgba(0,200,83,0.2);
-            border-radius: 12px; padding: 20px;
-            text-align: center; color: #00c853; font-size: 14px;
-        }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge.cat-critical { background: #5a1d1d; color: #f85149; }
+    .badge.cat-danger { background: #5c2c0e; color: #fb8500; }
+    .badge.cat-watch { background: #4d3b00; color: #d29922; }
+    .badge.cat-good { background: #0e3a5c; color: #58a6ff; }
+    .badge.cat-excellent { background: #0e3d1f; color: #3fb950; }
 
-        /* ===== SUMMARY CARDS ===== */
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            gap: 12px;
-        }
-        .summary-card {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px;
-            padding: 16px;
-            text-align: center;
-        }
-        .s-icon { font-size: 24px; margin-bottom: 8px; }
-        .s-val  { font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 4px; }
-        .s-label { font-size: 11px; color: #888; }
+    .trend-up { color: #f85149; }
+    .trend-down { color: #3fb950; }
+    .trend-flat { color: #8b949e; }
 
-        /* ===== COMPARE TABLE ===== */
-        .compare-table-wrap { overflow-x: auto; }
-        .compare-table {
-            width: 100%; border-collapse: collapse;
-            background: rgba(255,255,255,0.03);
-            border-radius: 12px; overflow: hidden;
-            min-width: 700px;
-        }
-        .compare-table th {
-            background: rgba(255,255,255,0.06);
-            padding: 12px 10px; font-size: 12px; color: #aaa;
-            font-weight: 600; text-align: center; white-space: nowrap;
-        }
-        .compare-table th:first-child { text-align: right; padding-right: 16px; }
-        .compare-table td {
-            padding: 10px 8px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            text-align: center; font-size: 13px;
-        }
-        .compare-table td:first-child {
-            text-align: right; padding-right: 16px;
-            font-weight: 600; color: #fff; cursor: pointer;
-        }
-        .compare-table td:first-child:hover { color: #e94560; }
-        .compare-table tr:hover td { background: rgba(255,255,255,0.03); }
-        .cmp-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-        .cmp-debt { font-size: 12px; font-weight: 700; }
-        .cmp-arrow { font-size: 14px; font-weight: 700; }
-        .cmp-arrow.down { color: #00c853; }
-        .cmp-arrow.up   { color: #e94560; }
-        .cmp-arrow.flat { color: #ffd700; }
+    .week-cell { display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 4px; font-size: 11px; }
+    .week-cell.paid { background: #0e3d1f; }
+    .week-cell.late { background: #4d3b00; }
+    .week-cell.missed { background: #5a1d1d; }
+    .week-cell.no-data { background: #21262d; opacity: 0.4; }
 
-        /* ===== HEALTH BAR ===== */
-        .health-bar-wrap { display: flex; align-items: center; gap: 6px; min-width: 80px; }
-        .health-bar-bg {
-            flex: 1; height: 6px; background: rgba(255,255,255,0.1);
-            border-radius: 3px; overflow: hidden;
-        }
-        .health-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
-        .health-bar-fill.h-excellent { background: #00c853; }
-        .health-bar-fill.h-good      { background: #4fc3f7; }
-        .health-bar-fill.h-watch     { background: #ffd700; }
-        .health-bar-fill.h-danger    { background: #ff8c00; }
-        .health-bar-fill.h-critical  { background: #e94560; }
-        .health-score { font-size: 11px; font-weight: 700; color: #aaa; min-width: 28px; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+    .card h3 { color: #58a6ff; font-size: 15px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #30363d; }
 
-        /* ===== WARNING BADGE ===== */
-        .warn-badge {
-            font-size: 10px; font-weight: 700; padding: 2px 7px;
-            border-radius: 10px; white-space: nowrap;
-        }
-        .warn-badge.w1 { background: rgba(255,215,0,0.2); color: #ffd700; border: 1px solid rgba(255,215,0,0.3); }
-        .warn-badge.w2 { background: rgba(255,140,0,0.2); color: #ff8c00; border: 1px solid rgba(255,140,0,0.3); }
-        .warn-badge.w3 { background: rgba(233,69,96,0.2); color: #e94560; border: 1px solid rgba(233,69,96,0.3); }
+    .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+    .modal-bg.active { display: flex; }
+    .modal { background: #0d1117; border: 1px solid #30363d; border-radius: 12px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 20px; }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #30363d; }
+    .modal-head h2 { color: #58a6ff; font-size: 18px; }
+    .close-x { background: transparent; border: none; color: #f85149; font-size: 24px; cursor: pointer; }
 
-        /* ===== IDEAL AMOUNT BADGE ===== */
-        .ideal-badge {
-            font-size: 11px; font-weight: 700; padding: 2px 8px;
-            border-radius: 10px; white-space: nowrap;
-        }
-        .ideal-badge.ideal-ok  { background: rgba(0,200,83,0.2); color: #00c853; border: 1px solid rgba(0,200,83,0.3); }
-        .ideal-badge.ideal-low { background: rgba(255,215,0,0.2); color: #ffd700; border: 1px solid rgba(255,215,0,0.3); }
-        .ideal-badge.ideal-bad { background: rgba(233,69,96,0.2); color: #e94560; border: 1px solid rgba(233,69,96,0.3); }
+    /* Heatmap */
+    .heatmap { display: grid; grid-template-columns: 50px repeat(24, 1fr); gap: 2px; font-size: 10px; }
+    .heatmap .h-label { color: #8b949e; padding: 2px; text-align: center; }
+    .heatmap .h-cell { width: 100%; aspect-ratio: 1; border-radius: 2px; background: #21262d; cursor: help; }
 
-        /* ===== WEEKLY COMMITMENT TABLE ===== */
-        .commitment-wrapper {
-            background: rgba(255,255,255,0.03);
-            border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.08);
-            overflow: hidden;
-        }
-        .commitment-table-wrap { overflow-x: auto; }
-        table.commitment-table {
-            width: 100%; border-collapse: collapse;
-            min-width: 700px;
-        }
-        .commitment-table th {
-            background: rgba(255,255,255,0.06);
-            padding: 12px 10px;
-            font-size: 12px; color: #aaa; font-weight: 600;
-            text-align: center; white-space: nowrap;
-        }
-        .commitment-table th.name-col { text-align: right; padding-right: 16px; }
-        .commitment-table td {
-            padding: 10px 8px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            text-align: center; font-size: 13px;
-        }
-        .commitment-table td.name-col {
-            text-align: right; padding-right: 16px;
-            font-weight: 600; color: #fff;
-            white-space: nowrap;
-            cursor: pointer;
-        }
-        .commitment-table td.name-col:hover { color: #e94560; text-decoration: underline; }
-        .commitment-table tr:hover td { background: rgba(255,255,255,0.03); }
+    /* Toast notifications */
+    .toast-stack { position: fixed; top: 20px; left: 20px; z-index: 200; display: flex; flex-direction: column; gap: 8px; max-width: 380px; }
+    .toast { background: #161b22; border: 1px solid #30363d; border-left: 4px solid #f85149; padding: 12px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); animation: slide-in 0.3s; }
+    @keyframes slide-in { from { transform: translateX(-400px); } to { transform: translateX(0); } }
+    .toast .ttitle { font-size: 13px; font-weight: 600; color: #f85149; margin-bottom: 4px; }
+    .toast .tbody { font-size: 12px; color: #c9d1d9; }
 
-        /* Week cells */
-        .week-cell { font-size: 18px; cursor: default; }
-        .week-cell.paid     { color: #00c853; }
-        .week-cell.late     { color: #ffd700; }
-        .week-cell.missed   { color: #e94560; }
-        .week-cell.no-data  { color: #444; }
+    .small-muted { font-size: 11px; color: #8b949e; }
+    .progress { background: #21262d; border-radius: 4px; height: 6px; overflow: hidden; margin-top: 4px; }
+    .progress-bar { height: 100%; background: #58a6ff; transition: width 0.3s; }
 
-        /* ===== DEBT SPLIT BADGE ===== */
-        .debt-split {
-            display: flex; flex-direction: column; gap: 2px;
-            align-items: center;
-        }
-        .debt-split .current-debt {
-            font-size: 12px; font-weight: 700;
-            padding: 2px 8px; border-radius: 10px;
-            white-space: nowrap;
-        }
-        .debt-split .old-debt-label {
-            font-size: 10px; color: #666;
-            white-space: nowrap;
-        }
+    @media print {
+      body { background: white; color: black; }
+      .tabs, .header .btn, .modal-bg { display: none !important; }
+      .tab-content { display: block !important; page-break-after: always; }
+      .card, .kpi, table { background: white !important; color: black !important; border: 1px solid #ccc !important; }
+      th, td { color: black !important; }
+    }
+  </style>
+  </head>
+  <body>
 
-        /* Score badge */
-        .score-badge {
-            display: inline-flex; align-items: center; justify-content: center;
-            min-width: 44px; height: 24px; border-radius: 12px;
-            font-size: 12px; font-weight: 700; padding: 0 8px;
-        }
-        .score-badge.excellent { background: rgba(0,200,83,0.2);  color: #00c853; }
-        .score-badge.good      { background: rgba(255,215,0,0.2);  color: #ffd700; }
-        .score-badge.warning   { background: rgba(255,140,0,0.2);  color: #ff8c00; }
-        .score-badge.danger    { background: rgba(233,69,96,0.2);  color: #e94560; }
-        .score-badge.critical  { background: rgba(150,0,30,0.3);   color: #ff4060; border: 1px solid #e94560; }
+  <div id="loadingOverlay" class="loading"><div class="spinner"></div></div>
 
-        /* Trend */
-        .trend { font-size: 13px; font-weight: 700; white-space: nowrap; }
-        .trend.up   { color: #e94560; }
-        .trend.down { color: #00c853; }
-        .trend.flat { color: #ffd700; }
-
-        /* Debt badge */
-        .debt-badge {
-            font-size: 12px; font-weight: 700;
-            padding: 3px 10px; border-radius: 20px;
-            white-space: nowrap;
-        }
-        .debt-badge.high   { background: rgba(233,69,96,0.2);  color: #e94560; border: 1px solid rgba(233,69,96,0.3); }
-        .debt-badge.medium { background: rgba(255,140,0,0.2);  color: #ff8c00; border: 1px solid rgba(255,140,0,0.3); }
-        .debt-badge.low    { background: rgba(0,200,83,0.2);   color: #00c853; border: 1px solid rgba(0,200,83,0.3); }
-        .debt-badge.zero   { background: rgba(100,100,100,0.2);color: #888;    border: 1px solid rgba(100,100,100,0.3); }
-
-        /* ===== MONTHLY COMMITMENT ===== */
-        .monthly-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-            gap: 14px;
-        }
-        .driver-month-card {
-            background: rgba(255,255,255,0.04);
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.08);
-            padding: 16px;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .driver-month-card:hover { transform: translateY(-2px); border-color: rgba(233,69,96,0.3); }
-        .driver-month-card .driver-name {
-            font-size: 15px; font-weight: 700; color: #fff;
-            margin-bottom: 12px;
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .months-row { display: flex; gap: 6px; flex-wrap: wrap; }
-        .month-chip {
-            display: flex; flex-direction: column; align-items: center;
-            gap: 4px; min-width: 44px;
-        }
-        .month-chip .month-label { font-size: 10px; color: #888; }
-        .month-chip .month-icon  { font-size: 20px; }
-        .month-chip.paid   .month-icon { color: #00c853; }
-        .month-chip.late   .month-icon { color: #ffd700; }
-        .month-chip.missed .month-icon { color: #e94560; }
-        .month-chip.future .month-icon { color: #444; }
-
-        /* ===== WEEKLY FOLLOWUP TABLE ===== */
-        .followup-wrapper {
-            background: rgba(255,255,255,0.03);
-            border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.08);
-            overflow: hidden;
-        }
-        .followup-table-wrap { overflow-x: auto; }
-        table.followup-table {
-            width: 100%; border-collapse: collapse;
-            min-width: 600px;
-        }
-        .followup-table th {
-            background: rgba(255,255,255,0.06);
-            padding: 12px 10px;
-            font-size: 12px; color: #aaa; font-weight: 600;
-            text-align: center; white-space: nowrap;
-        }
-        .followup-table th:first-child { text-align: right; padding-right: 16px; }
-        .followup-table td {
-            padding: 10px 8px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            text-align: center; font-size: 13px;
-        }
-        .followup-table td:first-child {
-            text-align: right; padding-right: 16px;
-            font-weight: 600; color: #fff; white-space: nowrap;
-            cursor: pointer;
-        }
-        .followup-table td:first-child:hover { color: #e94560; text-decoration: underline; }
-        .followup-table tr:hover td { background: rgba(255,255,255,0.03); }
-        .paid-status   { color: #00c853; font-weight: 700; }
-        .unpaid-status { color: #e94560; font-weight: 700; }
-        .partial-status { color: #ffd700; font-weight: 700; }
-
-        /* ===== ACCOUNTANT MONITOR ===== */
-        .monitor-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 14px;
-            margin-bottom: 20px;
-        }
-        .monitor-stat {
-            background: rgba(255,255,255,0.04);
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.08);
-            padding: 20px;
-            text-align: center;
-        }
-        .monitor-stat.danger  { border-color: rgba(233,69,96,0.3); }
-        .monitor-stat.warning { border-color: rgba(255,140,0,0.3); }
-        .monitor-stat.info    { border-color: rgba(79,195,247,0.3); }
-        .stat-val   { font-size: 32px; font-weight: 700; color: #fff; margin: 8px 0 4px; }
-        .stat-label { font-size: 12px; color: #888; }
-        .monitor-stat.danger  .stat-val { color: #e94560; }
-        .monitor-stat.warning .stat-val { color: #ff8c00; }
-        .monitor-stat.info    .stat-val { color: #4fc3f7; }
-
-        /* Revenue comparison section */
-        .revenue-compare {
-            background: rgba(255,255,255,0.03);
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.08);
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .revenue-compare h3 { font-size: 15px; color: #fff; margin-bottom: 16px; }
-        .rev-row {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            font-size: 13px;
-        }
-        .rev-row:last-child { border-bottom: none; }
-        .rev-label { color: #aaa; }
-        .rev-val   { font-weight: 700; color: #fff; }
-        .rev-gap   { font-weight: 700; }
-        .rev-gap.ok   { color: #00c853; }
-        .rev-gap.warn { color: #ffd700; }
-        .rev-gap.bad  { color: #e94560; }
-
-        /* Monitor tables */
-        .monitor-table-wrap { overflow-x: auto; }
-        table.monitor-table {
-            width: 100%; border-collapse: collapse; min-width: 600px;
-        }
-        .monitor-table th {
-            background: rgba(255,255,255,0.06);
-            padding: 10px 12px; font-size: 12px; color: #aaa;
-            font-weight: 600; text-align: right; white-space: nowrap;
-        }
-        .monitor-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            font-size: 13px; text-align: right;
-        }
-        .monitor-table tr:hover td { background: rgba(255,255,255,0.02); }
-        .action-badge {
-            display: inline-block; padding: 2px 8px; border-radius: 10px;
-            font-size: 11px; font-weight: 700;
-        }
-        .action-badge.delete { background: rgba(233,69,96,0.2); color: #e94560; }
-        .action-badge.edit   { background: rgba(255,140,0,0.2);  color: #ff8c00; }
-        .suspicious-badge {
-            display: inline-block; padding: 2px 8px; border-radius: 10px;
-            font-size: 11px; font-weight: 700;
-            background: rgba(233,69,96,0.15); color: #e94560;
-            border: 1px solid rgba(233,69,96,0.3);
-        }
-
-        /* ===== CLASSIFICATION TABLE (replaces score) ===== */
-        .classif-table-wrap {
-            background: rgba(255,255,255,0.03);
-            border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.08);
-            overflow: hidden;
-        }
-        table.classif-table {
-            width: 100%; border-collapse: collapse; min-width: 700px;
-        }
-        .classif-table th {
-            background: rgba(255,255,255,0.06);
-            padding: 12px 14px; font-size: 12px; color: #aaa;
-            font-weight: 600; text-align: right; white-space: nowrap;
-        }
-        .classif-table td {
-            padding: 12px 14px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            font-size: 13px; text-align: right;
-        }
-        .classif-table tr:hover td { background: rgba(255,255,255,0.03); }
-        .classif-table td.driver-name-cell {
-            font-weight: 700; color: #fff; cursor: pointer;
-        }
-        .classif-table td.driver-name-cell:hover { color: #e94560; text-decoration: underline; }
-
-        /* Classification badges */
-        .cat-badge {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 4px 12px; border-radius: 20px;
-            font-size: 12px; font-weight: 700; white-space: nowrap;
-        }
-        .cat-badge.cat-excellent { background: rgba(0,200,83,0.15);  color: #00c853; border: 1px solid rgba(0,200,83,0.3); }
-        .cat-badge.cat-good      { background: rgba(79,195,247,0.15); color: #4fc3f7; border: 1px solid rgba(79,195,247,0.3); }
-        .cat-badge.cat-watch     { background: rgba(255,215,0,0.15);  color: #ffd700; border: 1px solid rgba(255,215,0,0.3); }
-        .cat-badge.cat-danger    { background: rgba(255,140,0,0.15);  color: #ff8c00; border: 1px solid rgba(255,140,0,0.3); }
-        .cat-badge.cat-critical  { background: rgba(233,69,96,0.15);  color: #e94560; border: 1px solid rgba(233,69,96,0.3); }
-
-        /* Legend */
-        .classif-legend {
-            display: flex; gap: 16px; flex-wrap: wrap;
-            margin-top: 14px; font-size: 12px;
-        }
-
-        /* ===== DRIVER DETAIL MODAL ===== */
-        .modal-overlay {
-            display: none;
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.75);
-            z-index: 10000;
-            align-items: flex-start;
-            justify-content: center;
-            padding: 20px;
-            overflow-y: auto;
-        }
-        .modal-overlay.open { display: flex; }
-        .modal-box {
-            background: #1a1a2e;
-            border: 1px solid rgba(233,69,96,0.3);
-            border-radius: 20px;
-            width: 100%; max-width: 860px;
-            padding: 28px;
-            position: relative;
-            margin: auto;
-        }
-        .modal-close {
-            position: absolute; top: 16px; left: 16px;
-            background: rgba(233,69,96,0.15);
-            border: 1px solid rgba(233,69,96,0.3);
-            color: #e94560; border-radius: 50%;
-            width: 32px; height: 32px;
-            cursor: pointer; font-size: 18px;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .modal-close:hover { background: rgba(233,69,96,0.3); }
-        .modal-title {
-            font-size: 20px; font-weight: 700; color: #fff;
-            margin-bottom: 20px; padding-bottom: 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .modal-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-        .modal-stat {
-            background: rgba(255,255,255,0.04);
-            border-radius: 10px; padding: 14px;
-            border: 1px solid rgba(255,255,255,0.07);
-        }
-        .modal-stat .ms-label { font-size: 11px; color: #888; margin-bottom: 4px; }
-        .modal-stat .ms-val   { font-size: 18px; font-weight: 700; color: #fff; }
-        .modal-stat .ms-sub   { font-size: 11px; color: #666; margin-top: 2px; }
-
-        /* Weekly history bar */
-        .week-history {
-            display: flex; gap: 4px; flex-wrap: wrap;
-            margin-bottom: 20px;
-        }
-        .wh-cell {
-            display: flex; flex-direction: column; align-items: center;
-            gap: 3px; min-width: 38px;
-        }
-        .wh-cell .wh-label { font-size: 9px; color: #666; }
-        .wh-cell .wh-icon  { font-size: 20px; }
-
-        /* Payments table in modal */
-        .modal-payments-wrap { overflow-x: auto; max-height: 280px; overflow-y: auto; }
-        table.modal-payments {
-            width: 100%; border-collapse: collapse; min-width: 400px;
-        }
-        .modal-payments th {
-            background: rgba(255,255,255,0.06);
-            padding: 8px 12px; font-size: 11px; color: #aaa;
-            font-weight: 600; text-align: right;
-            position: sticky; top: 0;
-        }
-        .modal-payments td {
-            padding: 8px 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            font-size: 12px; text-align: right;
-        }
-
-        /* Goal progress */
-        .goal-bar-wrap {
-            background: rgba(255,255,255,0.04);
-            border-radius: 10px; padding: 14px;
-            border: 1px solid rgba(255,255,255,0.07);
-            margin-bottom: 16px;
-        }
-        .goal-bar-label { font-size: 12px; color: #aaa; margin-bottom: 8px; }
-        .goal-bar {
-            height: 10px; background: rgba(255,255,255,0.1);
-            border-radius: 5px; overflow: hidden; margin-bottom: 6px;
-        }
-        .goal-bar-fill {
-            height: 100%; border-radius: 5px;
-            background: linear-gradient(90deg, #e94560, #ff8c00);
-            transition: width 0.5s;
-        }
-        .goal-bar-fill.on-track { background: linear-gradient(90deg, #00c853, #4fc3f7); }
-        .goal-bar-stats { display: flex; justify-content: space-between; font-size: 11px; color: #666; }
-
-        /* Rank */
-        .rank-num { font-weight: 700; font-size: 16px; }
-        .rank-num.gold   { color: #ffd700; }
-        .rank-num.silver { color: #c0c0c0; }
-        .rank-num.bronze { color: #cd7f32; }
-
-        /* Responsive */
-        @media (max-width: 600px) {
-            .main { padding: 12px; }
-            .header { padding: 14px 16px; }
-            .header h1 { font-size: 18px; }
-            .tabs { gap: 6px; }
-            .tab-btn { padding: 8px 12px; font-size: 12px; }
-        }
-    </style>
-</head>
-<body>
-
-<!-- Loading -->
-<div class="loading-overlay" id="loadingOverlay">
-    <div class="loading-spinner"></div>
-    <div class="loading-text">جاري تحميل بيانات المالك...</div>
-</div>
-
-<!-- Access Denied -->
-<div class="access-denied" id="accessDenied">
-    <div class="icon">🔒</div>
-    <h2>غير مصرح بالدخول</h2>
-    <p>هذه الصفحة للمالك فقط</p>
-    <a href="index.html">← العودة للصفحة الرئيسية</a>
-</div>
-
-<!-- Header -->
-<div class="header">
-    <div class="header-title">
-        <div class="header-icon">👑</div>
-        <div>
-            <h1>لوحة المالك</h1>
-            <p>متابعة شاملة — سرية تامة</p>
-        </div>
+  <div id="emailLogin">
+    <h2 style="color:#58a6ff;">🚖 دخول المالك</h2>
+    <p class="small-muted">صفحة محمية - مالك White Horse Taxi فقط</p>
+    <input type="email" id="emInput" placeholder="email@example.com" value="f5h5d_q8@hotmail.com">
+    <input type="password" id="pwInput" placeholder="كلمة السر">
+    <div style="display:flex;gap:8px;">
+      <button class="btn" onclick="doLogin()">دخول</button>
+      <button class="btn outline" onclick="doSignup()">إنشاء حساب (أول مرة)</button>
     </div>
-    <div class="header-meta">
-        <span class="version-badge">v3.2</span>        <span class="last-update" id="lastUpdateTime">—</span>
-        <button class="refresh-btn" onclick="loadAllData()">🔄 تحديث</button>
+    <div id="loginErr" style="color:#f85149;font-size:12px;text-align:center;max-width:300px;"></div>
+    <p class="small-muted" style="text-align:center;max-width:300px;margin-top:10px;">
+      💡 إذا أول مرة: استخدم "إنشاء حساب" مرة واحدة، ثم بعدها استخدم "دخول".
+    </p>
+  </div>
+
+  <div id="accessDenied" class="access-denied">
+    <h2>🚫 غير مصرح</h2>
+    <p>هذه الصفحة مخصصة للمالك فقط</p>
+    <button class="btn outline" style="margin-top:14px;" onclick="signOut()">تسجيل خروج</button>
+  </div>
+
+  <div id="mainContent" class="container" style="display:none;">
+
+    <div class="header">
+      <div>
+        <h1>🚖 لوحة المالك — White Horse Taxi</h1>
+        <div class="meta"><span id="lastUpdateTime">—</span> · <span id="liveStatus">🟢 مباشر</span></div>
+      </div>
+      <div class="meta">
+        <button class="btn outline" onclick="loadAllData()">🔄 تحديث</button>
+        <button class="btn outline" onclick="exportCSV()">📥 تصدير CSV</button>
+        <button class="btn outline" onclick="window.print()">🖨️ طباعة</button>
+        <button class="btn outline" onclick="signOut()">خروج</button>
+      </div>
     </div>
-</div>
 
-<!-- Main -->
-<div class="main" id="mainContent" style="display:none;">
-
-    <!-- Tabs -->
     <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('alerts')">🚨 التحذيرات</button>
-        <button class="tab-btn" onclick="switchTab('weekly')">📊 الالتزام الأسبوعي</button>
-        <button class="tab-btn" onclick="switchTab('monthly')">📅 الالتزام الشهري</button>
-        <button class="tab-btn" onclick="switchTab('followup')">📋 متابعة الأسبوع</button>
-        <button class="tab-btn" onclick="switchTab('monitor')">🕵️ رقابة المحاسب</button>
-        <button class="tab-btn" onclick="switchTab('compare')">📈 مقارنة الأشهر</button>
-        <button class="tab-btn" onclick="switchTab('classif')">🏆 تصنيف السائقين</button>
+      <button class="tab-btn active" onclick="switchTab('overview')">📊 نظرة عامة</button>
+      <button class="tab-btn" onclick="switchTab('alerts')">🚨 التحذيرات</button>
+      <button class="tab-btn" onclick="switchTab('weekly')">📅 الأسبوعي</button>
+      <button class="tab-btn" onclick="switchTab('monthly')">🗓️ الشهري</button>
+      <button class="tab-btn" onclick="switchTab('followup')">⚡ هذا الأسبوع</button>
+      <button class="tab-btn" onclick="switchTab('profit')">💰 الربحية</button>
+      <button class="tab-btn" onclick="switchTab('forecast')">🔮 التوقعات</button>
+      <button class="tab-btn" onclick="switchTab('monitor')">🛡️ رقابة المحاسب</button>
+      <button class="tab-btn" onclick="switchTab('compare')">📈 مقارنة الأشهر</button>
+      <button class="tab-btn" onclick="switchTab('classif')">🎯 التصنيف</button>
+      <button class="tab-btn" onclick="switchTab('lifecycle')">📜 سجل السائقين</button>
     </div>
 
-    <!-- ===== TAB: ALERTS ===== -->
-    <div class="tab-content active" id="tab-alerts">
-        <div class="section-title">
-            <div class="icon" style="background:rgba(233,69,96,0.15);">🚨</div>
-            <h2>التحذيرات الفورية</h2>
-            <span class="count-badge" id="alertsCount">0</span>
-        </div>
-        <div class="alerts-grid" id="alertsGrid">
-            <div style="color:#888;padding:20px;">جاري التحميل...</div>
-        </div>
+    <div id="tab-overview" class="tab-content active"></div>
+    <div id="tab-alerts" class="tab-content"></div>
+    <div id="tab-weekly" class="tab-content"></div>
+    <div id="tab-monthly" class="tab-content"></div>
+    <div id="tab-followup" class="tab-content"></div>
+    <div id="tab-profit" class="tab-content"></div>
+    <div id="tab-forecast" class="tab-content"></div>
+    <div id="tab-monitor" class="tab-content"></div>
+    <div id="tab-compare" class="tab-content"></div>
+    <div id="tab-classif" class="tab-content"></div>
+    <div id="tab-lifecycle" class="tab-content"></div>
 
-        <div class="section-title" style="margin-top:32px;">
-            <div class="icon" style="background:rgba(79,195,247,0.15);">📈</div>
-            <h2>ملخص سريع</h2>
-        </div>
-        <div class="summary-cards">
-            <div class="summary-card">
-                <div class="s-icon">👥</div>
-                <div class="s-val" id="totalDrivers">—</div>
-                <div class="s-label">إجمالي السائقين</div>
-            </div>
-            <div class="summary-card">
-                <div class="s-icon">⚠️</div>
-                <div class="s-val" id="overdueCount" style="color:#e94560;">—</div>
-                <div class="s-label">دين فوق 500 KD</div>
-            </div>
-            <div class="summary-card">
-                <div class="s-icon">🔴</div>
-                <div class="s-val" id="stoppedCount" style="color:#e94560;">—</div>
-                <div class="s-label">توقف عن الدفع +14 يوم</div>
-            </div>
-            <div class="summary-card">
-                <div class="s-icon">✅</div>
-                <div class="s-val" id="excellentCount" style="color:#00c853;">—</div>
-                <div class="s-label">سائق ممتاز</div>
-            </div>
-            <div class="summary-card">
-                <div class="s-icon">💰</div>
-                <div class="s-val" id="totalDebt" style="color:#ff8c00;">—</div>
-                <div class="s-label">إجمالي الديون (KD)</div>
-            </div>
-            <div class="summary-card">
-                <div class="s-icon">📉</div>
-                <div class="s-val" id="debtDecreasingCount" style="color:#00c853;">—</div>
-                <div class="s-label">دينهم ينزل ✅</div>
-            </div>
-            <div class="summary-card">
-                <div class="s-icon">📈</div>
-                <div class="s-val" id="debtIncreasingCount" style="color:#e94560;">—</div>
-                <div class="s-label">دينهم يرتفع ⚠️</div>
-            </div>
-            <div class="summary-card">
-                <div class="s-icon">📝</div>
-                <div class="s-val" id="monthEdits" style="color:#4fc3f7;">—</div>
-                <div class="s-label">تعديلات المحاسب هذا الشهر</div>
-            </div>
-        </div>
-    </div>
+  </div>
 
-    <!-- ===== TAB: WEEKLY ===== -->
-    <div class="tab-content" id="tab-weekly">
-        <div class="section-title">
-            <div class="icon" style="background:rgba(79,195,247,0.15);">📊</div>
-            <h2>الالتزام الأسبوعي — السائقون اليوميون</h2>
-        </div>
-        <div class="commitment-wrapper">
-            <div class="commitment-table-wrap">
-                <table class="commitment-table" id="weeklyTable">
-                    <thead id="weeklyHead"></thead>
-                    <tbody id="weeklyBody">
-                        <tr><td colspan="15" style="text-align:center;padding:30px;color:#888;">جاري التحميل...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <div style="margin-top:12px;display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:#888;">
-            <span>✅ دفع يوم الاثنين</span>
-            <span>🟡 دفع متأخر (ثلاثاء-أربعاء)</span>
-            <span>❌ لم يدفع</span>
-            <span>⬜ قبل التعاقد</span>
-            <span style="color:#aaa;">— اضغط على اسم السائق لعرض التفاصيل</span>
-        </div>
-    </div>
+  <div class="modal-bg" id="driverModal" onclick="if(event.target===this)closeModal()">
+    <div class="modal" id="modalContent"></div>
+  </div>
 
-    <!-- ===== TAB: MONTHLY ===== -->
-    <div class="tab-content" id="tab-monthly">
-        <div class="section-title">
-            <div class="icon" style="background:rgba(0,200,83,0.15);">📅</div>
-            <h2>الالتزام الشهري — السائقون الشهريون</h2>
-        </div>
-        <div class="monthly-grid" id="monthlyGrid">
-            <div style="color:#888;padding:20px;">جاري التحميل...</div>
-        </div>
-        <div style="margin-top:12px;display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:#888;">
-            <span>✅ دفع في الموعد</span>
-            <span>🟡 دفع متأخر</span>
-            <span>❌ لم يدفع</span>
-            <span>⬜ شهر مستقبلي</span>
-            <span style="color:#aaa;">— اضغط على البطاقة لعرض التفاصيل</span>
-        </div>
-    </div>
+  <div class="toast-stack" id="toastStack"></div>
 
-    <!-- ===== TAB: WEEKLY FOLLOWUP ===== -->
-    <div class="tab-content" id="tab-followup">
-        <div class="section-title">
-            <div class="icon" style="background:rgba(255,215,0,0.15);">📋</div>
-            <h2>متابعة الأسبوع الحالي</h2>
-            <span style="font-size:12px;color:#888;margin-right:8px;">يُحدَّث كل خميس — يعطي السائقين حتى الأربعاء للدفع</span>
-        </div>
-        <div class="followup-wrapper">
-            <div class="followup-table-wrap">
-                <table class="followup-table" id="followupTable">
-                    <thead>
-                        <tr>
-                            <th>السائق</th>
-                            <th>نوع العقد</th>
-                            <th>الأجرة المستحقة</th>
-                            <th>المثالي</th>
-                            <th>دفع هذا الأسبوع؟</th>
-                            <th>المبلغ المدفوع</th>
-                            <th>الدين الجاري</th>
-                            <th>الدين القديم</th>
-                            <th>الإجمالي</th>
-                            <th>اتجاه الدين</th>
-                            <th>الحالة</th>
-                            <th>إنذار</th>
-                        </tr>
-                    </thead>
-                    <tbody id="followupBody">
-                        <tr><td colspan="10" style="text-align:center;padding:30px;color:#888;">جاري التحميل...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <div id="followupSummary" style="margin-top:16px;display:flex;gap:16px;flex-wrap:wrap;"></div>
-        <div style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-            <div style="font-size:12px;color:#888;">✅ دفع الأجرة كاملة | 🟡 دفع جزئي | ❌ لم يدفع — اضغط على اسم السائق لعرض التفاصيل</div>
-            <button onclick="printWeeklyReport()" style="background:linear-gradient(135deg,#e94560,#c62a47);color:#fff;border:none;padding:8px 18px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;">🖨️ طباعة تقرير الأسبوع</button>
-        </div>
-    </div>
+  <!-- Firebase compat v8 -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script>
+  const firebaseConfig = {
+      apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+      authDomain: "taxi-management-system-d8210.firebaseapp.com",
+      projectId: "taxi-management-system-d8210",
+      storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+      messagingSenderId: "720874424166",
+      appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7"
+  };
+  firebase.initializeApp(firebaseConfig);
+  </script>
 
-    <!-- ===== TAB: MONITOR ===== -->
-    <div class="tab-content" id="tab-monitor">
-        <div class="section-title">
-            <div class="icon" style="background:rgba(233,69,96,0.15);">🕵️</div>
-            <h2>رقابة المحاسب</h2>
-        </div>
+  <script>
+  /* ================= CONFIG ================= */
+  const OWNER_EMAIL = 'f5h5d_q8@hotmail.com';
+  const RENT_TYPES = ['أجرة يومية', 'أجرة شهرية'];
+  const AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 دقايق
 
-        <!-- Revenue comparison -->
-        <div class="revenue-compare" id="revenueCompare">
-            <h3>📊 مقارنة الإيرادات المتوقعة بالمسجلة (هذا الأسبوع)</h3>
-            <div id="revenueCompareBody">جاري الحساب...</div>
-        </div>
+  /* ================= STATE ================= */
+  let gDrivers = [], gPayments = [], gExpenses = [], gRevenues = [], gEditHistory = [];
+  let gDriverMap = {}, gAuthUser = null, gLiveUnsub = null, gAutoTimer = null;
+  let gLastEditTs = 0;
 
-        <!-- Stats -->
-        <div class="monitor-grid" id="monitorStats">
-            <div class="monitor-stat danger">
-                <div>🗑️</div>
-                <div class="stat-val" id="mDeleteCount">—</div>
-                <div class="stat-label">حذوفات هذا الشهر</div>
-            </div>
-            <div class="monitor-stat warning">
-                <div>✏️</div>
-                <div class="stat-val" id="mEditCount">—</div>
-                <div class="stat-label">تعديلات هذا الشهر</div>
-            </div>
-            <div class="monitor-stat danger">
-                <div>📉</div>
-                <div class="stat-val" id="mDownEditCount">—</div>
-                <div class="stat-label">تعديلات نزولية للمبالغ</div>
-            </div>
-            <div class="monitor-stat info">
-                <div>⏰</div>
-                <div class="stat-val" id="mLateRegCount">—</div>
-                <div class="stat-label">دفعات مسجلة بتأخير 3+ أيام</div>
-            </div>
-            <div class="monitor-stat warning">
-                <div>🌙</div>
-                <div class="stat-val" id="mNightCount">—</div>
-                <div class="stat-label">عمليات بعد 10 مساءً</div>
-            </div>
-            <div class="monitor-stat danger">
-                <div>💸</div>
-                <div class="stat-val" id="mTotalDownEdit">—</div>
-                <div class="stat-label">إجمالي المبالغ المخفَّضة (KD)</div>
-            </div>
-        </div>
-
-        <div class="section-title">
-            <div class="icon" style="background:rgba(233,69,96,0.15);">⚠️</div>
-            <h2>آخر العمليات المشبوهة</h2>
-        </div>
-        <div class="monitor-table-wrap">
-            <table class="monitor-table">
-                <thead>
-                    <tr>
-                        <th>التاريخ</th><th>النوع</th><th>السجل</th>
-                        <th>المبلغ القديم</th><th>المبلغ الجديد</th>
-                        <th>الفرق</th><th>بواسطة</th><th>السبب</th><th>ملاحظة</th>
-                    </tr>
-                </thead>
-                <tbody id="monitorTableBody">
-                    <tr><td colspan="9" style="text-align:center;padding:20px;color:#888;">جاري التحميل...</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <div class="section-title" style="margin-top:24px;">
-            <div class="icon" style="background:rgba(255,140,0,0.15);">📋</div>
-            <h2>كل عمليات المحاسب هذا الشهر</h2>
-        </div>
-        <div class="monitor-table-wrap">
-            <table class="monitor-table">
-                <thead>
-                    <tr>
-                        <th>التاريخ والوقت</th><th>النوع</th><th>السجل</th>
-                        <th>التفاصيل</th><th>بواسطة</th><th>السبب</th>
-                    </tr>
-                </thead>
-                <tbody id="allEditsBody">
-                    <tr><td colspan="6" style="text-align:center;padding:20px;color:#888;">جاري التحميل...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- ===== TAB: MONTHLY COMPARE ===== -->
-    <div class="tab-content" id="tab-compare">
-        <div class="section-title">
-            <div class="icon" style="background:rgba(79,195,247,0.15);">📈</div>
-            <h2>مقارنة الأشهر — اتجاه الديون</h2>
-        </div>
-        <div class="compare-table-wrap">
-            <table class="compare-table" id="compareTable">
-                <thead id="compareHead"></thead>
-                <tbody id="compareBody">
-                    <tr><td colspan="8" style="text-align:center;padding:30px;color:#888;">جاري التحميل...</td></tr>
-                </tbody>
-            </table>
-        </div>
-        <div style="margin-top:12px;font-size:12px;color:#888;">
-            ↓ ينزل = جيد &nbsp;|&nbsp; ↑ يرتفع = يحتاج متابعة &nbsp;|&nbsp; → ثابت
-        </div>
-    </div>
-
-    <!-- ===== TAB: CLASSIFICATION (replaces score) ===== -->
-    <div class="tab-content" id="tab-classif">
-        <div class="section-title">
-            <div class="icon" style="background:rgba(255,215,0,0.15);">🏆</div>
-            <h2>تصنيف السائقين — نظام الفئات الخماسي</h2>
-        </div>
-        <div class="classif-table-wrap">
-            <table class="classif-table">
-                <thead>
-                    <tr>
-                        <th style="width:40px;text-align:center;">#</th>
-                        <th>السائق</th>
-                        <th>نوع العقد</th>
-                        <th>الدين الجاري</th>
-                        <th>الدين القديم</th>
-                        <th>الإجمالي</th>
-                        <th>الانتظام</th>
-                        <th>اتجاه الدين</th>
-                        <th>الصحة المالية</th>
-                        <th>آخر دفعة</th>
-                        <th>إنذار</th>
-                        <th>التصنيف</th>
-                    </tr>
-                </thead>
-                <tbody id="classifTableBody">
-                    <tr><td colspan="10" style="text-align:center;padding:30px;color:#888;">جاري التحميل...</td></tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="classif-legend">
-            <span><span class="cat-badge cat-excellent">🟢 ممتاز</span> يدفع بانتظام، دين الجاري صفر أو ينزل</span>
-            <span><span class="cat-badge cat-good">🔵 مقبول</span> يدفع بانتظام، دين قديم ينزل</span>
-            <span><span class="cat-badge cat-watch">🟡 متابعة</span> يدفع أحياناً، دين ثابت</span>
-            <span><span class="cat-badge cat-danger">🟠 خطر</span> لا يدفع بانتظام، دين يرتفع</span>
-            <span><span class="cat-badge cat-critical">🔴 حرج</span> توقف عن الدفع، دين فوق 500 KD</span>
-        </div>
-        <div style="margin-top:12px;font-size:12px;color:#888;">اضغط على اسم السائق لعرض تفاصيله الكاملة</div>
-    </div>
-
-</div><!-- /main -->
-
-<!-- ===== DRIVER DETAIL MODAL ===== -->
-<div class="modal-overlay" id="driverModal">
-    <div class="modal-box">
-        <button class="modal-close" onclick="closeModal()">✕</button>
-        <div class="modal-title" id="modalTitle">تفاصيل السائق</div>
-        <div id="modalContent">جاري التحميل...</div>
-    </div>
-</div>
-
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-<script>
-// ===== FIREBASE CONFIG =====
-const firebaseConfig = {
-    apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
-    authDomain: "taxi-management-system-d8210.firebaseapp.com",
-    projectId: "taxi-management-system-d8210",
-    storageBucket: "taxi-management-system-d8210.firebasestorage.app",
-    messagingSenderId: "720874424166",
-    appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7"
-};
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db   = firebase.firestore();
-
-// ===== CONSTANTS =====
-const DEBT_THRESHOLD = 500;
-const STOP_DAYS      = 14;
-const LATE_REG_DAYS  = 3;
-
-const RENT_TYPES = ['أجرة يومية', 'أجرة شهرية'];
-
-// ===== GLOBAL DATA =====
-let gDrivers = [], gPayments = [], gEditHistory = [];
-let gDriverMap = {};
-
-// ===== AUTH CHECK =====
-// نستخدم localStorage مباشرة لأن index.html يحفظ userRole عند تسجيل الدخول
-// هذا يتجنب مشكلة WebChannel في Firebase SDK v10
-(function checkAuth() {
-    const role = localStorage.getItem('userRole');
-    const userName = localStorage.getItem('userName');
-    if (!role || !userName) {
-        document.getElementById('loadingOverlay').style.display = 'none';
-        document.getElementById('accessDenied').style.display  = 'flex';
-        return;
+  /* ================= AUTH ================= */
+  firebase.auth().onAuthStateChanged(user => {
+    document.getElementById('loadingOverlay').style.display = 'none';
+    if (!user) {
+      document.getElementById('emailLogin').style.display = 'flex';
+      return;
     }
-    if (role !== 'admin') {
-        document.getElementById('loadingOverlay').style.display = 'none';
-        document.getElementById('accessDenied').style.display  = 'flex';
-        return;
+    if (user.email !== OWNER_EMAIL) {
+      document.getElementById('accessDenied').style.display = 'flex';
+      return;
     }
+    gAuthUser = user;
+    document.getElementById('mainContent').style.display = 'block';
     loadAllData();
-})();
+    startLiveListener();
+    startAutoRefresh();
+  });
 
-// ===== TABS =====
-function switchTab(name) {
-    const tabs = ['alerts','weekly','monthly','followup','monitor','compare','classif'];
-    document.querySelectorAll('.tab-btn').forEach((b,i) => {
-        b.classList.toggle('active', tabs[i] === name);
-    });
+  async function doLogin() {
+    const em = document.getElementById('emInput').value.trim();
+    const pw = document.getElementById('pwInput').value;
+    const errEl = document.getElementById('loginErr');
+    errEl.textContent = '';
+    if (em !== OWNER_EMAIL) { errEl.textContent = '🚫 هذا الايميل غير مصرح'; return; }
+    try { await firebase.auth().signInWithEmailAndPassword(em, pw); }
+    catch(e) {
+      let msg = e.message || String(e);
+      if (e.code === 'auth/user-not-found') msg = '👋 ما عندك حساب بعد - اضغط "إنشاء حساب (أول مرة)"';
+      else if (e.code === 'auth/wrong-password') msg = '❌ كلمة السر غلط';
+      else if (e.code === 'auth/invalid-credential') msg = '❌ بيانات الدخول غير صحيحة';
+      errEl.textContent = msg;
+    }
+  }
+  async function doSignup() {
+    const em = document.getElementById('emInput').value.trim();
+    const pw = document.getElementById('pwInput').value;
+    const errEl = document.getElementById('loginErr');
+    errEl.textContent = '';
+    if (em !== OWNER_EMAIL) { errEl.textContent = '🚫 هذا الايميل غير مصرح للتسجيل'; return; }
+    if (!pw || pw.length < 6) { errEl.textContent = '⚠️ كلمة السر لازم 6 خانات على الأقل'; return; }
+    try {
+      await firebase.auth().createUserWithEmailAndPassword(em, pw);
+      errEl.style.color = '#3fb950';
+      errEl.textContent = '✅ تم إنشاء الحساب - تم الدخول تلقائياً';
+    } catch(e) {
+      let msg = e.message || String(e);
+      if (e.code === 'auth/email-already-in-use') msg = '⚠️ الحساب موجود - استخدم "دخول"';
+      errEl.textContent = msg;
+    }
+  }
+  async function signOut() {
+    if (gLiveUnsub) gLiveUnsub();
+    if (gAutoTimer) clearInterval(gAutoTimer);
+    await firebase.auth().signOut();
+    location.reload();
+  }
+
+  /* ================= TABS ================= */
+  function switchTab(name) {
+    const tabs = ['overview','alerts','weekly','monthly','followup','profit','forecast','monitor','compare','classif','lifecycle'];
+    document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', tabs[i] === name));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
-    // تبويب مقارنة الأشهر يُبنى عند الفتح
-    if (name === 'compare') buildMonthlyCompare();
-}
+  }
 
-// ===== LOAD ALL DATA =====
-async function loadAllData() {
-    document.getElementById('loadingOverlay').style.display = 'flex';
+  /* ================= LOAD ================= */
+  async function loadAllData() {
+    const db = firebase.firestore();
     try {
-        const dSnap = await db.collection('drivers').get();
-        gDrivers = dSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        gDriverMap = {};
-        gDrivers.forEach(d => { gDriverMap[d.id] = d; });
+      const [dSnap, pSnap, eSnap, exSnap, rvSnap, hSnap] = await Promise.all([
+        db.collection('drivers').get(),
+        db.collection('driverPayments').get(),
+        db.collection('expenses').get(),
+        db.collection('revenues').get(),
+        db.collection('editHistory').orderBy('timestamp','desc').limit(2000).get(),
+        Promise.resolve(null)
+      ]);
+      gDrivers = dSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      gDriverMap = {}; gDrivers.forEach(d => gDriverMap[d.id] = d);
+      gPayments = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      gExpenses = eSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      gRevenues = rvSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      gEditHistory = eSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        const pSnap = await db.collection('driverPayments').get();
-        gPayments = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-        const eSnap = await db.collection('editHistory').limit(500).get();
-        gEditHistory = eSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-        buildAlerts();
-        buildWeeklyTable();
-        buildMonthlyGrid();
-        buildFollowupTable();
-        buildMonitorSection();
-        buildClassifTable();
-
-        document.getElementById('lastUpdateTime').textContent =
-            'آخر تحديث: ' + new Date().toLocaleTimeString('ar-KW');
-        document.getElementById('mainContent').style.display = 'block';
+      renderAll();
+      document.getElementById('lastUpdateTime').textContent = '🕒 ' + new Date().toLocaleTimeString('ar-KW');
     } catch(e) {
-        console.error(e);
-        alert('خطأ في تحميل البيانات: ' + e.message);
+      console.error(e);
+      alert('خطأ تحميل: ' + e.message);
     }
-    document.getElementById('loadingOverlay').style.display = 'none';
-}
+  }
 
-// ===== HELPERS =====
-function toDate(val) {
-    if (!val) return null;
-    if (val && typeof val.toDate === 'function') return val.toDate();
-    if (val instanceof Date) return val;
-    try { const d = new Date(val); return isNaN(d) ? null : d; } catch(e) { return null; }
-}
-function formatDate(d) {
-    if (!d) return '—';
-    return d.toLocaleDateString('ar-KW', { year:'numeric', month:'short', day:'numeric' });
-}
-function getMondayOfWeek(date) {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = (day === 0) ? -6 : 1 - day;
-    d.setDate(d.getDate() + diff);
-    d.setHours(0,0,0,0);
+  function renderAll() {
+    buildOverview();
+    buildAlerts();
+    buildWeeklyTable();
+    buildMonthlyGrid();
+    buildFollowupTable();
+    buildProfit();
+    buildForecast();
+    buildMonitorSection();
+    buildMonthlyCompare();
+    buildClassifTable();
+    buildLifecycle();
+  }
+
+  /* ================= LIVE LISTENER (مهم: اكتشاف حذف فوراً) ================= */
+  function startLiveListener() {
+    const db = firebase.firestore();
+    // نراقب آخر 50 سجل في editHistory
+    if (gLiveUnsub) gLiveUnsub();
+    gLiveUnsub = db.collection('editHistory').orderBy('timestamp','desc').limit(50)
+      .onSnapshot(snap => {
+        snap.docChanges().forEach(ch => {
+          if (ch.type !== 'added') return;
+          const e = ch.doc.data();
+          const ts = toDate(e.timestamp);
+          if (!ts || ts.getTime() <= gLastEditTs) return;
+          // أول تشغيل: نتجاهل التاريخ القديم
+          if (gLastEditTs === 0) { gLastEditTs = Date.now(); return; }
+          gLastEditTs = ts.getTime();
+          // كشف العمليات الخطرة فوراً
+          if (e.action === 'delete' || e.action === 'permanentDelete') {
+            showToast('⚠️ حذف فوري', `${e.editedBy||'محاسب'} حذف ${e.recordType||'سجل'} - ${describeRecord(e)}`);
+          } else if (e.action === 'edit' && (e.changes||[]).some(c => c.field==='amount' && +c.newValue < +c.oldValue)) {
+            const c = (e.changes||[]).find(c=>c.field==='amount');
+            const diff = (+c.oldValue - +c.newValue).toFixed(3);
+            showToast('💸 تخفيض مبلغ', `${e.editedBy||'محاسب'} نزّل ${diff} د.ك من ${describeRecord(e)}`);
+          }
+        });
+        // تحديث editHistory cache
+        // (ما نعيد تحميل كل شي الا في auto-refresh)
+      }, err => console.error('snapshot err', err));
+  }
+  function startAutoRefresh() {
+    if (gAutoTimer) clearInterval(gAutoTimer);
+    gAutoTimer = setInterval(loadAllData, AUTO_REFRESH_MS);
+  }
+  function describeRecord(e) {
+    const drv = e.driverId ? (gDriverMap[e.driverId]?.name || e.driverId) : '';
+    const amt = e.changes?.find?.(c => c.field==='amount')?.oldValue;
+    return [e.recordType||'', drv, amt ? amt+' د.ك' : ''].filter(Boolean).join(' · ');
+  }
+  function showToast(title, body) {
+    const stack = document.getElementById('toastStack');
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.innerHTML = `<div class="ttitle">${title}</div><div class="tbody">${body}</div>`;
+    stack.appendChild(t);
+    setTimeout(() => t.remove(), 12000);
+    // صوت تنبيه
+    try {
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = 880; g.gain.value = 0.1;
+      o.start(); setTimeout(()=>o.stop(), 200);
+    } catch(e) {}
+  }
+
+  /* ================= HELPERS ================= */
+  function toDate(v) {
+    if (!v) return null;
+    if (v && typeof v.toDate === 'function') return v.toDate();
+    if (v instanceof Date) return v;
+    const d = new Date(v); return isNaN(d) ? null : d;
+  }
+  function fmtDate(d) { return d ? d.toLocaleDateString('ar-KW') : '—'; }
+  function fmtKD(n) { return (n||0).toFixed(3) + ' د.ك'; }
+  function getMondayOfWeek(d) {
+    const x = new Date(d); const day = x.getDay();
+    const diff = (day === 0 ? -6 : 1 - day);
+    x.setDate(x.getDate() + diff); x.setHours(0,0,0,0); return x;
+  }
+  function getFirstMondayOfMonth(y, m) {
+    const d = new Date(y, m, 1);
+    while (d.getDay() !== 1) d.setDate(d.getDate()+1);
     return d;
-}
+  }
 
-// ===== DEBT CALCULATION (SPLIT: current + old) =====
-function calcDebtSplit(driverId, driver) {
+  /* ===== عتبات ديناميكية لكل سائق ===== */
+  function getDailyEquivalent(driver) {
+    if (driver.contractType === 'monthly') return parseFloat(driver.monthlyPayment||0) / 30;
+    return parseFloat(driver.dailyRent || driver.dailyWage || 0);
+  }
+  function getDebtThreshold(driver) {
+    // عتبة الدين = 30 يوم إيجار
+    return Math.max(100, getDailyEquivalent(driver) * 30);
+  }
+  function getStopDays(driver) {
+    // اليومي: 4 أيام أزمة، الشهري: 14
+    return driver.contractType === 'monthly' ? 14 : 4;
+  }
+  function getWeeklyRate(driver) {
+    if (driver.contractType === 'monthly') return parseFloat(driver.monthlyPayment||0) / 4;
+    return parseFloat(driver.dailyRent || driver.dailyWage || 0) * 7;
+  }
+
+  /* ===== الدين باستخدام contractHistory (إصلاح الخطأ القديم) ===== */
+  function calcDebtSplit(driverId, driver) {
     const payments = gPayments.filter(p => p.driverId === driverId);
     const today = new Date();
-
-    // حساب الأجرة المتوقعة
     let expectedRent = 0;
     if (driver.contractHistory && driver.contractHistory.length > 0) {
-        driver.contractHistory.forEach((contract, idx) => {
-            if (contract.note === 'تعديل عقد' || contract.type === 'تعديل') return;
-            const pStart = toDate(contract.startDate);
-            if (!pStart || pStart > today) return;
-            let pEnd;
-            if (idx < driver.contractHistory.length - 1) {
-                pEnd = toDate(driver.contractHistory[idx+1].startDate) || today;
-            } else {
-                pEnd = today;
-            }
-            if (pEnd > today) pEnd = today;
-            if (contract.contractType === 'daily') {
-                const days = Math.floor((pEnd - pStart) / 86400000);
-                expectedRent += days * parseFloat(contract.dailyRent || 0);
-            } else {
-                const rate = parseFloat(contract.monthlyPayment || 0);
-                const months = (pEnd.getFullYear()-pStart.getFullYear())*12 + (pEnd.getMonth()-pStart.getMonth());
-                expectedRent += months * rate;
-            }
-        });
-    } else {
-        const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt) || today;
-        if (driver.contractType === 'monthly') {
-            const rate = parseFloat(driver.monthlyPayment || 0);
-            const months = (today.getFullYear()-cStart.getFullYear())*12 + (today.getMonth()-cStart.getMonth());
-            expectedRent = months * rate;
+      driver.contractHistory.forEach((c, idx) => {
+        if (c.note==='تعديل عقد' || c.type==='تعديل') return;
+        const pStart = toDate(c.startDate);
+        if (!pStart || pStart > today) return;
+        let pEnd = idx < driver.contractHistory.length-1 ? (toDate(driver.contractHistory[idx+1].startDate)||today) : today;
+        if (pEnd > today) pEnd = today;
+        // اعتبار contractEndDate
+        const cEnd = toDate(driver.contractEndDate);
+        if (cEnd && pEnd > cEnd) pEnd = cEnd;
+        if (c.contractType === 'daily') {
+          const days = Math.max(0, Math.floor((pEnd - pStart)/86400000));
+          expectedRent += days * parseFloat(c.dailyRent||0);
         } else {
-            const days = Math.floor((today - cStart) / 86400000);
-            expectedRent = days * parseFloat(driver.dailyRent || driver.dailyWage || 0);
+          const months = Math.max(0, (pEnd.getFullYear()-pStart.getFullYear())*12 + (pEnd.getMonth()-pStart.getMonth()));
+          expectedRent += months * parseFloat(c.monthlyPayment||0);
         }
+      });
+    } else {
+      const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt) || today;
+      let pEnd = toDate(driver.contractEndDate); if (!pEnd || pEnd > today) pEnd = today;
+      if (driver.contractType === 'monthly') {
+        const months = Math.max(0, (pEnd.getFullYear()-cStart.getFullYear())*12 + (pEnd.getMonth()-cStart.getMonth()));
+        expectedRent = months * parseFloat(driver.monthlyPayment||0);
+      } else {
+        const days = Math.max(0, Math.floor((pEnd - cStart)/86400000));
+        expectedRent = days * parseFloat(driver.dailyRent||driver.dailyWage||0);
+      }
     }
+    const rentPaid = payments.filter(p => RENT_TYPES.includes(p.type)).reduce((s,p) => s+parseFloat(p.amount||0), 0);
+    const current = Math.max(0, expectedRent - rentPaid);
+    const old = parseFloat(driver.oldDebts||0);
+    return { current, old, total: current + old };
+  }
 
-    const rentPaid = payments.filter(p => RENT_TYPES.includes(p.type))
-                             .reduce((s,p) => s + parseFloat(p.amount||0), 0);
-    const currentDebt = Math.max(0, expectedRent - rentPaid);
-
-    const fines       = payments.filter(p => p.type === 'تحصيل مخالفة').reduce((s,p)=>s+parseFloat(p.amount||0),0);
-    const finesPaid   = payments.filter(p => p.type === 'سداد مخالفة').reduce((s,p)=>s+parseFloat(p.amount||0),0);
-    const residency   = payments.filter(p => p.type === 'تحصيل رسوم إقامة').reduce((s,p)=>s+parseFloat(p.amount||0),0);
-    const resPaid     = payments.filter(p => p.type === 'سداد رسوم إقامة').reduce((s,p)=>s+parseFloat(p.amount||0),0);
-    const oldDebt     = payments.filter(p => p.type === 'دين قديم').reduce((s,p)=>s+parseFloat(p.amount||0),0);
-    const advances    = payments.filter(p => p.type === 'سلفة إلى السائق').reduce((s,p)=>s+parseFloat(p.amount||0),0);
-    const advPaid     = payments.filter(p => p.type === 'تحصيل سلفة من السائق').reduce((s,p)=>s+parseFloat(p.amount||0),0);
-    const vacation    = payments.filter(p => p.type === 'إجازة سنوية').reduce((s,p)=>s+parseFloat(p.amount||0),0);
-
-    const otherCurrent = Math.max(0, fines - finesPaid) + Math.max(0, residency - resPaid) + Math.max(0, advances - advPaid) - vacation;
-    const totalCurrent = Math.max(0, currentDebt + otherCurrent);
-    const totalOld     = Math.max(0, oldDebt);
-    const total        = Math.max(0, totalCurrent + totalOld);
-
-    return { current: totalCurrent, old: totalOld, total, expectedRent, rentPaid };
-}
-
-// Legacy wrapper for backward compat
-function calcDriverDebt(driverId, driver) {
-    return calcDebtSplit(driverId, driver).total;
-}
-
-function calcDebtAtDate(driver, date) {
+  /* ===== الدين عند تاريخ معيّن - مُصحّح يستخدم contractHistory ===== */
+  function calcDebtAtDate(driver, atDate) {
     const payments = gPayments.filter(p => {
-        const d = toDate(p.date);
-        return p.driverId === driver.id && d && d <= date;
+      const d = toDate(p.date);
+      return p.driverId === driver.id && d && d <= atDate;
     });
-    const rentPaid = payments.filter(p => RENT_TYPES.includes(p.type)).reduce((s,p) => s + parseFloat(p.amount||0), 0);
-    const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt) || date;
-    const days = Math.max(0, Math.floor((date - cStart) / 86400000));
-    const rate = parseFloat(driver.dailyRent || driver.dailyWage || 0);
-    const expected = days * rate;
-    return Math.max(0, expected - rentPaid);
-}
+    let expectedRent = 0;
+    if (driver.contractHistory && driver.contractHistory.length > 0) {
+      driver.contractHistory.forEach((c, idx) => {
+        if (c.note==='تعديل عقد' || c.type==='تعديل') return;
+        const pStart = toDate(c.startDate);
+        if (!pStart || pStart > atDate) return;
+        let pEnd = idx < driver.contractHistory.length-1 ? (toDate(driver.contractHistory[idx+1].startDate)||atDate) : atDate;
+        if (pEnd > atDate) pEnd = atDate;
+        const cEnd = toDate(driver.contractEndDate);
+        if (cEnd && pEnd > cEnd) pEnd = cEnd;
+        if (c.contractType === 'daily') {
+          const days = Math.max(0, Math.floor((pEnd - pStart)/86400000));
+          expectedRent += days * parseFloat(c.dailyRent||0);
+        } else {
+          const months = Math.max(0, (pEnd.getFullYear()-pStart.getFullYear())*12 + (pEnd.getMonth()-pStart.getMonth()));
+          expectedRent += months * parseFloat(c.monthlyPayment||0);
+        }
+      });
+    } else {
+      const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt) || atDate;
+      let pEnd = toDate(driver.contractEndDate); if (!pEnd || pEnd > atDate) pEnd = atDate;
+      if (driver.contractType === 'monthly') {
+        const months = Math.max(0, (pEnd.getFullYear()-cStart.getFullYear())*12 + (pEnd.getMonth()-cStart.getMonth()));
+        expectedRent = months * parseFloat(driver.monthlyPayment||0);
+      } else {
+        const days = Math.max(0, Math.floor((pEnd - cStart)/86400000));
+        expectedRent = days * parseFloat(driver.dailyRent||driver.dailyWage||0);
+      }
+    }
+    const rentPaid = payments.filter(p => RENT_TYPES.includes(p.type)).reduce((s,p) => s+parseFloat(p.amount||0), 0);
+    return Math.max(0, expectedRent - rentPaid) + parseFloat(driver.oldDebts||0);
+  }
 
-function getLastPaymentDate(driverId) {
-    const payments = gPayments
-        .filter(p => p.driverId === driverId && RENT_TYPES.includes(p.type))
-        .map(p => toDate(p.date)).filter(Boolean).sort((a,b) => b-a);
-    return payments.length > 0 ? payments[0] : null;
-}
+  function getLastPaymentDate(driverId) {
+    const ds = gPayments.filter(p => p.driverId===driverId && RENT_TYPES.includes(p.type))
+      .map(p => toDate(p.date)).filter(Boolean).sort((a,b) => b-a);
+    return ds.length ? ds[0] : null;
+  }
 
-function getWeeklyRate(driver) {
-    if (driver.contractType === 'monthly') {
-        return parseFloat(driver.monthlyPayment || 0) / 4;
+  /* ===== Regularity مرجّحة بالمبلغ ===== */
+  function calcRegularity(driver) {
+    const today = new Date(); const WEEKS = 8;
+    const drvPays = gPayments.filter(p => p.driverId===driver.id && RENT_TYPES.includes(p.type));
+    const rate = getWeeklyRate(driver);
+    const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt);
+    let totalScore = 0, validCount = 0;
+    for (let i = 0; i < WEEKS; i++) {
+      const mon = getMondayOfWeek(today); mon.setDate(mon.getDate() - i*7);
+      const sun = new Date(mon); sun.setDate(sun.getDate()+6);
+      if (cStart && sun < cStart) continue;
+      validCount++;
+      const paid = drvPays.filter(p => { const d = toDate(p.date); return d && d>=mon && d<=sun; })
+        .reduce((s,p) => s + parseFloat(p.amount||0), 0);
+      if (rate <= 0) { totalScore += 100; continue; }
+      totalScore += Math.min(100, (paid / rate) * 100);
     }
-    return parseFloat(driver.dailyRent || driver.dailyWage || 0) * 7;
-}
+    return validCount ? Math.round(totalScore / validCount) : 0;
+  }
 
-// ===== CLASSIFICATION LOGIC (5 categories) =====
-function classifyDriver(driver, debtSplit, regularity, trend) {
-    const { current, old, total } = debtSplit;
-    // 🔴 حرج: توقف عن الدفع + دين فوق 500
-    if (total > DEBT_THRESHOLD && regularity < 30) {
-        return { key: 'critical', label: '🔴 حرج', cls: 'cat-critical' };
-    }
-    // 🟠 خطر: لا يدفع بانتظام + دين يرتفع
-    if (regularity < 50 && trend > 20) {
-        return { key: 'danger', label: '🟠 خطر', cls: 'cat-danger' };
-    }
-    // 🟢 ممتاز: يدفع بانتظام + دين الجاري صفر أو ينزل
-    if (regularity >= 80 && current <= 50 && trend <= 0) {
-        return { key: 'excellent', label: '🟢 ممتاز', cls: 'cat-excellent' };
-    }
-    // 🔵 مقبول: يدفع بانتظام + دين قديم ينزل
-    if (regularity >= 60 && trend <= 10) {
-        return { key: 'good', label: '🔵 مقبول', cls: 'cat-good' };
-    }
-    // 🟡 متابعة: الباقي
-    return { key: 'watch', label: '🟡 متابعة', cls: 'cat-watch' };
-}
+  function classifyDriver(driver, split, regularity, trend) {
+    const thr = getDebtThreshold(driver);
+    if (split.total > thr && regularity < 30) return { key:'critical', label:'🔴 حرج', cls:'cat-critical' };
+    if (regularity < 50 && trend > thr*0.04) return { key:'danger', label:'🟠 خطر', cls:'cat-danger' };
+    if (regularity >= 80 && split.current <= thr*0.1 && trend <= 0) return { key:'excellent', label:'🟢 ممتاز', cls:'cat-excellent' };
+    if (regularity >= 60 && trend <= thr*0.02) return { key:'good', label:'🔵 مقبول', cls:'cat-good' };
+    return { key:'watch', label:'🟡 متابعة', cls:'cat-watch' };
+  }
 
-// ===== SECTION 1: ALERTS =====
-function buildAlerts() {
+  /* ===== ربحية صافية للسائق ===== */
+  function calcDriverProfit(driver) {
+    const drvPays = gPayments.filter(p => p.driverId===driver.id);
+    const rentReceived = drvPays.filter(p => RENT_TYPES.includes(p.type)).reduce((s,p)=>s+parseFloat(p.amount||0),0);
+    const otherPays = drvPays.filter(p => !RENT_TYPES.includes(p.type)).reduce((s,p)=>s+parseFloat(p.amount||0),0);
+    const expForDrv = gExpenses.filter(e => e.driverId===driver.id).reduce((s,e)=>s+parseFloat(e.amount||e.expenseAmount||0),0);
+    const revForDrv = gRevenues.filter(r => r.driverId===driver.id).reduce((s,r)=>s+parseFloat(r.amount||r.revenueAmount||0),0);
+    const totalIn = rentReceived + otherPays + revForDrv;
+    const totalOut = expForDrv;
+    return { totalIn, totalOut, netProfit: totalIn - totalOut, rentReceived, expForDrv, revForDrv };
+  }
+
+  /* ================= TAB: نظرة عامة ================= */
+  function buildOverview() {
+    const today = new Date();
+    const active = gDrivers.filter(d => !d.isArchived);
+    let totalDebt = 0, criticalCount = 0, excellentCount = 0;
+    active.forEach(d => {
+      const split = calcDebtSplit(d.id, d);
+      totalDebt += split.total;
+      const reg = calcRegularity(d);
+      const prev = calcDebtAtDate(d, new Date(today.getTime() - 30*86400000));
+      const trend = split.total - prev;
+      const c = classifyDriver(d, split, reg, trend);
+      if (c.key === 'critical') criticalCount++;
+      if (c.key === 'excellent') excellentCount++;
+    });
+
+    // ربحية الشهر الحالي
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthRev = gRevenues.concat(gPayments).filter(r => {
+      const d = toDate(r.date); return d && d >= monthStart;
+    }).reduce((s,r) => s + parseFloat(r.amount||r.revenueAmount||0), 0);
+    const monthExp = gExpenses.filter(e => {
+      const d = toDate(e.date); return d && d >= monthStart;
+    }).reduce((s,e) => s + parseFloat(e.amount||e.expenseAmount||0), 0);
+    const monthNet = monthRev - monthExp;
+
+    // المبلغ المُختفي من النظام (محذوف/مُخفّض) هذا الشهر
+    const accountantOps = gEditHistory.filter(e => {
+      const ts = toDate(e.timestamp); return ts && ts >= monthStart;
+    });
+    const deletedAmount = accountantOps.filter(e => e.action==='delete' || e.action==='permanentDelete')
+      .reduce((s,e) => {
+        const amt = e.changes?.find?.(c => c.field==='amount')?.oldValue || e.fullSnapshot?.amount || 0;
+        return s + parseFloat(amt||0);
+      }, 0);
+    const reducedAmount = accountantOps.filter(e => e.action==='edit')
+      .reduce((s,e) => {
+        const c = e.changes?.find?.(c => c.field==='amount');
+        if (!c) return s;
+        const diff = parseFloat(c.oldValue||0) - parseFloat(c.newValue||0);
+        return s + (diff > 0 ? diff : 0);
+      }, 0);
+    const ghostMoney = deletedAmount + reducedAmount;
+
+    document.getElementById('tab-overview').innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi blue"><div class="lbl">عدد السائقين</div><div class="val">${active.length}</div><div class="sub">نشط</div></div>
+        <div class="kpi red"><div class="lbl">سائقين حرجين</div><div class="val">${criticalCount}</div><div class="sub">يحتاج تدخل فوري</div></div>
+        <div class="kpi green"><div class="lbl">سائقين ممتازين</div><div class="val">${excellentCount}</div></div>
+        <div class="kpi orange"><div class="lbl">إجمالي الديون</div><div class="val">${fmtKD(totalDebt)}</div></div>
+        <div class="kpi green"><div class="lbl">إيرادات هذا الشهر</div><div class="val">${fmtKD(monthRev)}</div></div>
+        <div class="kpi red"><div class="lbl">مصروفات هذا الشهر</div><div class="val">${fmtKD(monthExp)}</div></div>
+        <div class="kpi ${monthNet>=0?'green':'red'}"><div class="lbl">صافي هذا الشهر</div><div class="val">${fmtKD(monthNet)}</div></div>
+        <div class="kpi ${ghostMoney>0?'red':'green'}"><div class="lbl">⚠️ مبلغ اختفى من النظام</div><div class="val">${fmtKD(ghostMoney)}</div><div class="sub">حذف+تخفيض هذا الشهر</div></div>
+      </div>
+
+      <div class="card">
+        <h3>📌 ملخص ذكي</h3>
+        ${buildSmartSummary(active, totalDebt, monthNet, ghostMoney, criticalCount)}
+      </div>
+    `;
+  }
+
+  function buildSmartSummary(active, totalDebt, monthNet, ghostMoney, criticalCount) {
+    const insights = [];
+    if (criticalCount > 0) insights.push(`🔴 لديك <b>${criticalCount}</b> سائق في حالة حرجة - راجع تبويب التحذيرات.`);
+    if (ghostMoney > 50) insights.push(`💸 <b>${fmtKD(ghostMoney)}</b> اختفت من النظام هذا الشهر (حذف/تخفيض). راجع رقابة المحاسب.`);
+    if (monthNet < 0) insights.push(`📉 الشهر بخسارة <b>${fmtKD(Math.abs(monthNet))}</b>. راجع المصروفات.`);
+    else if (monthNet > 0) insights.push(`📈 الشهر بربح <b>${fmtKD(monthNet)}</b>.`);
+
+    // توقع نهاية الشهر
+    const today = new Date();
+    const dayOfMonth = today.getDate();
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+    const projectedNet = monthNet * (daysInMonth / dayOfMonth);
+    insights.push(`🔮 متوقع نهاية الشهر: <b>${fmtKD(projectedNet)}</b> (إذا استمر النمط الحالي).`);
+
+    // أعلى دائن
+    const sorted = active.map(d => ({ d, split: calcDebtSplit(d.id, d) })).sort((a,b) => b.split.total - a.split.total);
+    if (sorted[0] && sorted[0].split.total > 0) {
+      insights.push(`🏆 أعلى دين: <b>${sorted[0].d.name}</b> بـ ${fmtKD(sorted[0].split.total)}.`);
+    }
+
+    return '<ul style="line-height:2;list-style:none;padding:0;">' + insights.map(i => '<li>'+i+'</li>').join('') + '</ul>';
+  }
+
+  /* ================= TAB: التحذيرات ================= */
+  function buildAlerts() {
     const today = new Date();
     const alerts = [];
-    let overdueCount = 0, stoppedCount = 0, excellentCount = 0;
-    let totalDebt = 0, debtDecreasing = 0, debtIncreasing = 0;
-
     gDrivers.filter(d => !d.isArchived).forEach(driver => {
-        const split = calcDebtSplit(driver.id, driver);
-        const debt = split.total;
-        totalDebt += debt;
+      const split = calcDebtSplit(driver.id, driver);
+      const thr = getDebtThreshold(driver);
+      const stopD = getStopDays(driver);
+      const lastPay = getLastPaymentDate(driver.id);
+      const daysSince = lastPay ? Math.floor((today - lastPay)/86400000) : 999;
 
-        const prevDebt = calcDebtAtDate(driver, new Date(today.getTime() - 30*86400000));
-        const trend30 = debt - prevDebt;
-        if (trend30 < -10) debtDecreasing++;
-        else if (trend30 > 10) debtIncreasing++;
-
-        const lastPay = getLastPaymentDate(driver.id);
-        const daysSincePay = lastPay ? Math.floor((today - lastPay) / 86400000) : 999;
-
-        if (debt > DEBT_THRESHOLD) {
-            overdueCount++;
-            alerts.push({
-                level: debt > 1500 ? 'red' : 'orange',
-                icon: '💰',
-                title: `دين ${driver.name || driver.id} تجاوز ${DEBT_THRESHOLD} KD`,
-                desc: `الجاري: ${split.current.toFixed(3)} KD | القديم: ${split.old.toFixed(3)} KD`,
-                amount: debt.toFixed(3) + ' KD',
-                driverId: driver.id
-            });
-        }
-        if (daysSincePay > STOP_DAYS) {
-            stoppedCount++;
-            alerts.push({
-                level: 'red',
-                icon: '🛑',
-                title: `${driver.name || driver.id} توقف عن الدفع`,
-                desc: `آخر دفعة منذ ${daysSincePay} يوماً`,
-                amount: daysSincePay + ' يوم',
-                driverId: driver.id
-            });
-        }
-
-        // تصنيف للممتازين
-        const driverPayments = gPayments.filter(p => p.driverId === driver.id && RENT_TYPES.includes(p.type));
-        const weeks8 = [];
-        for (let i = 7; i >= 0; i--) {
-            const mon = getMondayOfWeek(today);
-            mon.setDate(mon.getDate() - i*7);
-            const sun = new Date(mon); sun.setDate(sun.getDate()+6);
-            weeks8.push({ monday: new Date(mon), sunday: new Date(sun) });
-        }
-        let paidW = 0, validW = 0;
-        const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt);
-        weeks8.forEach(w => {
-            if (cStart && w.sunday < cStart) return;
-            validW++;
-            if (driverPayments.some(p => { const d=toDate(p.date); return d && d>=w.monday && d<=w.sunday; })) paidW++;
-        });
-        const reg = validW > 0 ? paidW/validW*100 : 0;
-        const prevWeekDebt = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
-        const trend7 = debt - prevWeekDebt;
-        const classif = classifyDriver(driver, split, reg, trend7);
-        if (classif.key === 'excellent') excellentCount++;
+      if (split.total > thr) {
+        alerts.push({ level: split.total > thr*2 ? 'red':'orange', icon:'💰',
+          title: `${driver.name||driver.id}: دين تجاوز عتبته (${fmtKD(thr)})`,
+          desc: `جاري: ${fmtKD(split.current)} | قديم: ${fmtKD(split.old)}`,
+          amount: fmtKD(split.total), driverId: driver.id });
+      }
+      if (daysSince > stopD) {
+        alerts.push({ level: daysSince > stopD*2 ? 'red':'orange', icon:'🛑',
+          title: `${driver.name||driver.id}: توقف عن الدفع ${daysSince} يوم`,
+          desc: `عتبة التوقف: ${stopD} يوم | آخر دفعة: ${fmtDate(lastPay)}`,
+          driverId: driver.id });
+      }
+      // عقد منتهي
+      const cEnd = toDate(driver.contractEndDate);
+      if (cEnd && cEnd < today) {
+        alerts.push({ level:'yellow', icon:'📋',
+          title: `${driver.name}: عقده منتهي منذ ${Math.floor((today-cEnd)/86400000)} يوم`,
+          desc: `تاريخ انتهاء العقد: ${fmtDate(cEnd)}`,
+          driverId: driver.id });
+      }
     });
+    alerts.sort((a,b) => ({red:0,orange:1,yellow:2})[a.level] - ({red:0,orange:1,yellow:2})[b.level]);
+    document.getElementById('tab-alerts').innerHTML = `
+      <div class="card"><h3>🚨 التحذيرات الفورية (${alerts.length})</h3>
+      ${alerts.length===0 ? '<p style="color:#3fb950;">✅ ما فيه تحذيرات</p>' :
+        alerts.map(a => `<div class="alert ${a.level}" onclick="openDriverModal('${a.driverId}')">
+          <div class="icon">${a.icon}</div>
+          <div class="body"><div class="title">${a.title}</div><div class="desc">${a.desc}</div></div>
+          ${a.amount ? `<div class="amount">${a.amount}</div>` : ''}
+        </div>`).join('')}
+      </div>
+    `;
+  }
 
-    // تحذيرات المحاسب
-    const thisMonth = today.getMonth(), thisYear = today.getFullYear();
-    const monthEdits = gEditHistory.filter(e => {
-        const ts = toDate(e.timestamp);
-        return ts && ts.getMonth() === thisMonth && ts.getFullYear() === thisYear && e.editedByRole === 'accountant';
-    });
-    const deleteCount = monthEdits.filter(e => e.action === 'delete').length;
-    const downEdits   = monthEdits.filter(e => {
-        if (e.action !== 'edit') return false;
-        return (e.changes||[]).some(c => c.field === 'amount' && parseFloat(c.newValue||0) < parseFloat(c.oldValue||0));
-    });
-    if (deleteCount >= 3) {
-        alerts.push({ level:'orange', icon:'🗑️', title:'المحاسب حذف سجلات متعددة هذا الشهر',
-            desc:`عدد الحذوفات: ${deleteCount}`, amount: deleteCount + ' حذف' });
-    }
-    if (downEdits.length >= 2) {
-        const totalDown = downEdits.reduce((s,e) => {
-            const c = (e.changes||[]).find(c => c.field==='amount');
-            return c ? s + (parseFloat(c.oldValue||0) - parseFloat(c.newValue||0)) : s;
-        }, 0);
-        alerts.push({ level:'orange', icon:'📉', title:'تعديلات نزولية متعددة من المحاسب',
-            desc:`${downEdits.length} تعديل بإجمالي ${totalDown.toFixed(3)} KD`, amount: totalDown.toFixed(3) + ' KD' });
-    }
-
-    // تحديث الملخص
-    document.getElementById('totalDrivers').textContent       = gDrivers.filter(d=>!d.isArchived).length;
-    document.getElementById('overdueCount').textContent       = overdueCount;
-    document.getElementById('stoppedCount').textContent       = stoppedCount;
-    document.getElementById('excellentCount').textContent     = excellentCount;
-    document.getElementById('totalDebt').textContent          = totalDebt.toFixed(0);
-    document.getElementById('debtDecreasingCount').textContent = debtDecreasing;
-    document.getElementById('debtIncreasingCount').textContent = debtIncreasing;
-    document.getElementById('monthEdits').textContent         = monthEdits.length;
-    document.getElementById('alertsCount').textContent        = alerts.length;
-
-    const grid = document.getElementById('alertsGrid');
-    if (alerts.length === 0) {
-        grid.innerHTML = '<div class="no-alerts">✅ لا توجد تحذيرات حالياً — كل شيء على ما يرام!</div>';
-        return;
-    }
-    const order = { red:0, orange:1, yellow:2, green:3 };
-    alerts.sort((a,b) => (order[a.level]||9) - (order[b.level]||9));
-    grid.innerHTML = alerts.map(a => `
-        <div class="alert-card ${a.level}" onclick="${a.driverId ? `openDriverModal('${a.driverId}')` : ''}">
-            <div class="alert-icon">${a.icon}</div>
-            <div class="alert-body">
-                <div class="alert-title">${a.title}</div>
-                <div class="alert-desc">${a.desc}</div>
-                <div class="alert-amount">${a.amount}</div>
-            </div>
-        </div>
-    `).join('');
-}
-
-// ===== SECTION 2: WEEKLY TABLE =====
-function buildWeeklyTable() {
+  /* ================= TAB: الأسبوعي ================= */
+  function buildWeeklyTable() {
     const today = new Date();
     const WEEKS = 8;
     const weeks = [];
     for (let i = WEEKS-1; i >= 0; i--) {
-        const monday = getMondayOfWeek(today);
-        monday.setDate(monday.getDate() - i*7);
-        const sunday = new Date(monday); sunday.setDate(sunday.getDate()+6);
-        weeks.push({ monday: new Date(monday), sunday: new Date(sunday) });
+      const mon = getMondayOfWeek(today); mon.setDate(mon.getDate() - i*7);
+      const sun = new Date(mon); sun.setDate(sun.getDate()+6);
+      weeks.push({ monday: new Date(mon), sunday: new Date(sun) });
     }
-
-    const thead = document.getElementById('weeklyHead');
-    thead.innerHTML = `<tr>
-        <th class="name-col">السائق</th>
-        <th>الدين الجاري</th>
-        <th>الدين القديم</th>
-        <th>الاتجاه</th>
-        ${weeks.map((w,i) => `<th title="${formatDate(w.monday)}">${i===WEEKS-1?'هذا الأسبوع':('أ'+(i+1))}</th>`).join('')}
-        <th>الانتظام</th>
-        <th>التصنيف</th>
-    </tr>`;
-
-    const dailyDrivers = gDrivers.filter(d => !d.isArchived && d.contractType === 'daily');
-    const tbody = document.getElementById('weeklyBody');
-    if (dailyDrivers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:30px;color:#888;">لا يوجد سائقون يوميون</td></tr>';
-        return;
-    }
-
+    const dailyDrivers = gDrivers.filter(d => !d.isArchived && d.contractType==='daily');
     const rows = dailyDrivers.map(driver => {
-        const split = calcDebtSplit(driver.id, driver);
-        const driverPayments = gPayments.filter(p => p.driverId === driver.id && RENT_TYPES.includes(p.type));
-        const prevWeekDebt = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
-        const trend = split.total - prevWeekDebt;
+      const split = calcDebtSplit(driver.id, driver);
+      const drvPays = gPayments.filter(p => p.driverId===driver.id && RENT_TYPES.includes(p.type));
+      const prev = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
+      const trend = split.total - prev;
+      const cells = weeks.map(w => {
+        const cStart = toDate(driver.contractStartDate)||toDate(driver.createdAt);
+        if (cStart && w.sunday < cStart) return '<span class="week-cell no-data">⬜</span>';
+        const paid = drvPays.filter(p => { const d=toDate(p.date); return d && d>=w.monday && d<=w.sunday; });
+        if (paid.length === 0) return '<span class="week-cell missed">❌</span>';
+        const onMon = paid.some(p => toDate(p.date).getDay()===1);
+        return `<span class="week-cell ${onMon?'paid':'late'}">${onMon?'✅':'🟡'}</span>`;
+      }).join('');
+      const reg = calcRegularity(driver);
+      const cls = classifyDriver(driver, split, reg, trend);
+      const trendCls = trend>20?'trend-up':trend<-20?'trend-down':'trend-flat';
+      const trendIcon = trend>20?'↑':trend<-20?'↓':'→';
+      return `<tr>
+        <td class="name" onclick="openDriverModal('${driver.id}')">${driver.name||driver.id}</td>
+        <td>${fmtKD(split.current)}</td><td>${fmtKD(split.old)}</td>
+        <td class="${trendCls}">${trendIcon} ${fmtKD(Math.abs(trend))}</td>
+        <td>${cells}</td>
+        <td>${reg}%</td><td><span class="badge ${cls.cls}">${cls.label}</span></td>
+      </tr>`;
+    }).join('');
+    document.getElementById('tab-weekly').innerHTML = `
+      <div class="card"><h3>📅 الالتزام الأسبوعي - السائقون اليوميون (${dailyDrivers.length})</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>السائق</th><th>الدين الجاري</th><th>الدين القديم</th><th>الاتجاه</th>
+        <th>${WEEKS} أسابيع</th><th>الانتظام</th><th>التصنيف</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="7" style="padding:30px;color:#888;">لا يوجد سائقون يوميون</td></tr>'}</tbody>
+      </table></div></div>
+    `;
+  }
 
-        const weekCells = weeks.map(w => {
-            const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt);
-            if (cStart && w.sunday < cStart) return { status:'no-data', icon:'⬜' };
-            const paidInWeek = driverPayments.filter(p => { const d=toDate(p.date); return d && d>=w.monday && d<=w.sunday; });
-            if (paidInWeek.length === 0) return { status:'missed', icon:'❌' };
-            const paidOnMonday = paidInWeek.some(p => { const d=toDate(p.date); return d && d.getDay()===1; });
-            return paidOnMonday ? { status:'paid', icon:'✅' } : { status:'late', icon:'🟡' };
-        });
-
-        const validWeeks = weekCells.filter(w => w.status !== 'no-data');
-        const paidWeeks  = weekCells.filter(w => w.status === 'paid' || w.status === 'late').length;
-        const regularity = validWeeks.length > 0 ? Math.round(paidWeeks/validWeeks.length*100) : 0;
-
-        const trendClass = trend > 20 ? 'up' : trend < -20 ? 'down' : 'flat';
-        const trendIcon  = trend > 20 ? '↑' : trend < -20 ? '↓' : '→';
-        const trendText  = `${trendIcon} ${Math.abs(trend).toFixed(0)} KD`;
-
-        const classif = classifyDriver(driver, split, regularity, trend);
-        const currentClass = split.current > 500 ? 'high' : split.current > 100 ? 'medium' : split.current > 0 ? 'low' : 'zero';
-        const oldClass     = split.old > 500 ? 'high' : split.old > 100 ? 'medium' : split.old > 0 ? 'low' : 'zero';
-
-        return { driver, split, currentClass, oldClass, trendClass, trendText, weekCells, regularity, classif };
-    });
-
-    rows.sort((a,b) => b.split.total - a.split.total);
-    tbody.innerHTML = rows.map(r => `
-        <tr>
-            <td class="name-col" onclick="openDriverModal('${r.driver.id}')">${r.driver.name || r.driver.id}</td>
-            <td><span class="debt-badge ${r.currentClass}">${r.split.current.toFixed(3)}</span></td>
-            <td><span class="debt-badge ${r.oldClass}">${r.split.old > 0 ? r.split.old.toFixed(3) : '—'}</span></td>
-            <td><span class="trend ${r.trendClass}">${r.trendText}</span></td>
-            ${r.weekCells.map(w => `<td class="week-cell ${w.status}">${w.icon}</td>`).join('')}
-            <td style="color:${r.regularity>=80?'#00c853':r.regularity>=50?'#ffd700':'#e94560'};font-weight:700;">${r.regularity}%</td>
-            <td><span class="cat-badge ${r.classif.cls}">${r.classif.label}</span></td>
-        </tr>
-    `).join('');
-}
-
-// ===== SECTION 3: MONTHLY GRID =====
-function buildMonthlyGrid() {
-    const today = new Date();
-    const MONTHS = 6;
+  /* ================= TAB: الشهري ================= */
+  function buildMonthlyGrid() {
+    const today = new Date(); const MONTHS = 6;
     const months = [];
     for (let i = MONTHS-1; i >= 0; i--) {
-        const d = new Date(today.getFullYear(), today.getMonth()-i, 1);
-        months.push({
-            year: d.getFullYear(), month: d.getMonth(),
-            label: d.toLocaleDateString('ar-KW', { month:'short', year:'numeric' }),
-            firstMonday: getFirstMondayOfMonth(d.getFullYear(), d.getMonth())
-        });
+      const d = new Date(today.getFullYear(), today.getMonth()-i, 1);
+      months.push({ year: d.getFullYear(), month: d.getMonth(),
+        label: d.toLocaleDateString('ar-KW', { month:'short', year:'numeric' }) });
     }
-
-    const monthlyDrivers = gDrivers.filter(d => !d.isArchived && d.contractType === 'monthly');
-    const grid = document.getElementById('monthlyGrid');
-    if (monthlyDrivers.length === 0) {
-        grid.innerHTML = '<div style="color:#888;padding:20px;">لا يوجد سائقون شهريون</div>';
-        return;
+    const monthly = gDrivers.filter(d => !d.isArchived && d.contractType==='monthly');
+    if (monthly.length === 0) {
+      document.getElementById('tab-monthly').innerHTML = '<div class="card"><p style="color:#888;">لا يوجد سائقون شهريون</p></div>';
+      return;
     }
-
-    grid.innerHTML = monthlyDrivers.map(driver => {
-        const split = calcDebtSplit(driver.id, driver);
-        const prevDebt = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
-        const trend = split.total - prevDebt;
-        const driverPayments = gPayments.filter(p => p.driverId === driver.id && RENT_TYPES.includes(p.type));
-
-        // حساب الانتظام لآخر 6 أشهر
-        let paidM = 0;
-        const monthChips = months.map(m => {
-            const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt);
-            const monthStart = new Date(m.year, m.month, 1);
-            const monthEnd   = new Date(m.year, m.month+1, 0);
-            if (monthStart > today) return `<div class="month-chip future"><span class="month-label">${m.label}</span><span class="month-icon">⬜</span></div>`;
-            if (cStart && monthEnd < cStart) return `<div class="month-chip future"><span class="month-label">${m.label}</span><span class="month-icon">⬜</span></div>`;
-            const paidInMonth = driverPayments.filter(p => {
-                const d = toDate(p.date);
-                return d && d.getFullYear()===m.year && d.getMonth()===m.month;
-            });
-            if (paidInMonth.length === 0) {
-                if (m.year===today.getFullYear() && m.month===today.getMonth() && today.getDate()<=7)
-                    return `<div class="month-chip future"><span class="month-label">${m.label}</span><span class="month-icon">⬜</span></div>`;
-                return `<div class="month-chip missed"><span class="month-label">${m.label}</span><span class="month-icon">❌</span></div>`;
-            }
-            paidM++;
-            const paidOnTime = paidInMonth.some(p => {
-                const d = toDate(p.date);
-                return d && d <= new Date(m.year, m.month, m.firstMonday+3);
-            });
-            return paidOnTime
-                ? `<div class="month-chip paid"><span class="month-label">${m.label}</span><span class="month-icon">✅</span></div>`
-                : `<div class="month-chip late"><span class="month-label">${m.label}</span><span class="month-icon">🟡</span></div>`;
-        }).join('');
-
-        const regularity = Math.round(paidM / MONTHS * 100);
-        const classif = classifyDriver(driver, split, regularity, trend);
-        const currentClass = split.current > 500 ? 'high' : split.current > 100 ? 'medium' : split.current > 0 ? 'low' : 'zero';
-
-        return `
-            <div class="driver-month-card" onclick="openDriverModal('${driver.id}')">
-                <div class="driver-name">
-                    <span>${driver.name || driver.id}</span>
-                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                        <span class="debt-badge ${currentClass}">${split.current.toFixed(3)}</span>
-                        ${split.old > 0 ? `<span style="font-size:11px;color:#666;">+${split.old.toFixed(0)} قديم</span>` : ''}
-                        <span class="cat-badge ${classif.cls}" style="font-size:11px;padding:2px 8px;">${classif.label}</span>
-                    </div>
-                </div>
-                <div class="months-row">${monthChips}</div>
-            </div>
-        `;
+    const rows = monthly.map(driver => {
+      const split = calcDebtSplit(driver.id, driver);
+      const drvPays = gPayments.filter(p => p.driverId===driver.id && RENT_TYPES.includes(p.type));
+      const cStart = toDate(driver.contractStartDate)||toDate(driver.createdAt);
+      let paidM = 0, validM = 0;
+      const cells = months.map(m => {
+        const mStart = new Date(m.year, m.month, 1);
+        const mEnd = new Date(m.year, m.month+1, 0);
+        if (mStart > today) return '<td><span class="week-cell no-data">⬜</span></td>';
+        if (cStart && mEnd < cStart) return '<td><span class="week-cell no-data">⬜</span></td>';
+        validM++;
+        const paid = drvPays.filter(p => { const d=toDate(p.date); return d && d>=mStart && d<=mEnd; })
+          .reduce((s,p)=>s+parseFloat(p.amount||0),0);
+        const expected = parseFloat(driver.monthlyPayment||0);
+        if (paid >= expected*0.95) { paidM++; return '<td><span class="week-cell paid">✅</span></td>'; }
+        if (paid > 0) return '<td><span class="week-cell late">🟡</span></td>';
+        return '<td><span class="week-cell missed">❌</span></td>';
+      }).join('');
+      const reg = validM ? Math.round(paidM/validM*100) : 0;
+      return `<tr>
+        <td class="name" onclick="openDriverModal('${driver.id}')">${driver.name||driver.id}</td>
+        <td>${fmtKD(parseFloat(driver.monthlyPayment||0))}</td>
+        <td>${fmtKD(split.total)}</td>
+        ${cells}
+        <td>${reg}%</td>
+      </tr>`;
     }).join('');
-}
-
-function getFirstMondayOfMonth(year, month) {
-    for (let d = 1; d <= 7; d++) {
-        if (new Date(year, month, d).getDay() === 1) return d;
-    }
-    return 1;
-}
-
-// ===== SECTION 4: WEEKLY FOLLOWUP TABLE (يوم الخميس) =====
-function buildFollowupTable() {
-    const today = new Date();
-    // نافذة الأسبوع: من الاثنين حتى الأربعاء (3 أيام للدفع)
-    const monday = getMondayOfWeek(today);
-    const wednesday = new Date(monday); wednesday.setDate(wednesday.getDate()+2);
-    wednesday.setHours(23,59,59,999);
-
-    const activeDrivers = gDrivers.filter(d => !d.isArchived);
-    const tbody = document.getElementById('followupBody');
-
-    let paidCount = 0, unpaidCount = 0, partialCount = 0;
-    let totalExpected = 0, totalCollected = 0;
-
-    const rows = activeDrivers.map(driver => {
-        const split = calcDebtSplit(driver.id, driver);
-        const weeklyRate = getWeeklyRate(driver);
-        totalExpected += weeklyRate;
-
-        // الدفعات هذا الأسبوع (من الاثنين حتى الأربعاء)
-        const weekPayments = gPayments.filter(p => {
-            const d = toDate(p.date);
-            return p.driverId === driver.id && RENT_TYPES.includes(p.type) && d && d >= monday && d <= wednesday;
-        });
-        const paidThisWeek = weekPayments.reduce((s,p) => s + parseFloat(p.amount||0), 0);
-        totalCollected += paidThisWeek;
-
-        const prevDebt = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
-        const trend = split.total - prevDebt;
-        const trendClass = trend > 20 ? 'up' : trend < -20 ? 'down' : 'flat';
-        const trendIcon  = trend > 20 ? '↑ يرتفع' : trend < -20 ? '↓ ينزل' : '→ ثابت';
-
-        let payStatus, payStatusClass, payIcon;
-        if (weeklyRate === 0) {
-            payStatus = '—'; payStatusClass = ''; payIcon = '—';
-        } else if (paidThisWeek >= weeklyRate * 0.95) {
-            payStatus = 'دفع ✅'; payStatusClass = 'paid-status'; payIcon = '✅';
-            paidCount++;
-        } else if (paidThisWeek > 0) {
-            payStatus = 'جزئي 🟡'; payStatusClass = 'partial-status'; payIcon = '🟡';
-            partialCount++;
-        } else {
-            payStatus = 'لم يدفع ❌'; payStatusClass = 'unpaid-status'; payIcon = '❌';
-            unpaidCount++;
-        }
-
-        const currentClass = split.current > 500 ? 'high' : split.current > 100 ? 'medium' : split.current > 0 ? 'low' : 'zero';
-        const oldClass     = split.old > 500 ? 'high' : split.old > 100 ? 'medium' : split.old > 0 ? 'low' : 'zero';
-        const totalClass   = split.total > 1500 ? 'high' : split.total > 500 ? 'medium' : split.total > 0 ? 'low' : 'zero';
-        const ctLabel = driver.contractType === 'monthly' ? 'شهري' : 'يومي';
-
-        // المبلغ المثالي الأسبوعي
-        const idealAmt = getIdealWeeklyAmount(driver, split);
-        let idealBadge = '';
-        if (weeklyRate > 0) {
-            if (paidThisWeek >= idealAmt * 0.95) {
-                idealBadge = '<span class="ideal-badge ideal-ok">⭐ مثالي</span>';
-            } else if (paidThisWeek >= weeklyRate * 0.95) {
-                idealBadge = '<span class="ideal-badge ideal-low">✅ أجرة فقط</span>';
-            } else if (paidThisWeek > 0) {
-                idealBadge = '<span class="ideal-badge ideal-bad">⚠️ جزئي</span>';
-            }
-        }
-
-        // مستوى الإنذار
-        const lastPayDate = getLastPaymentDate(driver.id);
-        const daysSince = lastPayDate ? Math.floor((today - lastPayDate) / 86400000) : 999;
-        const WEEKS_REG = 8;
-        const driverRentPays = gPayments.filter(p => p.driverId === driver.id && RENT_TYPES.includes(p.type));
-        let paidRegW = 0;
-        for (let i = 0; i < WEEKS_REG; i++) {
-            const mon = getMondayOfWeek(today); mon.setDate(mon.getDate() - i*7);
-            const sun = new Date(mon); sun.setDate(sun.getDate()+6);
-            if (driverRentPays.some(p => { const d=toDate(p.date); return d && d>=mon && d<=sun; })) paidRegW++;
-        }
-        const regularity = Math.round(paidRegW / WEEKS_REG * 100);
-        const warning = getWarningLevel(split, regularity, trend, daysSince);
-
-        return {
-            driver, split, weeklyRate, paidThisWeek, payStatus, payStatusClass,
-            trendClass, trendIcon, currentClass, oldClass, totalClass, ctLabel, payIcon,
-            idealAmt, idealBadge, warning
-        };
-    });
-
-    // ترتيب: لم يدفع أولاً، ثم جزئي، ثم دفع
-    const order = { 'لم يدفع ❌': 0, 'جزئي 🟡': 1, 'دفع ✅': 2, '—': 3 };
-    rows.sort((a,b) => (order[a.payStatus]||9) - (order[b.payStatus]||9) || b.split.total - a.split.total);
-
-    tbody.innerHTML = rows.map(r => `
-        <tr>
-            <td onclick="openDriverModal('${r.driver.id}')" style="cursor:pointer;color:#fff;font-weight:600;" onmouseover="this.style.color='#e94560'" onmouseout="this.style.color='#fff'">${r.driver.name || r.driver.id}</td>
-            <td style="color:#aaa;">${r.ctLabel}</td>
-            <td style="font-weight:700;color:#4fc3f7;">${r.weeklyRate > 0 ? r.weeklyRate.toFixed(3) + ' KD' : '—'}</td>
-            <td style="font-size:11px;color:#888;">${r.weeklyRate > 0 ? r.idealAmt.toFixed(3) + ' KD' : '—'}</td>
-            <td class="${r.payStatusClass}">${r.payStatus}</td>
-            <td style="color:#fff;">${r.paidThisWeek > 0 ? r.paidThisWeek.toFixed(3) + ' KD' : '—'} ${r.idealBadge}</td>
-            <td><span class="debt-badge ${r.currentClass}">${r.split.current.toFixed(3)}</span></td>
-            <td><span class="debt-badge ${r.oldClass}">${r.split.old > 0 ? r.split.old.toFixed(3) : '—'}</span></td>
-            <td><span class="debt-badge ${r.totalClass}">${r.split.total.toFixed(3)}</span></td>
-            <td><span class="trend ${r.trendClass}">${r.trendIcon}</span></td>
-            <td>${r.payIcon}</td>
-            <td>${r.warning ? `<span class="warn-badge ${r.warning.cls}">${r.warning.label}</span>` : '—'}</td>
-        </tr>
-    `).join('');
-
-    // ملخص الأسبوع
-    const gap = totalExpected - totalCollected;
-    const gapClass = gap <= 0 ? 'ok' : gap < totalExpected * 0.2 ? 'warn' : 'bad';
-    document.getElementById('followupSummary').innerHTML = `
-        <div class="summary-card" style="min-width:140px;">
-            <div class="s-icon">✅</div>
-            <div class="s-val" style="color:#00c853;">${paidCount}</div>
-            <div class="s-label">دفعوا هذا الأسبوع</div>
-        </div>
-        <div class="summary-card" style="min-width:140px;">
-            <div class="s-icon">🟡</div>
-            <div class="s-val" style="color:#ffd700;">${partialCount}</div>
-            <div class="s-label">دفعوا جزئياً</div>
-        </div>
-        <div class="summary-card" style="min-width:140px;">
-            <div class="s-icon">❌</div>
-            <div class="s-val" style="color:#e94560;">${unpaidCount}</div>
-            <div class="s-label">لم يدفعوا</div>
-        </div>
-        <div class="summary-card" style="min-width:140px;">
-            <div class="s-icon">💰</div>
-            <div class="s-val" style="color:#4fc3f7;">${totalCollected.toFixed(0)}</div>
-            <div class="s-label">تم تحصيله (KD)</div>
-        </div>
-        <div class="summary-card" style="min-width:140px;">
-            <div class="s-icon">📊</div>
-            <div class="s-val" style="color:#aaa;">${totalExpected.toFixed(0)}</div>
-            <div class="s-label">المتوقع هذا الأسبوع (KD)</div>
-        </div>
-        <div class="summary-card" style="min-width:140px;">
-            <div class="s-icon">⚖️</div>
-            <div class="s-val rev-gap ${gapClass}">${gap > 0 ? '+' : ''}${gap.toFixed(0)}</div>
-            <div class="s-label">الفرق (KD)</div>
-        </div>
+    document.getElementById('tab-monthly').innerHTML = `
+      <div class="card"><h3>🗓️ الالتزام الشهري - السائقون الشهريون (${monthly.length})</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>السائق</th><th>الإيجار/شهر</th><th>الدين</th>
+        ${months.map(m => `<th>${m.label}</th>`).join('')}
+        <th>الانتظام</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div></div>
     `;
-}
+  }
 
-// ===== SECTION 5: MONITOR =====
-function buildMonitorSection() {
+  /* ================= TAB: متابعة هذا الأسبوع ================= */
+  function buildFollowupTable() {
     const today = new Date();
-    const thisMonth = today.getMonth(), thisYear = today.getFullYear();
+    const monday = getMondayOfWeek(today);
+    const sunday = new Date(monday); sunday.setDate(sunday.getDate()+6);
+    sunday.setHours(23,59,59,999);
+    const active = gDrivers.filter(d => !d.isArchived);
+    let paidCount=0, unpaidCount=0, partialCount=0, expected=0, collected=0;
+    const rows = active.map(driver => {
+      const rate = getWeeklyRate(driver);
+      expected += rate;
+      const wPays = gPayments.filter(p => {
+        const d = toDate(p.date);
+        return p.driverId===driver.id && RENT_TYPES.includes(p.type) && d && d>=monday && d<=sunday;
+      });
+      const paid = wPays.reduce((s,p)=>s+parseFloat(p.amount||0),0);
+      collected += paid;
+      let status, statusCls;
+      if (rate === 0) { status='—'; statusCls=''; }
+      else if (paid >= rate*0.95) { status='✅ دفع'; statusCls='trend-down'; paidCount++; }
+      else if (paid > 0) { status='🟡 جزئي'; statusCls='trend-flat'; partialCount++; }
+      else { status='❌ ما دفع'; statusCls='trend-up'; unpaidCount++; }
+      const split = calcDebtSplit(driver.id, driver);
+      return `<tr>
+        <td class="name" onclick="openDriverModal('${driver.id}')">${driver.name||driver.id}</td>
+        <td>${driver.contractType==='monthly'?'شهري':'يومي'}</td>
+        <td>${fmtKD(rate)}</td>
+        <td>${fmtKD(paid)}</td>
+        <td class="${statusCls}">${status}</td>
+        <td>${fmtKD(split.total)}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('tab-followup').innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi green"><div class="lbl">دفعوا</div><div class="val">${paidCount}</div></div>
+        <div class="kpi orange"><div class="lbl">دفع جزئي</div><div class="val">${partialCount}</div></div>
+        <div class="kpi red"><div class="lbl">ما دفعوا</div><div class="val">${unpaidCount}</div></div>
+        <div class="kpi blue"><div class="lbl">المتوقع</div><div class="val">${fmtKD(expected)}</div></div>
+        <div class="kpi blue"><div class="lbl">المحصّل</div><div class="val">${fmtKD(collected)}</div></div>
+        <div class="kpi ${collected>=expected*0.8?'green':'red'}"><div class="lbl">نسبة التحصيل</div><div class="val">${expected>0?Math.round(collected/expected*100):0}%</div></div>
+      </div>
+      <div class="card"><h3>⚡ متابعة الأسبوع الحالي (${fmtDate(monday)} → ${fmtDate(sunday)})</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>السائق</th><th>نوع</th><th>المتوقع</th><th>المدفوع</th><th>الحالة</th><th>الدين الكلي</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div></div>
+    `;
+  }
 
-    const accountantHistory = gEditHistory.filter(e => {
-        const ts = toDate(e.timestamp);
-        return ts && ts.getMonth()===thisMonth && ts.getFullYear()===thisYear && e.editedByRole==='accountant';
+  /* ================= TAB: الربحية الصافية ================= */
+  function buildProfit() {
+    const active = gDrivers.filter(d => !d.isArchived);
+    const data = active.map(d => ({ driver: d, ...calcDriverProfit(d) }));
+    data.sort((a,b) => b.netProfit - a.netProfit);
+    const totals = data.reduce((acc,d) => ({
+      totalIn: acc.totalIn + d.totalIn,
+      totalOut: acc.totalOut + d.totalOut,
+      netProfit: acc.netProfit + d.netProfit
+    }), { totalIn:0, totalOut:0, netProfit:0 });
+    const rows = data.map(d => `<tr>
+      <td class="name" onclick="openDriverModal('${d.driver.id}')">${d.driver.name||d.driver.id}</td>
+      <td>${d.driver.contractType==='monthly'?'شهري':'يومي'}</td>
+      <td class="trend-down">${fmtKD(d.rentReceived)}</td>
+      <td class="trend-down">${fmtKD(d.revForDrv)}</td>
+      <td class="trend-up">${fmtKD(d.expForDrv)}</td>
+      <td class="${d.netProfit>=0?'trend-down':'trend-up'}"><b>${fmtKD(d.netProfit)}</b></td>
+    </tr>`).join('');
+    document.getElementById('tab-profit').innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi green"><div class="lbl">إجمالي الإيرادات</div><div class="val">${fmtKD(totals.totalIn)}</div></div>
+        <div class="kpi red"><div class="lbl">إجمالي المصروفات</div><div class="val">${fmtKD(totals.totalOut)}</div></div>
+        <div class="kpi ${totals.netProfit>=0?'green':'red'}"><div class="lbl">صافي الربح الكلي</div><div class="val">${fmtKD(totals.netProfit)}</div></div>
+        <div class="kpi blue"><div class="lbl">متوسط ربح/سائق</div><div class="val">${fmtKD(totals.netProfit/Math.max(1,active.length))}</div></div>
+      </div>
+      <div class="card"><h3>💰 الربحية الصافية لكل سائق (مرتب من الأعلى)</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>السائق</th><th>نوع</th><th>إيجارات</th><th>إيرادات أخرى</th><th>مصروفات</th><th>الصافي</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div></div>
+    `;
+  }
+
+  /* ================= TAB: التوقعات ================= */
+  function buildForecast() {
+    const today = new Date();
+    const dayOfMonth = today.getDate();
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+    const remainingDays = daysInMonth - dayOfMonth;
+
+    // إيرادات/مصروفات الشهر للتاريخ
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthRev = gRevenues.concat(gPayments).filter(r => {
+      const d = toDate(r.date); return d && d >= monthStart;
+    }).reduce((s,r) => s+parseFloat(r.amount||r.revenueAmount||0), 0);
+    const monthExp = gExpenses.filter(e => {
+      const d = toDate(e.date); return d && d >= monthStart;
+    }).reduce((s,e) => s+parseFloat(e.amount||e.expenseAmount||0), 0);
+    const projRev = monthRev * (daysInMonth/dayOfMonth);
+    const projExp = monthExp * (daysInMonth/dayOfMonth);
+    const projNet = projRev - projExp;
+
+    // توقع متى يصل كل سائق لعتبة الخطر
+    const active = gDrivers.filter(d => !d.isArchived);
+    const projections = active.map(d => {
+      const split = calcDebtSplit(d.id, d);
+      const prev30 = calcDebtAtDate(d, new Date(today.getTime() - 30*86400000));
+      const debtRate = (split.total - prev30) / 30; // نمو يومي
+      const thr = getDebtThreshold(d);
+      let daysToCritical = null;
+      if (debtRate > 0 && split.total < thr) {
+        daysToCritical = Math.floor((thr - split.total) / debtRate);
+      }
+      return { driver: d, currentDebt: split.total, debtRate, thr, daysToCritical };
+    }).filter(p => p.daysToCritical !== null && p.daysToCritical < 90)
+      .sort((a,b) => a.daysToCritical - b.daysToCritical);
+
+    document.getElementById('tab-forecast').innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi blue"><div class="lbl">يوم الشهر</div><div class="val">${dayOfMonth}/${daysInMonth}</div><div class="sub">باقي ${remainingDays} يوم</div></div>
+        <div class="kpi green"><div class="lbl">إيرادات حتى الآن</div><div class="val">${fmtKD(monthRev)}</div></div>
+        <div class="kpi green"><div class="lbl">متوقع الإيرادات</div><div class="val">${fmtKD(projRev)}</div></div>
+        <div class="kpi red"><div class="lbl">متوقع المصروفات</div><div class="val">${fmtKD(projExp)}</div></div>
+        <div class="kpi ${projNet>=0?'green':'red'}"><div class="lbl">متوقع الصافي</div><div class="val">${fmtKD(projNet)}</div></div>
+      </div>
+      <div class="card"><h3>🔮 السائقون المتوقع وصولهم لعتبة الخطر خلال 90 يوم</h3>
+      ${projections.length===0 ? '<p style="color:#3fb950;">✅ لا أحد متوقع يدخل المنطقة الحرجة قريباً</p>' : `
+      <div class="table-wrap"><table>
+        <thead><tr><th>السائق</th><th>الدين الحالي</th><th>عتبة الخطر</th><th>معدل نمو الدين/يوم</th><th>متوقع الوصول</th></tr></thead>
+        <tbody>${projections.map(p => `<tr>
+          <td class="name" onclick="openDriverModal('${p.driver.id}')">${p.driver.name||p.driver.id}</td>
+          <td>${fmtKD(p.currentDebt)}</td>
+          <td>${fmtKD(p.thr)}</td>
+          <td class="trend-up">+${fmtKD(p.debtRate)}/يوم</td>
+          <td><b>${p.daysToCritical} يوم</b></td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+      `}</div>
+    `;
+  }
+
+  /* ================= TAB: رقابة المحاسب (مُحسّنة بالكامل) ================= */
+  function buildMonitorSection() {
+    const today = new Date();
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const accountantOps = gEditHistory.filter(e => {
+      const ts = toDate(e.timestamp);
+      return ts && ts >= monthStart && (e.editedByRole==='accountant' || !e.editedByRole);
     });
 
-    const deleteCount = accountantHistory.filter(e => e.action==='delete').length;
-    const editCount   = accountantHistory.filter(e => e.action==='edit').length;
-    const downEdits   = accountantHistory.filter(e => {
-        if (e.action !== 'edit') return false;
-        return (e.changes||[]).some(c => c.field==='amount' && parseFloat(c.newValue||0) < parseFloat(c.oldValue||0));
-    });
-    const totalDown = downEdits.reduce((s,e) => {
-        const c = (e.changes||[]).find(c => c.field==='amount');
-        return c ? s + (parseFloat(c.oldValue||0) - parseFloat(c.newValue||0)) : s;
+    // إحصائيات
+    const deletes = accountantOps.filter(e => e.action==='delete' || e.action==='permanentDelete');
+    const edits = accountantOps.filter(e => e.action==='edit');
+    const downEdits = edits.filter(e => (e.changes||[]).some(c => c.field==='amount' && +c.newValue < +c.oldValue));
+    const restores = accountantOps.filter(e => e.action==='restore');
+    const archives = accountantOps.filter(e => e.action==='archive');
+    const driverEdits = accountantOps.filter(e => e.recordType==='driver');
+    const contractOps = accountantOps.filter(e => e.action==='newContract' || e.action==='endContract');
+
+    // المبلغ المختفي
+    const deletedAmount = deletes.reduce((s,e) => {
+      const amt = e.changes?.find?.(c=>c.field==='amount')?.oldValue || e.fullSnapshot?.amount || 0;
+      return s + parseFloat(amt||0);
+    }, 0);
+    const reducedAmount = downEdits.reduce((s,e) => {
+      const c = e.changes?.find?.(c=>c.field==='amount');
+      return c ? s + (parseFloat(c.oldValue||0) - parseFloat(c.newValue||0)) : s;
     }, 0);
 
-    // دفعات مسجلة بتأخير
+    // النشاط الليلي + التسجيل المتأخر
+    const nightActivity = accountantOps.filter(e => { const ts=toDate(e.timestamp); return ts && (ts.getHours()>=22 || ts.getHours()<6); });
     const lateReg = gPayments.filter(p => {
-        const payDate    = toDate(p.date);
-        const createDate = toDate(p.createdAt || p.timestamp);
-        if (!payDate || !createDate) return false;
-        const diffDays = Math.floor((createDate - payDate) / 86400000);
-        return diffDays >= LATE_REG_DAYS;
+      const pd = toDate(p.date), cd = toDate(p.createdAt||p.timestamp);
+      if (!pd || !cd) return false;
+      return Math.floor((cd-pd)/86400000) >= 3;
     });
 
-    const nightActivity = gEditHistory.filter(e => {
-        const ts = toDate(e.timestamp);
-        return ts && ts.getHours() >= 22 && e.editedByRole === 'accountant';
+    // === كشف أنماط مشبوهة ===
+    const suspicious = detectSuspiciousPatterns(accountantOps);
+
+    // === Heatmap ===
+    const heatmap = buildHeatmapHTML(accountantOps);
+
+    // === Score المحاسب ===
+    const accountants = {};
+    accountantOps.forEach(e => {
+      const name = e.editedBy || 'غير معروف';
+      if (!accountants[name]) accountants[name] = { ops:0, deletes:0, downEdits:0, night:0, lateReg:0 };
+      accountants[name].ops++;
+      if (e.action==='delete' || e.action==='permanentDelete') accountants[name].deletes++;
+      if (e.action==='edit' && (e.changes||[]).some(c=>c.field==='amount' && +c.newValue<+c.oldValue)) accountants[name].downEdits++;
+      const ts = toDate(e.timestamp);
+      if (ts && (ts.getHours()>=22 || ts.getHours()<6)) accountants[name].night++;
     });
+    const scores = Object.entries(accountants).map(([name, st]) => {
+      let score = 100;
+      score -= Math.min(40, st.deletes * 5);
+      score -= Math.min(30, st.downEdits * 4);
+      score -= Math.min(15, st.night * 2);
+      return { name, score: Math.max(0, score), ...st };
+    }).sort((a,b) => b.score - a.score);
 
-    document.getElementById('mDeleteCount').textContent   = deleteCount;
-    document.getElementById('mEditCount').textContent     = editCount;
-    document.getElementById('mDownEditCount').textContent = downEdits.length;
-    document.getElementById('mLateRegCount').textContent  = lateReg.length;
-    document.getElementById('mNightCount').textContent    = nightActivity.length;
-    document.getElementById('mTotalDownEdit').textContent = totalDown.toFixed(3);
-
-    // ===== مقارنة الإيرادات المتوقعة بالمسجلة =====
-    const monday = getMondayOfWeek(today);
-    const wednesday = new Date(monday); wednesday.setDate(wednesday.getDate()+2);
-    wednesday.setHours(23,59,59,999);
-
-    let expectedWeek = 0, registeredWeek = 0;
-    let driversExpected = 0, driversRegistered = 0;
-
-    gDrivers.filter(d => !d.isArchived).forEach(driver => {
-        const rate = getWeeklyRate(driver);
-        if (rate > 0) {
-            expectedWeek += rate;
-            driversExpected++;
-        }
-        const weekPayments = gPayments.filter(p => {
-            const d = toDate(p.date);
-            return p.driverId === driver.id && RENT_TYPES.includes(p.type) && d && d >= monday && d <= wednesday;
-        });
-        if (weekPayments.length > 0) driversRegistered++;
-        registeredWeek += weekPayments.reduce((s,p) => s + parseFloat(p.amount||0), 0);
-    });
-
-    const revGap = registeredWeek - expectedWeek;
-    const revGapClass = revGap >= 0 ? 'ok' : revGap >= -expectedWeek*0.1 ? 'warn' : 'bad';
-    const revGapLabel = revGap >= 0 ? '✅ لا يوجد فرق مشبوه' : `⚠️ فرق ${Math.abs(revGap).toFixed(3)} KD`;
-
-    document.getElementById('revenueCompareBody').innerHTML = `
-        <div class="rev-row">
-            <span class="rev-label">السائقون المتوقع دفعهم هذا الأسبوع</span>
-            <span class="rev-val">${driversExpected} سائق</span>
+    document.getElementById('tab-monitor').innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi ${deletedAmount+reducedAmount>0?'red':'green'}">
+          <div class="lbl">⚠️ مبلغ اختفى من النظام</div>
+          <div class="val">${fmtKD(deletedAmount + reducedAmount)}</div>
+          <div class="sub">حذف: ${fmtKD(deletedAmount)} + تخفيض: ${fmtKD(reducedAmount)}</div>
         </div>
-        <div class="rev-row">
-            <span class="rev-label">السائقون المسجلون فعلياً</span>
-            <span class="rev-val">${driversRegistered} سائق</span>
-        </div>
-        <div class="rev-row">
-            <span class="rev-label">الإيرادات المتوقعة (أجرة الأسبوع)</span>
-            <span class="rev-val">${expectedWeek.toFixed(3)} KD</span>
-        </div>
-        <div class="rev-row">
-            <span class="rev-label">الإيرادات المسجلة فعلياً</span>
-            <span class="rev-val">${registeredWeek.toFixed(3)} KD</span>
-        </div>
-        <div class="rev-row">
-            <span class="rev-label">الفرق</span>
-            <span class="rev-gap ${revGapClass}">${revGapLabel}</span>
-        </div>
+        <div class="kpi red"><div class="lbl">عمليات حذف</div><div class="val">${deletes.length}</div></div>
+        <div class="kpi orange"><div class="lbl">تخفيض مبلغ</div><div class="val">${downEdits.length}</div></div>
+        <div class="kpi orange"><div class="lbl">نشاط ليلي (22-6)</div><div class="val">${nightActivity.length}</div></div>
+        <div class="kpi orange"><div class="lbl">تسجيل متأخر ≥3 أيام</div><div class="val">${lateReg.length}</div></div>
+        <div class="kpi blue"><div class="lbl">تعديل سائقين</div><div class="val">${driverEdits.length}</div></div>
+        <div class="kpi blue"><div class="lbl">عمليات أرشفة</div><div class="val">${archives.length}</div></div>
+        <div class="kpi blue"><div class="lbl">استعادة من الأرشيف</div><div class="val">${restores.length}</div></div>
+        <div class="kpi purple"><div class="lbl">عمليات عقود</div><div class="val">${contractOps.length}</div></div>
+      </div>
+
+      ${suspicious.length > 0 ? `<div class="card"><h3>🕵️ أنماط مشبوهة (${suspicious.length})</h3>
+        ${suspicious.map(s => `<div class="alert red">
+          <div class="icon">🔍</div>
+          <div class="body"><div class="title">${s.title}</div><div class="desc">${s.desc}</div></div>
+        </div>`).join('')}
+      </div>` : ''}
+
+      <div class="card"><h3>🏆 Score المحاسبين هذا الشهر</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>المحاسب</th><th>عمليات</th><th>حذف</th><th>تخفيض</th><th>نشاط ليلي</th><th>الـ Score</th></tr></thead>
+        <tbody>${scores.map(s => `<tr>
+          <td style="text-align:right;font-weight:600;">${s.name}</td>
+          <td>${s.ops}</td><td class="${s.deletes>0?'trend-up':''}">${s.deletes}</td>
+          <td class="${s.downEdits>0?'trend-up':''}">${s.downEdits}</td>
+          <td>${s.night}</td>
+          <td><b style="color:${s.score>=80?'#3fb950':s.score>=50?'#d29922':'#f85149'};">${s.score}/100</b>
+          <div class="progress"><div class="progress-bar" style="width:${s.score}%;background:${s.score>=80?'#3fb950':s.score>=50?'#d29922':'#f85149'};"></div></div></td>
+        </tr>`).join('')||'<tr><td colspan="6" style="padding:20px;color:#888;">لا يوجد عمليات هذا الشهر</td></tr>'}</tbody>
+      </table></div></div>
+
+      <div class="card"><h3>🌡️ Heatmap نشاط المحاسب (آخر 30 يوم)</h3>
+      ${heatmap}
+      <p class="small-muted" style="margin-top:8px;">صفوف: ساعات (0-23) · أعمدة: أيام الأسبوع</p>
+      </div>
+
+      <div class="card"><h3>📜 آخر 50 عملية للمحاسب</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>الوقت</th><th>المحاسب</th><th>العملية</th><th>النوع</th><th>السائق</th><th>التفاصيل</th></tr></thead>
+        <tbody>${accountantOps.slice(0,50).map(e => {
+          const ts = toDate(e.timestamp);
+          const drv = e.driverId ? (gDriverMap[e.driverId]?.name||e.driverId) : '—';
+          const det = (e.changes||[]).map(c => `${c.field}: ${c.oldValue} → ${c.newValue}`).join(' | ') || e.reason || '';
+          return `<tr>
+            <td>${ts ? ts.toLocaleString('ar-KW') : '—'}</td>
+            <td>${e.editedBy||'—'}</td>
+            <td><span class="badge ${actionColor(e.action)}">${actionLabel(e.action)}</span></td>
+            <td>${recordTypeLabel(e.recordType)}</td>
+            <td>${drv}</td>
+            <td style="font-size:11px;color:#8b949e;">${det.slice(0,150)}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div></div>
     `;
+  }
 
-    // جدول العمليات المشبوهة
-    const suspicious = [
-        ...downEdits.map(e => ({ ...e, _flag: 'تعديل نزولي' })),
-        ...accountantHistory.filter(e => e.action==='delete').map(e => ({ ...e, _flag: 'حذف' })),
-        ...nightActivity.slice(0,10).map(e => ({ ...e, _flag: 'نشاط ليلي' }))
-    ].sort((a,b) => { const ta=toDate(a.timestamp), tb=toDate(b.timestamp); return (tb||0)-(ta||0); }).slice(0,20);
+  function actionColor(a) {
+    if (a==='delete'||a==='permanentDelete') return 'cat-critical';
+    if (a==='edit') return 'cat-watch';
+    if (a==='archive'||a==='restore') return 'cat-good';
+    if (a==='newContract'||a==='endContract') return 'cat-excellent';
+    return 'cat-watch';
+  }
+  function actionLabel(a) { return ({delete:'🗑️ حذف',permanentDelete:'❌ حذف نهائي',edit:'✏️ تعديل',archive:'📦 أرشفة',restore:'♻️ استعادة',newContract:'📄 عقد جديد',endContract:'🛑 إنهاء عقد'})[a]||a||'—'; }
+  function recordTypeLabel(r) { return ({revenue:'إيراد',expense:'مصروف',driverPayment:'دفعة',driver:'سائق',archive:'أرشيف',contract:'عقد',oldDebts:'ديون قديمة'})[r]||r||'—'; }
 
-    const monitorBody = document.getElementById('monitorTableBody');
-    if (suspicious.length === 0) {
-        monitorBody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:#00c853;">✅ لا توجد عمليات مشبوهة</td></tr>';
-    } else {
-        monitorBody.innerHTML = suspicious.map(e => {
-            const ts = toDate(e.timestamp);
-            const dateStr = ts ? ts.toLocaleString('ar-KW') : '—';
-            const actionBadge = e.action==='delete'
-                ? '<span class="action-badge delete">🗑️ حذف</span>'
-                : '<span class="action-badge edit">✏️ تعديل</span>';
-            const changes = e.changes || [];
-            const amountChange = changes.find(c => c.field==='amount');
-            const oldAmt = amountChange ? parseFloat(amountChange.oldValue||0).toFixed(3) : '—';
-            const newAmt = amountChange ? parseFloat(amountChange.newValue||0).toFixed(3) : '—';
-            const diff   = amountChange
-                ? `<span style="color:${parseFloat(amountChange.newValue||0)<parseFloat(amountChange.oldValue||0)?'#e94560':'#00c853'};font-weight:700;">${(parseFloat(amountChange.newValue||0)-parseFloat(amountChange.oldValue||0)).toFixed(3)}</span>`
-                : '—';
-            const snap = e.fullSnapshot || {};
-            const desc = e.description || snap.description || snap.type || '—';
-            return `<tr>
-                <td style="white-space:nowrap;font-size:12px;">${dateStr}</td>
-                <td>${actionBadge}</td>
-                <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${desc}</td>
-                <td>${oldAmt}</td><td>${newAmt}</td><td>${diff}</td>
-                <td>${e.editedBy||'—'}</td>
-                <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#aaa;">${e.editReason||e.deleteReason||'—'}</td>
-                <td><span class="suspicious-badge">${e._flag}</span></td>
-            </tr>`;
-        }).join('');
-    }
-
-    // كل عمليات المحاسب هذا الشهر
-    const allEditsBody = document.getElementById('allEditsBody');
-    if (accountantHistory.length === 0) {
-        allEditsBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#888;">لا توجد عمليات هذا الشهر</td></tr>';
-    } else {
-        allEditsBody.innerHTML = accountantHistory.slice(0,50).map(e => {
-            const ts = toDate(e.timestamp);
-            const dateStr = ts ? ts.toLocaleString('ar-KW') : '—';
-            const actionBadge = e.action==='delete'
-                ? '<span class="action-badge delete">🗑️ حذف</span>'
-                : '<span class="action-badge edit">✏️ تعديل</span>';
-            const snap = e.fullSnapshot || {};
-            const desc = e.description || snap.description || snap.type || '—';
-            const changes = e.changes || [];
-            const changesText = changes.map(c => `${c.fieldLabel||c.field}: ${c.oldValue} → ${c.newValue}`).join(' | ') || (e.action==='delete'?'حذف السجل':'—');
-            return `<tr>
-                <td style="white-space:nowrap;font-size:12px;">${dateStr}</td>
-                <td>${actionBadge}</td>
-                <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${desc}</td>
-                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#aaa;">${changesText}</td>
-                <td>${e.editedBy||'—'}</td>
-                <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#aaa;">${e.editReason||e.deleteReason||'—'}</td>
-            </tr>`;
-        }).join('');
-    }
-}
-
-// ===== SECTION 6: CLASSIFICATION TABLE =====
-function buildClassifTable() {
-    const today = new Date();
-    const WEEKS = 8;
-    const weeks = [];
-    for (let i = WEEKS-1; i >= 0; i--) {
-        const mon = getMondayOfWeek(today);
-        mon.setDate(mon.getDate() - i*7);
-        const sun = new Date(mon); sun.setDate(sun.getDate()+6);
-        weeks.push({ monday: new Date(mon), sunday: new Date(sun) });
-    }
-
-    const activeDrivers = gDrivers.filter(d => !d.isArchived);
-    const rows = activeDrivers.map(driver => {
-        const split = calcDebtSplit(driver.id, driver);
-        const driverPayments = gPayments.filter(p => p.driverId === driver.id && RENT_TYPES.includes(p.type));
-        const prevWeekDebt = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
-        const trend = split.total - prevWeekDebt;
-
-        let paidW = 0, validW = 0;
-        const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt);
-        weeks.forEach(w => {
-            if (cStart && w.sunday < cStart) return;
-            validW++;
-            if (driverPayments.some(p => { const d=toDate(p.date); return d && d>=w.monday && d<=w.sunday; })) paidW++;
-        });
-        const regularity = validW > 0 ? Math.round(paidW/validW*100) : 0;
-        const classif = classifyDriver(driver, split, regularity, trend);
-        const lastPay = getLastPaymentDate(driver.id);
-
-        const currentClass = split.current > 500 ? 'high' : split.current > 100 ? 'medium' : split.current > 0 ? 'low' : 'zero';
-        const oldClass     = split.old > 500 ? 'high' : split.old > 100 ? 'medium' : split.old > 0 ? 'low' : 'zero';
-        const totalClass   = split.total > 1500 ? 'high' : split.total > 500 ? 'medium' : split.total > 0 ? 'low' : 'zero';
-        const trendClass   = trend > 20 ? 'up' : trend < -20 ? 'down' : 'flat';
-        const trendIcon    = trend > 20 ? '↑' : trend < -20 ? '↓' : '→';
-        const ctLabel = driver.contractType === 'monthly'
-            ? '<span style="color:#4fc3f7;">شهري</span>'
-            : '<span style="color:#aaa;">يومي</span>';
-
-        // هدف السداد الشهري للدين القديم
-        let goalHtml = '';
-        if (split.old > 0) {
-            const prevMonthDebt = calcDebtAtDate(driver, new Date(today.getFullYear(), today.getMonth()-1, today.getDate()));
-            const monthlyProgress = prevMonthDebt - split.old;
-            const goalRate = split.old / 6; // هدف السداد: 6 أشهر
-            const onTrack = monthlyProgress >= goalRate * 0.8;
-            goalHtml = `<div style="font-size:10px;color:${onTrack?'#00c853':'#e94560'};margin-top:2px;">${onTrack?'✅ على المسار':'⚠️ خلف الهدف'}</div>`;
-        }
-
-        // مقياس الصحة المالية
-        const healthScore = calcHealthScore(split, regularity, trend);
-        const healthCls = healthScore >= 80 ? 'h-excellent' : healthScore >= 60 ? 'h-good' : healthScore >= 40 ? 'h-watch' : healthScore >= 20 ? 'h-danger' : 'h-critical';
-        const healthBar = `<div class="health-bar-wrap"><div class="health-bar-bg"><div class="health-bar-fill ${healthCls}" style="width:${healthScore}%"></div></div><span class="health-score">${healthScore}</span></div>`;
-
-        // مستوى الإنذار
-        const lastPayDate = getLastPaymentDate(driver.id);
-        const daysSince = lastPayDate ? Math.floor((today - lastPayDate) / 86400000) : 999;
-        const warning = getWarningLevel(split, regularity, trend, daysSince);
-
-        return { driver, split, classif, regularity, trend, trendClass, trendIcon,
-                 currentClass, oldClass, totalClass, ctLabel, lastPay, goalHtml,
-                 healthBar, warning };
+  function detectSuspiciousPatterns(ops) {
+    const sus = [];
+    // 1. تعديل متكرر لنفس السجل
+    const byRec = {};
+    ops.forEach(e => { if (!e.recordId) return; (byRec[e.recordId]=byRec[e.recordId]||[]).push(e); });
+    Object.entries(byRec).forEach(([id, evs]) => {
+      if (evs.length >= 3) sus.push({ title:'تعديلات متكررة على نفس السجل (‫'+evs.length+'‬ مرات)',
+        desc: 'السجل ' + id.slice(0,8) + ' عُدّل ' + evs.length + ' مرات هذا الشهر' });
     });
-
-    // ترتيب: حرج أولاً ثم خطر ثم متابعة ثم مقبول ثم ممتاز
-    const catOrder = { critical:0, danger:1, watch:2, good:3, excellent:4 };
-    rows.sort((a,b) => (catOrder[a.classif.key]||9) - (catOrder[b.classif.key]||9) || b.split.total - a.split.total);
-
-    const tbody = document.getElementById('classifTableBody');
-    tbody.innerHTML = rows.map((r, idx) => {
-        const rank = idx+1;
-        const rankClass = rank===1?'gold':rank===2?'silver':rank===3?'bronze':'';
-        return `<tr>
-            <td class="rank-num ${rankClass}" style="text-align:center;">${rank}</td>
-            <td class="driver-name-cell" onclick="openDriverModal('${r.driver.id}')">${r.driver.name || r.driver.id}</td>
-            <td>${r.ctLabel}</td>
-            <td><span class="debt-badge ${r.currentClass}">${r.split.current.toFixed(3)}</span></td>
-            <td>
-                <span class="debt-badge ${r.oldClass}">${r.split.old > 0 ? r.split.old.toFixed(3) : '—'}</span>
-                ${r.goalHtml}
-            </td>
-            <td><span class="debt-badge ${r.totalClass}">${r.split.total.toFixed(3)}</span></td>
-            <td style="color:${r.regularity>=80?'#00c853':r.regularity>=50?'#ffd700':'#e94560'};font-weight:700;">${r.regularity}%</td>
-            <td><span class="trend ${r.trendClass}">${r.trendIcon} ${Math.abs(r.trend).toFixed(0)} KD</span></td>
-            <td>${r.healthBar}</td>
-            <td style="font-size:12px;color:#aaa;">${r.lastPay ? formatDate(r.lastPay) : '<span style="color:#e94560;">لا يوجد</span>'}</td>
-            <td>${r.warning ? `<span class="warn-badge ${r.warning.cls}">${r.warning.label}</span>` : '—'}</td>
-            <td><span class="cat-badge ${r.classif.cls}">${r.classif.label}</span></td>
-        </tr>`;
-    }).join('');
-}
-
-// ===== DRIVER DETAIL MODAL =====
-function openDriverModal(driverId) {
-    const driver = gDriverMap[driverId];
-    if (!driver) return;
-
-    const today = new Date();
-    const split = calcDebtSplit(driverId, driver);
-    const payments = gPayments.filter(p => p.driverId === driverId);
-    const rentPayments = payments.filter(p => RENT_TYPES.includes(p.type));
-
-    // آخر 12 أسبوع
-    const WEEKS = 12;
-    const weeks = [];
-    for (let i = WEEKS-1; i >= 0; i--) {
-        const mon = getMondayOfWeek(today);
-        mon.setDate(mon.getDate() - i*7);
-        const sun = new Date(mon); sun.setDate(sun.getDate()+6);
-        weeks.push({ monday: new Date(mon), sunday: new Date(sun) });
-    }
-
-    const weekCells = weeks.map(w => {
-        const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt);
-        if (cStart && w.sunday < cStart) return { status:'no-data', icon:'⬜', label: formatDate(w.monday) };
-        const paidInWeek = rentPayments.filter(p => { const d=toDate(p.date); return d && d>=w.monday && d<=w.sunday; });
-        if (paidInWeek.length === 0) return { status:'missed', icon:'❌', label: formatDate(w.monday) };
-        const paidOnMonday = paidInWeek.some(p => { const d=toDate(p.date); return d && d.getDay()===1; });
-        return paidOnMonday ? { status:'paid', icon:'✅', label: formatDate(w.monday) } : { status:'late', icon:'🟡', label: formatDate(w.monday) };
+    // 2. حذف ثم إضافة نفس المبلغ خلال 24 ساعة
+    const dels = ops.filter(e => e.action==='delete');
+    dels.forEach(d => {
+      const amt = parseFloat(d.changes?.find?.(c=>c.field==='amount')?.oldValue || d.fullSnapshot?.amount || 0);
+      if (amt < 1) return;
+      const dts = toDate(d.timestamp);
+      const matches = gPayments.concat(gExpenses, gRevenues).filter(r => {
+        const cd = toDate(r.createdAt||r.timestamp);
+        return cd && Math.abs(cd-dts) < 86400000 && Math.abs(parseFloat(r.amount||r.expenseAmount||r.revenueAmount||0) - amt) < 0.01;
+      });
+      if (matches.length > 0) sus.push({ title:'حذف ثم إعادة إدخال (‫'+fmtKD(amt)+'‬)',
+        desc: 'حُذف سجل بمبلغ '+fmtKD(amt)+' وأُعيد إدخاله خلال 24 ساعة' });
     });
+    // 3. تعديل متأخر (>7 أيام بعد الإنشاء)
+    ops.filter(e => e.action==='edit').forEach(e => {
+      if (!e.recordId) return;
+      const orig = gPayments.concat(gExpenses, gRevenues).find(r => r.id===e.recordId);
+      if (!orig) return;
+      const cd = toDate(orig.createdAt||orig.timestamp);
+      const ts = toDate(e.timestamp);
+      if (cd && ts && (ts-cd) > 7*86400000) {
+        const c = e.changes?.find?.(c=>c.field==='amount');
+        if (c) sus.push({ title:'تعديل متأخر (بعد '+Math.floor((ts-cd)/86400000)+' يوم)',
+          desc: e.editedBy+' عدّل سجل قديم - المبلغ: '+c.oldValue+' → '+c.newValue });
+      }
+    });
+    return sus.slice(0, 15);
+  }
 
-    const validW = weekCells.filter(w => w.status !== 'no-data');
-    const paidW  = weekCells.filter(w => w.status === 'paid' || w.status === 'late');
-    const regularity = validW.length > 0 ? Math.round(paidW.length/validW.length*100) : 0;
-
-    const prevWeekDebt = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
-    const trend = split.total - prevWeekDebt;
-    const classif = classifyDriver(driver, split, regularity, trend);
-
-    const lastPay = getLastPaymentDate(driverId);
-    const weeklyRate = getWeeklyRate(driver);
-    const avgWeeklyPay = rentPayments.length > 0
-        ? rentPayments.reduce((s,p)=>s+parseFloat(p.amount||0),0) / Math.max(1, validW.length)
-        : 0;
-
-    // هل يغطي الدفع الأجرة الجارية؟
-    const coversRent = avgWeeklyPay >= weeklyRate * 0.9;
-
-    // هدف السداد للدين القديم
-    let goalSection = '';
-    if (split.old > 0) {
-        const prevMonthDebt = calcDebtAtDate(driver, new Date(today.getFullYear(), today.getMonth()-1, today.getDate()));
-        const monthlyReduction = prevMonthDebt - split.old;
-        const goalMonthly = split.old / 6;
-        const progress = Math.min(100, Math.max(0, monthlyReduction / goalMonthly * 100));
-        const onTrack = monthlyReduction >= goalMonthly * 0.8;
-        goalSection = `
-            <div class="goal-bar-wrap">
-                <div class="goal-bar-label">هدف سداد الدين القديم (خلال 6 أشهر) — هدف شهري: ${goalMonthly.toFixed(3)} KD</div>
-                <div class="goal-bar">
-                    <div class="goal-bar-fill ${onTrack?'on-track':''}" style="width:${progress}%"></div>
-                </div>
-                <div class="goal-bar-stats">
-                    <span>تم تخفيضه هذا الشهر: ${monthlyReduction.toFixed(3)} KD</span>
-                    <span>${onTrack ? '✅ على المسار' : '⚠️ خلف الهدف'}</span>
-                </div>
-            </div>
-        `;
+  function buildHeatmapHTML(ops) {
+    const days = ['أحد','اثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
+    // matrix[hour][day] = count
+    const matrix = Array.from({length:24}, () => Array(7).fill(0));
+    ops.forEach(e => {
+      const ts = toDate(e.timestamp);
+      if (!ts) return;
+      matrix[ts.getHours()][ts.getDay()]++;
+    });
+    const max = Math.max(1, ...matrix.flat());
+    let html = '<div class="heatmap"><div class="h-label"></div>';
+    days.forEach(d => html += `<div class="h-label">${d}</div>`);
+    for (let h = 0; h < 24; h++) {
+      html += `<div class="h-label">${h}:00</div>`;
+      for (let d = 0; d < 7; d++) {
+        const v = matrix[h][d];
+        const intensity = v / max;
+        const isNight = h >= 22 || h < 6;
+        const baseColor = isNight ? '248,81,73' : '88,166,255';
+        const bg = v === 0 ? '#21262d' : `rgba(${baseColor}, ${0.2 + intensity*0.8})`;
+        html += `<div class="h-cell" style="background:${bg};" title="${days[d]} ${h}:00 - ${v} عملية"></div>`;
+      }
     }
+    html += '</div>';
+    return html;
+  }
 
-    // جدول الدفعات الأخيرة
-    const sortedPayments = [...payments].sort((a,b) => {
-        const da = toDate(a.date), db = toDate(b.date);
-        return (db||0) - (da||0);
-    }).slice(0, 30);
-
-    const ctLabel = driver.contractType === 'monthly'
-        ? `شهري — ${parseFloat(driver.monthlyPayment||0).toFixed(3)} KD/شهر`
-        : `يومي — ${parseFloat(driver.dailyRent||driver.dailyWage||0).toFixed(3)} KD/يوم`;
-
-    document.getElementById('modalTitle').textContent = `📋 ${driver.name || driverId} — تفاصيل كاملة`;
-    document.getElementById('modalContent').innerHTML = `
-        <!-- ملخص مالي -->
-        <div class="modal-grid">
-            <div class="modal-stat">
-                <div class="ms-label">الدين الجاري (الأجرة المتأخرة)</div>
-                <div class="ms-val" style="color:${split.current>500?'#e94560':split.current>0?'#ff8c00':'#00c853'};">${split.current.toFixed(3)} KD</div>
-                <div class="ms-sub">من الأجرة المستحقة</div>
-            </div>
-            <div class="modal-stat">
-                <div class="ms-label">الدين القديم</div>
-                <div class="ms-val" style="color:${split.old>0?'#ff8c00':'#888'};">${split.old > 0 ? split.old.toFixed(3) + ' KD' : '—'}</div>
-                <div class="ms-sub">مسجل قبل بداية المتابعة</div>
-            </div>
-            <div class="modal-stat">
-                <div class="ms-label">إجمالي الدين</div>
-                <div class="ms-val" style="color:${split.total>1000?'#e94560':split.total>500?'#ff8c00':'#00c853'};">${split.total.toFixed(3)} KD</div>
-                <div class="ms-sub">الجاري + القديم</div>
-            </div>
-            <div class="modal-stat">
-                <div class="ms-label">الأجرة المستحقة (إجمالي)</div>
-                <div class="ms-val">${split.expectedRent.toFixed(3)} KD</div>
-                <div class="ms-sub">${ctLabel}</div>
-            </div>
-            <div class="modal-stat">
-                <div class="ms-label">إجمالي الأجرة المدفوعة</div>
-                <div class="ms-val" style="color:#00c853;">${split.rentPaid.toFixed(3)} KD</div>
-                <div class="ms-sub">${rentPayments.length} دفعة</div>
-            </div>
-            <div class="modal-stat">
-                <div class="ms-label">متوسط الدفع الأسبوعي</div>
-                <div class="ms-val" style="color:${coversRent?'#00c853':'#ffd700'};">${avgWeeklyPay.toFixed(3)} KD</div>
-                <div class="ms-sub">${coversRent ? '✅ يغطي الأجرة' : '⚠️ أقل من الأجرة'}</div>
-            </div>
-            <div class="modal-stat">
-                <div class="ms-label">الانتظام (آخر 12 أسبوع)</div>
-                <div class="ms-val" style="color:${regularity>=80?'#00c853':regularity>=50?'#ffd700':'#e94560'};">${regularity}%</div>
-                <div class="ms-sub">${paidW.length} من ${validW.length} أسبوع</div>
-            </div>
-            <div class="modal-stat">
-                <div class="ms-label">آخر دفعة</div>
-                <div class="ms-val" style="font-size:14px;">${lastPay ? formatDate(lastPay) : '—'}</div>
-                <div class="ms-sub">التصنيف: <span class="cat-badge ${classif.cls}" style="font-size:11px;padding:2px 8px;">${classif.label}</span></div>
-            </div>
-        </div>
-
-        ${goalSection}
-
-        <!-- مخطط الأسابيع -->
-        <div style="margin-bottom:8px;font-size:13px;color:#aaa;font-weight:600;">سجل الدفع — آخر 12 أسبوع:</div>
-        <div class="week-history">
-            ${weekCells.map(w => `
-                <div class="wh-cell">
-                    <div class="wh-label">${w.label.replace(/\s+\d{4}/,'')}</div>
-                    <div class="wh-icon">${w.icon}</div>
-                </div>
-            `).join('')}
-        </div>
-
-        <!-- جدول الدفعات -->
-        <div style="margin-bottom:8px;font-size:13px;color:#aaa;font-weight:600;">آخر 30 دفعة:</div>
-        <div class="modal-payments-wrap">
-            <table class="modal-payments">
-                <thead>
-                    <tr>
-                        <th>التاريخ</th>
-                        <th>النوع</th>
-                        <th>المبلغ</th>
-                        <th>ملاحظة</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${sortedPayments.length === 0
-                        ? '<tr><td colspan="4" style="text-align:center;padding:20px;color:#888;">لا توجد دفعات</td></tr>'
-                        : sortedPayments.map(p => {
-                            const isRent = RENT_TYPES.includes(p.type);
-                            const isOld  = p.type === 'دين قديم';
-                            const color  = isRent ? '#00c853' : isOld ? '#ff8c00' : '#aaa';
-                            return `<tr>
-                                <td style="white-space:nowrap;">${formatDate(toDate(p.date))}</td>
-                                <td style="color:${color};">${p.type || '—'}</td>
-                                <td style="font-weight:700;">${parseFloat(p.amount||0).toFixed(3)} KD</td>
-                                <td style="color:#666;font-size:11px;">${p.notes || p.note || '—'}</td>
-                            </tr>`;
-                        }).join('')
-                    }
-                </tbody>
-            </table>
-        </div>
-    `;
-
-    document.getElementById('driverModal').classList.add('open');
-    document.body.style.overflow = 'hidden';
-}
-
-function closeModal() {
-    document.getElementById('driverModal').classList.remove('open');
-    document.body.style.overflow = '';
-}
-
-// إغلاق المودال بالضغط خارجه
-document.getElementById('driverModal').addEventListener('click', function(e) {
-    if (e.target === this) closeModal();
-});
-
-// ===== V3 ADDITIONS =====
-
-// 1. حساب المبلغ المثالي الأسبوعي (الأجرة + 25% من الدين القديم)
-function getIdealWeeklyAmount(driver, split) {
-    const weeklyRate = getWeeklyRate(driver);
-    const oldDebtContrib = split.old > 0 ? split.old / 24 : 0; // سداد الدين القديم على 6 أشهر (24 أسبوع)
-    return weeklyRate + oldDebtContrib;
-}
-
-// 2. حساب مقياس الصحة المالية (0-100)
-function calcHealthScore(split, regularity, trend) {
-    // 50% اتجاه الدين: ينزل = 50، ثابت = 25، يرتفع = 0
-    const trendScore = trend < -20 ? 50 : trend <= 20 ? 25 : 0;
-    // 30% الانتظام
-    const regScore = Math.round(regularity * 0.30);
-    // 20% حجم الدين النسبي (كلما كان أقل كلما كان أفضل)
-    const debtScore = split.total === 0 ? 20 : split.total < 200 ? 15 : split.total < 500 ? 10 : split.total < 1000 ? 5 : 0;
-    return Math.min(100, trendScore + regScore + debtScore);
-}
-
-// 3. نظام الإنذارات المتدرجة
-function getWarningLevel(split, regularity, trend, daysSinceLastPay) {
-    // إنذار نهائي: توقف 14+ يوم + دين فوق 500
-    if (daysSinceLastPay >= 14 && split.total > DEBT_THRESHOLD) return { level: 3, label: '🔴 إنذار نهائي', cls: 'w3' };
-    // إنذار ثاني: دين يرتفع بسرعة أو انتظام أقل من 40%
-    if ((trend > 100 && split.total > DEBT_THRESHOLD) || (regularity < 40 && split.total > DEBT_THRESHOLD)) return { level: 2, label: '🟠 إنذار ثاني', cls: 'w2' };
-    // إنذار أول: دين فوق 500 + انتظام أقل من 60%
-    if (split.total > DEBT_THRESHOLD && regularity < 60) return { level: 1, label: '🟡 إنذار أول', cls: 'w1' };
-    return null;
-}
-
-// 4. بناء جدول مقارنة الأشهر
-function buildMonthlyCompare() {
-    const today = new Date();
-    const MONTHS = 4;
+  /* ================= TAB: مقارنة الأشهر ================= */
+  function buildMonthlyCompare() {
+    const today = new Date(); const MONTHS = 6;
     const months = [];
     for (let i = MONTHS-1; i >= 0; i--) {
-        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-        months.push({ year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString('ar-KW', { year:'numeric', month:'short' }) });
+      const d = new Date(today.getFullYear(), today.getMonth()-i, 1);
+      months.push({ year: d.getFullYear(), month: d.getMonth(),
+        label: d.toLocaleDateString('ar-KW', { year:'numeric', month:'short' }) });
     }
+    const active = gDrivers.filter(d => !d.isArchived);
+    const rows = active.map(driver => {
+      const debts = months.map(m => calcDebtAtDate(driver, new Date(m.year, m.month+1, 0, 23,59,59)));
+      const trend = debts[debts.length-1] - debts[0];
+      return { driver, debts, trend };
+    }).sort((a,b) => b.trend - a.trend);
 
-    const activeDrivers = gDrivers.filter(d => !d.isArchived);
-
-    // رأس الجدول
-    document.getElementById('compareHead').innerHTML = `<tr>
-        <th>السائق</th>
-        <th>نوع العقد</th>
-        ${months.map(m => `<th>${m.label}</th>`).join('')}
-        <th>الاتجاه العام</th>
-    </tr>`;
-
-    const rows = activeDrivers.map(driver => {
-        const monthlyDebts = months.map(m => {
-            const endOfMonth = new Date(m.year, m.month + 1, 0, 23, 59, 59);
-            return calcDebtAtDate(driver, endOfMonth);
-        });
-
-        // الاتجاه العام: مقارنة أول شهر بآخر شهر
-        const firstDebt = monthlyDebts[0];
-        const lastDebt  = monthlyDebts[monthlyDebts.length - 1];
-        const overallTrend = lastDebt - firstDebt;
-        const trendCls = overallTrend < -50 ? 'down' : overallTrend > 50 ? 'up' : 'flat';
-        const trendIcon = overallTrend < -50 ? `↓ ${Math.abs(overallTrend).toFixed(0)} KD` : overallTrend > 50 ? `↑ ${overallTrend.toFixed(0)} KD` : '→ ثابت';
-
-        return { driver, monthlyDebts, overallTrend, trendCls, trendIcon };
+    // إيراد/مصروف الشركة شهرياً
+    const monthlyTotals = months.map(m => {
+      const s = new Date(m.year, m.month, 1), e = new Date(m.year, m.month+1, 0, 23,59,59);
+      const rev = gRevenues.concat(gPayments).filter(r => { const d=toDate(r.date); return d && d>=s && d<=e; })
+        .reduce((sum,r) => sum + parseFloat(r.amount||r.revenueAmount||0), 0);
+      const exp = gExpenses.filter(e2 => { const d=toDate(e2.date); return d && d>=s && d<=e; })
+        .reduce((sum,e2) => sum + parseFloat(e2.amount||e2.expenseAmount||0), 0);
+      return { rev, exp, net: rev-exp };
     });
 
-    rows.sort((a,b) => b.overallTrend - a.overallTrend); // الأسوأ أولاً
+    document.getElementById('tab-compare').innerHTML = `
+      <div class="card"><h3>📈 إيرادات vs مصروفات الشركة شهرياً</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>المؤشر</th>${months.map(m => `<th>${m.label}</th>`).join('')}</tr></thead>
+        <tbody>
+          <tr><td style="text-align:right;font-weight:600;">إيرادات</td>${monthlyTotals.map(t => `<td class="trend-down">${fmtKD(t.rev)}</td>`).join('')}</tr>
+          <tr><td style="text-align:right;font-weight:600;">مصروفات</td>${monthlyTotals.map(t => `<td class="trend-up">${fmtKD(t.exp)}</td>`).join('')}</tr>
+          <tr><td style="text-align:right;font-weight:600;">الصافي</td>${monthlyTotals.map(t => `<td class="${t.net>=0?'trend-down':'trend-up'}"><b>${fmtKD(t.net)}</b></td>`).join('')}</tr>
+        </tbody>
+      </table></div></div>
 
-    document.getElementById('compareBody').innerHTML = rows.map(r => {
-        const cells = r.monthlyDebts.map((debt, i) => {
-            const prev = i > 0 ? r.monthlyDebts[i-1] : debt;
-            const diff = debt - prev;
-            const arrowCls = i === 0 ? '' : diff < -50 ? 'down' : diff > 50 ? 'up' : 'flat';
-            const arrowIcon = i === 0 ? '' : diff < -50 ? '↓' : diff > 50 ? '↑' : '→';
-            const debtColor = debt > 1000 ? '#e94560' : debt > 500 ? '#ff8c00' : debt > 0 ? '#ffd700' : '#00c853';
-            return `<td><div class="cmp-cell">
-                <span class="cmp-debt" style="color:${debtColor};">${debt.toFixed(0)}</span>
-                ${i > 0 ? `<span class="cmp-arrow ${arrowCls}">${arrowIcon}</span>` : ''}
-            </div></td>`;
-        }).join('');
-        const ctLabel = r.driver.contractType === 'monthly' ? '<span style="color:#4fc3f7;">شهري</span>' : '<span style="color:#aaa;">يومي</span>';
-        return `<tr>
-            <td onclick="openDriverModal('${r.driver.id}')">${r.driver.name || r.driver.id}</td>
-            <td>${ctLabel}</td>
-            ${cells}
-            <td><span class="trend ${r.trendCls}">${r.trendIcon}</span></td>
-        </tr>`;
-    }).join('');
-}
+      <div class="card"><h3>📉 اتجاه دين كل سائق على ${MONTHS} شهور</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>السائق</th>${months.map(m => `<th>${m.label}</th>`).join('')}<th>الاتجاه</th></tr></thead>
+        <tbody>${rows.map(r => `<tr>
+          <td class="name" onclick="openDriverModal('${r.driver.id}')">${r.driver.name||r.driver.id}</td>
+          ${r.debts.map(d => `<td>${fmtKD(d)}</td>`).join('')}
+          <td class="${r.trend>50?'trend-up':r.trend<-50?'trend-down':'trend-flat'}">
+            ${r.trend>50?'↑':r.trend<-50?'↓':'→'} ${fmtKD(Math.abs(r.trend))}
+          </td>
+        </tr>`).join('')}</tbody>
+      </table></div></div>
+    `;
+  }
 
-// 5. طباعة تقرير الأسبوع
-function printWeeklyReport() {
+  /* ================= TAB: التصنيف الخماسي ================= */
+  function buildClassifTable() {
     const today = new Date();
-    const dateStr = today.toLocaleDateString('ar-KW', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-    const table = document.getElementById('followupTable');
-    if (!table) return;
+    const active = gDrivers.filter(d => !d.isArchived);
+    const data = active.map(driver => {
+      const split = calcDebtSplit(driver.id, driver);
+      const reg = calcRegularity(driver);
+      const prev = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
+      const trend = split.total - prev;
+      const cls = classifyDriver(driver, split, reg, trend);
+      const lastPay = getLastPaymentDate(driver.id);
+      return { driver, split, reg, trend, cls, lastPay };
+    });
+    const order = { critical:0, danger:1, watch:2, good:3, excellent:4 };
+    data.sort((a,b) => order[a.cls.key] - order[b.cls.key]);
 
-    const printWin = window.open('', '_blank');
-    printWin.document.write(`
-        <!DOCTYPE html><html lang="ar" dir="rtl"><head>
-        <meta charset="UTF-8">
-        <title>تقرير الأسبوع — ${dateStr}</title>
-        <style>
-            body { font-family: 'Segoe UI', Arial, sans-serif; direction: rtl; padding: 20px; color: #000; }
-            h1 { font-size: 18px; margin-bottom: 4px; }
-            p  { font-size: 12px; color: #666; margin-bottom: 16px; }
-            table { width: 100%; border-collapse: collapse; font-size: 12px; }
-            th { background: #f0f0f0; padding: 8px; border: 1px solid #ccc; text-align: center; }
-            td { padding: 7px 8px; border: 1px solid #ddd; text-align: center; }
-            td:first-child { text-align: right; font-weight: 600; }
-            .paid   { color: #006400; font-weight: 700; }
-            .unpaid { color: #cc0000; font-weight: 700; }
-            .partial { color: #cc8800; font-weight: 700; }
-            @media print { body { padding: 10px; } }
-        </style>
-        </head><body>
-        <h1>🚖 تقرير متابعة الأسبوع</h1>
-        <p>تاريخ الطباعة: ${dateStr} — نظام إدارة التاكسي</p>
-        ${table.outerHTML.replace(/class="paid-status"/g, 'class="paid"').replace(/class="unpaid-status"/g, 'class="unpaid"').replace(/class="partial-status"/g, 'class="partial"')}
-        </body></html>
-    `);
-      printWin.document.close();
-    printWin.print();
-}
+    // إحصائية
+    const counts = { critical:0, danger:0, watch:0, good:0, excellent:0 };
+    data.forEach(d => counts[d.cls.key]++);
 
-// ===== EXPOSE FUNCTIONS TO WINDOW (required for type="module") =====
-window.switchTab       = switchTab;
-window.loadAllData     = loadAllData;
-window.openDriverModal = openDriverModal;
-window.closeModal      = closeModal;
-window.printWeeklyReport = printWeeklyReport;
-</script>
-</body>
-</html>
+    const rows = data.map(d => `<tr>
+      <td class="name" onclick="openDriverModal('${d.driver.id}')">${d.driver.name||d.driver.id}</td>
+      <td>${d.driver.contractType==='monthly'?'شهري':'يومي'}</td>
+      <td>${fmtKD(d.split.current)}</td>
+      <td>${fmtKD(d.split.old)}</td>
+      <td><b>${fmtKD(d.split.total)}</b></td>
+      <td>${d.reg}%</td>
+      <td class="${d.trend>20?'trend-up':d.trend<-20?'trend-down':'trend-flat'}">
+        ${d.trend>20?'↑':d.trend<-20?'↓':'→'} ${fmtKD(Math.abs(d.trend))}</td>
+      <td>${d.lastPay ? fmtDate(d.lastPay) : '—'}</td>
+      <td><span class="badge ${d.cls.cls}">${d.cls.label}</span></td>
+    </tr>`).join('');
+
+    document.getElementById('tab-classif').innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi red"><div class="lbl">🔴 حرج</div><div class="val">${counts.critical}</div></div>
+        <div class="kpi orange"><div class="lbl">🟠 خطر</div><div class="val">${counts.danger}</div></div>
+        <div class="kpi" style="border-color:#d29922;"><div class="lbl">🟡 متابعة</div><div class="val" style="color:#d29922;">${counts.watch}</div></div>
+        <div class="kpi blue"><div class="lbl">🔵 مقبول</div><div class="val">${counts.good}</div></div>
+        <div class="kpi green"><div class="lbl">🟢 ممتاز</div><div class="val">${counts.excellent}</div></div>
+      </div>
+      <div class="card"><h3>🎯 التصنيف الخماسي - عتبات ديناميكية لكل سائق</h3>
+      <p class="small-muted">عتبة الدين = 30 × أجرة يومية | عتبة التوقف: يومي 4 أيام، شهري 14 يوم</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>السائق</th><th>نوع</th><th>جاري</th><th>قديم</th><th>الكلي</th><th>الانتظام</th><th>الاتجاه</th><th>آخر دفعة</th><th>التصنيف</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div></div>
+    `;
+  }
+
+  /* ================= TAB: Lifecycle ================= */
+  function buildLifecycle() {
+    const today = new Date();
+    const active = gDrivers.filter(d => !d.isArchived);
+    const data = active.map(driver => {
+      const created = toDate(driver.createdAt) || toDate(driver.contractStartDate);
+      const ageDays = created ? Math.floor((today - created)/86400000) : 0;
+      const contractsCount = (driver.contractHistory||[]).filter(c => c.type !== 'تعديل' && c.note !== 'تعديل عقد').length || 1;
+      const drvPays = gPayments.filter(p => p.driverId===driver.id);
+      const totalPaid = drvPays.reduce((s,p) => s + parseFloat(p.amount||0), 0);
+      const split = calcDebtSplit(driver.id, driver);
+      const profit = calcDriverProfit(driver);
+      return { driver, created, ageDays, contractsCount, totalPaid, split, profit };
+    }).sort((a,b) => b.ageDays - a.ageDays);
+
+    document.getElementById('tab-lifecycle').innerHTML = `
+      <div class="card"><h3>📜 سجل السائقين الشامل</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>السائق</th><th>تاريخ البداية</th><th>عمره معك</th><th>عدد العقود</th><th>إجمالي ما دفع</th><th>الدين الحالي</th><th>الربح الصافي</th></tr></thead>
+        <tbody>${data.map(d => `<tr>
+          <td class="name" onclick="openDriverModal('${d.driver.id}')">${d.driver.name||d.driver.id}</td>
+          <td>${fmtDate(d.created)}</td>
+          <td>${d.ageDays} يوم (${(d.ageDays/30).toFixed(1)} شهر)</td>
+          <td>${d.contractsCount}</td>
+          <td class="trend-down">${fmtKD(d.totalPaid)}</td>
+          <td class="${d.split.total>0?'trend-up':''}">${fmtKD(d.split.total)}</td>
+          <td class="${d.profit.netProfit>=0?'trend-down':'trend-up'}"><b>${fmtKD(d.profit.netProfit)}</b></td>
+        </tr>`).join('')}</tbody>
+      </table></div></div>
+    `;
+  }
+
+  /* ================= MODAL ================= */
+  function openDriverModal(driverId) {
+    const driver = gDriverMap[driverId];
+    if (!driver) return;
+    const today = new Date();
+    const split = calcDebtSplit(driverId, driver);
+    const reg = calcRegularity(driver);
+    const prev = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
+    const trend = split.total - prev;
+    const cls = classifyDriver(driver, split, reg, trend);
+    const profit = calcDriverProfit(driver);
+    const lastPay = getLastPaymentDate(driverId);
+    const drvPays = gPayments.filter(p => p.driverId===driverId && RENT_TYPES.includes(p.type));
+    const drvExp = gExpenses.filter(e => e.driverId===driverId);
+
+    // 12 أسبوع
+    const WEEKS = 12; const cells = [];
+    for (let i = WEEKS-1; i >= 0; i--) {
+      const mon = getMondayOfWeek(today); mon.setDate(mon.getDate() - i*7);
+      const sun = new Date(mon); sun.setDate(sun.getDate()+6);
+      const cStart = toDate(driver.contractStartDate)||toDate(driver.createdAt);
+      if (cStart && sun < cStart) { cells.push('<span class="week-cell no-data" title="'+fmtDate(mon)+'">⬜</span>'); continue; }
+      const paid = drvPays.filter(p => { const d=toDate(p.date); return d && d>=mon && d<=sun; });
+      if (paid.length===0) cells.push('<span class="week-cell missed" title="'+fmtDate(mon)+'">❌</span>');
+      else if (paid.some(p => toDate(p.date).getDay()===1)) cells.push('<span class="week-cell paid" title="'+fmtDate(mon)+'">✅</span>');
+      else cells.push('<span class="week-cell late" title="'+fmtDate(mon)+'">🟡</span>');
+    }
+
+    document.getElementById('modalContent').innerHTML = `
+      <div class="modal-head">
+        <h2>${driver.name||driverId} <span class="badge ${cls.cls}">${cls.label}</span></h2>
+        <button class="close-x" onclick="closeModal()">×</button>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi orange"><div class="lbl">دين جاري</div><div class="val">${fmtKD(split.current)}</div></div>
+        <div class="kpi red"><div class="lbl">دين قديم</div><div class="val">${fmtKD(split.old)}</div></div>
+        <div class="kpi"><div class="lbl">إجمالي الدين</div><div class="val">${fmtKD(split.total)}</div></div>
+        <div class="kpi blue"><div class="lbl">الانتظام</div><div class="val">${reg}%</div></div>
+        <div class="kpi ${profit.netProfit>=0?'green':'red'}"><div class="lbl">الربح الصافي</div><div class="val">${fmtKD(profit.netProfit)}</div></div>
+      </div>
+      <div class="card">
+        <h3>📅 آخر 12 أسبوع</h3>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">${cells.join('')}</div>
+        <p class="small-muted" style="margin-top:8px;">آخر دفعة: ${fmtDate(lastPay)}</p>
+      </div>
+      <div class="card">
+        <h3>💰 ملخص مالي</h3>
+        <p>إيجارات مدفوعة: <b>${fmtKD(profit.rentReceived)}</b></p>
+        <p>إيرادات أخرى: <b>${fmtKD(profit.revForDrv)}</b></p>
+        <p>مصروفات: <b style="color:#f85149;">${fmtKD(profit.expForDrv)}</b></p>
+        ${drvExp.length > 0 ? `<p class="small-muted">آخر مصروفات: ${drvExp.slice(-3).map(e => (e.expenseType||e.type||'')+' '+fmtKD(parseFloat(e.amount||e.expenseAmount||0))).join(' · ')}</p>` : ''}
+      </div>
+      <div class="card">
+        <h3>📄 العقد</h3>
+        <p>النوع: ${driver.contractType==='monthly'?'شهري':'يومي'}</p>
+        <p>الإيجار: ${fmtKD(driver.contractType==='monthly'?parseFloat(driver.monthlyPayment||0):parseFloat(driver.dailyRent||0))}</p>
+        <p>بداية العقد: ${fmtDate(toDate(driver.contractStartDate)||toDate(driver.createdAt))}</p>
+        ${driver.contractEndDate ? '<p>نهاية العقد: '+fmtDate(toDate(driver.contractEndDate))+'</p>' : ''}
+        ${driver.phone ? '<p>الجوال: <a href="tel:'+driver.phone+'" style="color:#58a6ff;">'+driver.phone+'</a></p>' : ''}
+      </div>
+    `;
+    document.getElementById('driverModal').classList.add('active');
+  }
+  function closeModal() { document.getElementById('driverModal').classList.remove('active'); }
+
+  /* ================= EXPORT CSV ================= */
+  function exportCSV() {
+    const today = new Date();
+    const active = gDrivers.filter(d => !d.isArchived);
+    const headers = ['السائق','نوع العقد','بداية العقد','الدين الجاري','الدين القديم','الإجمالي','الانتظام','الاتجاه','الربح الصافي','التصنيف'];
+    const lines = [headers.join(',')];
+    active.forEach(driver => {
+      const split = calcDebtSplit(driver.id, driver);
+      const reg = calcRegularity(driver);
+      const prev = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
+      const trend = split.total - prev;
+      const cls = classifyDriver(driver, split, reg, trend);
+      const profit = calcDriverProfit(driver);
+      lines.push([
+        '"'+(driver.name||driver.id)+'"',
+        driver.contractType==='monthly'?'شهري':'يومي',
+        fmtDate(toDate(driver.contractStartDate)),
+        split.current.toFixed(3),
+        split.old.toFixed(3),
+        split.total.toFixed(3),
+        reg+'%',
+        trend.toFixed(3),
+        profit.netProfit.toFixed(3),
+        cls.label.replace(/[🔴🟠🟡🔵🟢]/g,'').trim()
+      ].join(','));
+    });
+    const blob = new Blob(['﻿'+lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'owner-report-'+today.toISOString().slice(0,10)+'.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  </script>
+  </body>
+  </html>
+  
