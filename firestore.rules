@@ -39,10 +39,15 @@ rules_version = '2';
         allow read: if isAuth();
         allow write: if isAuth();
       }
-      // أي مجموعة جديدة - افتراضياً للمالك فقط
+      // ملاحظات المالك السرية لكل سائق - مالك فقط (قراءة وكتابة)
+      // ⚠️ مهم: الـ fallback أدناه owner-only أيضاً، فلا تتسرب القراءة لأي محاسب
+      match /ownerNotes/{driverId} {
+        allow read, write: if isOwner();
+      }
+      // أي مجموعة جديدة - افتراضياً للمالك فقط (قراءة وكتابة)
+      // كان قبل: read=isAuth (ثغرة!) — تم التشديد ليشمل القراءة أيضاً
       match /{document=**} {
-        allow read: if isAuth();
-        allow write: if isOwner();
+        allow read, write: if isOwner();
       }
     }
   }
