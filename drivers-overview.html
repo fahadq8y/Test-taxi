@@ -548,9 +548,29 @@
         let cars = [];
         let allDrivers = []; // For calculateDriverDebt function
 
+        // انتظار جاهزية Firebase Auth (يحل race condition مع IndexedDB restoration)
+        function waitForAuth() {
+            return new Promise((resolve) => {
+                const u = firebase.auth().currentUser;
+                if (u) { resolve(u); return; }
+                const unsub = firebase.auth().onAuthStateChanged((user) => {
+                    unsub();
+                    resolve(user);
+                });
+            });
+        }
+
         // Load data from Firebase
         async function loadData() {
             try {
+                console.log('🔐 [DIAG] انتظار Firebase Auth...');
+                const user = await waitForAuth();
+                console.log('🔐 [DIAG] currentUser:', user ? user.email : 'NULL');
+                if (!user) {
+                    document.getElementById('driversTableBody').innerHTML =
+                        '<tr><td colspan="13" class="no-data">⚠️ يجب تسجيل الدخول أولاً. <a href="index.html" style="color:#0a84ff;">↩ صفحة الدخول</a></td></tr>';
+                    return;
+                }
                 console.log('Loading data from Firebase...');
                 
                 // Load drivers
