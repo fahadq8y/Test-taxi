@@ -89,10 +89,48 @@
 
     .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
     .modal-bg.active { display: flex; }
-    .modal { background: #0d1117; border: 1px solid #30363d; border-radius: 12px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 20px; }
-    .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #30363d; }
+    .modal { background: #0d1117; border: 1px solid #30363d; border-radius: 12px; max-width: 1100px; width: 100%; max-height: 92vh; overflow-y: auto; padding: 20px; }
+    .modal-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #30363d; gap: 14px; flex-wrap: wrap; }
     .modal-head h2 { color: #58a6ff; font-size: 18px; }
+    .modal-head .sub { font-size: 12px; color: #8b949e; margin-top: 4px; }
     .close-x { background: transparent; border: none; color: #f85149; font-size: 24px; cursor: pointer; }
+
+    /* تبويبات داخلية للمودال */
+    .mtabs { display: flex; gap: 4px; margin-bottom: 14px; flex-wrap: wrap; background: #161b22; padding: 5px; border-radius: 8px; border: 1px solid #30363d; }
+    .mtab-btn { background: transparent; color: #8b949e; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit; transition: all 0.2s; }
+    .mtab-btn:hover { background: #21262d; color: #c9d1d9; }
+    .mtab-btn.active { background: #1f6feb; color: white; }
+    .mtab-content { display: none; }
+    .mtab-content.active { display: block; }
+
+    /* canvas wrappers (Chart.js) */
+    .chart-box { position: relative; height: 280px; margin-top: 8px; }
+    .chart-box.tall { height: 340px; }
+    .range-pills { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+    .range-pill { background: #21262d; color: #8b949e; border: 1px solid #30363d; padding: 5px 12px; border-radius: 16px; cursor: pointer; font-size: 12px; font-family: inherit; }
+    .range-pill.active { background: #1f6feb; color: white; border-color: #1f6feb; }
+
+    /* فلاتر داخل tab المعاملات */
+    .tx-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .tx-filter { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: inherit; }
+    .tx-filter.active { background: #1f6feb; color: white; border-color: #1f6feb; }
+
+    /* مؤشر اتجاه */
+    .trend-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; font-size: 12px; font-weight: 600; }
+    .trend-pill.up { background: #5a1d1d; color: #f85149; }
+    .trend-pill.down { background: #0e3d1f; color: #3fb950; }
+    .trend-pill.flat { background: #21262d; color: #8b949e; }
+
+    /* شريط البحث */
+    .search-box { position: relative; flex: 1; min-width: 200px; max-width: 320px; }
+    .search-box input { width: 100%; padding: 8px 12px 8px 32px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #e6edf3; font-size: 13px; font-family: inherit; }
+    .search-box .icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #8b949e; font-size: 14px; pointer-events: none; }
+    .search-results { position: absolute; top: 100%; left: 0; right: 0; background: #161b22; border: 1px solid #30363d; border-radius: 6px; margin-top: 4px; max-height: 280px; overflow-y: auto; z-index: 50; display: none; }
+    .search-results.active { display: block; }
+    .search-results .item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #21262d; font-size: 13px; }
+    .search-results .item:hover { background: #1f6feb; color: white; }
+    .search-results .item .meta { font-size: 11px; color: #8b949e; }
+    .search-results .item:hover .meta { color: rgba(255,255,255,0.8); }
 
     /* Heatmap */
     .heatmap { display: grid; grid-template-columns: 50px repeat(24, 1fr); gap: 2px; font-size: 10px; }
@@ -152,6 +190,13 @@
         <div class="meta"><span id="lastUpdateTime">—</span> · <span id="liveStatus">🟢 مباشر</span></div>
       </div>
       <div class="meta">
+        <div class="search-box">
+          <span class="icon">🔍</span>
+          <input type="text" id="driverSearch" placeholder="ابحث عن سائق (اسم/رقم/جوال)..." autocomplete="off"
+                 oninput="onDriverSearch(this.value)" onblur="setTimeout(()=>document.getElementById('searchResults').classList.remove('active'),200)"
+                 onfocus="if(this.value)onDriverSearch(this.value)">
+          <div class="search-results" id="searchResults"></div>
+        </div>
         <button class="btn outline" onclick="loadAllData()">🔄 تحديث</button>
         <button class="btn outline" onclick="exportCSV()">📥 تصدير CSV</button>
         <button class="btn outline" onclick="window.print()">🖨️ طباعة</button>
@@ -197,6 +242,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <!-- Chart.js للجداول البيانية في مودال السائق -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
   const firebaseConfig = {
       apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -1245,69 +1292,466 @@
   }
 
   /* ================= MODAL ================= */
+  /* ================= DRIVER MODAL (احترافي + Chart.js) ================= */
+  let gModalCharts = [];     // مرجع Chart instances للتنظيف
+  let gModalDriver = null;   // السائق المفتوح حالياً
+  let gDebtRangeDays = 180;  // نطاق رسم اتجاه الدين
+  let gTxFilter = 'all';     // فلتر تبويب المعاملات
+
+  // سلسلة الدين عبر الزمن (نقطة كل ~step يوم)
+  function getDebtSeries(driver, daysBack) {
+    const today = new Date(); today.setHours(23,59,59,999);
+    const step = daysBack <= 90 ? 3 : (daysBack <= 180 ? 5 : 10);
+    const points = [];
+    for (let i = daysBack; i >= 0; i -= step) {
+      const at = new Date(today.getTime() - i * 86400000);
+      points.push({ date: at, debt: calcDebtAtDate(driver, at) });
+    }
+    // التأكد إن آخر نقطة هي اليوم بالضبط
+    const last = points[points.length-1];
+    if (!last || last.date.toDateString() !== today.toDateString()) {
+      points.push({ date: today, debt: calcDebtAtDate(driver, today) });
+    }
+    return points;
+  }
+
+  // دفعات أسبوعية/شهرية للسائق (آخر N وحدة)
+  function getPaymentBuckets(driver, units = 12) {
+    const today = new Date();
+    const drvPays = gPayments.filter(p => p.driverId===driver.id && RENT_TYPES.includes(p.type));
+    const buckets = [];
+    if (driver.contractType === 'monthly') {
+      const expected = parseFloat(driver.monthlyPayment||0);
+      for (let i = units-1; i >= 0; i--) {
+        const ms = new Date(today.getFullYear(), today.getMonth()-i, 1);
+        const me = new Date(today.getFullYear(), today.getMonth()-i+1, 0, 23,59,59);
+        const paid = drvPays.filter(p => { const d=toDate(p.date); return d && d>=ms && d<=me; })
+                            .reduce((s,p)=>s+parseFloat(p.amount||0),0);
+        buckets.push({ label: ms.toLocaleDateString('ar-KW', {month:'short', year:'2-digit'}), paid, expected });
+      }
+    } else {
+      const expected = parseFloat(driver.dailyRent||driver.dailyWage||0) * 7;
+      for (let i = units-1; i >= 0; i--) {
+        const mon = getMondayOfWeek(today); mon.setDate(mon.getDate() - i*7);
+        const sun = new Date(mon); sun.setDate(sun.getDate()+6); sun.setHours(23,59,59);
+        const paid = drvPays.filter(p => { const d=toDate(p.date); return d && d>=mon && d<=sun; })
+                            .reduce((s,p)=>s+parseFloat(p.amount||0),0);
+        buckets.push({ label: mon.toLocaleDateString('ar-KW', {day:'numeric', month:'short'}), paid, expected });
+      }
+    }
+    return buckets;
+  }
+
+  // كل المعاملات (دفعات + مصروفات + إيرادات)
+  function getAllTransactions(driverId) {
+    const txs = [];
+    gPayments.filter(p => p.driverId===driverId).forEach(p => {
+      txs.push({ date: toDate(p.date)||toDate(p.createdAt), type: p.type||'دفعة', amount: parseFloat(p.amount||0),
+                 desc: p.description||'', ref: p.refNum||'', cat: 'payment', subcat: p.type||'' });
+    });
+    gExpenses.filter(e => e.driverId===driverId).forEach(e => {
+      txs.push({ date: toDate(e.date)||toDate(e.createdAt), type: e.expenseType||e.type||'مصروف',
+                 amount: -parseFloat(e.amount||e.expenseAmount||0), desc: e.description||'', ref: e.refNum||'',
+                 cat: 'expense', subcat: 'مصروف' });
+    });
+    gRevenues.filter(r => r.driverId===driverId).forEach(r => {
+      txs.push({ date: toDate(r.date)||toDate(r.createdAt), type: r.revenueType||r.type||'إيراد',
+                 amount: parseFloat(r.amount||r.revenueAmount||0), desc: r.description||'', ref: r.refNum||'',
+                 cat: 'revenue', subcat: 'إيراد' });
+    });
+    return txs.filter(t => t.date).sort((a,b) => b.date - a.date);
+  }
+
+  function destroyModalCharts() {
+    gModalCharts.forEach(c => { try { c.destroy(); } catch(e){} });
+    gModalCharts = [];
+  }
+
   function openDriverModal(driverId) {
     const driver = gDriverMap[driverId];
     if (!driver) return;
+    gModalDriver = driver;
+    gDebtRangeDays = 180;
+    gTxFilter = 'all';
+    destroyModalCharts();
+
     const today = new Date();
     const split = calcDebtSplit(driverId, driver);
     const reg = calcRegularity(driver);
-    const prev = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
-    const trend = split.total - prev;
-    const cls = classifyDriver(driver, split, reg, trend);
+    const prev30 = calcDebtAtDate(driver, new Date(today.getTime() - 30*86400000));
+    const trend30 = split.total - prev30;
+    const cls = classifyDriver(driver, split, reg, trend30);
     const profit = calcDriverProfit(driver);
     const lastPay = getLastPaymentDate(driverId);
-    const drvPays = gPayments.filter(p => p.driverId===driverId && RENT_TYPES.includes(p.type));
-    const drvExp = gExpenses.filter(e => e.driverId===driverId);
+    const daysSince = lastPay ? Math.floor((today - lastPay)/86400000) : null;
+    const thr = getDebtThreshold(driver);
 
-    // 12 أسبوع
-    const WEEKS = 12; const cells = [];
-    for (let i = WEEKS-1; i >= 0; i--) {
+    // مؤشر اتجاه (آخر 30 يوم)
+    let trendPill;
+    if (Math.abs(trend30) < 1) trendPill = '<span class="trend-pill flat">⏸ مستقر</span>';
+    else if (trend30 > 0) trendPill = `<span class="trend-pill up">▲ +${fmtKD(trend30)} (30 يوم)</span>`;
+    else trendPill = `<span class="trend-pill down">▼ ${fmtKD(trend30)} (30 يوم)</span>`;
+
+    // 12 أسبوع cells
+    const cells = [];
+    const drvRentPays = gPayments.filter(p => p.driverId===driverId && RENT_TYPES.includes(p.type));
+    for (let i = 11; i >= 0; i--) {
       const mon = getMondayOfWeek(today); mon.setDate(mon.getDate() - i*7);
       const sun = new Date(mon); sun.setDate(sun.getDate()+6);
       const cStart = toDate(driver.contractStartDate)||toDate(driver.createdAt);
       if (cStart && sun < cStart) { cells.push('<span class="week-cell no-data" title="'+fmtDate(mon)+'">⬜</span>'); continue; }
-      const paid = drvPays.filter(p => { const d=toDate(p.date); return d && d>=mon && d<=sun; });
+      const paid = drvRentPays.filter(p => { const d=toDate(p.date); return d && d>=mon && d<=sun; });
       if (paid.length===0) cells.push('<span class="week-cell missed" title="'+fmtDate(mon)+'">❌</span>');
       else if (paid.some(p => toDate(p.date).getDay()===1)) cells.push('<span class="week-cell paid" title="'+fmtDate(mon)+'">✅</span>');
       else cells.push('<span class="week-cell late" title="'+fmtDate(mon)+'">🟡</span>');
     }
 
+    const contractRate = driver.contractType==='monthly'
+      ? `${fmtKD(parseFloat(driver.monthlyPayment||0))} / شهر`
+      : `${fmtKD(parseFloat(driver.dailyRent||0))} / يوم`;
+    const contractStart = toDate(driver.contractStartDate)||toDate(driver.createdAt);
+    const contractEnd = toDate(driver.contractEndDate);
+    const contractActive = !contractEnd || contractEnd >= today;
+
     document.getElementById('modalContent').innerHTML = `
       <div class="modal-head">
-        <h2>${driver.name||driverId} <span class="badge ${cls.cls}">${cls.label}</span></h2>
+        <div>
+          <h2>${driver.name||driverId} <span class="badge ${cls.cls}">${cls.label}</span></h2>
+          <div class="sub">
+            ${driver.employeeNumber||driverId} · ${driver.contractType==='monthly'?'شهري':'يومي'} (${contractRate})
+            ${driver.phone ? ' · 📞 <a href="tel:'+driver.phone+'" style="color:#58a6ff;">'+driver.phone+'</a>' : ''}
+            · ${trendPill}
+          </div>
+        </div>
         <button class="close-x" onclick="closeModal()">×</button>
       </div>
-      <div class="kpi-grid">
-        <div class="kpi orange"><div class="lbl">دين جاري</div><div class="val">${fmtKD(split.current)}</div></div>
-        <div class="kpi red"><div class="lbl">دين قديم</div><div class="val">${fmtKD(split.old)}</div></div>
-        <div class="kpi"><div class="lbl">إجمالي الدين</div><div class="val">${fmtKD(split.total)}</div></div>
-        <div class="kpi blue"><div class="lbl">الانتظام</div><div class="val">${reg}%</div></div>
-        <div class="kpi ${profit.netProfit>=0?'green':'red'}"><div class="lbl">الربح الصافي</div><div class="val">${fmtKD(profit.netProfit)}</div></div>
+
+      <div class="mtabs">
+        <button class="mtab-btn active" onclick="switchMTab('overview')">📊 نظرة عامة</button>
+        <button class="mtab-btn" onclick="switchMTab('debt')">📈 اتجاه الدين</button>
+        <button class="mtab-btn" onclick="switchMTab('payments')">💰 الدفعات</button>
+        <button class="mtab-btn" onclick="switchMTab('tx')">📋 المعاملات</button>
       </div>
-      <div class="card">
-        <h3>📅 آخر 12 أسبوع</h3>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;">${cells.join('')}</div>
-        <p class="small-muted" style="margin-top:8px;">آخر دفعة: ${fmtDate(lastPay)}</p>
+
+      <!-- TAB 1: نظرة عامة -->
+      <div id="mtab-overview" class="mtab-content active">
+        <div class="kpi-grid">
+          <div class="kpi orange"><div class="lbl">دين جاري</div><div class="val">${fmtKD(split.current)}</div></div>
+          <div class="kpi red"><div class="lbl">دين قديم</div><div class="val">${fmtKD(split.old)}</div></div>
+          <div class="kpi"><div class="lbl">إجمالي الدين</div><div class="val">${fmtKD(split.total)}</div>
+            <div class="sub">عتبة الخطر: ${fmtKD(thr)}</div></div>
+          <div class="kpi blue"><div class="lbl">الانتظام</div><div class="val">${reg}%</div></div>
+          <div class="kpi ${profit.netProfit>=0?'green':'red'}"><div class="lbl">الربح الصافي</div><div class="val">${fmtKD(profit.netProfit)}</div></div>
+          <div class="kpi ${daysSince===null?'':(daysSince>getStopDays(driver)?'red':(daysSince>2?'orange':'green'))}">
+            <div class="lbl">آخر دفعة قبل</div>
+            <div class="val">${daysSince===null?'—':daysSince+' يوم'}</div>
+            <div class="sub">${fmtDate(lastPay)}</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>📅 آخر 12 أسبوع</h3>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">${cells.join('')}</div>
+          <p class="small-muted" style="margin-top:8px;">✅ دفع منتظم · 🟡 دفع متأخر · ❌ ما دفع · ⬜ قبل بداية العقد</p>
+        </div>
+
+        <div class="card">
+          <h3>💰 ملخص مالي شامل</h3>
+          <p>إيجارات مدفوعة: <b>${fmtKD(profit.rentReceived)}</b></p>
+          <p>إيرادات أخرى من السائق: <b>${fmtKD(profit.revForDrv)}</b></p>
+          <p>مصروفات على السائق: <b style="color:#f85149;">${fmtKD(profit.expForDrv)}</b></p>
+          <p style="margin-top:8px;border-top:1px solid #30363d;padding-top:8px;">
+            صافي الربح: <b style="color:${profit.netProfit>=0?'#3fb950':'#f85149'};font-size:16px;">${fmtKD(profit.netProfit)}</b>
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>📄 العقد</h3>
+          <p>النوع: <b>${driver.contractType==='monthly'?'شهري':'يومي'}</b> ${contractActive ? '<span class="trend-pill down">نشط</span>' : '<span class="trend-pill up">منتهي</span>'}</p>
+          <p>الإيجار: <b>${contractRate}</b></p>
+          <p>بداية العقد: ${fmtDate(contractStart)}</p>
+          ${contractEnd ? '<p>نهاية العقد: '+fmtDate(contractEnd)+'</p>' : ''}
+          ${driver.nationality ? '<p>الجنسية: '+driver.nationality+'</p>' : ''}
+        </div>
       </div>
-      <div class="card">
-        <h3>💰 ملخص مالي</h3>
-        <p>إيجارات مدفوعة: <b>${fmtKD(profit.rentReceived)}</b></p>
-        <p>إيرادات أخرى: <b>${fmtKD(profit.revForDrv)}</b></p>
-        <p>مصروفات: <b style="color:#f85149;">${fmtKD(profit.expForDrv)}</b></p>
-        ${drvExp.length > 0 ? `<p class="small-muted">آخر مصروفات: ${drvExp.slice(-3).map(e => (e.expenseType||e.type||'')+' '+fmtKD(parseFloat(e.amount||e.expenseAmount||0))).join(' · ')}</p>` : ''}
+
+      <!-- TAB 2: اتجاه الدين -->
+      <div id="mtab-debt" class="mtab-content">
+        <div class="card">
+          <h3>📈 اتجاه الدين الموحّد عبر الزمن</h3>
+          <div class="range-pills">
+            <button class="range-pill" data-range="90" onclick="changeDebtRange(90)">90 يوم</button>
+            <button class="range-pill active" data-range="180" onclick="changeDebtRange(180)">180 يوم</button>
+            <button class="range-pill" data-range="365" onclick="changeDebtRange(365)">سنة</button>
+          </div>
+          <div class="chart-box tall"><canvas id="debtTrendChart"></canvas></div>
+          <p class="small-muted" style="margin-top:8px;">
+            🔴 الخط الأحمر = عتبة الخطر (${fmtKD(thr)}) · 🔵 النقاط = دفعات السائق
+          </p>
+          <div id="debtTrendSummary" style="margin-top:10px;"></div>
+        </div>
       </div>
-      <div class="card">
-        <h3>📄 العقد</h3>
-        <p>النوع: ${driver.contractType==='monthly'?'شهري':'يومي'}</p>
-        <p>الإيجار: ${fmtKD(driver.contractType==='monthly'?parseFloat(driver.monthlyPayment||0):parseFloat(driver.dailyRent||0))}</p>
-        <p>بداية العقد: ${fmtDate(toDate(driver.contractStartDate)||toDate(driver.createdAt))}</p>
-        ${driver.contractEndDate ? '<p>نهاية العقد: '+fmtDate(toDate(driver.contractEndDate))+'</p>' : ''}
-        ${driver.phone ? '<p>الجوال: <a href="tel:'+driver.phone+'" style="color:#58a6ff;">'+driver.phone+'</a></p>' : ''}
+
+      <!-- TAB 3: الدفعات -->
+      <div id="mtab-payments" class="mtab-content">
+        <div class="card">
+          <h3>💰 الدفعات ${driver.contractType==='monthly'?'الشهرية':'الأسبوعية'} (آخر 12)</h3>
+          <div class="chart-box"><canvas id="paymentsChart"></canvas></div>
+          <p class="small-muted" style="margin-top:8px;">
+            🔵 العمود = المدفوع فعلياً · 🟧 الخط = المتوقع (${fmtKD(driver.contractType==='monthly'?parseFloat(driver.monthlyPayment||0):parseFloat(driver.dailyRent||0)*7)})
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>📜 سجل دفعات الإيجار (آخر 30)</h3>
+          <div class="table-wrap" style="max-height:340px;">
+            <table>
+              <thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>الوصف</th><th>المرجع</th></tr></thead>
+              <tbody>${
+                drvRentPays.slice().sort((a,b)=>(toDate(b.date)||0)-(toDate(a.date)||0)).slice(0,30).map(p => `
+                  <tr>
+                    <td>${fmtDate(toDate(p.date))}</td>
+                    <td>${p.type||''}</td>
+                    <td style="color:#3fb950;font-weight:600;">${fmtKD(parseFloat(p.amount||0))}</td>
+                    <td style="text-align:right;">${p.description||'—'}</td>
+                    <td><span class="small-muted">${p.refNum||'—'}</span></td>
+                  </tr>`).join('') ||
+                '<tr><td colspan="5" style="color:#8b949e;padding:20px;">لا توجد دفعات إيجار</td></tr>'
+              }</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: المعاملات -->
+      <div id="mtab-tx" class="mtab-content">
+        <div class="card">
+          <h3>📋 كل المعاملات</h3>
+          <div class="tx-filters" id="txFilters">
+            <button class="tx-filter active" onclick="filterTx('all')">الكل</button>
+            <button class="tx-filter" onclick="filterTx('أجرة يومية')">أجرة يومية</button>
+            <button class="tx-filter" onclick="filterTx('أجرة شهرية')">أجرة شهرية</button>
+            <button class="tx-filter" onclick="filterTx('دين قديم')">دين قديم</button>
+            <button class="tx-filter" onclick="filterTx('سداد مخالفة')">سداد مخالفة</button>
+            <button class="tx-filter" onclick="filterTx('تحصيل مخالفة')">تحصيل مخالفة</button>
+            <button class="tx-filter" onclick="filterTx('سداد رسوم إقامة')">إقامة</button>
+            <button class="tx-filter" onclick="filterTx('expense')">مصروفات</button>
+            <button class="tx-filter" onclick="filterTx('revenue')">إيرادات</button>
+          </div>
+          <div id="txTableWrap"></div>
+        </div>
       </div>
     `;
     document.getElementById('driverModal').classList.add('active');
+    renderTxTable();
+    // الافتراضي = نظرة عامة (ما يحتاج chart)، لكن نهيئ debt chart عند فتح أول مرة على المتصفح
   }
-  function closeModal() { document.getElementById('driverModal').classList.remove('active'); }
+
+  function switchMTab(name) {
+    const tabs = ['overview','debt','payments','tx'];
+    document.querySelectorAll('.mtab-btn').forEach((b,i) => b.classList.toggle('active', tabs[i] === name));
+    document.querySelectorAll('.mtab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('mtab-' + name).classList.add('active');
+    if (name === 'debt') renderDebtTrendChart();
+    else if (name === 'payments') renderPaymentsChart();
+  }
+
+  function changeDebtRange(days) {
+    gDebtRangeDays = days;
+    document.querySelectorAll('.range-pill').forEach(p => p.classList.toggle('active', +p.dataset.range === days));
+    renderDebtTrendChart();
+  }
+
+  function renderDebtTrendChart() {
+    if (!gModalDriver || typeof Chart === 'undefined') return;
+    const canvas = document.getElementById('debtTrendChart');
+    if (!canvas) return;
+    // تنظيف chart قديم
+    gModalCharts = gModalCharts.filter(c => { if (c.canvas === canvas) { c.destroy(); return false; } return true; });
+
+    const series = getDebtSeries(gModalDriver, gDebtRangeDays);
+    const labels = series.map(p => p.date.toLocaleDateString('ar-KW', {day:'numeric', month:'short'}));
+    const debtData = series.map(p => +p.debt.toFixed(3));
+    const thr = getDebtThreshold(gModalDriver);
+    const thrLine = series.map(() => +thr.toFixed(3));
+
+    // نقاط الدفعات داخل النطاق
+    const startDate = new Date(Date.now() - gDebtRangeDays * 86400000);
+    const drvPays = gPayments.filter(p => p.driverId===gModalDriver.id && RENT_TYPES.includes(p.type) &&
+                                          toDate(p.date) && toDate(p.date) >= startDate);
+    // نضع كل دفعة عند أقرب نقطة في series
+    const payPoints = drvPays.map(p => {
+      const d = toDate(p.date);
+      let bestIdx = 0, bestDiff = Infinity;
+      series.forEach((pt, i) => { const diff = Math.abs(pt.date - d); if (diff < bestDiff) { bestDiff = diff; bestIdx = i; } });
+      return { x: bestIdx, y: series[bestIdx].debt, amount: parseFloat(p.amount||0), date: d };
+    });
+
+    const ch = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'إجمالي الدين (د.ك)',
+            data: debtData,
+            borderColor: '#fb8500', backgroundColor: 'rgba(251,133,0,0.15)',
+            fill: true, tension: 0.25, borderWidth: 2, pointRadius: 0
+          },
+          {
+            label: 'عتبة الخطر',
+            data: thrLine,
+            borderColor: '#f85149', borderDash: [6,4], borderWidth: 1.5,
+            pointRadius: 0, fill: false
+          },
+          {
+            label: 'دفعات', type: 'scatter',
+            data: payPoints.map(p => ({ x: labels[p.x], y: p.y })),
+            backgroundColor: '#58a6ff', borderColor: '#58a6ff',
+            pointRadius: 5, pointHoverRadius: 7, showLine: false
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#c9d1d9', font: { family: 'inherit' } } },
+          tooltip: { callbacks: { label: (ctx) => ctx.dataset.label + ': ' + (+ctx.parsed.y).toFixed(3) + ' د.ك' } }
+        },
+        scales: {
+          x: { ticks: { color: '#8b949e', maxTicksLimit: 10 }, grid: { color: '#21262d' } },
+          y: { ticks: { color: '#8b949e', callback: v => (+v).toFixed(0) }, grid: { color: '#21262d' }, beginAtZero: true }
+        }
+      }
+    });
+    gModalCharts.push(ch);
+
+    // ملخص نصي تحت الـ chart
+    const first = series[0].debt, last = series[series.length-1].debt;
+    const diff = last - first;
+    const sign = diff > 0 ? '▲ زاد' : (diff < 0 ? '▼ نقص' : '⏸ ثبت');
+    const color = diff > 0 ? '#f85149' : (diff < 0 ? '#3fb950' : '#8b949e');
+    document.getElementById('debtTrendSummary').innerHTML = `
+      <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;">
+        <span>دين قبل ${gDebtRangeDays} يوم: <b>${fmtKD(first)}</b></span>
+        <span>اليوم: <b>${fmtKD(last)}</b></span>
+        <span style="color:${color};font-weight:700;">${sign} ${fmtKD(Math.abs(diff))}</span>
+        <span>عدد الدفعات في الفترة: <b>${drvPays.length}</b></span>
+      </div>`;
+  }
+
+  function renderPaymentsChart() {
+    if (!gModalDriver || typeof Chart === 'undefined') return;
+    const canvas = document.getElementById('paymentsChart');
+    if (!canvas) return;
+    gModalCharts = gModalCharts.filter(c => { if (c.canvas === canvas) { c.destroy(); return false; } return true; });
+
+    const buckets = getPaymentBuckets(gModalDriver, 12);
+    const labels = buckets.map(b => b.label);
+    const paid = buckets.map(b => +b.paid.toFixed(3));
+    const expectedLine = buckets.map(b => +b.expected.toFixed(3));
+
+    const ch = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'المدفوع', data: paid,
+            backgroundColor: paid.map((v,i) => v >= buckets[i].expected*0.9 ? '#3fb950' : (v >= buckets[i].expected*0.5 ? '#d29922' : '#f85149')),
+            borderRadius: 4
+          },
+          {
+            label: 'المتوقع', type: 'line', data: expectedLine,
+            borderColor: '#fb8500', borderWidth: 2, borderDash: [4,4],
+            pointRadius: 3, pointBackgroundColor: '#fb8500', fill: false, tension: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#c9d1d9', font: { family: 'inherit' } } },
+          tooltip: { callbacks: { label: (ctx) => ctx.dataset.label + ': ' + (+ctx.parsed.y).toFixed(3) + ' د.ك' } }
+        },
+        scales: {
+          x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+          y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, beginAtZero: true }
+        }
+      }
+    });
+    gModalCharts.push(ch);
+  }
+
+  function filterTx(filter) {
+    gTxFilter = filter;
+    document.querySelectorAll('#txFilters .tx-filter').forEach(b => {
+      b.classList.toggle('active', b.textContent.trim() === ({all:'الكل',expense:'مصروفات',revenue:'إيرادات','سداد رسوم إقامة':'إقامة'}[filter] || filter));
+    });
+    renderTxTable();
+  }
+
+  function renderTxTable() {
+    if (!gModalDriver) return;
+    const wrap = document.getElementById('txTableWrap');
+    if (!wrap) return;
+    let txs = getAllTransactions(gModalDriver.id);
+    if (gTxFilter !== 'all') {
+      if (gTxFilter === 'expense') txs = txs.filter(t => t.cat === 'expense');
+      else if (gTxFilter === 'revenue') txs = txs.filter(t => t.cat === 'revenue');
+      else txs = txs.filter(t => t.type === gTxFilter);
+    }
+    const total = txs.reduce((s,t) => s + t.amount, 0);
+    wrap.innerHTML = `
+      <p class="small-muted" style="margin-bottom:8px;">عدد المعاملات: <b>${txs.length}</b> · المجموع: <b style="color:${total>=0?'#3fb950':'#f85149'};">${fmtKD(total)}</b></p>
+      <div class="table-wrap" style="max-height:420px;">
+        <table>
+          <thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>الوصف</th><th>المرجع</th></tr></thead>
+          <tbody>${
+            txs.length === 0 ? '<tr><td colspan="5" style="color:#8b949e;padding:20px;">لا توجد معاملات</td></tr>' :
+            txs.map(t => `
+              <tr>
+                <td>${fmtDate(t.date)}</td>
+                <td>${t.type}</td>
+                <td style="color:${t.amount>=0?'#3fb950':'#f85149'};font-weight:600;">${fmtKD(Math.abs(t.amount))}${t.amount<0?' −':''}</td>
+                <td style="text-align:right;">${t.desc||'—'}</td>
+                <td><span class="small-muted">${t.ref||'—'}</span></td>
+              </tr>`).join('')
+          }</tbody>
+        </table>
+      </div>`;
+  }
+
+  function closeModal() {
+    destroyModalCharts();
+    gModalDriver = null;
+    document.getElementById('driverModal').classList.remove('active');
+  }
+
+  /* ================= QUICK SEARCH (شريط البحث) ================= */
+  function onDriverSearch(q) {
+    const box = document.getElementById('searchResults');
+    q = (q||'').trim().toLowerCase();
+    if (!q) { box.classList.remove('active'); box.innerHTML=''; return; }
+    const results = gDrivers.filter(d => !d.isArchived).filter(d => {
+      return (d.name||'').toLowerCase().includes(q) ||
+             (d.id||'').toLowerCase().includes(q) ||
+             (d.employeeNumber||'').toLowerCase().includes(q) ||
+             (d.phone||'').includes(q);
+    }).slice(0, 10);
+    if (results.length === 0) {
+      box.innerHTML = '<div class="item" style="color:#8b949e;cursor:default;">لا توجد نتائج</div>';
+    } else {
+      box.innerHTML = results.map(d => {
+        const split = calcDebtSplit(d.id, d);
+        return `<div class="item" onmousedown="openDriverModal('${d.id}');document.getElementById('driverSearch').value='';document.getElementById('searchResults').classList.remove('active');">
+          <div><b>${d.name||d.id}</b> <span class="meta">— ${d.employeeNumber||d.id}</span></div>
+          <div class="meta">${d.phone||''} · دين: ${fmtKD(split.total)}</div>
+        </div>`;
+      }).join('');
+    }
+    box.classList.add('active');
+  }
 
   /* ================= EXPORT CSV ================= */
   function exportCSV() {
