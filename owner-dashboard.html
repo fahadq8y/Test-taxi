@@ -1473,6 +1473,22 @@
           ${contractEnd ? '<p>نهاية العقد: '+fmtDate(contractEnd)+'</p>' : ''}
           ${driver.nationality ? '<p>الجنسية: '+driver.nationality+'</p>' : ''}
         </div>
+
+        <div class="card" style="border:1px solid #d29922;">
+          <h3 style="color:#d29922;">🔒 ملاحظات سرية (المالك فقط)</h3>
+          <p class="small-muted" style="margin-bottom:8px;">
+            هذي الملاحظات محفوظة بقاعدة البيانات ومحمية — ما يقدر أي محاسب يقراها أو يعدّلها.
+            مناسبة للأعذار، الاتفاقات الشفهية، التذكيرات الخاصة...
+          </p>
+          <textarea id="ownerNoteText" placeholder="اكتب ملاحظاتك هنا... (مثلاً: اتفقنا يدفع نص الشهر بالأسبوع الجاي، عذره إن سيارته تعطّلت...)"
+            style="width:100%;min-height:120px;padding:10px;border:1px solid #30363d;border-radius:6px;background:#0d1117;color:#e6edf3;font-family:inherit;font-size:13px;resize:vertical;line-height:1.6;"
+            disabled>جاري التحميل...</textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px;flex-wrap:wrap;">
+            <span class="small-muted" id="ownerNoteMeta">—</span>
+            <button class="btn success" id="ownerNoteSaveBtn" onclick="saveOwnerNote()" disabled>💾 حفظ الملاحظات</button>
+          </div>
+          <div id="ownerNoteStatus" style="margin-top:8px;font-size:12px;"></div>
+        </div>
       </div>
 
       <!-- TAB 2: اتجاه الدين -->
@@ -1544,7 +1560,65 @@
     `;
     document.getElementById('driverModal').classList.add('active');
     renderTxTable();
+    loadOwnerNote(driverId);
     // الافتراضي = نظرة عامة (ما يحتاج chart)، لكن نهيئ debt chart عند فتح أول مرة على المتصفح
+  }
+
+  /* ================= OWNER NOTES (سرية - مالك فقط) ================= */
+  async function loadOwnerNote(driverId) {
+    const txt = document.getElementById('ownerNoteText');
+    const meta = document.getElementById('ownerNoteMeta');
+    const btn = document.getElementById('ownerNoteSaveBtn');
+    const status = document.getElementById('ownerNoteStatus');
+    if (!txt) return;
+    txt.value = 'جاري التحميل...'; txt.disabled = true; btn.disabled = true; status.textContent = '';
+    try {
+      const doc = await firebase.firestore().collection('ownerNotes').doc(driverId).get();
+      if (doc.exists) {
+        const d = doc.data();
+        txt.value = d.note || '';
+        const ts = toDate(d.updatedAt);
+        meta.textContent = ts ? '🕒 آخر تعديل: ' + ts.toLocaleString('ar-KW') : '';
+      } else {
+        txt.value = '';
+        meta.textContent = '📝 ما عندك ملاحظات لهذا السائق - اكتب أول ملاحظة';
+      }
+      txt.disabled = false; btn.disabled = false;
+    } catch(e) {
+      console.error('loadOwnerNote err:', e);
+      txt.value = '';
+      txt.disabled = false; btn.disabled = false;
+      status.innerHTML = '<span style="color:#f85149;">⚠️ تعذّر التحميل: ' + (e.message||e) + '</span>';
+    }
+  }
+
+  async function saveOwnerNote() {
+    if (!gModalDriver) return;
+    const txt = document.getElementById('ownerNoteText');
+    const btn = document.getElementById('ownerNoteSaveBtn');
+    const meta = document.getElementById('ownerNoteMeta');
+    const status = document.getElementById('ownerNoteStatus');
+    const note = (txt.value||'').trim();
+    btn.disabled = true; btn.textContent = '⏳ يحفظ...';
+    status.textContent = '';
+    try {
+      await firebase.firestore().collection('ownerNotes').doc(gModalDriver.id).set({
+        driverId: gModalDriver.id,
+        driverName: gModalDriver.name || gModalDriver.id,
+        note: note,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: gAuthUser ? gAuthUser.email : 'owner'
+      }, { merge: true });
+      const now = new Date();
+      meta.textContent = '🕒 آخر تعديل: ' + now.toLocaleString('ar-KW');
+      status.innerHTML = '<span style="color:#3fb950;">✅ انحفظت الملاحظات</span>';
+      setTimeout(() => { status.textContent = ''; }, 3000);
+    } catch(e) {
+      console.error('saveOwnerNote err:', e);
+      status.innerHTML = '<span style="color:#f85149;">❌ فشل الحفظ: ' + (e.message||e) + '</span>';
+    } finally {
+      btn.disabled = false; btn.textContent = '💾 حفظ الملاحظات';
+    }
   }
 
   function switchMTab(name) {
