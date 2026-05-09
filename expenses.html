@@ -1304,9 +1304,23 @@
             }
         }
 
+        // انتظار جاهزية Firebase Auth (يحل race condition مع IndexedDB restoration)
+        function waitForAuth() {
+            return new Promise((resolve) => {
+                const u = firebase.auth().currentUser;
+                if (u) { resolve(u); return; }
+                const unsub = firebase.auth().onAuthStateChanged((user) => { unsub(); resolve(user); });
+            });
+        }
+
         // Load all data from Firebase
         async function loadAllData() {
             try {
+                const _user = await waitForAuth();
+                if (!_user) {
+                    document.body.insertAdjacentHTML('afterbegin', '<div style="padding:20px;background:#fff3cd;color:#856404;text-align:center;border-bottom:2px solid #ffc107;">⚠️ يجب تسجيل الدخول أولاً. <a href="index.html" style="color:#0a84ff;font-weight:bold;">↩ صفحة الدخول</a></div>');
+                    return;
+                }
                 // Load expenses
                 const expensesSnapshot = await db.collection('expenses').orderBy('date', 'desc').get();
                 expenses = expensesSnapshot.docs.map(doc => ({
