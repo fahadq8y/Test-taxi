@@ -39,6 +39,16 @@ rules_version = '2';
         allow read: if isAuth();
         allow write: if isAuth();
       }
+      // مستخدمين النظام (محاسبين) - قراءة وكتابة لأي مسجّل دخول
+      match /users/{doc} {
+        allow read: if isAuth();
+        allow write: if isAuth();
+      }
+      // سجل تغيير الزيت لكل سيارة
+      match /oilChangeHistory/{doc} {
+        allow read: if isAuth();
+        allow write: if isAuth();
+      }
       // ملاحظات المالك السرية لكل سائق - مالك فقط (قراءة وكتابة)
       // ⚠️ مهم: الـ fallback أدناه owner-only أيضاً، فلا تتسرب القراءة لأي محاسب
       match /ownerNotes/{driverId} {
@@ -51,4 +61,3 @@ rules_version = '2';
       }
     }
   }
-  
