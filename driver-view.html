@@ -466,7 +466,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
         import { getFirestore, doc, getDoc, updateDoc, getDocs, collection, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
-        import { getAuth, signOut } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+        import { getAuth, signOut, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -908,9 +908,29 @@
             window.driverListenerUnsubscribe = unsubscribe;
         }
 
+        // ضمان جلسة Firebase Auth (signInAnonymously لأن driver-login يستخدم localStorage فقط)
+        async function ensureFirebaseAuth() {
+            if (auth.currentUser) return auth.currentUser;
+            try {
+                const result = await signInAnonymously(auth);
+                console.log('🔐 جلسة مجهولة:', result.user.uid);
+                return result.user;
+            } catch (e) {
+                console.error('❌ فشل تسجيل الدخول التلقائي:', e);
+                return null;
+            }
+        }
+
         // Load driver data (initial load)
         async function loadDriverData() {
             if (!checkLogin()) return;
+
+            // ضمان جلسة Firebase Auth قبل أي قراءة
+            const _u = await ensureFirebaseAuth();
+            if (!_u) {
+                document.body.insertAdjacentHTML('afterbegin', '<div style="padding:20px;background:#fff3cd;color:#856404;text-align:center;border-bottom:2px solid #ffc107;z-index:9999;position:relative;">⚠️ تعذّر إنشاء جلسة آمنة. حاول إعادة تحميل الصفحة.</div>');
+                return;
+            }
 
             try {
                 console.log('🔍 جاري تحميل بيانات السائق:', driverId);
