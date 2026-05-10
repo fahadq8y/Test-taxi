@@ -1,63 +1,23 @@
 rules_version = '2';
-  service cloud.firestore {
-    match /databases/{database}/documents {
-      function isOwner() {
-        return request.auth != null && request.auth.token.email == 'f5h5d_q8@hotmail.com';
-      }
-      function isAuth() {
-        return request.auth != null;
-      }
+service cloud.firestore {
+  match /databases/{database}/documents {
 
-      // قراءة عامة لمن سجّل دخول، الكتابة محصورة على الإيميلات المعتمدة
-      match /drivers/{doc} {
-        allow read: if isAuth();
-        allow write: if isAuth();
-      }
-      match /driverPayments/{doc} {
-        allow read: if isAuth();
-        allow write: if isAuth();
-      }
-      match /expenses/{doc} {
-        allow read: if isAuth();
-        allow write: if isAuth();
-      }
-      match /revenues/{doc} {
-        allow read: if isAuth();
-        allow write: if isAuth();
-      }
-      match /editHistory/{doc} {
-        allow read: if isAuth();
-        // المحاسب يقدر يكتب لكن ما يقدر يحذف من سجل التعديلات
-        allow create: if isAuth();
-        allow update, delete: if isOwner();
-      }
-      match /archivedDrivers/{doc} {
-        allow read: if isAuth();
-        allow write: if isAuth();
-      }
-      match /cars/{doc} {
-        allow read: if isAuth();
-        allow write: if isAuth();
-      }
-      // مستخدمين النظام (محاسبين) - قراءة وكتابة لأي مسجّل دخول
-      match /users/{doc} {
-        allow read: if isAuth();
-        allow write: if isAuth();
-      }
-      // سجل تغيير الزيت لكل سيارة
-      match /oilChangeHistory/{doc} {
-        allow read: if isAuth();
-        allow write: if isAuth();
-      }
-      // ملاحظات المالك السرية لكل سائق - مالك فقط (قراءة وكتابة)
-      // ⚠️ مهم: الـ fallback أدناه owner-only أيضاً، فلا تتسرب القراءة لأي محاسب
-      match /ownerNotes/{driverId} {
-        allow read, write: if isOwner();
-      }
-      // أي مجموعة جديدة - افتراضياً للمالك فقط (قراءة وكتابة)
-      // كان قبل: read=isAuth (ثغرة!) — تم التشديد ليشمل القراءة أيضاً
-      match /{document=**} {
-        allow read, write: if isOwner();
-      }
+    // ===== ownerNotes: للمالك فقط =====
+    match /ownerNotes/{doc} {
+      allow read, write: if request.auth != null
+        && request.auth.token.email == 'f5h5d_q8@hotmail.com';
+    }
+
+    // ===== editHistory: الكل يقرأ ويضيف، التعديل/الحذف للمالك فقط =====
+    match /editHistory/{doc} {
+      allow read, create: if true;
+      allow update, delete: if request.auth != null
+        && request.auth.token.email == 'f5h5d_q8@hotmail.com';
+    }
+
+    // ===== كل شي ثاني مفتوح للكل (موقع داخلي بسيط) =====
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
+}
