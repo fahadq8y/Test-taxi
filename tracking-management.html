@@ -706,7 +706,22 @@ window.logout = function() {
     }
 };
 
-window.addEventListener('load', loadDrivers);
+// انتظار جاهزية Firebase Auth (يحل race condition)
+function waitForAuth() {
+    return new Promise((resolve) => {
+        if (auth.currentUser) { resolve(auth.currentUser); return; }
+        const unsub = onAuthStateChanged(auth, (u) => { unsub(); resolve(u); });
+    });
+}
+
+window.addEventListener('load', async () => {
+    const _user = await waitForAuth();
+    if (!_user) {
+        document.body.insertAdjacentHTML('afterbegin', '<div style="padding:20px;background:#fff3cd;color:#856404;text-align:center;border-bottom:2px solid #ffc107;z-index:9999;position:relative;">⚠️ يجب تسجيل الدخول أولاً. <a href="index.html" style="color:#0a84ff;font-weight:bold;">↩ صفحة الدخول</a></div>');
+        return;
+    }
+    loadDrivers();
+});
 </script>
 </body>
 </html>
