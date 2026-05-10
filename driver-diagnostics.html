@@ -1544,23 +1544,9 @@ function showToast(msg, type) {
   setTimeout(() => t.remove(), 3500);
 }
 
-// انتظار جاهزية Firebase Auth (يحل race condition)
-function waitForAuth() {
-  return new Promise((resolve) => {
-    const u = firebase.auth().currentUser;
-    if (u) { resolve(u); return; }
-    const unsub = firebase.auth().onAuthStateChanged((user) => { unsub(); resolve(user); });
-  });
-}
-
-// ===== INIT =====
-(async function init() {
-  const _user = await waitForAuth();
-  if (!_user) {
-    document.getElementById('loading').innerHTML = '<div style="padding:40px;text-align:center;background:#fff3cd;color:#856404;border-radius:8px;">⚠️ يجب تسجيل الدخول أولاً.<br><a href="index.html" style="color:#0a84ff;font-weight:bold;">↩ صفحة الدخول</a></div>';
-    return;
-  }
-  await loadSnapshotHistory();
+// ===== INIT (لا حاجة لـ Auth — قواعد Firestore مفتوحة) =====
+  (async function init() {
+    await loadSnapshotHistory();
   setupMainListener();
   setupLocListener();
   setupEventsListener();
