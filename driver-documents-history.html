@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+  <html lang="ar" dir="rtl">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>سجل تعديلات وثائق السائقين</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f3f4f6;margin:0;padding:0}
+    .page{max-width:1200px;margin:0 auto;padding:20px}
+    .header{background:linear-gradient(135deg,#0a84ff,#0066cc);color:#fff;padding:20px 24px;border-radius:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
+    .header h1{margin:0;font-size:22px}
+    .back-btn{background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);padding:8px 16px;border-radius:8px;text-decoration:none;font-size:14px}
+    .badge{background:#ef4444;color:#fff;padding:4px 10px;border-radius:20px;font-size:13px;font-weight:bold;margin-right:8px}
+    .badge.zero{background:#10b981}
+    .tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+    .tab{background:#fff;border:2px solid #e5e7eb;padding:10px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;color:#374151}
+    .tab.active{background:#0a84ff;color:#fff;border-color:#0a84ff}
+    .card{background:#fff;border-radius:14px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.05);margin-bottom:16px}
+    .card h2{margin:0 0 14px 0;font-size:18px;color:#111;border-bottom:2px solid #f3f4f6;padding-bottom:10px}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    th{background:#f9fafb;padding:12px;text-align:right;font-weight:600;color:#6b7280;border-bottom:2px solid #e5e7eb}
+    td{padding:12px;border-bottom:1px solid #f3f4f6}
+    tr:hover td{background:#f9fafb}
+    .pill{padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;display:inline-block}
+    .pill-pending{background:#fef3c7;color:#92400e}
+    .pill-verified{background:#d1fae5;color:#065f46}
+    .pill-rejected{background:#fee2e2;color:#991b1b}
+    .btn{padding:6px 14px;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;font-family:inherit}
+    .btn-verify{background:#10b981;color:#fff;margin-left:6px}
+    .btn-reject{background:#ef4444;color:#fff}
+    .btn:hover{opacity:0.9}
+    .empty{text-align:center;padding:40px;color:#9ca3af}
+    .filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+    .filters input,.filters select{padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit}
+    .arrow{color:#9ca3af;margin:0 6px}
+    @media(max-width:640px){
+      th,td{padding:8px 6px;font-size:12px}
+      .header h1{font-size:18px}
+    }
+  </style>
+  </head>
+  <body>
+  <div class="page">
+    <div class="header">
+      <h1>📋 سجل تعديلات وثائق السائقين <span class="badge zero" id="pendingBadge">0</span></h1>
+      <a href="javascript:history.back()" class="back-btn">↩ رجوع</a>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="pending">⏳ بانتظار التوثيق <span id="cntPending">0</span></div>
+      <div class="tab" data-tab="verified">✅ موثّقة <span id="cntVerified">0</span></div>
+      <div class="tab" data-tab="rejected">❌ مرفوضة <span id="cntRejected">0</span></div>
+      <div class="tab" data-tab="all">📜 الكل <span id="cntAll">0</span></div>
+    </div>
+
+    <div class="filters">
+      <input type="text" id="searchInput" placeholder="🔍 بحث باسم السائق أو رقم الموظف...">
+      <select id="fieldFilter">
+        <option value="">كل الثبوتيات</option>
+        <option value="licenseExpiry">الرخصة</option>
+        <option value="permitExpiry">التصريح</option>
+        <option value="carRegistrationExpiry">دفتر السيارة</option>
+        <option value="residencyExpiry">الإقامة</option>
+        <option value="passportExpiry">جواز السفر</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <h2 id="sectionTitle">⏳ بانتظار التوثيق</h2>
+      <div id="tableWrap"><div class="empty">جاري التحميل...</div></div>
+    </div>
+  </div>
+
+  <script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+  import { getFirestore, doc, updateDoc, collection, onSnapshot, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
+    authDomain: "taxi-management-system-d8210.firebaseapp.com",
+    projectId: "taxi-management-system-d8210",
+    storageBucket: "taxi-management-system-d8210.firebasestorage.app",
+    messagingSenderId: "1009906379292",
+    appId: "1:1009906379292:web:abc"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  let allRequests = [];
+  let activeTab = 'pending';
+
+  function fmtDate(v){
+    if(!v) return '-';
+    const d = v.seconds ? new Date(v.seconds*1000) : new Date(v);
+    if(isNaN(d)) return '-';
+    return d.toLocaleDateString('en-GB');
+  }
+  function fmtDateTime(v){
+    if(!v) return '-';
+    const d = v.seconds ? new Date(v.seconds*1000) : new Date(v);
+    if(isNaN(d)) return '-';
+    return d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  function render(){
+    const search = document.getElementById('searchInput').value.toLowerCase().trim();
+    const fieldF = document.getElementById('fieldFilter').value;
+
+    let filtered = allRequests.filter(r => {
+      if(activeTab !== 'all' && r.status !== activeTab) return false;
+      if(fieldF && r.fieldKey !== fieldF) return false;
+      if(search){
+        const s = (r.driverName||'') + ' ' + (r.employeeNumber||'') + ' ' + (r.driverId||'');
+        if(!s.toLowerCase().includes(search)) return false;
+      }
+      return true;
+    });
+
+    // عناوين
+    const titles = {pending:'⏳ بانتظار التوثيق', verified:'✅ موثّقة', rejected:'❌ مرفوضة', all:'📜 كل التعديلات'};
+    document.getElementById('sectionTitle').textContent = titles[activeTab];
+
+    if(!filtered.length){
+      document.getElementById('tableWrap').innerHTML = '<div class="empty">لا توجد تعديلات في هذا القسم</div>';
+      return;
+    }
+
+    let h = '<table><thead><tr><th>السائق</th><th>الثبوتية</th><th>التاريخ القديم</th><th></th><th>التاريخ الجديد</th><th>وقت الطلب</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody>';
+    for(const r of filtered){
+      const statusPill = r.status==='pending' ? '<span class="pill pill-pending">بانتظار</span>'
+                       : r.status==='verified' ? '<span class="pill pill-verified">✓ موثّق</span>'
+                       : '<span class="pill pill-rejected">مرفوض</span>';
+      let action = '-';
+      if(r.status === 'pending'){
+        action = '<button class="btn btn-verify" onclick="verifyReq(\''+r.id+'\')">✓ توثيق</button>'
+               + '<button class="btn btn-reject" onclick="rejectReq(\''+r.id+'\')">✗ رفض</button>';
+      } else if(r.verifiedBy) {
+        action = '<small style="color:#6b7280">'+r.verifiedBy+'<br>'+fmtDateTime(r.verifiedAt)+'</small>';
+      }
+      h += '<tr>'
+         + '<td><b>'+(r.driverName||'-')+'</b><br><small style="color:#6b7280">'+(r.employeeNumber||r.driverId||'-')+'</small></td>'
+         + '<td>'+(r.fieldLabel||r.fieldKey||'-')+'</td>'
+         + '<td>'+fmtDate(r.oldDate)+'</td>'
+         + '<td class="arrow">→</td>'
+         + '<td><b style="color:#0a84ff">'+fmtDate(r.newDate)+'</b></td>'
+         + '<td><small>'+fmtDateTime(r.requestedAt)+'</small></td>'
+         + '<td>'+statusPill+'</td>'
+         + '<td>'+action+'</td>'
+         + '</tr>';
+    }
+    h += '</tbody></table>';
+    document.getElementById('tableWrap').innerHTML = h;
+  }
+
+  function updateCounts(){
+    const cP = allRequests.filter(r => r.status==='pending').length;
+    const cV = allRequests.filter(r => r.status==='verified').length;
+    const cR = allRequests.filter(r => r.status==='rejected').length;
+    document.getElementById('cntPending').textContent = cP;
+    document.getElementById('cntVerified').textContent = cV;
+    document.getElementById('cntRejected').textContent = cR;
+    document.getElementById('cntAll').textContent = allRequests.length;
+    const badge = document.getElementById('pendingBadge');
+    badge.textContent = cP;
+    badge.className = 'badge ' + (cP === 0 ? 'zero' : '');
+  }
+
+  // مستمع لحظي
+  const q = query(collection(db, 'documentChangeRequests'), orderBy('requestedAt','desc'));
+  onSnapshot(q, snap => {
+    allRequests = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    updateCounts();
+    render();
+  }, err => {
+    console.error(err);
+    document.getElementById('tableWrap').innerHTML = '<div class="empty" style="color:#ef4444">خطأ: '+err.message+'</div>';
+  });
+
+  // التبويبات والفلاتر
+  document.querySelectorAll('.tab').forEach(t => {
+    t.onclick = () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      activeTab = t.dataset.tab;
+      render();
+    };
+  });
+  document.getElementById('searchInput').oninput = render;
+  document.getElementById('fieldFilter').onchange = render;
+
+  // التوثيق
+  window.verifyReq = async function(id){
+    const r = allRequests.find(x => x.id === id);
+    if(!r) return;
+    const verifier = prompt('اسم المحاسب الذي يوثّق:', localStorage.getItem('userName')||'') || 'المحاسب';
+    if(!verifier) return;
+    try {
+      // 1) تحديث الطلب
+      await updateDoc(doc(db, 'documentChangeRequests', id), {
+        status: 'verified',
+        verifiedBy: verifier,
+        verifiedAt: serverTimestamp()
+      });
+      // 2) إزالة علامة "بانتظار التوثيق" من السائق
+      const upd = {};
+      upd['pendingVerification.' + r.fieldKey] = false;
+      await updateDoc(doc(db, 'drivers', r.driverId), upd);
+      localStorage.setItem('userName', verifier);
+    } catch(e) { alert('خطأ: '+e.message); }
+  };
+
+  window.rejectReq = async function(id){
+    const r = allRequests.find(x => x.id === id);
+    if(!r) return;
+    if(!confirm('رفض الطلب؟ لن يتغيّر التاريخ في بيانات السائق (يبقى التاريخ الجديد كما عدّله السائق)، فقط يُسجَّل أنه مرفوض.')) return;
+    const verifier = prompt('اسم المحاسب:', localStorage.getItem('userName')||'') || 'المحاسب';
+    try {
+      await updateDoc(doc(db, 'documentChangeRequests', id), {
+        status: 'rejected',
+        verifiedBy: verifier,
+        verifiedAt: serverTimestamp()
+      });
+      const upd = {};
+      upd['pendingVerification.' + r.fieldKey] = false;
+      await updateDoc(doc(db, 'drivers', r.driverId), upd);
+      localStorage.setItem('userName', verifier);
+    } catch(e) { alert('خطأ: '+e.message); }
+  };
+  </script>
+  </body>
+  </html>
