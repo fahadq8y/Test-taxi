@@ -96,6 +96,10 @@
                     <div class="action-icon">📜</div>
                     <span>تاريخ التعديلات</span>
                 </a>
+                  <a href="driver-documents-history.html" class="action-btn" id="docsHistoryBtn">
+                      <div class="action-icon">📋</div>
+                      <span>سجل وثائق السائقين <span id="docsHistoryBadge" style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;display:none;margin-right:4px"></span></span>
+                  </a>
                 <a href="app-version-control.html" class="action-btn">
                     <div class="action-icon">📱</div>
                     <span>إدارة نسخة التطبيق</span>
@@ -325,5 +329,18 @@
             }
         };
     </script>
-</body>
+
+  <script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+  import { getFirestore, collection, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+  const fApp = initializeApp({apiKey:"AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",authDomain:"taxi-management-system-d8210.firebaseapp.com",projectId:"taxi-management-system-d8210"}, 'docsBadge');
+  const fdb = getFirestore(fApp);
+  onSnapshot(query(collection(fdb,'documentChangeRequests'), where('status','==','pending')), s => {
+    const b = document.getElementById('docsHistoryBadge');
+    if(!b) return;
+    if(s.size > 0){ b.textContent = s.size; b.style.display = 'inline-block'; }
+    else b.style.display = 'none';
+  });
+  </script>
+  </body>
 </html>
