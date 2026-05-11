@@ -414,58 +414,93 @@
         </div>
 
         <!-- الوثائق -->
-        <div class="card">
-            <h2>📄 الوثائق والتصاريح</h2>
-            <div class="info-grid">
-                <div class="info-item">
-                    <label>انتهاء الرخصة</label>
-                    <div class="document-expiry">
-                        <div class="value" id="licenseExpiry">-</div>
-                        <span class="expiry-status" id="licenseStatus">-</span>
-                    </div>
-                </div>
-                <div class="info-item">
-                    <label>انتهاء التصريح</label>
-                    <div class="document-expiry">
-                        <div class="value" id="permitExpiry">-</div>
-                        <span class="expiry-status" id="permitStatus">-</span>
-                    </div>
-                </div>
-                <div class="info-item">
-                    <label>انتهاء دفتر السيارة</label>
-                    <div class="document-expiry">
-                        <div class="value" id="carRegistrationExpiry">-</div>
-                        <span class="expiry-status" id="carRegistrationStatus">-</span>
-                    </div>
-                </div>
-                <div class="info-item">
-                    <label>انتهاء الإقامة</label>
-                    <div class="document-expiry">
-                        <div class="value" id="residenceExpiry">-</div>
-                        <span class="expiry-status" id="residenceStatus">-</span>
-                    </div>
-                </div>
-                <div class="info-item">
-                    <label>انتهاء جواز السفر</label>
-                    <div class="document-expiry">
-                        <div class="value" id="passportExpiry">-</div>
-                        <span class="expiry-status" id="passportStatus">-</span>
-                    </div>
-                </div>
-                <div class="info-item">
-                    <label>انتهاء التأمين</label>
-                    <div class="document-expiry">
-                        <div class="value" id="insuranceExpiry">-</div>
-                        <span class="expiry-status" id="insuranceStatus">-</span>
-                    </div>
-                
+          <style>
+            .doc-edit-btn{display:inline-flex;align-items:center;gap:4px;background:#0a84ff;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;margin-top:6px;font-family:inherit}
+            .doc-edit-btn:hover{background:#0066cc}
+            .doc-unverified{background:rgba(156,163,175,0.18);color:#6b7280;border:1px dashed #9ca3af;padding:3px 8px;border-radius:6px;font-size:11px;display:inline-block;margin-top:4px}
+            .doc-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:9999}
+            .doc-modal-bg.show{display:flex}
+            .doc-modal{background:#fff;border-radius:12px;padding:24px;max-width:380px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+            .doc-modal h3{margin:0 0 8px 0;font-size:18px;color:#111}
+            .doc-modal .hint{font-size:13px;color:#6b7280;margin-bottom:16px}
+            .doc-modal label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151}
+            .doc-modal input[type=date]{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:15px;font-family:inherit;direction:ltr}
+            .doc-modal-actions{display:flex;gap:10px;margin-top:18px}
+            .doc-modal-actions button{flex:1;padding:10px;border-radius:8px;border:none;font-weight:600;cursor:pointer;font-size:14px;font-family:inherit}
+            .doc-btn-save{background:#10b981;color:#fff}
+            .doc-btn-cancel{background:#e5e7eb;color:#374151}
+          </style>
+          <div class="card">
+              <h2>📄 الوثائق والتصاريح</h2>
+              <p style="font-size:13px;color:#6b7280;margin:-6px 0 14px 0">يمكنك تحديث تواريخ ثبوتياتك بنفسك. التحديث فوري، وتظهر علامة "بانتظار التوثيق" حتى يؤكدها المحاسب.</p>
+              <div class="info-grid">
+                  <div class="info-item">
+                      <label>انتهاء الرخصة</label>
+                      <div class="document-expiry">
+                          <div class="value" id="licenseExpiry">-</div>
+                          <span class="expiry-status" id="licenseStatus">-</span>
+                          <span class="doc-unverified" id="licenseExpiry_pending" style="display:none">🔘 بانتظار التوثيق</span>
+                          <button class="doc-edit-btn" onclick="openDocEdit('licenseExpiry','الرخصة')">✏️ تحديث</button>
+                      </div>
+                  </div>
+                  <div class="info-item">
+                      <label>انتهاء التصريح</label>
+                      <div class="document-expiry">
+                          <div class="value" id="permitExpiry">-</div>
+                          <span class="expiry-status" id="permitStatus">-</span>
+                          <span class="doc-unverified" id="permitExpiry_pending" style="display:none">🔘 بانتظار التوثيق</span>
+                          <button class="doc-edit-btn" onclick="openDocEdit('permitExpiry','التصريح')">✏️ تحديث</button>
+                      </div>
+                  </div>
+                  <div class="info-item">
+                      <label>انتهاء دفتر السيارة</label>
+                      <div class="document-expiry">
+                          <div class="value" id="carRegistrationExpiry">-</div>
+                          <span class="expiry-status" id="carRegistrationStatus">-</span>
+                          <span class="doc-unverified" id="carRegistrationExpiry_pending" style="display:none">🔘 بانتظار التوثيق</span>
+                          <button class="doc-edit-btn" onclick="openDocEdit('carRegistrationExpiry','دفتر السيارة')">✏️ تحديث</button>
+                      </div>
+                  </div>
+                  <div class="info-item">
+                      <label>انتهاء الإقامة</label>
+                      <div class="document-expiry">
+                          <div class="value" id="residenceExpiry">-</div>
+                          <span class="expiry-status" id="residenceStatus">-</span>
+                          <span class="doc-unverified" id="residencyExpiry_pending" style="display:none">🔘 بانتظار التوثيق</span>
+                          <button class="doc-edit-btn" onclick="openDocEdit('residencyExpiry','الإقامة')">✏️ تحديث</button>
+                      </div>
+                  </div>
+                  <div class="info-item">
+                      <label>انتهاء جواز السفر</label>
+                      <div class="document-expiry">
+                          <div class="value" id="passportExpiry">-</div>
+                          <span class="expiry-status" id="passportStatus">-</span>
+                          <span class="doc-unverified" id="passportExpiry_pending" style="display:none">🔘 بانتظار التوثيق</span>
+                          <button class="doc-edit-btn" onclick="openDocEdit('passportExpiry','جواز السفر')">✏️ تحديث</button>
+                      </div>
+                  </div>
+              </div>
+          </div>
 
-    </div>
+          <!-- مودال تعديل الوثيقة -->
+          <div class="doc-modal-bg" id="docEditModal">
+            <div class="doc-modal">
+              <h3 id="docEditTitle">تحديث الوثيقة</h3>
+              <p class="hint">أدخل التاريخ الجديد. يُنصح أن يكون مطابقاً للورقة الأصلية.</p>
+              <label>التاريخ الجديد</label>
+              <input type="date" id="docEditDate">
+              <div class="doc-modal-actions">
+                <button class="doc-btn-cancel" onclick="closeDocEdit()">إلغاء</button>
+                <button class="doc-btn-save" onclick="saveDocEdit()">حفظ</button>
+              </div>
+            </div>
+          </div>
+      </div>
 
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
-        import { getFirestore, doc, getDoc, updateDoc, getDocs, collection, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+        import { getFirestore, doc, getDoc, updateDoc, getDocs, collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
         import { getAuth, signOut, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
         const firebaseConfig = {
@@ -879,84 +914,36 @@
             console.log('🔊 إعداد real-time listener للسائق:', driverId);
             const driverDocRef = doc(db, 'drivers', driverId);
             
-            // Listen to real-time changes
-            const unsubscribe = onSnapshot(driverDocRef, async (driverDoc) => {
-                if (driverDoc.exists()) {
-                    driverData = driverDoc.data();
-                    console.log('🔄 تحديث فوري: تم تحديث بيانات السائق');
-                    
-                    // Reload additional data
-                    await Promise.all([
-                        loadCars(),
-                        loadDriverPayments()
-                    ]);
-                    
-                    // Update sessionStorage
-                    sessionStorage.setItem('driverData', JSON.stringify(driverData));
-                    
-                    // Update UI
-                    updateDriverUI();
-                } else {
-                    console.error('❌ لم يتم العثور على السائق:', driverId);
-                    showMessage('لم يتم العثور على بيانات السائق', true);
-                }
-            }, (error) => {
-                console.error('❌ خطأ في real-time listener:', error);
-            });
+            // Listen to real-time changes — أول snapshot يعرض البيانات مباشرة (لا تحميل مزدوج)
+              let isFirst = true;
+              const unsubscribe = onSnapshot(driverDocRef, (driverDoc) => {
+                  if (driverDoc.exists()) {
+                      driverData = driverDoc.data();
+                      if (isFirst) { isFirst = false; console.log('✅ أول تحميل'); }
+                      else console.log('🔄 تحديث لحظي');
+                      sessionStorage.setItem('driverData', JSON.stringify(driverData));
+                      updateDriverUI();
+                  } else {
+                      console.error('❌ لم يتم العثور على السائق:', driverId);
+                      showMessage('لم يتم العثور على بيانات السائق', true);
+                      setTimeout(() => { window.location.href = 'driver-login.html'; }, 2000);
+                  }
+              }, (error) => {
+                  console.error('❌ خطأ في real-time listener:', error);
+                  showMessage('خطأ في الاتصال بقاعدة البيانات', true);
+              });
             
             // Store unsubscribe function
             window.driverListenerUnsubscribe = unsubscribe;
         }
 
-        
-        // Load driver data (initial load)
-        async function loadDriverData() {
-            if (!checkLogin()) return;
-
-
-            try {
-                console.log('🔍 جاري تحميل بيانات السائق:', driverId);
-                
-                // قراءة مباشرة من drivers collection
-                const driverDocRef = doc(db, 'drivers', driverId);
-                const driverDoc = await getDoc(driverDocRef);
-                
-                if (driverDoc.exists()) {
-                    driverData = driverDoc.data();
-                    console.log('✅ تم تحميل بيانات السائق:', driverData.name);
-                    
-                    // تحميل البيانات الإضافية فقط عند النجاح
-                    await Promise.all([
-                        loadCars(),
-                        loadDriverPayments()
-                    ]);
-                    
-                    // Update sessionStorage with fresh data
-                    sessionStorage.setItem('driverData', JSON.stringify(driverData));
-                    
-                    // Setup real-time listener after initial load
-                    setupDriverListener();
-                    
-                    // Update UI
-                    updateDriverUI();
-                    
-                } else {
-                    console.error('❌ لم يتم العثور على السائق:', driverId);
-                    showMessage('لم يتم العثور على بيانات السائق', true);
-                    
-                    // إعادة توجيه لصفحة تسجيل الدخول
-                    setTimeout(() => {
-                        window.location.href = 'driver-login.html';
-                    }, 2000);
-                    return;
-                }
-                
-            } catch (error) {
-                console.error('❌ خطأ في تحميل البيانات:', error);
-                showMessage('خطأ في الاتصال بقاعدة البيانات', true);
-                return;
-            }
-        }
+        // Load driver data — تحميل واحد عبر المستمع اللحظي (بدون وميض)
+          async function loadDriverData() {
+              if (!checkLogin()) return;
+              console.log('🔊 بدء المستمع اللحظي للسائق:', driverId);
+              await Promise.all([loadCars(), loadDriverPayments()]);
+              setupDriverListener();
+          }
 
         // Update driver UI (separated from loadDriverData)
         function updateDriverUI() {
@@ -984,15 +971,7 @@
             const assignedCar = cars.find(car => car.id === driverData.assignedCar);
             if (assignedCar) {
                 document.getElementById('assignedCar').textContent = `${assignedCar.plateNumber} - ${assignedCar.model}`;
-                // Set car registration expiry as insurance expiry
-                document.getElementById('carRegistrationExpiry').textContent = formatDateEnglish(assignedCar.registrationExpiry);
-                document.getElementById('insuranceExpiry').textContent = formatDateEnglish(assignedCar.registrationExpiry);
-                
-                const carRegStatus = getDocumentExpiryStatus(assignedCar.registrationExpiry, 'document');
-                document.getElementById('carRegistrationStatus').textContent = carRegStatus.status;
-                document.getElementById('carRegistrationStatus').className = `expiry-status ${carRegStatus.class}`;
-                document.getElementById('insuranceStatus').textContent = carRegStatus.status;
-                document.getElementById('insuranceStatus').className = `expiry-status ${carRegStatus.class}`;
+                // دفتر السيارة الآن يُعرض من driverData (يعدّله السائق) — لا نأخذه من cars
             } else {
                 document.getElementById('assignedCar').textContent = '-';
             }
@@ -1068,20 +1047,30 @@
             oilStatusEl.style.backgroundColor = oilStatus.color + '20';
             oilStatusEl.style.color = oilStatus.color;
 
-            // Documents
-            const documents = [
-                { id: 'licenseExpiry', statusId: 'licenseStatus', data: driverData.licenseExpiry, type: 'document' },
-                { id: 'permitExpiry', statusId: 'permitStatus', data: driverData.permitExpiry, type: 'document' },
-                { id: 'residenceExpiry', statusId: 'residenceStatus', data: driverData.residencyExpiry, type: 'document' },
-                { id: 'passportExpiry', statusId: 'passportStatus', data: driverData.passportExpiry, type: 'passport' }
-            ];
-
-            documents.forEach(doc => {
-                document.getElementById(doc.id).textContent = formatDate(doc.data);
-                const status = getDocumentExpiryStatus(doc.data, doc.type);
-                document.getElementById(doc.statusId).textContent = status.status;
-                document.getElementById(doc.statusId).className = `expiry-status ${status.class}`;
-            });
+            // Documents (5 ثبوتيات يعدّلها السائق)
+              const pending = driverData.pendingVerification || {};
+              const documents = [
+                  { id: 'licenseExpiry', statusId: 'licenseStatus', field: 'licenseExpiry', data: driverData.licenseExpiry, type: 'document' },
+                  { id: 'permitExpiry', statusId: 'permitStatus', field: 'permitExpiry', data: driverData.permitExpiry, type: 'document' },
+                  { id: 'carRegistrationExpiry', statusId: 'carRegistrationStatus', field: 'carRegistrationExpiry', data: driverData.carRegistrationExpiry, type: 'document' },
+                  { id: 'residenceExpiry', statusId: 'residenceStatus', field: 'residencyExpiry', data: driverData.residencyExpiry, type: 'document' },
+                  { id: 'passportExpiry', statusId: 'passportStatus', field: 'passportExpiry', data: driverData.passportExpiry, type: 'passport' }
+              ];
+              documents.forEach(d => {
+                  document.getElementById(d.id).textContent = formatDate(d.data);
+                  const status = getDocumentExpiryStatus(d.data, d.type);
+                  const stEl = document.getElementById(d.statusId);
+                  const isPending = !!pending[d.field];
+                  if (isPending) {
+                      stEl.style.display = 'none';
+                  } else {
+                      stEl.style.display = '';
+                      stEl.textContent = status.status;
+                      stEl.className = `expiry-status ${status.class}`;
+                  }
+                  const pendEl = document.getElementById(d.field + '_pending');
+                  if (pendEl) pendEl.style.display = isPending ? 'inline-block' : 'none';
+              });
 
             // Set current values in form - Use car data
             document.getElementById('newKilometers').value = currentKilometers;
@@ -1224,6 +1213,56 @@
         };
 
         // Initialize page
+
+          // ===== تعديل الوثائق من قبل السائق =====
+          let docEditField = null;
+          let docEditLabel = '';
+          window.openDocEdit = function(field, label) {
+              docEditField = field; docEditLabel = label;
+              document.getElementById('docEditTitle').textContent = 'تحديث ' + label;
+              const cur = driverData[field];
+              const dt = cur && cur.seconds ? new Date(cur.seconds*1000) : (cur ? new Date(cur) : null);
+              document.getElementById('docEditDate').value = dt && !isNaN(dt) ? dt.toISOString().slice(0,10) : '';
+              document.getElementById('docEditModal').classList.add('show');
+          };
+          window.closeDocEdit = function() {
+              document.getElementById('docEditModal').classList.remove('show');
+              docEditField = null;
+          };
+          window.saveDocEdit = async function() {
+              if (!docEditField) return;
+              const val = document.getElementById('docEditDate').value;
+              if (!val) { alert('يرجى اختيار تاريخ'); return; }
+              const newDate = new Date(val);
+              const oldVal = driverData[docEditField];
+              const oldDate = oldVal && oldVal.seconds ? new Date(oldVal.seconds*1000) : (oldVal ? new Date(oldVal) : null);
+              try {
+                  const upd = {};
+                  upd[docEditField] = newDate;
+                  upd['pendingVerification.' + docEditField] = true;
+                  await updateDoc(doc(db, 'drivers', driverId), upd);
+                  await addDoc(collection(db, 'documentChangeRequests'), {
+                      driverId: driverId,
+                      driverName: driverData.name || '',
+                      employeeNumber: driverData.employeeNumber || driverId,
+                      fieldKey: docEditField,
+                      fieldLabel: docEditLabel,
+                      oldDate: oldDate || null,
+                      newDate: newDate,
+                      status: 'pending',
+                      requestedAt: serverTimestamp(),
+                      requestedBy: 'driver',
+                      verifiedBy: null,
+                      verifiedAt: null
+                  });
+                  closeDocEdit();
+                  showMessage('✅ تم تحديث ' + docEditLabel + ' — بانتظار توثيق المحاسب');
+              } catch (e) {
+                  console.error('save doc error:', e);
+                  alert('فشل الحفظ: ' + e.message);
+              }
+          };
+  
         document.addEventListener('DOMContentLoaded', loadDriverData);
     </script>
 
