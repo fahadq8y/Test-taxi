@@ -1055,6 +1055,42 @@
             });
         }
 
+        // عرض مدة العقد بالأشهر والأيام
+        function formatContractDuration(driver) {
+            const months = parseInt(driver.contractDurationMonths || driver.contractDuration || 0) || 0;
+            const days = parseInt(driver.contractDurationDays || 0) || 0;
+            const parts = [];
+            if (months > 0) parts.push(months + ' شهر');
+            if (days > 0) parts.push(days + ' يوم');
+            return parts.length ? parts.join(' و ') : 'غير محدد';
+        }
+
+        // عرض الباقي من العقد (شهر/يوم) أو منتهي
+        function remainingLabel(endDateValue) {
+            if (!endDateValue) return '';
+            const end = parseDate(endDateValue);
+            if (!end || isNaN(end.getTime())) return '';
+            const today = new Date();
+            const diffDays = Math.ceil((end.getTime() - today.getTime()) / 86400000);
+            if (diffDays < 0) {
+                return ` <small style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:6px">⏰ منتهي منذ ${Math.abs(diffDays)} يوم</small>`;
+            }
+            if (diffDays === 0) {
+                return ` <small style="background:#fef3c7;color:#b45309;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:6px">⚠️ ينتهي اليوم</small>`;
+            }
+            let txt;
+            if (diffDays >= 30) {
+                const months = Math.floor(diffDays / 30);
+                const remDays = diffDays % 30;
+                txt = `${months} شهر${remDays > 0 ? ' و ' + remDays + ' يوم' : ''}`;
+            } else {
+                txt = `${diffDays} يوم`;
+            }
+            const color = diffDays <= 7 ? '#dc2626' : diffDays <= 30 ? '#d97706' : '#059669';
+            const bg = diffDays <= 7 ? '#fee2e2' : diffDays <= 30 ? '#fef3c7' : '#dcfce7';
+            return ` <small style="background:${bg};color:${color};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:6px">✓ الباقي ${txt}</small>`;
+        }
+
         // Open driver payments page
         function openDriverPayments(driverId) {
             window.location.href = `driver-payments.html?driverId=${driverId}`;
@@ -1163,12 +1199,16 @@
                             <span>${carInfo}</span>
                         </div>
                         <div class="detail-item">
-                            <strong>الأجرة اليومية:</strong>
-                            <span>${stats.dailyWage.toFixed(3)} د.ك</span>
+                            <strong>نوع العقد:</strong>
+                            <span>${driver.contractType === 'monthly' ? '📅 شهري' : driver.contractType === 'daily' ? '☀️ يومي' : 'غير محدد'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>${driver.contractType === 'monthly' ? 'الأجرة الشهرية' : 'الأجرة اليومية'}:</strong>
+                            <span>${driver.contractType === 'monthly' ? parseFloat(driver.monthlyPayment || 0).toFixed(3) : (stats.dailyWage || parseFloat(driver.dailyRent || 0)).toFixed(3)} د.ك</span>
                         </div>
                         <div class="detail-item">
                             <strong>مدة العقد:</strong>
-                            <span>${driver.contractDuration || 'غير محدد'}</span>
+                            <span>${formatContractDuration(driver)}</span>
                         </div>
                         <div class="detail-item">
                             <strong>تاريخ بداية العقد:</strong>
@@ -1176,7 +1216,7 @@
                         </div>
                         <div class="detail-item">
                             <strong>تاريخ نهاية العقد:</strong>
-                            <span>${formatDate(driver.contractEnd) || 'غير محدد'}</span>
+                            <span>${driver.contractEndDate ? formatDate(driver.contractEndDate) + remainingLabel(driver.contractEndDate) : 'غير محدد'}</span>
                         </div>
                     </div>
                 </div>
