@@ -267,9 +267,11 @@
                             <button class="restore-btn" onclick="restoreDriver('${driver.employeeNumber}')">
                                 ♻️ استعادة السائق
                             </button>
+                            ${currentUser && currentUser.role === 'admin' ? `
                             <button class="delete-permanent-btn" onclick="deletePermanently('${driver.id}')">
                                 🗑️ حذف نهائي
                             </button>
+                            ` : ''}
                         </div>
                     </div>
                 `;
@@ -420,6 +422,11 @@
 
         // Delete permanently using archive document ID
         window.deletePermanently = async (archiveDocId) => {
+            // 🔧 #024: الحذف النهائي للأدمن فقط
+            if (!currentUser || currentUser.role !== 'admin') {
+                alert('❌ ليس لديك صلاحية للحذف النهائي. هذه الصلاحية للمدير فقط.');
+                return;
+            }
             if (!confirm('⚠️ تحذير: هل أنت متأكد من الحذف النهائي؟\nلن تتمكن من استعادة هذا السائق بعد الحذف!')) {
                 return;
             }
