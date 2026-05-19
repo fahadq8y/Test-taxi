@@ -184,6 +184,13 @@
                     </div>
                 </div>
 
+                <!-- 🔧 #023: تحذير العقد النشط -->
+                <div id="activeContractWarning" style="display:none; background:#fef3c7; border-radius:10px; padding:14px; margin-bottom:18px; border-right:4px solid #d97706;">
+                    <div style="font-weight:700; color:#92400e; margin-bottom:6px;">⚠️ انتبه! العقد الحالي لا يزال نشطاً</div>
+                    <div id="activeContractDetails" style="font-size:13px; color:#78350f; line-height:1.7;"></div>
+                    <div style="font-size:12px; color:#78350f; margin-top:8px; padding-top:8px; border-top:1px dashed #fbbf24;">📌 إنشاء عقد جديد سيقطع العقد الحالي عند تاريخ بداية العقد الجديد.</div>
+                </div>
+
                 <div style="background: #fff7ed; border-radius: 10px; padding: 14px; margin-bottom: 18px; border-right: 4px solid #f59e0b;">
                     <div style="font-weight: 600; margin-bottom: 8px; color: #92400e;">💰 الرصيد المرحَّل من العقد الحالي</div>
                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -204,12 +211,29 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
                     <div>
                         <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">تاريخ بداية العقد الجديد *</label>
-                        <input type="date" id="newContractStart" required style="width: 100%; padding: 9px; border: 1px solid #d1d5db; border-radius: 8px;">
+                        <input type="date" id="newContractStart" required style="width: 100%; padding: 9px; border: 1px solid #d1d5db; border-radius: 8px;" oninput="onNewContractStartChange()">
                     </div>
                     <div>
                         <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">تاريخ نهاية العقد الجديد *</label>
                         <input type="date" id="newContractEnd" required style="width: 100%; padding: 9px; border: 1px solid #d1d5db; border-radius: 8px;">
                     </div>
+                </div>
+
+                <!-- 🔧 #023: تحذير تعارض التواريخ -->
+                <div id="dateConflictBox" style="display:none; background:#fef2f2; border-radius:10px; padding:14px; margin-bottom:14px; border-right:4px solid #dc2626;">
+                    <div style="font-weight:700; color:#991b1b; margin-bottom:6px;">❌ تعارض في تواريخ العقود</div>
+                    <div id="dateConflictDetails" style="font-size:13px; color:#7f1d1d; margin-bottom:8px; line-height:1.7;"></div>
+                    <div style="font-size:12px; color:#7f1d1d; padding-top:8px; border-top:1px dashed #fca5a5;">
+                        <strong>💡 الحلول الممكنة:</strong><br>
+                        ١. غيّر تاريخ بداية العقد الجديد ليكون <strong>بعد نهاية العقد السابق</strong><br>
+                        ٢. أو أغلق هذه النافذة وعدّل/أنهِ العقد النشط الحالي من زر <strong>"🚫 إنهاء عقد"</strong> أولاً
+                    </div>
+                </div>
+
+                <!-- 🔧 #023: معاينة الحساب حسب التاريخ المختار -->
+                <div id="contractPreviewBox" style="display:none; background:#eff6ff; border-radius:10px; padding:14px; margin-bottom:14px; border-right:4px solid #3b82f6;">
+                    <div style="font-weight:700; color:#1e3a8a; margin-bottom:8px;">📊 معاينة الحساب حسب التاريخ المختار</div>
+                    <div id="contractPreviewDetails" style="font-size:13px; color:#1e40af; line-height:1.9;"></div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
@@ -1360,12 +1384,18 @@
         // ===== دوال عقد جديد =====
         let newContractDriverId = null;
         let calculatedCarryOver = 0;
+        // 🔧 #023: متغيرات عامة للمعاينة الديناميكية وفحص التعارض
+        let _newContractDriver = null;
+        let _newContractPayments = [];
+        let _previousContractsForOverlap = []; // [{startDate, endDate, label}]
 
         window.openNewContractModal = async (driverId) => {
             const driver = allDrivers.find(d => d.id === driverId);
             if (!driver) return;
 
             newContractDriverId = driverId;
+            _newContractDriver = driver;
+            _newContractPayments = allPayments ? allPayments.filter(p => p.driverId === driverId) : [];
 
             // عرض معلومات السائق
             document.getElementById('newContractDriverName').textContent = driver.name;
@@ -1374,6 +1404,36 @@
             const startDate = driver.contractStartDate ? 
                 (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)).toLocaleDateString('en-GB') : 'غير محدد';
             document.getElementById('currentContractInfo').textContent = `${contractTypeLabel} - ${rateLabel} - بداية: ${startDate}`;
+
+            // 🔧 #023: تحذير العقد النشط + تجميع تواريخ العقود السابقة لفحص التعارض
+            _previousContractsForOverlap = [];
+            const _today_w = new Date();
+            const _drvEnd = driver.contractEndDate ? (driver.contractEndDate.toDate ? driver.contractEndDate.toDate() : new Date(driver.contractEndDate)) : null;
+            const _drvStart = driver.contractStartDate ? (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) : null;
+            const _isActive = !!(_drvEnd && !isNaN(_drvEnd.getTime()) && _today_w <= _drvEnd);
+            const warnEl = document.getElementById('activeContractWarning');
+            if (_isActive && _drvEnd) {
+                const _daysLeft = Math.ceil((_drvEnd - _today_w) / 86400000);
+                document.getElementById('activeContractDetails').innerHTML =
+                    `• النوع: <strong>${contractTypeLabel}</strong> — ${rateLabel}<br>` +
+                    `• البداية: <strong>${_drvStart ? _drvStart.toLocaleDateString('en-GB') : '—'}</strong><br>` +
+                    `• النهاية: <strong>${_drvEnd.toLocaleDateString('en-GB')}</strong> (باقي <strong>${_daysLeft}</strong> يوم)`;
+                warnEl.style.display = 'block';
+            } else {
+                warnEl.style.display = 'none';
+            }
+            // تجميع كل العقود السابقة من contractHistory (للفحص ضد newStart)
+            (driver.contractHistory || []).forEach((c, idx) => {
+                const cs = c.startDate ? (c.startDate.toDate ? c.startDate.toDate() : new Date(c.startDate)) : null;
+                const ce = c.endDate ? (c.endDate.toDate ? c.endDate.toDate() : new Date(c.endDate)) : null;
+                if (cs && ce && !isNaN(cs.getTime()) && !isNaN(ce.getTime())) {
+                    _previousContractsForOverlap.push({ startDate: cs, endDate: ce, label: `سجل #${idx+1} (${c.note || c.contractType || ''})` });
+                }
+            });
+            // أضف العقد الحالي نفسه (driver.contractStart/End) للفحص
+            if (_drvStart && _drvEnd && !isNaN(_drvStart.getTime()) && !isNaN(_drvEnd.getTime())) {
+                _previousContractsForOverlap.push({ startDate: _drvStart, endDate: _drvEnd, label: 'العقد النشط الحالي' });
+            }
 
             // حساب الرصيد المرحَّل (#013: دعم التحويل من شهري إلى يومي)
             const payments = allPayments ? allPayments.filter(p => p.driverId === driverId) : [];
@@ -1442,12 +1502,122 @@
             document.getElementById('newContractEnd').value = '';
             document.getElementById('newContractNote').value = '';
 
+            // 🔧 #023: إعادة ضبط صناديق التعارض والمعاينة
+            document.getElementById('dateConflictBox').style.display = 'none';
+            document.getElementById('contractPreviewBox').style.display = 'none';
+
             document.getElementById('newContractModal').style.display = 'block';
         };
 
         window.closeNewContractModal = () => {
             document.getElementById('newContractModal').style.display = 'none';
             newContractDriverId = null;
+            _newContractDriver = null;
+            _newContractPayments = [];
+            _previousContractsForOverlap = [];
+        };
+
+        // 🔧 #023: فحص تعارض تاريخ بداية العقد الجديد مع العقود السابقة
+        // يُرجع {hasConflict, conflictWith} حيث conflictWith = أول عقد متعارض
+        window._checkNewContractOverlap = (newStartDate) => {
+            if (!newStartDate || !_previousContractsForOverlap.length) return { hasConflict: false };
+            for (const c of _previousContractsForOverlap) {
+                // تعارض = newStart يقع داخل [startDate, endDate) لعقد سابق
+                if (newStartDate >= c.startDate && newStartDate < c.endDate) {
+                    return { hasConflict: true, conflictWith: c };
+                }
+            }
+            return { hasConflict: false };
+        };
+
+        // 🔧 #023: تُستدعى عند تغيير تاريخ بداية العقد الجديد
+        window.onNewContractStartChange = () => {
+            const startVal = document.getElementById('newContractStart').value;
+            const conflictBox = document.getElementById('dateConflictBox');
+            const previewBox = document.getElementById('contractPreviewBox');
+            if (!startVal || !_newContractDriver) {
+                conflictBox.style.display = 'none';
+                previewBox.style.display = 'none';
+                return;
+            }
+            const newStart = new Date(startVal);
+            // 1) فحص التعارض
+            const ov = window._checkNewContractOverlap(newStart);
+            if (ov.hasConflict) {
+                document.getElementById('dateConflictDetails').innerHTML =
+                    `التاريخ المختار <strong>${newStart.toLocaleDateString('en-GB')}</strong> يقع داخل فترة عقد سابق:<br>` +
+                    `• <strong>${ov.conflictWith.label}</strong>: من ${ov.conflictWith.startDate.toLocaleDateString('en-GB')} إلى ${ov.conflictWith.endDate.toLocaleDateString('en-GB')}`;
+                conflictBox.style.display = 'block';
+            } else {
+                conflictBox.style.display = 'none';
+            }
+
+            // 2) معاينة الحساب بناءً على التاريخ المختار (asOfDate = newStart)
+            // نحسب: المتوقع من بداية العقد الحالي إلى newStart - المدفوع كله
+            const driver = _newContractDriver;
+            const payments = _newContractPayments;
+            const drvStart = driver.contractStartDate ? (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) : null;
+            const drvEnd = driver.contractEndDate ? (driver.contractEndDate.toDate ? driver.contractEndDate.toDate() : new Date(driver.contractEndDate)) : null;
+            if (!drvStart) {
+                previewBox.style.display = 'none';
+                return;
+            }
+            // قطع الفترة عند min(newStart, drvEnd إن انتهى قبل)
+            let cutoff = newStart;
+            if (drvEnd && !isNaN(drvEnd.getTime()) && drvEnd < cutoff) cutoff = drvEnd;
+            if (cutoff <= drvStart) {
+                // العقد الجديد يبدأ قبل أو في نفس يوم بداية العقد القديم
+                previewBox.style.display = 'block';
+                document.getElementById('contractPreviewDetails').innerHTML =
+                    `<span style="color:#dc2626;">⚠️ تاريخ بداية العقد الجديد قبل أو يساوي بداية العقد الحالي — لا توجد فترة لاحتسابها.</span>`;
+                return;
+            }
+            let expectedRent = 0;
+            let paidRent = 0;
+            if (driver.contractType === 'daily') {
+                const dailyWage = parseFloat(driver.dailyRent || driver.dailyWage || 0);
+                const days = Math.floor((cutoff - drvStart) / 86400000);
+                expectedRent = days * dailyWage;
+                paidRent = payments.filter(p => p.type === 'أجرة يومية').reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+                var periodLabel = `${days} يوم × ${dailyWage.toFixed(3)} د.ك`;
+            } else {
+                const monthlyPayment = parseFloat(driver.monthlyPayment || 0);
+                const months = Math.floor(((cutoff - drvStart) / 86400000) / 30.44);
+                expectedRent = months * monthlyPayment;
+                paidRent = payments.filter(p => {
+                    if (p.type !== 'أجرة شهرية' && p.type !== 'أجرة يومية') return false;
+                    const pDate = p.date ? (p.date.toDate ? p.date.toDate() : new Date(p.date)) : null;
+                    return pDate && pDate >= drvStart;
+                }).reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+                var periodLabel = `${months} شهر × ${monthlyPayment.toFixed(3)} د.ك`;
+            }
+            const newCarry = expectedRent - paidRent;
+            const currentOld = parseFloat(driver.oldDebts || 0);
+            const newOldAfter = currentOld + newCarry; // يقبل سالب (رصيد زائد)
+            let resultHtml =
+                `• الفترة المحسوبة: <strong>${drvStart.toLocaleDateString('en-GB')} → ${cutoff.toLocaleDateString('en-GB')}</strong><br>` +
+                `• المتوقع: ${periodLabel} = <strong>${expectedRent.toFixed(3)} د.ك</strong><br>` +
+                `• المدفوع فعلياً: <strong>${paidRent.toFixed(3)} د.ك</strong><br>`;
+            if (newCarry > 0) {
+                resultHtml += `• <span style="color:#dc2626;font-weight:700;">⚠️ النتيجة: دين ${newCarry.toFixed(3)} د.ك</span> ← يُضاف للديون القديمة<br>`;
+                resultHtml += `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #93c5fd;">• ديون قديمة قبل: ${currentOld.toFixed(3)} → بعد: <strong>${newOldAfter.toFixed(3)} د.ك</strong></div>`;
+            } else if (newCarry < 0) {
+                resultHtml += `• <span style="color:#059669;font-weight:700;">✅ النتيجة: رصيد زائد ${Math.abs(newCarry).toFixed(3)} د.ك للسائق</span> ← يُخصم من الديون القديمة<br>`;
+                resultHtml += `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #93c5fd;">• ديون قديمة قبل: ${currentOld.toFixed(3)} → بعد: <strong style="color:${newOldAfter < 0 ? '#059669' : '#1e40af'};">${newOldAfter.toFixed(3)} د.ك${newOldAfter < 0 ? ' (رصيد زائد)' : ''}</strong></div>`;
+            } else {
+                resultHtml += `• <span style="color:#64748b;font-weight:700;">⚖️ النتيجة: متعادل (لا دين ولا رصيد زائد)</span>`;
+            }
+            document.getElementById('contractPreviewDetails').innerHTML = resultHtml;
+            previewBox.style.display = 'block';
+
+            // تحديث صندوق الرصيد المرحَّل ليتماشى مع التاريخ المختار
+            calculatedCarryOver = newCarry;
+            const balanceEl = document.getElementById('calculatedBalance');
+            const noteEl = document.getElementById('balanceNote');
+            balanceEl.textContent = Math.abs(newCarry).toFixed(3) + ' د.ك';
+            if (newCarry > 0) { balanceEl.style.color = '#dc2626'; noteEl.textContent = 'دين على السائق سيُضاف للديون القديمة'; }
+            else if (newCarry < 0) { balanceEl.style.color = '#059669'; noteEl.textContent = 'رصيد زائد للسائق سيُخصم من الديون القديمة'; }
+            else { balanceEl.style.color = '#64748b'; noteEl.textContent = 'لا يوجد رصيد مرحَّل'; }
         };
 
         window.toggleNewContractRateField = () => {
@@ -1478,6 +1648,24 @@
 
             if (!newStart || !newEnd || !newType || isNaN(newRate)) {
                 alert('يرجى ملء جميع الحقول المطلوبة');
+                return;
+            }
+
+            // 🔧 #023: فحص نهائي للتعارض قبل الحفظ
+            const _nsDate = new Date(newStart);
+            const _neDate = new Date(newEnd);
+            if (_neDate <= _nsDate) {
+                alert('❌ تاريخ نهاية العقد الجديد يجب أن يكون بعد تاريخ البداية');
+                return;
+            }
+            const _ov = window._checkNewContractOverlap(_nsDate);
+            if (_ov.hasConflict) {
+                alert(`❌ تعارض في تواريخ العقود!\n\n` +
+                    `التاريخ المختار (${_nsDate.toLocaleDateString('en-GB')}) يقع داخل فترة عقد سابق:\n` +
+                    `${_ov.conflictWith.label}\n` +
+                    `من ${_ov.conflictWith.startDate.toLocaleDateString('en-GB')} إلى ${_ov.conflictWith.endDate.toLocaleDateString('en-GB')}\n\n` +
+                    `الحلول:\n١. غيّر تاريخ بداية العقد الجديد ليكون بعد نهاية العقد السابق\n` +
+                    `٢. أو أنهِ/عدّل العقد النشط الحالي أولاً من زر "🚫 إنهاء عقد"`);
                 return;
             }
 
@@ -1539,18 +1727,10 @@
                     note: 'العقد الحالي'
                 });
 
-                // حساب الديون القديمة الجديدة
-                // الديون القديمة = الديون الحالية + الرصيد المرحَّل (إذا كان ديناً)
+                // 🔧 #023: الديون القديمة = الحالية + الرصيد المرحَّل
+                // يقبل قيم سالبة (= رصيد زائد للسائق) لو الديون القديمة كانت صفر أو أقل من الرصيد الزائد
                 const currentOldDebts = parseFloat(driver.oldDebts || 0);
-                let newOldDebts = currentOldDebts;
-
-                if (finalCarryOver > 0) {
-                    // دين على السائق - يُضاف للديون القديمة
-                    newOldDebts = currentOldDebts + finalCarryOver;
-                } else if (finalCarryOver < 0) {
-                    // رصيد زائد للسائق - يُخصم من الديون القديمة
-                    newOldDebts = Math.max(0, currentOldDebts + finalCarryOver);
-                }
+                const newOldDebts = currentOldDebts + finalCarryOver;
 
                 // تحديث بيانات السائق بالعقد الجديد
                 const updateData = {
