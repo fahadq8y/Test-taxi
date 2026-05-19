@@ -781,6 +781,13 @@
             document.getElementById('driverForm').reset();
               // FIX #015: رفع القفل عن الديون القديمة عند الإضافة الجديدة
               (() => { const f = document.getElementById('oldDebts'); if (f) { f.readOnly = false; f.style.background = ''; f.style.cursor = ''; f.title = ''; } })();
+              // FIX #023: رفع قفل نوع العقد + تاريخ البداية عند الإضافة الجديدة
+              (() => {
+                  const ct = document.getElementById('contractType');
+                  if (ct) { ct.disabled = false; ct.style.background = ''; ct.style.cursor = ''; ct.removeAttribute('title'); delete ct.dataset.lockedValue; }
+                  const sd = document.getElementById('contractStartDate');
+                  if (sd) { sd.readOnly = false; sd.style.background = ''; sd.style.cursor = ''; sd.removeAttribute('title'); }
+              })();
             
             // Generate employee number for new driver
             const empNum = await generateEmployeeNumber();
@@ -813,6 +820,16 @@
             document.getElementById('dailyRent').value = driver.dailyRent || '';
             document.getElementById('monthlyPayment').value = driver.monthlyPayment || '';
             toggleContractFields();
+            // FIX #023: قفل نوع العقد عند التعديل - يلزم استخدام "📋 عقد جديد" لتغييره
+            (() => {
+                const ct = document.getElementById('contractType');
+                if (ct) {
+                    ct.dataset.lockedValue = ct.value;
+                    ct.style.background = '#f3f4f6';
+                    ct.style.cursor = 'not-allowed';
+                    ct.title = '🔒 لتغيير نوع العقد: أنهِ العقد الحالي ثم استخدم "📋 عقد جديد"';
+                }
+            })();
             
             // Populate and set car
             populateCarOptions();
@@ -1057,69 +1074,194 @@
 
             try {
                 if (editingDriverId) {
-                    // #004: تم حذف كود الأرشفة الشاملة عند تغيير نوع العقد - السائق يبقى نشطاً دائماً
-                    // لتجديد العقد استخدم زر "عقد جديد" بدلاً من هذا الزر
+                    // 🔧 FIX #023 (2026-05-18): إعادة بناء منطق تعديل العقد
+                    // القاعدة: التعديل = الأجرة + النهاية + المدة. مايغيّر نوع العقد ولا تاريخ البداية.
+                    // التغيير يحدّث آخر سجل عقد فعلي (مو يضيف سجل) + يعيد حساب الديون بالقيم الجديدة.
+                    // ينضاف صف "✏️ تعديل" للعرض في سجل العقود فقط (unified-balance.js يتجاهله).
                     
-                    // #003: تحديث contractHistory عند تعديل أي شيء في العقد
-                    const oldDriver2 = allDrivers.find(d => d.id === editingDriverId);
-                    const existingHistory = (oldDriver2 && oldDriver2.contractHistory) ? oldDriver2.contractHistory : [];
+                    const __existingDrv = allDrivers.find(d => d.id === editingDriverId);
+                    const fmtD = d => {
+                        if (!d) return '';
+                        const dt = d.toDate ? d.toDate() : (d instanceof Date ? d : new Date(d));
+                        return isNaN(dt.getTime()) ? '' : dt.toISOString().split('T')[0];
+                    };
                     
-                    // تحديث تاريخ انتهاء آخر عقد في التاريخ
-                    if (existingHistory.length > 0) {
-                        // #008: استخدام تاريخ نهاية العقد المدخول بدلاً من تاريخ اليوم
-                        existingHistory[existingHistory.length - 1].endDate = driverData.contractEndDate || new Date();
-                        existingHistory[existingHistory.length - 1].endedBy = currentUser.name || currentUser.email;
+                    // 1) منع تغيير نوع العقد وتاريخ البداية
+                    const oldType = __existingDrv?.contractType || '';
+                    const newTypeRaw = driverData.contractType || '';
+                    if (__existingDrv && oldType && newTypeRaw && oldType !== newTypeRaw) {
+                        alert('⚠️ ما يمكن تغيير نوع العقد من زر "تعديل".\n\nلتغيير النوع (يومي ↔ شهري):\n١. أنهِ العقد الحالي من زر "🚫 إنهاء عقد"\n٢. ثم استخدم زر "📋 عقد جديد"');
+                        return;
+                    }
+                    const oldStart = __existingDrv?.contractStartDate ? (__existingDrv.contractStartDate.toDate ? __existingDrv.contractStartDate.toDate() : new Date(__existingDrv.contractStartDate)) : null;
+                    if (__existingDrv && oldStart && driverData.contractStartDate && fmtD(oldStart) !== fmtD(driverData.contractStartDate)) {
+                        alert('⚠️ ما يمكن تغيير تاريخ بداية العقد من زر "تعديل".\n\nلتغيير البداية: استخدم زر "📋 عقد جديد".');
+                        return;
+                    }
+                    // ثبّت النوع والبداية بقيم السائق الأصلية (احتياط ضد أي تجاوز)
+                    if (oldType) driverData.contractType = oldType;
+                    if (oldStart) driverData.contractStartDate = oldStart;
+                    if (oldType === 'daily') driverData.monthlyPayment = 0;
+                    if (oldType === 'monthly') driverData.dailyRent = 0;
+                    
+                    // 2) اكتشف التغييرات المسموحة (الأجرة + نهاية العقد + المدة)
+                    const oldRate = oldType === 'monthly' ? parseFloat(__existingDrv?.monthlyPayment || 0) : parseFloat(__existingDrv?.dailyRent || 0);
+                    const newRate = oldType === 'monthly' ? parseFloat(driverData.monthlyPayment || 0) : parseFloat(driverData.dailyRent || 0);
+                    const oldEnd = __existingDrv?.contractEndDate ? (__existingDrv.contractEndDate.toDate ? __existingDrv.contractEndDate.toDate() : new Date(__existingDrv.contractEndDate)) : null;
+                    const newEnd = driverData.contractEndDate || null;
+                    const oldMonths = parseInt(__existingDrv?.contractDurationMonths || __existingDrv?.contractDuration || 0) || 0;
+                    const oldDays = parseInt(__existingDrv?.contractDurationDays || 0) || 0;
+                    const newMonths = parseInt(driverData.contractDurationMonths || 0) || 0;
+                    const newDays = parseInt(driverData.contractDurationDays || 0) || 0;
+                    
+                    const contractChanges = [];
+                    if (oldRate !== newRate) {
+                        contractChanges.push({
+                            label: oldType === 'monthly' ? 'الأجرة الشهرية' : 'الأجرة اليومية',
+                            from: oldRate.toFixed(3) + ' د.ك',
+                            to: newRate.toFixed(3) + ' د.ك'
+                        });
+                    }
+                    if (fmtD(oldEnd) !== fmtD(newEnd)) {
+                        contractChanges.push({
+                            label: 'تاريخ نهاية العقد',
+                            from: fmtD(oldEnd) || 'غير محدد',
+                            to: fmtD(newEnd) || 'غير محدد'
+                        });
+                    }
+                    if (oldMonths !== newMonths || oldDays !== newDays) {
+                        const fmtDur = (m, d) => {
+                            const p = [];
+                            if (m > 0) p.push(m + ' شهر');
+                            if (d > 0) p.push(d + ' يوم');
+                            return p.length ? p.join(' و ') : 'غير محدد';
+                        };
+                        contractChanges.push({
+                            label: 'مدة العقد',
+                            from: fmtDur(oldMonths, oldDays),
+                            to: fmtDur(newMonths, newDays)
+                        });
                     }
                     
-                    // إضافة العقد الجديد إلى التاريخ
-                    existingHistory.push({
-                        contractType: driverData.contractType,
-                        dailyRent: driverData.dailyRent || 0,
-                        monthlyPayment: driverData.monthlyPayment || 0,
-                        contractDurationMonths: driverData.contractDurationMonths || 0,
-                        contractDurationDays: driverData.contractDurationDays || 0,
-                        startDate: driverData.contractStartDate || new Date(),
-                        endDate: driverData.contractEndDate || null,
-                        createdAt: new Date(),
-                        createdBy: currentUser.name || currentUser.email,
-                        note: 'تعديل عقد'
-                    });
-                    driverData.contractHistory = existingHistory;
-                    
-                    // إصلاح: تأمين الرقم الوظيفي عند التحديث - لا يتغير أبداً
-                    if (!driverData.employeeNumber) {
-                        driverData.employeeNumber = editingDriverId;
+                    // 3) لو فيه تغيير حقيقي بالعقد → احسب الدين قبل وبعد واعرض نافذة تأكيد
+                    if (contractChanges.length > 0 && __existingDrv) {
+                        let debtBefore = 0, debtAfter = 0, calcOk = false;
+                        try {
+                            if (typeof calculateDriverDebt === 'function') {
+                                const pSnap = await getDocs(query(collection(db, 'driverPayments'), where('driverId', '==', editingDriverId)));
+                                const pays = [];
+                                pSnap.forEach(dx => pays.push({ id: dx.id, ...dx.data() }));
+                                
+                                debtBefore = calculateDriverDebt(editingDriverId, __existingDrv, pays);
+                                
+                                // نسخة افتراضية بعد التعديل: حدّث آخر سجل عقد فعلي
+                                const futureHistory = (__existingDrv.contractHistory || []).map(c => ({ ...c }));
+                                let lastIdx = -1;
+                                for (let i = futureHistory.length - 1; i >= 0; i--) {
+                                    if (futureHistory[i].note !== 'تعديل عقد' && futureHistory[i].type !== 'تعديل') { lastIdx = i; break; }
+                                }
+                                if (lastIdx >= 0) {
+                                    futureHistory[lastIdx] = {
+                                        ...futureHistory[lastIdx],
+                                        contractType: oldType,
+                                        dailyRent: oldType === 'daily' ? newRate : 0,
+                                        monthlyPayment: oldType === 'monthly' ? newRate : 0,
+                                        endDate: newEnd || futureHistory[lastIdx].endDate,
+                                        contractDurationMonths: newMonths,
+                                        contractDurationDays: newDays
+                                    };
+                                }
+                                const futureDriver = {
+                                    ...__existingDrv,
+                                    contractType: oldType,
+                                    dailyRent: oldType === 'daily' ? newRate : 0,
+                                    monthlyPayment: oldType === 'monthly' ? newRate : 0,
+                                    contractEndDate: newEnd,
+                                    contractHistory: futureHistory
+                                };
+                                debtAfter = calculateDriverDebt(editingDriverId, futureDriver, pays);
+                                calcOk = true;
+                            }
+                        } catch (eDbt) { console.error('debt calc err:', eDbt); }
+                        
+                        const diff = debtAfter - debtBefore;
+                        const diffSign = diff > 0 ? '+' : (diff < 0 ? '' : '');
+                        const diffMark = diff > 0 ? '🔴' : (diff < 0 ? '🟢' : '⚪');
+                        let msg = '📝 ملخص تعديل العقد\n';
+                        msg += '━━━━━━━━━━━━━━━━━━━━━━\n\n';
+                        msg += '👤 السائق: ' + (__existingDrv.name || '') + ' (' + (__existingDrv.employeeNumber || '') + ')\n';
+                        msg += '📋 نوع العقد: ' + (oldType === 'monthly' ? 'شهري 📅' : 'يومي ☀️') + ' (لم يتغيّر)\n\n';
+                        msg += '🔄 التغييرات:\n';
+                        contractChanges.forEach(c => {
+                            msg += '  • ' + c.label + ':\n      ' + c.from + '  ←  ' + c.to + '\n';
+                        });
+                        if (calcOk) {
+                            msg += '\n💰 أثر التعديل على الحسابات:\n';
+                            msg += '  • الدين قبل: ' + debtBefore.toFixed(3) + ' د.ك\n';
+                            msg += '  • الدين بعد: ' + debtAfter.toFixed(3) + ' د.ك\n';
+                            msg += '  ' + diffMark + ' الفرق: ' + diffSign + diff.toFixed(3) + ' د.ك ';
+                            if (diff > 0) msg += '(زيادة دين على السائق)';
+                            else if (diff < 0) msg += '(انخفاض دين)';
+                            else msg += '(لا تغيير)';
+                            msg += '\n';
+                            if (Math.abs(diff) >= 100) {
+                                msg += '\n⚠️ تنبيه: الفرق كبير! تأكد من القيم قبل المتابعة.\n';
+                            }
+                        } else {
+                            msg += '\n⚠️ تعذّر حساب الدين الآن - سيُحسب بعد الحفظ.\n';
+                        }
+                        msg += '\n━━━━━━━━━━━━━━━━━━━━━━\nهل تريد تأكيد التعديل؟';
+                        if (!confirm(msg)) return;
                     }
+                    
+                    // 4) ابنِ contractHistory:
+                    //    • حدّث آخر سجل عقد فعلي (عقد أولي/جديد) بالقيم الجديدة → يصبح هو "العقد الحالي" للحسابات
+                    //    • ضِف صف "✏️ تعديل" واحد للعرض في سجل العقود (unified-balance يتجاهله تلقائياً)
+                    const existingHistory = (__existingDrv?.contractHistory) ? __existingDrv.contractHistory.map(c => ({ ...c })) : [];
+                    if (contractChanges.length > 0 && existingHistory.length > 0) {
+                        let lastIdx = -1;
+                        for (let i = existingHistory.length - 1; i >= 0; i--) {
+                            if (existingHistory[i].note !== 'تعديل عقد' && existingHistory[i].type !== 'تعديل') { lastIdx = i; break; }
+                        }
+                        if (lastIdx >= 0) {
+                            existingHistory[lastIdx] = {
+                                ...existingHistory[lastIdx],
+                                contractType: oldType,
+                                dailyRent: oldType === 'daily' ? newRate : 0,
+                                monthlyPayment: oldType === 'monthly' ? newRate : 0,
+                                endDate: newEnd || existingHistory[lastIdx].endDate,
+                                contractDurationMonths: newMonths,
+                                contractDurationDays: newDays,
+                                lastEditedAt: new Date(),
+                                lastEditedBy: currentUser.name || currentUser.email
+                            };
+                        }
+                        // صف تعديل واحد فقط مع تفاصيل التغييرات
+                        existingHistory.push({
+                            type: 'تعديل',
+                            note: 'تعديل عقد',
+                            editedAt: new Date().toISOString(),
+                            editedBy: currentUser.name || currentUser.email,
+                            changes: contractChanges,
+                            contractType: oldType,
+                            dailyRent: oldType === 'daily' ? newRate : 0,
+                            monthlyPayment: oldType === 'monthly' ? newRate : 0,
+                            startDate: oldStart,
+                            endDate: newEnd,
+                            contractDurationMonths: newMonths,
+                            contractDurationDays: newDays,
+                            createdAt: new Date(),
+                            createdBy: currentUser.name || currentUser.email
+                        });
+                    }
+                    if (existingHistory.length > 0) driverData.contractHistory = existingHistory;
+                    
+                    // 5) تأمين الرقم الوظيفي + لا تكتب فوق oldDebts
+                    if (!driverData.employeeNumber) driverData.employeeNumber = editingDriverId;
                     driverData.driverId = driverData.employeeNumber;
+                    delete driverData.oldDebts;
                     
-                    // تحديث السائق الموجود
-                    // FIX #015+#018 (2026-05-06): لا تكتب فوق oldDebts عند التعديل + سجل تغيير العقد
-                      delete driverData.oldDebts;
-                      const __existingDrv = allDrivers.find(d => d.id === editingDriverId);
-                      if (__existingDrv) {
-                          const __changed = (
-                              (__existingDrv.contractType || '') !== (driverData.contractType || '') ||
-                              parseFloat(__existingDrv.dailyRent || 0) !== parseFloat(driverData.dailyRent || 0) ||
-                              parseFloat(__existingDrv.monthlyPayment || 0) !== parseFloat(driverData.monthlyPayment || 0)
-                          );
-                          if (__changed) {
-                              const __hist = {
-                                  type: 'تعديل',
-                                  editedAt: new Date().toISOString(),
-                                  editedBy: currentUser.name || currentUser.email,
-                                  note: 'تعديل بيانات العقد من فورم تعديل السائق',
-                                  oldContractType: __existingDrv.contractType || '',
-                                  newContractType: driverData.contractType || '',
-                                  oldDailyRent: parseFloat(__existingDrv.dailyRent || 0),
-                                  newDailyRent: parseFloat(driverData.dailyRent || 0),
-                                  oldMonthlyPayment: parseFloat(__existingDrv.monthlyPayment || 0),
-                                  newMonthlyPayment: parseFloat(driverData.monthlyPayment || 0)
-                              };
-                              driverData.contractHistory = [...(__existingDrv.contractHistory || []), __hist];
-                              console.log('📝 FIX #018: تم تسجيل تغيير العقد');
-                          }
-                      }
-                      await updateDoc(doc(db, 'drivers', editingDriverId), driverData);
+                    await updateDoc(doc(db, 'drivers', editingDriverId), driverData);
                       
                       // 🔧 FIX #020: تسجيل تعديل السائق في editHistory
                       try {
