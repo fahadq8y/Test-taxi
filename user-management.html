@@ -306,6 +306,27 @@
         }
 
         // Add user form
+        // 🔧 #025: helper لتسجيل تعديلات المستخدمين في editHistory (Firebase v8 compat)
+        async function logUserEditHistory(entry) {
+            try {
+                const me = (typeof currentUserRole !== 'undefined' && currentUserRole) || localStorage.getItem('userRole') || 'unknown';
+                const meId = (typeof currentUserId !== 'undefined' && currentUserId) || (auth.currentUser ? auth.currentUser.uid : 'unknown');
+                const meEmail = auth.currentUser ? auth.currentUser.email : (localStorage.getItem('userName') || 'unknown');
+                await db.collection('editHistory').add({
+                    recordType: 'user',
+                    action: entry.action,
+                    recordId: entry.recordId || '',
+                    description: entry.description || '',
+                    changes: entry.changes || null,
+                    fullSnapshot: entry.fullSnapshot || null,
+                    editedBy: meEmail,
+                    editedById: meId,
+                    editorRole: me,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (e) { console.error('⚠️ #025 logUserEditHistory:', e); }
+        }
+
         document.getElementById('addUserForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -339,6 +360,13 @@
                     role: role,
                     isActive: true,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // 🔧 #025: لوغ إضافة مستخدم
+                await logUserEditHistory({
+                    action: 'addUser', recordId: userId,
+                    description: `إضافة مستخدم جديد: ${name} (${role})`,
+                    fullSnapshot: { name, email: email || null, role, userId }
                 });
 
                 showMessage('تم إضافة المستخدم بنجاح! ✅', 'success');
@@ -392,10 +420,21 @@
             const role = document.getElementById('editUserRole').value;
 
             try {
+                // 🔧 #025: التقاط القيم قبل التعديل
+                const _before = users.find(u => u.id === userId) || {};
                 await db.collection('users').doc(userId).update({
                     name: name,
                     role: role,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                // لوغ التعديل
+                const _changes = [];
+                if (_before.name !== name) _changes.push({ field: 'name', oldValue: _before.name, newValue: name });
+                if (_before.role !== role) _changes.push({ field: 'role', oldValue: _before.role, newValue: role });
+                await logUserEditHistory({
+                    action: 'updateUser', recordId: userId,
+                    description: `تعديل المستخدم: ${name}`,
+                    changes: _changes
                 });
 
                 showMessage('تم تحديث المستخدم بنجاح! ✅', 'success');
@@ -428,6 +467,12 @@
                     isActive: isActive,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
+                // 🔧 #025: لوغ تفعيل/تعطيل
+                await logUserEditHistory({
+                    action: isActive ? 'activateUser' : 'deactivateUser', recordId: userId,
+                    description: `${action} المستخدم: ${user.name}`,
+                    changes: [{ field: 'isActive', oldValue: !isActive, newValue: isActive }]
+                });
 
                 showMessage(`تم ${action} المستخدم بنجاح! ✅`, 'success');
                 await loadUsers();
@@ -452,6 +497,12 @@
             if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟ هذا الإجراء لا يمكن التراجع عنه!')) return;
 
             try {
+                // 🔧 #025: لوغ قبل الحذف (مع snapshot كامل)
+                await logUserEditHistory({
+                    action: 'deleteUser', recordId: userId,
+                    description: `حذف المستخدم: ${user.name} (${user.role})`,
+                    fullSnapshot: { name: user.name, email: user.email || null, role: user.role, isActive: user.isActive }
+                });
                 await db.collection('users').doc(userId).delete();
                 showMessage('تم حذف المستخدم بنجاح! ✅', 'success');
                 await loadUsers();
@@ -520,6 +571,12 @@
                 await db.collection('users').doc(userId).update({
                     password: newPassword,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                // 🔧 #025: لوغ تغيير كلمة مرور (بدون حفظ الكلمة نفسها)
+                const _u = users.find(u => u.id === userId) || {};
+                await logUserEditHistory({
+                    action: 'changePassword', recordId: userId,
+                    description: `تغيير كلمة مرور المستخدم: ${_u.name || userId}`
                 });
 
                 showMessage('تم تغيير كلمة المرور بنجاح! ✅', 'success');
