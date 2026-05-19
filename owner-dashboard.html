@@ -465,21 +465,25 @@
     return parseFloat(driver.dailyRent || driver.dailyWage || 0) * 7;
   }
 
-  /* ===== الدين باستخدام contractHistory (إصلاح الخطأ القديم) ===== */
+  /* ===== الدين باستخدام contractHistory (إصلاح #022: realContracts pattern) ===== */
   function calcDebtSplit(driverId, driver) {
     const payments = gPayments.filter(p => p.driverId === driverId);
     const today = new Date();
     let expectedRent = 0;
-    if (driver.contractHistory && driver.contractHistory.length > 0) {
-      driver.contractHistory.forEach((c, idx) => {
-        if (c.note==='تعديل عقد' || c.type==='تعديل') return;
+    // #022: استخراج العقود الحقيقية فقط (تجاهل التعديلات والمخفية)
+    const realContracts = (driver.contractHistory || []).filter(c =>
+      c.note !== 'تعديل عقد' && c.type !== 'تعديل' && c.hidden !== true
+    );
+    if (realContracts.length > 0) {
+      realContracts.forEach((c, idx) => {
         const pStart = toDate(c.startDate);
         if (!pStart || pStart > today) return;
-        let pEnd = idx < driver.contractHistory.length-1 ? (toDate(driver.contractHistory[idx+1].startDate)||today) : today;
+        let pEnd = idx < realContracts.length-1 ? (toDate(realContracts[idx+1].startDate)||today) : today;
         if (pEnd > today) pEnd = today;
-        // اعتبار contractEndDate
-        const cEnd = toDate(driver.contractEndDate);
-        if (cEnd && pEnd > cEnd) pEnd = cEnd;
+        if (idx === realContracts.length-1) {
+          const cEnd = toDate(driver.contractEndDate);
+          if (cEnd && pEnd > cEnd) pEnd = cEnd;
+        }
         if (c.contractType === 'daily') {
           const days = Math.max(0, Math.floor((pEnd - pStart)/86400000));
           expectedRent += days * parseFloat(c.dailyRent||0);
@@ -488,6 +492,29 @@
           expectedRent += months * parseFloat(c.monthlyPayment||0);
         }
       });
+      // 🔧 #022b: اكتشاف العقد الضمني (driver الحالي يختلف عن آخر سجل)
+      const lastRC = realContracts[realContracts.length-1];
+      const lastType = lastRC.contractType;
+      const lastRate = lastType==='daily' ? parseFloat(lastRC.dailyRent||0) : parseFloat(lastRC.monthlyPayment||0);
+      const drvType = driver.contractType || 'daily';
+      const drvRate = drvType==='daily' ? parseFloat(driver.dailyRent||driver.dailyWage||0) : parseFloat(driver.monthlyPayment||0);
+      if (drvType !== lastType || drvRate !== lastRate) {
+        let iStart = toDate(lastRC.endDate);
+        const drvStart = toDate(driver.contractStartDate);
+        if (drvStart && (!iStart || drvStart > iStart)) iStart = drvStart;
+        if (iStart && iStart < today) {
+          let iEnd = toDate(driver.contractEndDate);
+          iEnd = (iEnd && today > iEnd) ? iEnd : today;
+          if (iEnd > today) iEnd = today;
+          if (drvType === 'daily') {
+            const d = Math.max(0, Math.floor((iEnd - iStart)/86400000));
+            expectedRent += d * drvRate;
+          } else {
+            const m = Math.max(0, (iEnd.getFullYear()-iStart.getFullYear())*12 + (iEnd.getMonth()-iStart.getMonth()));
+            expectedRent += m * drvRate;
+          }
+        }
+      }
     } else {
       const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt) || today;
       let pEnd = toDate(driver.contractEndDate); if (!pEnd || pEnd > today) pEnd = today;
@@ -505,22 +532,26 @@
     return { current, old, total: current + old };
   }
 
-  /* ===== الدين عند تاريخ معيّن - مُصحّح يستخدم contractHistory ===== */
+  /* ===== الدين عند تاريخ معيّن - إصلاح #022: realContracts pattern ===== */
   function calcDebtAtDate(driver, atDate) {
     const payments = gPayments.filter(p => {
       const d = toDate(p.date);
       return p.driverId === driver.id && d && d <= atDate;
     });
     let expectedRent = 0;
-    if (driver.contractHistory && driver.contractHistory.length > 0) {
-      driver.contractHistory.forEach((c, idx) => {
-        if (c.note==='تعديل عقد' || c.type==='تعديل') return;
+    const realContracts = (driver.contractHistory || []).filter(c =>
+      c.note !== 'تعديل عقد' && c.type !== 'تعديل' && c.hidden !== true
+    );
+    if (realContracts.length > 0) {
+      realContracts.forEach((c, idx) => {
         const pStart = toDate(c.startDate);
         if (!pStart || pStart > atDate) return;
-        let pEnd = idx < driver.contractHistory.length-1 ? (toDate(driver.contractHistory[idx+1].startDate)||atDate) : atDate;
+        let pEnd = idx < realContracts.length-1 ? (toDate(realContracts[idx+1].startDate)||atDate) : atDate;
         if (pEnd > atDate) pEnd = atDate;
-        const cEnd = toDate(driver.contractEndDate);
-        if (cEnd && pEnd > cEnd) pEnd = cEnd;
+        if (idx === realContracts.length-1) {
+          const cEnd = toDate(driver.contractEndDate);
+          if (cEnd && pEnd > cEnd) pEnd = cEnd;
+        }
         if (c.contractType === 'daily') {
           const days = Math.max(0, Math.floor((pEnd - pStart)/86400000));
           expectedRent += days * parseFloat(c.dailyRent||0);
@@ -529,6 +560,29 @@
           expectedRent += months * parseFloat(c.monthlyPayment||0);
         }
       });
+      // 🔧 #022b: العقد الضمني عند تاريخ معيّن
+      const lastRC = realContracts[realContracts.length-1];
+      const lastType = lastRC.contractType;
+      const lastRate = lastType==='daily' ? parseFloat(lastRC.dailyRent||0) : parseFloat(lastRC.monthlyPayment||0);
+      const drvType = driver.contractType || 'daily';
+      const drvRate = drvType==='daily' ? parseFloat(driver.dailyRent||driver.dailyWage||0) : parseFloat(driver.monthlyPayment||0);
+      if (drvType !== lastType || drvRate !== lastRate) {
+        let iStart = toDate(lastRC.endDate);
+        const drvStart = toDate(driver.contractStartDate);
+        if (drvStart && (!iStart || drvStart > iStart)) iStart = drvStart;
+        if (iStart && iStart < atDate) {
+          let iEnd = toDate(driver.contractEndDate);
+          iEnd = (iEnd && atDate > iEnd) ? iEnd : atDate;
+          if (iEnd > atDate) iEnd = atDate;
+          if (drvType === 'daily') {
+            const d = Math.max(0, Math.floor((iEnd - iStart)/86400000));
+            expectedRent += d * drvRate;
+          } else {
+            const m = Math.max(0, (iEnd.getFullYear()-iStart.getFullYear())*12 + (iEnd.getMonth()-iStart.getMonth()));
+            expectedRent += m * drvRate;
+          }
+        }
+      }
     } else {
       const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt) || atDate;
       let pEnd = toDate(driver.contractEndDate); if (!pEnd || pEnd > atDate) pEnd = atDate;
