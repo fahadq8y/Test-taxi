@@ -1507,7 +1507,7 @@
                 const oldContractActuallyEnded = !!(oldContractEnd && !isNaN(oldContractEnd.getTime()) && _today_chk > oldContractEnd);
                 const historyEndDate = oldContractActuallyEnded ? oldContractEnd : new Date(newStart);
                 
-                // إضافة سجل العقد القديم بنوع "عقد جديد"
+                // إضافة سجل العقد القديم (للأرشيف)
                 existingHistory.push({
                     type: 'عقد جديد',
                     contractType: driver.contractType,
@@ -1522,6 +1522,21 @@
                     archivedAt: new Date(),
                     archivedBy: currentUser.name || currentUser.email,
                     note: note || 'تجديد عقد'
+                });
+
+                // 🔧 #022b: إضافة سجل العقد الجديد أيضاً في contractHistory
+                // عشان unified-balance.js يحسب الفترة الأخيرة بأجرة العقد الجديد الصحيحة
+                // (المشكلة القديمة: كان يُحفظ القديم فقط → نتائج غلط لكل صفحات الحسابات)
+                existingHistory.push({
+                    type: 'عقد جديد',
+                    contractType: newType,
+                    dailyRent: newType === 'daily' ? newRate : 0,
+                    monthlyPayment: newType === 'monthly' ? newRate : 0,
+                    startDate: new Date(newStart),
+                    endDate: new Date(newEnd),
+                    createdAt: new Date(),
+                    createdBy: currentUser.name || currentUser.email,
+                    note: 'العقد الحالي'
                 });
 
                 // حساب الديون القديمة الجديدة
