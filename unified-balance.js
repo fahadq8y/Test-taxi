@@ -169,23 +169,25 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
     const today = new Date();
     let expectedRentTotal = 0;
     
-    // #005: إذا كان لدى السائق contractHistory، نحسب كل فترة بعقدها
-    if (driver.contractHistory && driver.contractHistory.length > 0) {
-        driver.contractHistory.forEach((contract, index) => {
-            // #009: تجاهل سجلات التعديل - تُحسب فقط سجلات "عقد جديد" و"عقد أولي"
-            if (contract.note === 'تعديل عقد' || contract.type === 'تعديل') return;
-            
+    // #022: استخراج العقود الحقيقية فقط (تجاهل "تعديل عقد" و"تعديل" والمخفية يدوياً)
+    const realContracts = (driver.contractHistory || []).filter(c =>
+        c.note !== 'تعديل عقد' && c.type !== 'تعديل' && c.hidden !== true
+    );
+
+    // #005 + #022: إذا كان لدى السائق عقود حقيقية في contractHistory، نحسب كل فترة بعقدها
+    if (realContracts.length > 0) {
+        realContracts.forEach((contract, index) => {
             const periodStart = contract.startDate ?
                 (contract.startDate.toDate ? contract.startDate.toDate() : new Date(contract.startDate)) : null;
-            
+
             if (!periodStart) return;
-            
+
             // نهاية الفترة: إذا كان هناك عقد تالٍ، نستخدم تاريخ بداية العقد التالي
             // إذا كان العقد الأخير (النشط)، نستخدم اليوم
             let periodEnd;
-            if (index < driver.contractHistory.length - 1) {
+            if (index < realContracts.length - 1) {
                 // ليس العقد الأخير - نهايته هي بداية العقد التالي
-                const nextContract = driver.contractHistory[index + 1];
+                const nextContract = realContracts[index + 1];
                 periodEnd = nextContract.startDate ?
                     (nextContract.startDate.toDate ? nextContract.startDate.toDate() : new Date(nextContract.startDate)) : today;
             } else {
@@ -193,14 +195,14 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
                 const _pEnd = contract.endDate ? (contract.endDate.toDate ? contract.endDate.toDate() : new Date(contract.endDate)) : (driver.contractEndDate ? (driver.contractEndDate.toDate ? driver.contractEndDate.toDate() : new Date(driver.contractEndDate)) : null);
                 periodEnd = (_pEnd && !isNaN(_pEnd.getTime()) && today > _pEnd) ? _pEnd : today;
             }
-            
+
             // لا نحسب ما بعد اليوم
             if (periodStart > today) return;
             if (periodEnd > today) periodEnd = today;
-            
+
             if (contract.contractType === 'daily') {
                 // عقد يومي: عدد الأيام × الأجرة اليومية
-                const days = Math.floor((periodEnd - periodStart) / (1000 * 60 * 60 * 24));
+                const days = Math.max(0, Math.floor((periodEnd - periodStart) / (1000 * 60 * 60 * 24)));
                 const rate = parseFloat(contract.dailyRent || 0);
                 expectedRentTotal += days * rate;
             } else if (contract.contractType === 'monthly') {
@@ -210,10 +212,40 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
                 const startMonth = periodStart.getMonth();
                 const endYear = periodEnd.getFullYear();
                 const endMonth = periodEnd.getMonth();
-                const monthsDiff = (endYear - startYear) * 12 + (endMonth - startMonth);
+                const monthsDiff = Math.max(0, (endYear - startYear) * 12 + (endMonth - startMonth));
                 expectedRentTotal += monthsDiff * rate;
             }
         });
+
+        // 🔧 #022b: اكتشاف "العقد الضمني" للسائقين القدامى
+        // saveNewContract القديم كان يحفظ العقد السابق فقط في history (بدون الجديد)
+        // النتيجة: آخر realContract = العقد القديم، لكن driver.contractType الحالي = العقد الجديد
+        // الحل: لو driver الحالي يختلف عن آخر سجل → فيه عقد جديد ضمني نحسبه بأجرة driver الحالية
+        const _lastRC = realContracts[realContracts.length - 1];
+        const _lastType = _lastRC.contractType;
+        const _lastRate = _lastType === 'daily' ? parseFloat(_lastRC.dailyRent||0) : parseFloat(_lastRC.monthlyPayment||0);
+        const _drvType = driver.contractType || 'daily';
+        const _drvRate = _drvType === 'daily' ? parseFloat(driver.dailyRent||driver.dailyWage||0) : parseFloat(driver.monthlyPayment||0);
+        if (_drvType !== _lastType || _drvRate !== _lastRate) {
+            // العقد الضمني يبدأ من نهاية آخر سجل (أو من contractStartDate الحالي إن كان أحدث)
+            let _implStart = _lastRC.endDate ? (_lastRC.endDate.toDate ? _lastRC.endDate.toDate() : new Date(_lastRC.endDate)) : null;
+            if (driver.contractStartDate) {
+                const _drvStart = driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate);
+                if (!_implStart || _drvStart > _implStart) _implStart = _drvStart;
+            }
+            if (_implStart && _implStart < today) {
+                const _e = driver.contractEndDate ? (driver.contractEndDate.toDate ? driver.contractEndDate.toDate() : new Date(driver.contractEndDate)) : null;
+                let _implEnd = (_e && !isNaN(_e.getTime()) && today > _e) ? _e : today;
+                if (_implEnd > today) _implEnd = today;
+                if (_drvType === 'daily') {
+                    const _d = Math.max(0, Math.floor((_implEnd - _implStart) / 86400000));
+                    expectedRentTotal += _d * _drvRate;
+                } else {
+                    const _m = Math.max(0, (_implEnd.getFullYear()-_implStart.getFullYear())*12 + (_implEnd.getMonth()-_implStart.getMonth()));
+                    expectedRentTotal += _m * _drvRate;
+                }
+            }
+        }
     } else {
         // #006: Fallback للسائقين القدامى بدون contractHistory
         const contractStart = driver.contractStartDate ?
