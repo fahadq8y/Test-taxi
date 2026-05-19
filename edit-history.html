@@ -514,6 +514,12 @@
                           <option value="archive">🗄️ أرشفة</option>
                           <option value="restore">♻️ استعادة</option>
                           <option value="permanentDelete">⚠️ حذف نهائي</option>
+                          <option value="addUser">➕ إضافة مستخدم</option>
+                          <option value="updateUser">✏️ تعديل مستخدم</option>
+                          <option value="deleteUser">🗑️ حذف مستخدم</option>
+                          <option value="activateUser">✅ تفعيل مستخدم</option>
+                          <option value="deactivateUser">⛔ تعطيل مستخدم</option>
+                          <option value="changePassword">🔑 تغيير كلمة المرور</option>
                       </select>
                 </div>
                 <div class="form-group">
@@ -531,6 +537,7 @@
                               <option value="oldDebts">💼 ديون قديمة</option>
                               <option value="archive">🗄️ أرشيف / حذف نهائي</option>
                               <option value="restore">♻️ استعادة من الأرشيف</option>
+                              <option value="user">👥 مستخدم نظام</option>
                           </optgroup>
                       </select>
                 </div>
@@ -767,14 +774,18 @@
                   contract:      { label: '📝 عقد',        cls: 'type-contract',    color: '#8b5cf6' },
                   oldDebts:      { label: '💼 ديون قديمة', cls: 'type-olddebts',    color: '#f59e0b' },
                   archive:       { label: '🗄️ أرشيف',     cls: 'type-archive',     color: '#6b7280' },
-                  restore:       { label: '♻️ استعادة',   cls: 'type-restore',     color: '#22c55e' }
+                  restore:       { label: '♻️ استعادة',   cls: 'type-restore',     color: '#22c55e' },
+                  user:          { label: '👥 مستخدم',    cls: 'type-user',        color: '#ec4899' }
               };
               return m[rt] || { label: rt || '—', cls: '', color: '#999' };
           }
           function getActionLabel(action) {
               const m = { edit:'✏️ تعديل', delete:'🗑️ حذف', newContract:'📝 عقد جديد',
                   endContract:'🛑 إنهاء عقد', archive:'🗄️ أرشفة', restore:'♻️ استعادة',
-                  permanentDelete:'⚠️ حذف نهائي' };
+                  permanentDelete:'⚠️ حذف نهائي',
+                  addUser:'➕ إضافة مستخدم', updateUser:'✏️ تعديل مستخدم',
+                  deleteUser:'🗑️ حذف مستخدم', activateUser:'✅ تفعيل مستخدم',
+                  deactivateUser:'⛔ تعطيل مستخدم', changePassword:'🔑 تغيير كلمة المرور' };
               return m[action] || action;
           }
           function isRestorable(item) {
