@@ -820,14 +820,22 @@
             document.getElementById('dailyRent').value = driver.dailyRent || '';
             document.getElementById('monthlyPayment').value = driver.monthlyPayment || '';
             toggleContractFields();
-            // FIX #023: قفل نوع العقد عند التعديل - يلزم استخدام "📋 عقد جديد" لتغييره
+            // FIX #023: قفل نوع العقد + تاريخ البداية عند التعديل
             (() => {
                 const ct = document.getElementById('contractType');
                 if (ct) {
                     ct.dataset.lockedValue = ct.value;
+                    ct.disabled = true;
                     ct.style.background = '#f3f4f6';
                     ct.style.cursor = 'not-allowed';
                     ct.title = '🔒 لتغيير نوع العقد: أنهِ العقد الحالي ثم استخدم "📋 عقد جديد"';
+                }
+                const sd = document.getElementById('contractStartDate');
+                if (sd) {
+                    sd.readOnly = true;
+                    sd.style.background = '#f3f4f6';
+                    sd.style.cursor = 'not-allowed';
+                    sd.title = '🔒 لتغيير تاريخ بداية العقد: استخدم "📋 عقد جديد"';
                 }
             })();
             
