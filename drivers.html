@@ -1782,9 +1782,11 @@
         };
 
         // ===== دوال سجل العقود =====
+        let currentContractHistoryDriverId = null; // #026
         window.showContractHistory = (driverId) => {
             const driver = allDrivers.find(d => d.id === driverId);
             if (!driver) return;
+            currentContractHistoryDriverId = driverId; // #026
 
             document.getElementById('contractHistoryDriverName').textContent = `سجل عقود السائق: ${driver.name} (${driver.employeeNumber})`;
 
@@ -1797,20 +1799,31 @@
                         <div>لا يوجد سجل عقود سابقة</div>
                     </div>`;
             } else {
+                // 🔧 #026: زر إخفاء/إظهار للمدير فقط
+                const _isAdmin = !!(currentUser && currentUser.role === 'admin');
+                const _adminHeader = _isAdmin ? '<th style="padding: 10px;">إجراءات</th>' : '';
+
                 const rows = history.map((h, i) => {
                     // #009: تحديد نوع السجل
                     const isOldDebtsEdit = h.note === 'تعديل ديون قديمة';
-                    const typeLabel = h.type === 'عقد جديد' ? '📋 عقد جديد' :
+                    const isHidden = h.hidden === true;
+                    const typeLabel = (isHidden ? '🚫 ' : '') + (h.type === 'عقد جديد' ? '📋 عقد جديد' :
                                      isOldDebtsEdit ? '💼 تعديل ديون قديمة' :
                                      h.type === 'تعديل' ? '✏️ تعديل عقد' :
-                                     h.note === 'عقد أولي' ? '🆕 عقد أولي' : '✏️ تعديل';
+                                     h.note === 'عقد أولي' ? '🆕 عقد أولي' : '✏️ تعديل');
+                    const hiddenStyle = isHidden ? 'opacity:0.45; text-decoration:line-through;' : '';
+
+                    // زر التحكم للمدير
+                    const _adminCell = _isAdmin ? `<td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:center;">
+                        <button onclick="toggleContractHidden('${currentContractHistoryDriverId}', ${i})" style="background:${isHidden ? '#10b981' : '#f59e0b'}; color:white; border:none; padding:5px 10px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600;" title="${isHidden ? 'إظهار السجل واحتسابه في الديون' : 'إخفاء السجل من الحسابات (لا يُحذف)'}">${isHidden ? '♻️ إظهار' : '🚫 إخفاء'}</button>
+                    </td>` : '';
 
                     // بيانات خاصة بتعديل الديون القديمة
                     if (isOldDebtsEdit) {
                         const editedAt = h.editedAt ? new Date(h.editedAt).toLocaleDateString('en-GB') : '-';
                         const oldVal = parseFloat(h.oldValue || 0).toFixed(3);
                         const newVal = parseFloat(h.newValue || 0).toFixed(3);
-                        return `<tr style="background: ${i % 2 === 0 ? '#fff7ed' : '#fffbeb'}; border-right: 3px solid #f59e0b;">
+                        return `<tr style="background: ${i % 2 === 0 ? '#fff7ed' : '#fffbeb'}; border-right: 3px solid #f59e0b; ${hiddenStyle}">
                             <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">${i + 1}</td>
                             <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${typeLabel}</td>
                             <td colspan="5" style="padding: 10px; border-bottom: 1px solid #e2e8f0; color: #92400e;">
@@ -1820,6 +1833,7 @@
                             <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${h.editedBy || '-'}</td>
                             <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px;">${editedAt}</td>
                             <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${h.note || '-'}</td>
+                            ${_adminCell}
                         </tr>`;
                     }
 
@@ -1836,7 +1850,7 @@
                     const carryOverCell = h.carryOver !== undefined ? 
                         `<span style="color: ${h.carryOver > 0 ? '#dc2626' : h.carryOver < 0 ? '#059669' : '#64748b'}; font-weight: 600;">${Math.abs(h.carryOver || 0).toFixed(3)} د.ك ${h.carryOver > 0 ? '(دين)' : h.carryOver < 0 ? '(زائد)' : ''}</span>` : '-';
 
-                    return `<tr style="background: ${i % 2 === 0 ? '#f8fafc' : 'white'};">
+                    return `<tr style="background: ${i % 2 === 0 ? '#f8fafc' : 'white'}; ${hiddenStyle}">
                         <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">${i + 1}</td>
                         <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${typeLabel}</td>
                         <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${contractTypeLabel}</td>
@@ -1847,10 +1861,12 @@
                         <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${h.archivedBy || h.createdBy || '-'}</td>
                         <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px;">${archivedAt}</td>
                         <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${h.note || '-'}</td>
+                        ${_adminCell}
                     </tr>`;
                 }).join('');
 
                 document.getElementById('contractHistoryContent').innerHTML = `
+                    ${_isAdmin ? '<div style="background:#fef3c7; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#92400e;">💡 <strong>للمدير:</strong> زر "🚫 إخفاء" يستبعد السجل من حسابات الديون دون حذفه. مفيد للسجلات الخاطئة. يمكن إظهاره مرة أخرى في أي وقت.</div>' : ''}
                     <div style="overflow-x: auto;">
                         <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                             <thead>
@@ -1865,6 +1881,7 @@
                                     <th style="padding: 10px;">بواسطة</th>
                                     <th style="padding: 10px;">تاريخ التسجيل</th>
                                     <th style="padding: 10px;">ملاحظة</th>
+                                    ${_adminHeader}
                                 </tr>
                             </thead>
                             <tbody>${rows}</tbody>
@@ -1873,6 +1890,57 @@
             }
 
             document.getElementById('contractHistoryModal').style.display = 'block';
+        };
+
+        // #026: إخفاء/إظهار سجل عقد (للمدير فقط)
+        window.toggleContractHidden = async (driverId, historyIndex) => {
+            try {
+                if (!currentUser || currentUser.role !== 'admin') {
+                    alert('⛔ هذا الإجراء متاح للمدير فقط');
+                    return;
+                }
+                const driver = allDrivers.find(d => d.id === driverId);
+                if (!driver || !driver.contractHistory || !driver.contractHistory[historyIndex]) {
+                    alert('⚠️ السجل غير موجود'); return;
+                }
+                const entry = driver.contractHistory[historyIndex];
+                const willHide = entry.hidden !== true;
+                const action = willHide ? 'إخفاء' : 'إظهار';
+                const msg = willHide
+                    ? `🚫 إخفاء هذا السجل من حسابات الديون؟\n\nالسجل لن يُحذف، يمكن إظهاره لاحقاً.\nستتأثر حسابات الديون فوراً.\n\nالنوع: ${entry.type || entry.note || '-'}\nالتاريخ: ${entry.startDate ? new Date(entry.startDate.toDate ? entry.startDate.toDate() : entry.startDate).toLocaleDateString('en-GB') : '-'}`
+                    : `♻️ إعادة احتساب هذا السجل في حسابات الديون؟`;
+                if (!confirm(msg)) return;
+
+                const newHistory = driver.contractHistory.map((h, i) => i === historyIndex ? { ...h, hidden: willHide, hiddenAt: willHide ? new Date().toISOString() : null, hiddenBy: willHide ? (currentUser.name || currentUser.email) : null } : h);
+
+                const { doc, updateDoc, addDoc, collection, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+                await updateDoc(doc(db, 'drivers', driverId), { contractHistory: newHistory });
+
+                // editHistory log
+                try {
+                    await addDoc(collection(db, 'editHistory'), {
+                        timestamp: serverTimestamp(),
+                        editedBy: currentUser.name || currentUser.email,
+                        editedByRole: currentUser.role || 'admin',
+                        action: 'edit',
+                        recordType: 'contract',
+                        driverId: driverId,
+                        driverName: driver.name,
+                        employeeNumber: driver.employeeNumber,
+                        note: `${action} سجل عقد رقم ${historyIndex + 1}`,
+                        changes: [{ field: `contractHistory[${historyIndex}].hidden`, oldValue: !willHide, newValue: willHide }],
+                        hiddenEntrySnapshot: entry
+                    });
+                } catch(e) { console.warn('editHistory log failed:', e); }
+
+                // refresh local + UI
+                driver.contractHistory = newHistory;
+                showContractHistory(driverId);
+                alert(`✅ تم ${action} السجل`);
+            } catch (err) {
+                console.error('toggleContractHidden error:', err);
+                alert('❌ خطأ: ' + err.message);
+            }
         };
 
         window.closeContractHistoryModal = () => {
