@@ -205,30 +205,18 @@
     </div>
 
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('overview')">📊 نظرة عامة</button>
-      <button class="tab-btn" onclick="switchTab('alerts')">🚨 التحذيرات</button>
-      <button class="tab-btn" onclick="switchTab('weekly')">📅 الأسبوعي</button>
-      <button class="tab-btn" onclick="switchTab('monthly')">🗓️ الشهري</button>
-      <button class="tab-btn" onclick="switchTab('followup')">⚡ هذا الأسبوع</button>
-      <button class="tab-btn" onclick="switchTab('profit')">💰 الربحية</button>
-      <button class="tab-btn" onclick="switchTab('forecast')">🔮 التوقعات</button>
+      <button class="tab-btn active" onclick="switchTab('home')">🏠 الرئيسية</button>
+      <button class="tab-btn" onclick="switchTab('drivers')">👤 السائقين</button>
+      <button class="tab-btn" onclick="switchTab('weekly')">📅 تقرير الأسبوع</button>
+      <button class="tab-btn" onclick="switchTab('monthly')">🗓️ الشهريين</button>
       <button class="tab-btn" onclick="switchTab('monitor')">🛡️ رقابة المحاسب</button>
-      <button class="tab-btn" onclick="switchTab('compare')">📈 مقارنة الأشهر</button>
-      <button class="tab-btn" onclick="switchTab('classif')">🎯 التصنيف</button>
-      <button class="tab-btn" onclick="switchTab('lifecycle')">📜 سجل السائقين</button>
     </div>
 
-    <div id="tab-overview" class="tab-content active"></div>
-    <div id="tab-alerts" class="tab-content"></div>
+    <div id="tab-home" class="tab-content active"></div>
+    <div id="tab-drivers" class="tab-content"></div>
     <div id="tab-weekly" class="tab-content"></div>
     <div id="tab-monthly" class="tab-content"></div>
-    <div id="tab-followup" class="tab-content"></div>
-    <div id="tab-profit" class="tab-content"></div>
-    <div id="tab-forecast" class="tab-content"></div>
     <div id="tab-monitor" class="tab-content"></div>
-    <div id="tab-compare" class="tab-content"></div>
-    <div id="tab-classif" class="tab-content"></div>
-    <div id="tab-lifecycle" class="tab-content"></div>
 
   </div>
 
@@ -266,6 +254,7 @@
   let gDrivers = [], gPayments = [], gExpenses = [], gRevenues = [], gEditHistory = [];
   let gDriverMap = {}, gAuthUser = null, gLiveUnsub = null, gAutoTimer = null;
   let gLastEditTs = 0;
+  let gWeekOffset = 0; // 0 = الأسبوع الحالي، 1 = الأسبوع الماضي ...
 
   /* ================= AUTH ================= */
   firebase.auth().onAuthStateChanged(user => {
@@ -326,7 +315,7 @@
 
   /* ================= TABS ================= */
   function switchTab(name) {
-    const tabs = ['overview','alerts','weekly','monthly','followup','profit','forecast','monitor','compare','classif','lifecycle'];
+    const tabs = ['home','drivers','weekly','monthly','monitor'];
     document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', tabs[i] === name));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
@@ -360,17 +349,11 @@
   }
 
   function renderAll() {
-    buildOverview();
-    buildAlerts();
-    buildWeeklyTable();
+    buildHome();
+    buildDriversTab();
+    buildWeeklyReport();
     buildMonthlyGrid();
-    buildFollowupTable();
-    buildProfit();
-    buildForecast();
     buildMonitorSection();
-    buildMonthlyCompare();
-    buildClassifTable();
-    buildLifecycle();
   }
 
   /* ================= LIVE LISTENER (مهم: اكتشاف حذف فوراً) ================= */
@@ -645,186 +628,297 @@
     return { totalIn, totalOut, netProfit: totalIn - totalOut, rentReceived, expForDrv, revForDrv };
   }
 
-  /* ================= TAB: نظرة عامة ================= */
-  function buildOverview() {
+  /* ================= HELPERS للوحة الجديدة ================= */
+  function weekRange(offset) {
+    const today = new Date();
+    const mon = getMondayOfWeek(today); mon.setDate(mon.getDate() - offset*7); mon.setHours(0,0,0,0);
+    const sun = new Date(mon); sun.setDate(sun.getDate()+6); sun.setHours(23,59,59,999);
+    return { monday: mon, sunday: sun };
+  }
+  function dateInRange(v, start, end) { const d = toDate(v); return d && d >= start && d <= end; }
+  function sumPays(filterFn) { return gPayments.filter(filterFn).reduce((s,p)=>s+parseFloat(p.amount||0),0); }
+  function regBar(pct) {
+    const color = pct>=80?'#3fb950':pct>=50?'#d29922':'#f85149';
+    return `<div style="background:#21262d;border-radius:6px;height:14px;width:64px;display:inline-block;vertical-align:middle;overflow:hidden;">
+      <div style="height:100%;width:${Math.min(100,Math.max(0,pct))}%;background:${color};"></div></div> <span style="font-size:11px;color:#8b949e;">${pct}%</span>`;
+  }
+  function trafficDot(key) {
+    const map = { critical:'#f85149', danger:'#fb8500', watch:'#d29922', good:'#3fb950', excellent:'#3fb950' };
+    const c = map[key]||'#8b949e';
+    return `<span title="${key}" style="display:inline-block;width:16px;height:16px;border-radius:50%;background:${c};box-shadow:0 0 8px ${c};"></span>`;
+  }
+
+  /* ================= TAB: الرئيسية ================= */
+  function buildHome() {
     const today = new Date();
     const active = gDrivers.filter(d => !d.isArchived);
-    let totalDebt = 0, criticalCount = 0, excellentCount = 0;
-    active.forEach(d => {
-      const split = calcDebtSplit(d.id, d);
-      totalDebt += split.total;
-      const reg = calcRegularity(d);
-      const prev = calcDebtAtDate(d, new Date(today.getTime() - 30*86400000));
-      const trend = split.total - prev;
-      const c = classifyDriver(d, split, reg, trend);
-      if (c.key === 'critical') criticalCount++;
-      if (c.key === 'excellent') excellentCount++;
-    });
 
-    // ربحية الشهر الحالي
+    let totalDebt = 0;
+    active.forEach(d => { totalDebt += calcDebtSplit(d.id, d).total; });
+
+    const wk = weekRange(0);
+    const paidThisWeek = sumPays(p => dateInRange(p.date, wk.monday, wk.sunday));
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const monthRev = gRevenues.concat(gPayments).filter(r => {
-      const d = toDate(r.date); return d && d >= monthStart;
-    }).reduce((s,r) => s + parseFloat(r.amount||r.revenueAmount||0), 0);
-    const monthExp = gExpenses.filter(e => {
-      const d = toDate(e.date); return d && d >= monthStart;
-    }).reduce((s,e) => s + parseFloat(e.amount||e.expenseAmount||0), 0);
-    const monthNet = monthRev - monthExp;
+    const paidThisMonth = sumPays(p => { const d = toDate(p.date); return d && d >= monthStart; });
+    const revThisMonth = paidThisMonth + gRevenues.filter(r => { const d = toDate(r.date); return d && d >= monthStart; })
+      .reduce((s,r)=>s+parseFloat(r.amount||r.revenueAmount||0),0);
 
-    // المبلغ المُختفي من النظام (محذوف/مُخفّض) هذا الشهر
-    const accountantOps = gEditHistory.filter(e => {
-      const ts = toDate(e.timestamp); return ts && ts >= monthStart;
+    // تذكير الإثنين (السائقين اليوميين)
+    const daily = active.filter(d => d.contractType==='daily');
+    let paidCount=0, dueCount=0;
+    daily.forEach(d => {
+      const cStart = toDate(d.contractStartDate)||toDate(d.createdAt);
+      const cEnd = toDate(d.contractEndDate);
+      if (cStart && cStart > wk.sunday) return;
+      if (cEnd && cEnd < wk.monday) return;
+      dueCount++;
+      const paid = sumPays(p => p.driverId===d.id && RENT_TYPES.includes(p.type) && dateInRange(p.date, wk.monday, wk.sunday));
+      if (paid > 0) paidCount++;
     });
-    const deletedAmount = accountantOps.filter(e => e.action==='delete' || e.action==='permanentDelete')
-      .reduce((s,e) => {
-        const amt = e.changes?.find?.(c => c.field==='amount')?.oldValue || e.fullSnapshot?.amount || 0;
-        return s + parseFloat(amt||0);
-      }, 0);
-    const reducedAmount = accountantOps.filter(e => e.action==='edit')
-      .reduce((s,e) => {
-        const c = e.changes?.find?.(c => c.field==='amount');
-        if (!c) return s;
-        const diff = parseFloat(c.oldValue||0) - parseFloat(c.newValue||0);
-        return s + (diff > 0 ? diff : 0);
-      }, 0);
-    const ghostMoney = deletedAmount + reducedAmount;
+    const remainCount = dueCount - paidCount;
+    const isMonday = today.getDay() === 1;
 
-    document.getElementById('tab-overview').innerHTML = `
+    const attention = computeAttention(active);
+
+    document.getElementById('tab-home').innerHTML = `
       <div class="kpi-grid">
-        <div class="kpi blue"><div class="lbl">عدد السائقين</div><div class="val">${active.length}</div><div class="sub">نشط</div></div>
-        <div class="kpi red"><div class="lbl">سائقين حرجين</div><div class="val">${criticalCount}</div><div class="sub">يحتاج تدخل فوري</div></div>
-        <div class="kpi green"><div class="lbl">سائقين ممتازين</div><div class="val">${excellentCount}</div></div>
-        <div class="kpi orange"><div class="lbl">إجمالي الديون</div><div class="val">${fmtKD(totalDebt)}</div></div>
-        <div class="kpi green"><div class="lbl">إيرادات هذا الشهر</div><div class="val">${fmtKD(monthRev)}</div></div>
-        <div class="kpi red"><div class="lbl">مصروفات هذا الشهر</div><div class="val">${fmtKD(monthExp)}</div></div>
-        <div class="kpi ${monthNet>=0?'green':'red'}"><div class="lbl">صافي هذا الشهر</div><div class="val">${fmtKD(monthNet)}</div></div>
-        <div class="kpi ${ghostMoney>0?'red':'green'}"><div class="lbl">⚠️ مبلغ اختفى من النظام</div><div class="val">${fmtKD(ghostMoney)}</div><div class="sub">حذف+تخفيض هذا الشهر</div></div>
+        <div class="kpi red"><div class="lbl">🔴 إجمالي الديون</div><div class="val">${fmtKD(totalDebt)}</div><div class="sub">على ${active.length} سائق نشط</div></div>
+        <div class="kpi green"><div class="lbl">💰 الدفع هذا الأسبوع</div><div class="val">${fmtKD(paidThisWeek)}</div><div class="sub">${fmtDate(wk.monday)} → ${fmtDate(wk.sunday)}</div></div>
+        <div class="kpi blue"><div class="lbl">📅 الدفع هذا الشهر</div><div class="val">${fmtKD(paidThisMonth)}</div></div>
+        <div class="kpi purple"><div class="lbl">📈 إيرادات هذا الشهر</div><div class="val">${fmtKD(revThisMonth)}</div><div class="sub">دفعات + إيرادات</div></div>
+      </div>
+
+      <div class="card" style="border-right:4px solid ${isMonday?'#1f6feb':'#30363d'};">
+        <h3>📅 تذكير الإثنين</h3>
+        <p style="line-height:1.9;font-size:14px;">
+          ${isMonday ? '🔔 <b style="color:#58a6ff;">اليوم الإثنين — يوم التحصيل!</b><br>' : ''}
+          هذا الأسبوع المفروض يدفع <b>${dueCount}</b> سائق يومي.
+          دفع منهم <b style="color:#3fb950;">${paidCount}</b>،
+          باقي <b style="color:#f85149;">${remainCount}</b> ما دفعوا.
+        </p>
       </div>
 
       <div class="card">
-        <h3>📌 ملخص ذكي</h3>
-        ${buildSmartSummary(active, totalDebt, monthNet, ghostMoney, criticalCount)}
+        <h3>📋 محتاج انتباهك (${attention.length})</h3>
+        ${attention.length===0
+          ? '<p style="color:#3fb950;">✅ كل السائقين منتظمين — ما فيه شي يحتاج انتباهك هالأسبوع.</p>'
+          : attention.map(attentionRowHTML).join('')}
       </div>
     `;
   }
 
-  function buildSmartSummary(active, totalDebt, monthNet, ghostMoney, criticalCount) {
-    const insights = [];
-    if (criticalCount > 0) insights.push(`🔴 لديك <b>${criticalCount}</b> سائق في حالة حرجة - راجع تبويب التحذيرات.`);
-    if (ghostMoney > 50) insights.push(`💸 <b>${fmtKD(ghostMoney)}</b> اختفت من النظام هذا الشهر (حذف/تخفيض). راجع رقابة المحاسب.`);
-    if (monthNet < 0) insights.push(`📉 الشهر بخسارة <b>${fmtKD(Math.abs(monthNet))}</b>. راجع المصروفات.`);
-    else if (monthNet > 0) insights.push(`📈 الشهر بربح <b>${fmtKD(monthNet)}</b>.`);
-
-    // توقع نهاية الشهر
+  /* ===== بند "محتاج انتباهك" الذكي (أسبوعي) ===== */
+  function computeAttention(active) {
     const today = new Date();
-    const dayOfMonth = today.getDate();
-    const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
-    const projectedNet = monthNet * (daysInMonth / dayOfMonth);
-    insights.push(`🔮 متوقع نهاية الشهر: <b>${fmtKD(projectedNet)}</b> (إذا استمر النمط الحالي).`);
-
-    // أعلى دائن
-    const sorted = active.map(d => ({ d, split: calcDebtSplit(d.id, d) })).sort((a,b) => b.split.total - a.split.total);
-    if (sorted[0] && sorted[0].split.total > 0) {
-      insights.push(`🏆 أعلى دين: <b>${sorted[0].d.name}</b> بـ ${fmtKD(sorted[0].split.total)}.`);
-    }
-
-    return '<ul style="line-height:2;list-style:none;padding:0;">' + insights.map(i => '<li>'+i+'</li>').join('') + '</ul>';
+    const wkAgo = new Date(today.getTime() - 7*86400000);
+    let items = active.map(d => {
+      const split = calcDebtSplit(d.id, d);
+      const debtNow = split.total;
+      const debtLastWeek = calcDebtAtDate(d, wkAgo);
+      const weekDelta = debtNow - debtLastWeek;
+      const reg = calcRegularity(d);
+      const thr = getDebtThreshold(d);
+      const stopD = getStopDays(d);
+      const lastPay = getLastPaymentDate(d.id);
+      const daysSince = lastPay ? Math.floor((today - lastPay)/86400000) : 9999;
+      const cls = classifyDriver(d, split, reg, weekDelta);
+      const tags = [];
+      const newThisWeek = debtLastWeek <= thr && debtNow > thr;
+      if (newThisWeek) tags.push('🆕 جديد هالأسبوع');
+      const suddenStop = lastPay && daysSince > stopD*2 && reg >= 50;
+      if (suddenStop) tags.push('🛑 انقطاع مفاجئ');
+      let score = 0;
+      if (thr > 0) score += Math.min(60, (debtNow/thr)*30);
+      score += Math.min(40, (daysSince/Math.max(1,stopD))*15);
+      if (thr > 0 && weekDelta > 0) score += Math.min(50, (weekDelta/thr)*50);
+      score += (100 - reg) * 0.2;
+      const isIssue = debtNow > thr || daysSince > stopD || weekDelta > thr*0.1 ||
+                      cls.key==='critical' || cls.key==='danger';
+      return { d, debtNow, weekDelta, reg, thr, daysSince, cls, tags, score, isIssue };
+    }).filter(x => x.isIssue);
+    // ⚡ الأسرع تدهوراً = أعلى 3 زيادة بالدين هالأسبوع
+    [...items].filter(x=>x.weekDelta>0).sort((a,b)=>b.weekDelta-a.weekDelta).slice(0,3)
+      .forEach(x => x.tags.unshift('⚡ الأسرع تدهوراً'));
+    items.sort((a,b)=>b.score-a.score);
+    return items;
   }
-
-  /* ================= TAB: التحذيرات ================= */
-  function buildAlerts() {
-    const today = new Date();
-    const alerts = [];
-    gDrivers.filter(d => !d.isArchived).forEach(driver => {
-      const split = calcDebtSplit(driver.id, driver);
-      const thr = getDebtThreshold(driver);
-      const stopD = getStopDays(driver);
-      const lastPay = getLastPaymentDate(driver.id);
-      const daysSince = lastPay ? Math.floor((today - lastPay)/86400000) : 999;
-
-      if (split.total > thr) {
-        alerts.push({ level: split.total > thr*2 ? 'red':'orange', icon:'💰',
-          title: `${driver.name||driver.id}: دين تجاوز عتبته (${fmtKD(thr)})`,
-          desc: `جاري: ${fmtKD(split.current)} | قديم: ${fmtKD(split.old)}`,
-          amount: fmtKD(split.total), driverId: driver.id });
-      }
-      if (daysSince > stopD) {
-        alerts.push({ level: daysSince > stopD*2 ? 'red':'orange', icon:'🛑',
-          title: `${driver.name||driver.id}: توقف عن الدفع ${daysSince} يوم`,
-          desc: `عتبة التوقف: ${stopD} يوم | آخر دفعة: ${fmtDate(lastPay)}`,
-          driverId: driver.id });
-      }
-      // عقد منتهي
-      const cEnd = toDate(driver.contractEndDate);
-      if (cEnd && cEnd < today) {
-        alerts.push({ level:'yellow', icon:'📋',
-          title: `${driver.name}: عقده منتهي منذ ${Math.floor((today-cEnd)/86400000)} يوم`,
-          desc: `تاريخ انتهاء العقد: ${fmtDate(cEnd)}`,
-          driverId: driver.id });
-      }
-    });
-    alerts.sort((a,b) => ({red:0,orange:1,yellow:2})[a.level] - ({red:0,orange:1,yellow:2})[b.level]);
-    document.getElementById('tab-alerts').innerHTML = `
-      <div class="card"><h3>🚨 التحذيرات الفورية (${alerts.length})</h3>
-      ${alerts.length===0 ? '<p style="color:#3fb950;">✅ ما فيه تحذيرات</p>' :
-        alerts.map(a => `<div class="alert ${a.level}" onclick="openDriverModal('${a.driverId}')">
-          <div class="icon">${a.icon}</div>
-          <div class="body"><div class="title">${a.title}</div><div class="desc">${a.desc}</div></div>
-          ${a.amount ? `<div class="amount">${a.amount}</div>` : ''}
-        </div>`).join('')}
+  function attentionRowHTML(x) {
+    const d = x.d;
+    let trendPill;
+    if (x.weekDelta > 0.5) trendPill = `<span class="trend-pill up">▲ زادت ${fmtKD(x.weekDelta)} عن الأسبوع الماضي</span>`;
+    else if (x.weekDelta < -0.5) trendPill = `<span class="trend-pill down">▼ نقصت ${fmtKD(Math.abs(x.weekDelta))} عن الأسبوع الماضي</span>`;
+    else trendPill = `<span class="trend-pill flat">— بدون تغيّر هالأسبوع</span>`;
+    const tagsHTML = x.tags.map(t=>`<span class="trend-pill up" style="margin-right:4px;">${t}</span>`).join('');
+    const lvl = x.cls.key==='critical' ? 'red' : x.cls.key==='danger' ? 'orange' : 'yellow';
+    const icon = (x.cls.label.match(/[🔴🟠🟡🔵🟢]/)||['⚠️'])[0];
+    return `<div class="alert ${lvl}" onclick="openDriverModal('${d.id}')">
+      <div class="icon">${icon}</div>
+      <div class="body">
+        <div class="title">${d.name||d.id} <span class="badge ${x.cls.cls}">${x.cls.label}</span></div>
+        <div class="desc">دين: <b>${fmtKD(x.debtNow)}</b> · آخر دفعة: ${x.daysSince===9999?'لا يوجد':('قبل '+x.daysSince+' يوم')} · انتظام ${x.reg}%</div>
+        <div style="margin-top:6px;">${trendPill} ${tagsHTML}</div>
       </div>
-    `;
+    </div>`;
   }
 
-  /* ================= TAB: الأسبوعي ================= */
-  function buildWeeklyTable() {
+  /* ================= TAB: السائقين (إشارة المرور) ================= */
+  function buildDriversTab() {
     const today = new Date();
+    const active = gDrivers.filter(d => !d.isArchived);
     const WEEKS = 8;
     const weeks = [];
-    for (let i = WEEKS-1; i >= 0; i--) {
-      const mon = getMondayOfWeek(today); mon.setDate(mon.getDate() - i*7);
-      const sun = new Date(mon); sun.setDate(sun.getDate()+6);
-      weeks.push({ monday: new Date(mon), sunday: new Date(sun) });
-    }
-    const dailyDrivers = gDrivers.filter(d => !d.isArchived && d.contractType==='daily');
-    const rows = dailyDrivers.map(driver => {
-      const split = calcDebtSplit(driver.id, driver);
-      const drvPays = gPayments.filter(p => p.driverId===driver.id && RENT_TYPES.includes(p.type));
-      const prev = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
+    for (let i = WEEKS-1; i >= 0; i--) weeks.push(weekRange(i));
+
+    const counts = { red:0, yellow:0, green:0 };
+    const rows = active.map(d => {
+      const split = calcDebtSplit(d.id, d);
+      const reg = calcRegularity(d);
+      const prev = calcDebtAtDate(d, new Date(today.getTime()-7*86400000));
       const trend = split.total - prev;
+      const cls = classifyDriver(d, split, reg, trend);
+      if (cls.key==='critical'||cls.key==='danger') counts.red++;
+      else if (cls.key==='watch') counts.yellow++;
+      else counts.green++;
+      const lastPay = getLastPaymentDate(d.id);
+      const daysSince = lastPay ? Math.floor((today-lastPay)/86400000) : 9999;
+      const drvPays = gPayments.filter(p => p.driverId===d.id && RENT_TYPES.includes(p.type));
+      const cStart = toDate(d.contractStartDate)||toDate(d.createdAt);
+      const rate = getWeeklyRate(d);
       const cells = weeks.map(w => {
-        const cStart = toDate(driver.contractStartDate)||toDate(driver.createdAt);
-        if (cStart && w.sunday < cStart) return '<span class="week-cell no-data">⬜</span>';
-        const paid = drvPays.filter(p => { const d=toDate(p.date); return d && d>=w.monday && d<=w.sunday; });
-        if (paid.length === 0) return '<span class="week-cell missed">❌</span>';
-        const onMon = paid.some(p => toDate(p.date).getDay()===1);
-        return `<span class="week-cell ${onMon?'paid':'late'}">${onMon?'✅':'🟡'}</span>`;
+        if (w.monday > today) return '<td><span class="week-cell no-data">·</span></td>';
+        if (cStart && w.sunday < cStart) return '<td><span class="week-cell no-data">·</span></td>';
+        const paid = drvPays.filter(p=>dateInRange(p.date, w.monday, w.sunday)).reduce((s,p)=>s+parseFloat(p.amount||0),0);
+        if (rate<=0 || paid >= rate*0.95) return '<td><span class="week-cell paid">✓</span></td>';
+        if (paid > 0) return '<td><span class="week-cell late">~</span></td>';
+        return '<td><span class="week-cell missed">✗</span></td>';
       }).join('');
-      const reg = calcRegularity(driver);
-      const cls = classifyDriver(driver, split, reg, trend);
-      const trendCls = trend>20?'trend-up':trend<-20?'trend-down':'trend-flat';
-      const trendIcon = trend>20?'↑':trend<-20?'↓':'→';
+      return { sortKey:{critical:0,danger:1,watch:2,good:3,excellent:4}[cls.key], html:`<tr>
+        <td>${trafficDot(cls.key)}</td>
+        <td class="name" onclick="openDriverModal('${d.id}')">${d.name||d.id}</td>
+        <td>${d.contractType==='monthly'?'شهري':'يومي'}</td>
+        <td class="${split.total>0?'trend-up':''}">${fmtKD(split.total)}</td>
+        <td>${regBar(reg)}</td>
+        <td>${daysSince===9999?'—':('قبل '+daysSince+' يوم')}</td>
+        ${cells}
+      </tr>` };
+    }).sort((a,b)=>a.sortKey-b.sortKey).map(r=>r.html).join('');
+
+    document.getElementById('tab-drivers').innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi red"><div class="lbl">🔴 يحتاج تدخّل</div><div class="val">${counts.red}</div></div>
+        <div class="kpi orange"><div class="lbl">🟡 راقبه</div><div class="val">${counts.yellow}</div></div>
+        <div class="kpi green"><div class="lbl">🟢 منتظم</div><div class="val">${counts.green}</div></div>
+      </div>
+      <div class="card">
+        <h3>👤 كل السائقين — إشارة المرور (مرتّبين من الأخطر)</h3>
+        <p style="font-size:12px;color:#8b949e;margin-bottom:8px;">الأعمدة الأخيرة = آخر ${WEEKS} أسابيع · ✓ دفع كامل · ~ ناقص · ✗ ما دفع · للبحث استخدم الشريط فوق 🔍</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>الحالة</th><th>السائق</th><th>النوع</th><th>الدين</th><th>الانتظام</th><th>آخر دفعة</th>
+          ${weeks.map(w=>`<th>${w.monday.getDate()}/${w.monday.getMonth()+1}</th>`).join('')}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+      </div>
+    `;
+  }
+
+  /* ================= TAB: تقرير الأسبوع (تنقّل بين الأسابيع) ================= */
+  function changeWeek(delta) {
+    gWeekOffset = Math.max(0, gWeekOffset + delta);
+    buildWeeklyReport();
+  }
+  function weeklyRowsData(wk) {
+    const today = new Date();
+    const active = gDrivers.filter(d => !d.isArchived);
+    return active.map(d => {
+      const cStart = toDate(d.contractStartDate)||toDate(d.createdAt);
+      const cEnd = toDate(d.contractEndDate);
+      const activeThisWeek = (!cStart || cStart <= wk.sunday) && (!cEnd || cEnd >= wk.monday);
+      const expected = activeThisWeek ? getWeeklyRate(d) : 0;
+      const paid = gPayments.filter(p => p.driverId===d.id && RENT_TYPES.includes(p.type) && dateInRange(p.date, wk.monday, wk.sunday))
+        .reduce((s,p)=>s+parseFloat(p.amount||0),0);
+      const remaining = Math.max(0, expected - paid);
+      const debtEnd = calcDebtAtDate(d, wk.sunday > today ? today : wk.sunday);
+      return { d, activeThisWeek, expected, paid, remaining, debtEnd };
+    });
+  }
+  function buildWeeklyReport() {
+    const wk = weekRange(gWeekOffset);
+    const data = weeklyRowsData(wk);
+    let totExpected=0, totPaid=0, paidCount=0, dueCount=0;
+    data.forEach(x => {
+      totPaid += x.paid;
+      if (x.activeThisWeek) { totExpected += x.expected; dueCount++; if (x.paid>0) paidCount++; }
+    });
+    data.sort((a,b)=> (a.activeThisWeek===b.activeThisWeek)?0:(a.activeThisWeek?-1:1));
+    const rows = data.map(x => {
+      let status;
+      if (!x.activeThisWeek) status='<span style="color:#6e7681;">—</span>';
+      else if (x.expected>0 && x.paid>=x.expected*0.95) status='<span class="week-cell paid">✓</span>';
+      else if (x.paid>0) status='<span class="week-cell late">~</span>';
+      else status='<span class="week-cell missed">✗</span>';
       return `<tr>
-        <td class="name" onclick="openDriverModal('${driver.id}')">${driver.name||driver.id}</td>
-        <td>${fmtKD(split.current)}</td><td>${fmtKD(split.old)}</td>
-        <td class="${trendCls}">${trendIcon} ${fmtKD(Math.abs(trend))}</td>
-        <td>${cells}</td>
-        <td>${reg}%</td><td><span class="badge ${cls.cls}">${cls.label}</span></td>
+        <td class="name" onclick="openDriverModal('${x.d.id}')">${x.d.name||x.d.id}</td>
+        <td>${x.d.contractType==='monthly'?'شهري':'يومي'}</td>
+        <td>${x.activeThisWeek?fmtKD(x.expected):'—'}</td>
+        <td class="${x.paid>0?'trend-down':''}">${fmtKD(x.paid)}</td>
+        <td class="${x.remaining>0?'trend-up':''}">${x.activeThisWeek?fmtKD(x.remaining):'—'}</td>
+        <td>${fmtKD(x.debtEnd)}</td>
+        <td>${status}</td>
       </tr>`;
     }).join('');
+    const label = `${fmtDate(wk.monday)} → ${fmtDate(wk.sunday)}`;
+    const title = gWeekOffset===0 ? 'هذا الأسبوع' : gWeekOffset===1 ? 'الأسبوع الماضي' : `قبل ${gWeekOffset} أسابيع`;
     document.getElementById('tab-weekly').innerHTML = `
-      <div class="card"><h3>📅 الالتزام الأسبوعي - السائقون اليوميون (${dailyDrivers.length})</h3>
-      <div class="table-wrap"><table>
-        <thead><tr><th>السائق</th><th>الدين الجاري</th><th>الدين القديم</th><th>الاتجاه</th>
-        <th>${WEEKS} أسابيع</th><th>الانتظام</th><th>التصنيف</th></tr></thead>
-        <tbody>${rows||'<tr><td colspan="7" style="padding:30px;color:#888;">لا يوجد سائقون يوميون</td></tr>'}</tbody>
-      </table></div></div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+          <button class="btn outline" onclick="changeWeek(1)">← الأسبوع السابق</button>
+          <div style="text-align:center;">
+            <div style="font-size:16px;font-weight:700;color:#58a6ff;">📅 ${title}</div>
+            <div style="font-size:12px;color:#8b949e;">${label}</div>
+          </div>
+          <button class="btn outline" onclick="changeWeek(-1)" ${gWeekOffset===0?'disabled style="opacity:0.4;cursor:default;"':''}>الأسبوع التالي →</button>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi blue"><div class="lbl">المتوقع تحصيله</div><div class="val">${fmtKD(totExpected)}</div></div>
+        <div class="kpi green"><div class="lbl">المُحصّل فعلاً</div><div class="val">${fmtKD(totPaid)}</div></div>
+        <div class="kpi ${(totExpected-totPaid)>0?'red':'green'}"><div class="lbl">المتبقي</div><div class="val">${fmtKD(Math.max(0,totExpected-totPaid))}</div></div>
+        <div class="kpi orange"><div class="lbl">دفعوا / المطلوب</div><div class="val">${paidCount}/${dueCount}</div></div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+          <h3 style="border:none;margin:0;padding:0;">تفاصيل كل سائق</h3>
+          <button class="btn outline" onclick="exportWeekCSV()">📥 تصدير الأسبوع</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>السائق</th><th>النوع</th><th>المتوقع</th><th>المدفوع</th><th>المتبقي</th><th>دينه بنهاية الأسبوع</th><th>الحالة</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+      </div>
     `;
+  }
+  function exportWeekCSV() {
+    const wk = weekRange(gWeekOffset);
+    const data = weeklyRowsData(wk);
+    const headers = ['السائق','النوع','المتوقع','المدفوع','المتبقي','الدين بنهاية الأسبوع'];
+    const lines = [headers.join(',')];
+    data.forEach(x => {
+      lines.push([
+        '"'+(x.d.name||x.d.id)+'"',
+        x.d.contractType==='monthly'?'شهري':'يومي',
+        x.expected.toFixed(3), x.paid.toFixed(3), x.remaining.toFixed(3), x.debtEnd.toFixed(3)
+      ].join(','));
+    });
+    const blob = new Blob(['\ufeff'+lines.join('\n')], { type:'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'week-report-'+fmtDate(wk.monday).replace(/\//g,'-')+'.csv'; a.click();
+    URL.revokeObjectURL(url);
   }
 
   /* ================= TAB: الشهري ================= */
   function buildMonthlyGrid() {
-    const today = new Date(); const MONTHS = 6;
+    const today = new Date(); const MONTHS = 12;
     const months = [];
     for (let i = MONTHS-1; i >= 0; i--) {
       const d = new Date(today.getFullYear(), today.getMonth()-i, 1);
@@ -871,146 +965,6 @@
         <th>الانتظام</th></tr></thead>
         <tbody>${rows}</tbody>
       </table></div></div>
-    `;
-  }
-
-  /* ================= TAB: متابعة هذا الأسبوع ================= */
-  function buildFollowupTable() {
-    const today = new Date();
-    const monday = getMondayOfWeek(today);
-    const sunday = new Date(monday); sunday.setDate(sunday.getDate()+6);
-    sunday.setHours(23,59,59,999);
-    const active = gDrivers.filter(d => !d.isArchived);
-    let paidCount=0, unpaidCount=0, partialCount=0, expected=0, collected=0;
-    const rows = active.map(driver => {
-      const rate = getWeeklyRate(driver);
-      expected += rate;
-      const wPays = gPayments.filter(p => {
-        const d = toDate(p.date);
-        return p.driverId===driver.id && RENT_TYPES.includes(p.type) && d && d>=monday && d<=sunday;
-      });
-      const paid = wPays.reduce((s,p)=>s+parseFloat(p.amount||0),0);
-      collected += paid;
-      let status, statusCls;
-      if (rate === 0) { status='—'; statusCls=''; }
-      else if (paid >= rate*0.95) { status='✅ دفع'; statusCls='trend-down'; paidCount++; }
-      else if (paid > 0) { status='🟡 جزئي'; statusCls='trend-flat'; partialCount++; }
-      else { status='❌ ما دفع'; statusCls='trend-up'; unpaidCount++; }
-      const split = calcDebtSplit(driver.id, driver);
-      return `<tr>
-        <td class="name" onclick="openDriverModal('${driver.id}')">${driver.name||driver.id}</td>
-        <td>${driver.contractType==='monthly'?'شهري':'يومي'}</td>
-        <td>${fmtKD(rate)}</td>
-        <td>${fmtKD(paid)}</td>
-        <td class="${statusCls}">${status}</td>
-        <td>${fmtKD(split.total)}</td>
-      </tr>`;
-    }).join('');
-    document.getElementById('tab-followup').innerHTML = `
-      <div class="kpi-grid">
-        <div class="kpi green"><div class="lbl">دفعوا</div><div class="val">${paidCount}</div></div>
-        <div class="kpi orange"><div class="lbl">دفع جزئي</div><div class="val">${partialCount}</div></div>
-        <div class="kpi red"><div class="lbl">ما دفعوا</div><div class="val">${unpaidCount}</div></div>
-        <div class="kpi blue"><div class="lbl">المتوقع</div><div class="val">${fmtKD(expected)}</div></div>
-        <div class="kpi blue"><div class="lbl">المحصّل</div><div class="val">${fmtKD(collected)}</div></div>
-        <div class="kpi ${collected>=expected*0.8?'green':'red'}"><div class="lbl">نسبة التحصيل</div><div class="val">${expected>0?Math.round(collected/expected*100):0}%</div></div>
-      </div>
-      <div class="card"><h3>⚡ متابعة الأسبوع الحالي (${fmtDate(monday)} → ${fmtDate(sunday)})</h3>
-      <div class="table-wrap"><table>
-        <thead><tr><th>السائق</th><th>نوع</th><th>المتوقع</th><th>المدفوع</th><th>الحالة</th><th>الدين الكلي</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table></div></div>
-    `;
-  }
-
-  /* ================= TAB: الربحية الصافية ================= */
-  function buildProfit() {
-    const active = gDrivers.filter(d => !d.isArchived);
-    const data = active.map(d => ({ driver: d, ...calcDriverProfit(d) }));
-    data.sort((a,b) => b.netProfit - a.netProfit);
-    const totals = data.reduce((acc,d) => ({
-      totalIn: acc.totalIn + d.totalIn,
-      totalOut: acc.totalOut + d.totalOut,
-      netProfit: acc.netProfit + d.netProfit
-    }), { totalIn:0, totalOut:0, netProfit:0 });
-    const rows = data.map(d => `<tr>
-      <td class="name" onclick="openDriverModal('${d.driver.id}')">${d.driver.name||d.driver.id}</td>
-      <td>${d.driver.contractType==='monthly'?'شهري':'يومي'}</td>
-      <td class="trend-down">${fmtKD(d.rentReceived)}</td>
-      <td class="trend-down">${fmtKD(d.revForDrv)}</td>
-      <td class="trend-up">${fmtKD(d.expForDrv)}</td>
-      <td class="${d.netProfit>=0?'trend-down':'trend-up'}"><b>${fmtKD(d.netProfit)}</b></td>
-    </tr>`).join('');
-    document.getElementById('tab-profit').innerHTML = `
-      <div class="kpi-grid">
-        <div class="kpi green"><div class="lbl">إجمالي الإيرادات</div><div class="val">${fmtKD(totals.totalIn)}</div></div>
-        <div class="kpi red"><div class="lbl">إجمالي المصروفات</div><div class="val">${fmtKD(totals.totalOut)}</div></div>
-        <div class="kpi ${totals.netProfit>=0?'green':'red'}"><div class="lbl">صافي الربح الكلي</div><div class="val">${fmtKD(totals.netProfit)}</div></div>
-        <div class="kpi blue"><div class="lbl">متوسط ربح/سائق</div><div class="val">${fmtKD(totals.netProfit/Math.max(1,active.length))}</div></div>
-      </div>
-      <div class="card"><h3>💰 الربحية الصافية لكل سائق (مرتب من الأعلى)</h3>
-      <div class="table-wrap"><table>
-        <thead><tr><th>السائق</th><th>نوع</th><th>إيجارات</th><th>إيرادات أخرى</th><th>مصروفات</th><th>الصافي</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table></div></div>
-    `;
-  }
-
-  /* ================= TAB: التوقعات ================= */
-  function buildForecast() {
-    const today = new Date();
-    const dayOfMonth = today.getDate();
-    const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
-    const remainingDays = daysInMonth - dayOfMonth;
-
-    // إيرادات/مصروفات الشهر للتاريخ
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const monthRev = gRevenues.concat(gPayments).filter(r => {
-      const d = toDate(r.date); return d && d >= monthStart;
-    }).reduce((s,r) => s+parseFloat(r.amount||r.revenueAmount||0), 0);
-    const monthExp = gExpenses.filter(e => {
-      const d = toDate(e.date); return d && d >= monthStart;
-    }).reduce((s,e) => s+parseFloat(e.amount||e.expenseAmount||0), 0);
-    const projRev = monthRev * (daysInMonth/dayOfMonth);
-    const projExp = monthExp * (daysInMonth/dayOfMonth);
-    const projNet = projRev - projExp;
-
-    // توقع متى يصل كل سائق لعتبة الخطر
-    const active = gDrivers.filter(d => !d.isArchived);
-    const projections = active.map(d => {
-      const split = calcDebtSplit(d.id, d);
-      const prev30 = calcDebtAtDate(d, new Date(today.getTime() - 30*86400000));
-      const debtRate = (split.total - prev30) / 30; // نمو يومي
-      const thr = getDebtThreshold(d);
-      let daysToCritical = null;
-      if (debtRate > 0 && split.total < thr) {
-        daysToCritical = Math.floor((thr - split.total) / debtRate);
-      }
-      return { driver: d, currentDebt: split.total, debtRate, thr, daysToCritical };
-    }).filter(p => p.daysToCritical !== null && p.daysToCritical < 90)
-      .sort((a,b) => a.daysToCritical - b.daysToCritical);
-
-    document.getElementById('tab-forecast').innerHTML = `
-      <div class="kpi-grid">
-        <div class="kpi blue"><div class="lbl">يوم الشهر</div><div class="val">${dayOfMonth}/${daysInMonth}</div><div class="sub">باقي ${remainingDays} يوم</div></div>
-        <div class="kpi green"><div class="lbl">إيرادات حتى الآن</div><div class="val">${fmtKD(monthRev)}</div></div>
-        <div class="kpi green"><div class="lbl">متوقع الإيرادات</div><div class="val">${fmtKD(projRev)}</div></div>
-        <div class="kpi red"><div class="lbl">متوقع المصروفات</div><div class="val">${fmtKD(projExp)}</div></div>
-        <div class="kpi ${projNet>=0?'green':'red'}"><div class="lbl">متوقع الصافي</div><div class="val">${fmtKD(projNet)}</div></div>
-      </div>
-      <div class="card"><h3>🔮 السائقون المتوقع وصولهم لعتبة الخطر خلال 90 يوم</h3>
-      ${projections.length===0 ? '<p style="color:#3fb950;">✅ لا أحد متوقع يدخل المنطقة الحرجة قريباً</p>' : `
-      <div class="table-wrap"><table>
-        <thead><tr><th>السائق</th><th>الدين الحالي</th><th>عتبة الخطر</th><th>معدل نمو الدين/يوم</th><th>متوقع الوصول</th></tr></thead>
-        <tbody>${projections.map(p => `<tr>
-          <td class="name" onclick="openDriverModal('${p.driver.id}')">${p.driver.name||p.driver.id}</td>
-          <td>${fmtKD(p.currentDebt)}</td>
-          <td>${fmtKD(p.thr)}</td>
-          <td class="trend-up">+${fmtKD(p.debtRate)}/يوم</td>
-          <td><b>${p.daysToCritical} يوم</b></td>
-        </tr>`).join('')}</tbody>
-      </table></div>
-      `}</div>
     `;
   }
 
@@ -1210,139 +1164,6 @@
     }
     html += '</div>';
     return html;
-  }
-
-  /* ================= TAB: مقارنة الأشهر ================= */
-  function buildMonthlyCompare() {
-    const today = new Date(); const MONTHS = 6;
-    const months = [];
-    for (let i = MONTHS-1; i >= 0; i--) {
-      const d = new Date(today.getFullYear(), today.getMonth()-i, 1);
-      months.push({ year: d.getFullYear(), month: d.getMonth(),
-        label: d.toLocaleDateString('ar-KW', { year:'numeric', month:'short' }) });
-    }
-    const active = gDrivers.filter(d => !d.isArchived);
-    const rows = active.map(driver => {
-      const debts = months.map(m => calcDebtAtDate(driver, new Date(m.year, m.month+1, 0, 23,59,59)));
-      const trend = debts[debts.length-1] - debts[0];
-      return { driver, debts, trend };
-    }).sort((a,b) => b.trend - a.trend);
-
-    // إيراد/مصروف الشركة شهرياً
-    const monthlyTotals = months.map(m => {
-      const s = new Date(m.year, m.month, 1), e = new Date(m.year, m.month+1, 0, 23,59,59);
-      const rev = gRevenues.concat(gPayments).filter(r => { const d=toDate(r.date); return d && d>=s && d<=e; })
-        .reduce((sum,r) => sum + parseFloat(r.amount||r.revenueAmount||0), 0);
-      const exp = gExpenses.filter(e2 => { const d=toDate(e2.date); return d && d>=s && d<=e; })
-        .reduce((sum,e2) => sum + parseFloat(e2.amount||e2.expenseAmount||0), 0);
-      return { rev, exp, net: rev-exp };
-    });
-
-    document.getElementById('tab-compare').innerHTML = `
-      <div class="card"><h3>📈 إيرادات vs مصروفات الشركة شهرياً</h3>
-      <div class="table-wrap"><table>
-        <thead><tr><th>المؤشر</th>${months.map(m => `<th>${m.label}</th>`).join('')}</tr></thead>
-        <tbody>
-          <tr><td style="text-align:right;font-weight:600;">إيرادات</td>${monthlyTotals.map(t => `<td class="trend-down">${fmtKD(t.rev)}</td>`).join('')}</tr>
-          <tr><td style="text-align:right;font-weight:600;">مصروفات</td>${monthlyTotals.map(t => `<td class="trend-up">${fmtKD(t.exp)}</td>`).join('')}</tr>
-          <tr><td style="text-align:right;font-weight:600;">الصافي</td>${monthlyTotals.map(t => `<td class="${t.net>=0?'trend-down':'trend-up'}"><b>${fmtKD(t.net)}</b></td>`).join('')}</tr>
-        </tbody>
-      </table></div></div>
-
-      <div class="card"><h3>📉 اتجاه دين كل سائق على ${MONTHS} شهور</h3>
-      <div class="table-wrap"><table>
-        <thead><tr><th>السائق</th>${months.map(m => `<th>${m.label}</th>`).join('')}<th>الاتجاه</th></tr></thead>
-        <tbody>${rows.map(r => `<tr>
-          <td class="name" onclick="openDriverModal('${r.driver.id}')">${r.driver.name||r.driver.id}</td>
-          ${r.debts.map(d => `<td>${fmtKD(d)}</td>`).join('')}
-          <td class="${r.trend>50?'trend-up':r.trend<-50?'trend-down':'trend-flat'}">
-            ${r.trend>50?'↑':r.trend<-50?'↓':'→'} ${fmtKD(Math.abs(r.trend))}
-          </td>
-        </tr>`).join('')}</tbody>
-      </table></div></div>
-    `;
-  }
-
-  /* ================= TAB: التصنيف الخماسي ================= */
-  function buildClassifTable() {
-    const today = new Date();
-    const active = gDrivers.filter(d => !d.isArchived);
-    const data = active.map(driver => {
-      const split = calcDebtSplit(driver.id, driver);
-      const reg = calcRegularity(driver);
-      const prev = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
-      const trend = split.total - prev;
-      const cls = classifyDriver(driver, split, reg, trend);
-      const lastPay = getLastPaymentDate(driver.id);
-      return { driver, split, reg, trend, cls, lastPay };
-    });
-    const order = { critical:0, danger:1, watch:2, good:3, excellent:4 };
-    data.sort((a,b) => order[a.cls.key] - order[b.cls.key]);
-
-    // إحصائية
-    const counts = { critical:0, danger:0, watch:0, good:0, excellent:0 };
-    data.forEach(d => counts[d.cls.key]++);
-
-    const rows = data.map(d => `<tr>
-      <td class="name" onclick="openDriverModal('${d.driver.id}')">${d.driver.name||d.driver.id}</td>
-      <td>${d.driver.contractType==='monthly'?'شهري':'يومي'}</td>
-      <td>${fmtKD(d.split.current)}</td>
-      <td>${fmtKD(d.split.old)}</td>
-      <td><b>${fmtKD(d.split.total)}</b></td>
-      <td>${d.reg}%</td>
-      <td class="${d.trend>20?'trend-up':d.trend<-20?'trend-down':'trend-flat'}">
-        ${d.trend>20?'↑':d.trend<-20?'↓':'→'} ${fmtKD(Math.abs(d.trend))}</td>
-      <td>${d.lastPay ? fmtDate(d.lastPay) : '—'}</td>
-      <td><span class="badge ${d.cls.cls}">${d.cls.label}</span></td>
-    </tr>`).join('');
-
-    document.getElementById('tab-classif').innerHTML = `
-      <div class="kpi-grid">
-        <div class="kpi red"><div class="lbl">🔴 حرج</div><div class="val">${counts.critical}</div></div>
-        <div class="kpi orange"><div class="lbl">🟠 خطر</div><div class="val">${counts.danger}</div></div>
-        <div class="kpi" style="border-color:#d29922;"><div class="lbl">🟡 متابعة</div><div class="val" style="color:#d29922;">${counts.watch}</div></div>
-        <div class="kpi blue"><div class="lbl">🔵 مقبول</div><div class="val">${counts.good}</div></div>
-        <div class="kpi green"><div class="lbl">🟢 ممتاز</div><div class="val">${counts.excellent}</div></div>
-      </div>
-      <div class="card"><h3>🎯 التصنيف الخماسي - عتبات ديناميكية لكل سائق</h3>
-      <p class="small-muted">عتبة الدين = 30 × أجرة يومية | عتبة التوقف: يومي 4 أيام، شهري 14 يوم</p>
-      <div class="table-wrap"><table>
-        <thead><tr><th>السائق</th><th>نوع</th><th>جاري</th><th>قديم</th><th>الكلي</th><th>الانتظام</th><th>الاتجاه</th><th>آخر دفعة</th><th>التصنيف</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table></div></div>
-    `;
-  }
-
-  /* ================= TAB: Lifecycle ================= */
-  function buildLifecycle() {
-    const today = new Date();
-    const active = gDrivers.filter(d => !d.isArchived);
-    const data = active.map(driver => {
-      const created = toDate(driver.createdAt) || toDate(driver.contractStartDate);
-      const ageDays = created ? Math.floor((today - created)/86400000) : 0;
-      const contractsCount = (driver.contractHistory||[]).filter(c => c.type !== 'تعديل' && c.note !== 'تعديل عقد').length || 1;
-      const drvPays = gPayments.filter(p => p.driverId===driver.id);
-      const totalPaid = drvPays.reduce((s,p) => s + parseFloat(p.amount||0), 0);
-      const split = calcDebtSplit(driver.id, driver);
-      const profit = calcDriverProfit(driver);
-      return { driver, created, ageDays, contractsCount, totalPaid, split, profit };
-    }).sort((a,b) => b.ageDays - a.ageDays);
-
-    document.getElementById('tab-lifecycle').innerHTML = `
-      <div class="card"><h3>📜 سجل السائقين الشامل</h3>
-      <div class="table-wrap"><table>
-        <thead><tr><th>السائق</th><th>تاريخ البداية</th><th>عمره معك</th><th>عدد العقود</th><th>إجمالي ما دفع</th><th>الدين الحالي</th><th>الربح الصافي</th></tr></thead>
-        <tbody>${data.map(d => `<tr>
-          <td class="name" onclick="openDriverModal('${d.driver.id}')">${d.driver.name||d.driver.id}</td>
-          <td>${fmtDate(d.created)}</td>
-          <td>${d.ageDays} يوم (${(d.ageDays/30).toFixed(1)} شهر)</td>
-          <td>${d.contractsCount}</td>
-          <td class="trend-down">${fmtKD(d.totalPaid)}</td>
-          <td class="${d.split.total>0?'trend-up':''}">${fmtKD(d.split.total)}</td>
-          <td class="${d.profit.netProfit>=0?'trend-down':'trend-up'}"><b>${fmtKD(d.profit.netProfit)}</b></td>
-        </tr>`).join('')}</tbody>
-      </table></div></div>
-    `;
   }
 
   /* ================= MODAL ================= */
