@@ -607,13 +607,51 @@
     return validCount ? Math.round(totalScore / validCount) : 0;
   }
 
+  /* ===== اتجاه الدين الموحّد = الانتظام الأساسي (نازل/ثابت/طالع) ===== */
+  function calcDebtDirection(driver) {
+    const today = new Date();
+    const cEnd = toDate(driver.contractEndDate);
+    const now = calcDebtSplit(driver.id, driver).total;
+    const d30 = calcDebtAtDate(driver, new Date(today.getTime() - 30*86400000));
+    const d60 = calcDebtAtDate(driver, new Date(today.getTime() - 60*86400000));
+    const change30 = now - d30;
+    const change60 = now - d60;
+    const tol = Math.max(5, getWeeklyRate(driver));
+    let status, label, color, emoji;
+    if (cEnd && cEnd < today) { status='ended'; label='عقد منتهي'; color='#8b949e'; emoji='⏹'; }
+    else if (now <= tol) { status='clear'; label='منتظم — بدون دين'; color='#3fb950'; emoji='🟢'; }
+    else if (change60 <= -tol) { status='down'; label='منتظم — الدين نازل'; color='#3fb950'; emoji='🟢'; }
+    else if (change60 >= tol) { status='up'; label='غير منتظم — الدين طالع'; color='#f85149'; emoji='🔴'; }
+    else { status='flat'; label='تحت المراقبة — ثابت'; color='#d29922'; emoji='🟡'; }
+    return { status, label, color, emoji, now, d30, d60, change30, change60, tol };
+  }
+  function dirBadge(dir, regPct) {
+    const sec = (regPct!==undefined && regPct!==null) ? `<div style="font-size:10px;color:#8b949e;margin-top:2px;">دفعات ${regPct}%</div>` : '';
+    return `<div style="color:${dir.color};font-size:12px;font-weight:600;white-space:nowrap;">${dir.emoji} ${dir.label}</div>${sec}`;
+  }
+  function dirPills(dir) {
+    const mk = (chg, lbl) => {
+      if (chg < -0.5) return `<span class="trend-pill down">▼ ${fmtKD(Math.abs(chg))} (${lbl})</span>`;
+      if (chg > 0.5) return `<span class="trend-pill up">▲ ${fmtKD(chg)} (${lbl})</span>`;
+      return `<span class="trend-pill flat">— ${lbl}</span>`;
+    };
+    return mk(dir.change30, 'شهر') + ' ' + mk(dir.change60, 'شهرين');
+  }
+
   function classifyDriver(driver, split, regularity, trend) {
+    const dir = calcDebtDirection(driver);
     const thr = getDebtThreshold(driver);
-    if (split.total > thr && regularity < 30) return { key:'critical', label:'🔴 حرج', cls:'cat-critical' };
-    if (regularity < 50 && trend > thr*0.04) return { key:'danger', label:'🟠 خطر', cls:'cat-danger' };
-    if (regularity >= 80 && split.current <= thr*0.1 && trend <= 0) return { key:'excellent', label:'🟢 ممتاز', cls:'cat-excellent' };
-    if (regularity >= 60 && trend <= thr*0.02) return { key:'good', label:'🔵 مقبول', cls:'cat-good' };
-    return { key:'watch', label:'🟡 متابعة', cls:'cat-watch' };
+    if (dir.status === 'ended') return { key:'good', label:'⏹ عقد منتهي', cls:'cat-good' };
+    if (dir.status === 'clear') return { key:'excellent', label:'🟢 ممتاز', cls:'cat-excellent' };
+    if (dir.status === 'down') return split.total <= thr
+      ? { key:'excellent', label:'🟢 ممتاز', cls:'cat-excellent' }
+      : { key:'good', label:'🔵 مقبول', cls:'cat-good' };
+    if (dir.status === 'flat') return split.total > thr
+      ? { key:'danger', label:'🟠 خطر', cls:'cat-danger' }
+      : { key:'watch', label:'🟡 متابعة', cls:'cat-watch' };
+    return split.total > thr
+      ? { key:'critical', label:'🔴 حرج', cls:'cat-critical' }
+      : { key:'danger', label:'🟠 خطر', cls:'cat-danger' };
   }
 
   /* ===== ربحية صافية للسائق ===== */
@@ -717,6 +755,7 @@
       const debtLastWeek = calcDebtAtDate(d, wkAgo);
       const weekDelta = debtNow - debtLastWeek;
       const reg = calcRegularity(d);
+      const dir = calcDebtDirection(d);
       const thr = getDebtThreshold(d);
       const stopD = getStopDays(d);
       const lastPay = getLastPaymentDate(d.id);
@@ -727,14 +766,16 @@
       if (newThisWeek) tags.push('🆕 جديد هالأسبوع');
       const suddenStop = lastPay && daysSince > stopD*2 && reg >= 50;
       if (suddenStop) tags.push('🛑 انقطاع مفاجئ');
+      if (dir.status === 'up') tags.push('📈 دينه طالع من شهرين');
+      else if (dir.status === 'flat' && debtNow > thr) tags.push('➖ دين ثابت ما ينزل');
       let score = 0;
       if (thr > 0) score += Math.min(60, (debtNow/thr)*30);
       score += Math.min(40, (daysSince/Math.max(1,stopD))*15);
       if (thr > 0 && weekDelta > 0) score += Math.min(50, (weekDelta/thr)*50);
       score += (100 - reg) * 0.2;
       const isIssue = debtNow > thr || daysSince > stopD || weekDelta > thr*0.1 ||
-                      cls.key==='critical' || cls.key==='danger';
-      return { d, debtNow, weekDelta, reg, thr, daysSince, cls, tags, score, isIssue };
+                      dir.status==='up' || cls.key==='critical' || cls.key==='danger';
+      return { d, debtNow, weekDelta, reg, dir, thr, daysSince, cls, tags, score, isIssue };
     }).filter(x => x.isIssue);
     // ⚡ الأسرع تدهوراً = أعلى 3 زيادة بالدين هالأسبوع
     [...items].filter(x=>x.weekDelta>0).sort((a,b)=>b.weekDelta-a.weekDelta).slice(0,3)
@@ -755,7 +796,7 @@
       <div class="icon">${icon}</div>
       <div class="body">
         <div class="title">${d.name||d.id} <span class="badge ${x.cls.cls}">${x.cls.label}</span></div>
-        <div class="desc">دين: <b>${fmtKD(x.debtNow)}</b> · آخر دفعة: ${x.daysSince===9999?'لا يوجد':('قبل '+x.daysSince+' يوم')} · انتظام ${x.reg}%</div>
+        <div class="desc">دين: <b>${fmtKD(x.debtNow)}</b> · آخر دفعة: ${x.daysSince===9999?'لا يوجد':('قبل '+x.daysSince+' يوم')} · <span style="color:${x.dir.color};">${x.dir.emoji} ${x.dir.label}</span></div>
         <div style="margin-top:6px;">${trendPill} ${tagsHTML}</div>
       </div>
     </div>`;
@@ -773,6 +814,7 @@
     const rows = active.map(d => {
       const split = calcDebtSplit(d.id, d);
       const reg = calcRegularity(d);
+      const dir = calcDebtDirection(d);
       const prev = calcDebtAtDate(d, new Date(today.getTime()-7*86400000));
       const trend = split.total - prev;
       const cls = classifyDriver(d, split, reg, trend);
@@ -797,7 +839,7 @@
         <td class="name" onclick="openDriverModal('${d.id}')">${d.name||d.id}</td>
         <td>${d.contractType==='monthly'?'شهري':'يومي'}</td>
         <td class="${split.total>0?'trend-up':''}">${fmtKD(split.total)}</td>
-        <td>${regBar(reg)}</td>
+        <td>${dirBadge(dir, reg)}</td>
         <td>${daysSince===9999?'—':('قبل '+daysSince+' يوم')}</td>
         ${cells}
       </tr>` };
@@ -949,12 +991,13 @@
         return '<td><span class="week-cell missed">❌</span></td>';
       }).join('');
       const reg = validM ? Math.round(paidM/validM*100) : 0;
+      const dir = calcDebtDirection(driver);
       return `<tr>
         <td class="name" onclick="openDriverModal('${driver.id}')">${driver.name||driver.id}</td>
         <td>${fmtKD(parseFloat(driver.monthlyPayment||0))}</td>
         <td>${fmtKD(split.total)}</td>
         ${cells}
-        <td>${reg}%</td>
+        <td>${dirBadge(dir, reg)}</td>
       </tr>`;
     }).join('');
     document.getElementById('tab-monthly').innerHTML = `
@@ -1261,11 +1304,9 @@
     const daysSince = lastPay ? Math.floor((today - lastPay)/86400000) : null;
     const thr = getDebtThreshold(driver);
 
-    // مؤشر اتجاه (آخر 30 يوم)
-    let trendPill;
-    if (Math.abs(trend30) < 1) trendPill = '<span class="trend-pill flat">⏸ مستقر</span>';
-    else if (trend30 > 0) trendPill = `<span class="trend-pill up">▲ +${fmtKD(trend30)} (30 يوم)</span>`;
-    else trendPill = `<span class="trend-pill down">▼ ${fmtKD(trend30)} (30 يوم)</span>`;
+    // مؤشر الاتجاه = الانتظام الأساسي (شهر / شهرين)
+    const dir = calcDebtDirection(driver);
+    const trendPill = `<span class="trend-pill" style="background:${dir.color}22;color:${dir.color};">${dir.emoji} ${dir.label}</span> ${dirPills(dir)}`;
 
     // الفصل بين اليومي والشهري
     const isMonthly = driver.contractType === 'monthly';
@@ -1350,7 +1391,7 @@
           <div class="kpi red"><div class="lbl">دين قديم</div><div class="val">${fmtKD(split.old)}</div></div>
           <div class="kpi"><div class="lbl">إجمالي الدين</div><div class="val">${fmtKD(split.total)}</div>
             <div class="sub">عتبة الخطر: ${fmtKD(thr)}</div></div>
-          <div class="kpi blue"><div class="lbl">الانتظام</div><div class="val">${reg}%</div></div>
+          <div class="kpi blue"><div class="lbl">الانتظام (اتجاه الدين)</div><div class="val" style="font-size:14px;color:${dir.color};line-height:1.3;">${dir.emoji} ${dir.label}</div><div class="sub">دفعات ${reg}%</div></div>
           <div class="kpi ${profit.netProfit>=0?'green':'red'}"><div class="lbl">الربح الصافي</div><div class="val">${fmtKD(profit.netProfit)}</div></div>
           <div class="kpi ${daysSince===null?'':(daysSince>getStopDays(driver)?'red':(daysSince>2?'orange':'green'))}">
             <div class="lbl">آخر دفعة قبل</div>
@@ -1806,8 +1847,8 @@
     active.forEach(driver => {
       const split = calcDebtSplit(driver.id, driver);
       const reg = calcRegularity(driver);
-      const prev = calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
-      const trend = split.total - prev;
+      const dir = calcDebtDirection(driver);
+      const trend = split.total - calcDebtAtDate(driver, new Date(today.getTime() - 7*86400000));
       const cls = classifyDriver(driver, split, reg, trend);
       const profit = calcDriverProfit(driver);
       lines.push([
@@ -1817,10 +1858,10 @@
         split.current.toFixed(3),
         split.old.toFixed(3),
         split.total.toFixed(3),
-        reg+'%',
-        trend.toFixed(3),
+        '"'+dir.label+' (دفعات '+reg+'%)"',
+        dir.change60.toFixed(3),
         profit.netProfit.toFixed(3),
-        cls.label.replace(/[🔴🟠🟡🔵🟢]/g,'').trim()
+        cls.label.replace(/[🔴🟠🟡🔵🟢⏹]/g,'').trim()
       ].join(','));
     });
     const blob = new Blob(['﻿'+lines.join('\n')], { type: 'text/csv;charset=utf-8' });
