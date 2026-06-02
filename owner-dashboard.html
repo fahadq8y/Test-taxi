@@ -100,6 +100,11 @@
     .mtab-btn { background: transparent; color: #8b949e; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit; transition: all 0.2s; }
     .mtab-btn:hover { background: #21262d; color: #c9d1d9; }
     .mtab-btn.active { background: #1f6feb; color: white; }
+    .modal-nav { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:10px 0 4px; }
+    .mnav-btn { background:#1f6feb; color:#fff; border:none; padding:9px 18px; border-radius:8px; cursor:pointer; font-size:14px; font-family:inherit; font-weight:600; flex:1; max-width:160px; }
+    .mnav-btn:hover { background:#388bfd; }
+    .mnav-btn:disabled { background:#21262d; color:#6e7681; cursor:default; }
+    .mnav-counter { color:#8b949e; font-size:13px; white-space:nowrap; }
     .mtab-content { display: none; }
     .mtab-content.active { display: block; }
 
@@ -255,6 +260,9 @@
   let gDriverMap = {}, gAuthUser = null, gLiveUnsub = null, gAutoTimer = null;
   let gLastEditTs = 0;
   let gWeekOffset = 0; // 0 = الأسبوع الحالي، 1 = الأسبوع الماضي ...
+  let gActiveTab = 'home';            // التبويب المفتوح حالياً (لتنقّل البوب أب)
+  const gTabNavLists = {};            // ترتيب السائقين لكل تبويب
+  let gNavIds = [], gNavIndex = -1;   // قائمة التنقّل الحالية داخل البوب أب
 
   /* ================= AUTH ================= */
   firebase.auth().onAuthStateChanged(user => {
@@ -315,6 +323,7 @@
 
   /* ================= TABS ================= */
   function switchTab(name) {
+    gActiveTab = name;
     const tabs = ['home','drivers','weekly','monthly','monitor'];
     document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', tabs[i] === name));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -717,6 +726,7 @@
     const isMonday = today.getDay() === 1;
 
     const attention = computeAttention(active);
+    gTabNavLists.home = attention.map(x => x.d.id);
 
     document.getElementById('tab-home').innerHTML = `
       <div class="kpi-grid">
@@ -811,7 +821,7 @@
     for (let i = WEEKS-1; i >= 0; i--) weeks.push(weekRange(i));
 
     const counts = { red:0, yellow:0, green:0 };
-    const rows = active.map(d => {
+    const rowObjs = active.map(d => {
       const split = calcDebtSplit(d.id, d);
       const reg = calcRegularity(d);
       const dir = calcDebtDirection(d);
@@ -834,7 +844,7 @@
         if (paid > 0) return '<td><span class="week-cell late">~</span></td>';
         return '<td><span class="week-cell missed">✗</span></td>';
       }).join('');
-      return { sortKey:{critical:0,danger:1,watch:2,good:3,excellent:4}[cls.key], html:`<tr>
+      return { id:d.id, sortKey:{critical:0,danger:1,watch:2,good:3,excellent:4}[cls.key], html:`<tr>
         <td>${trafficDot(cls.key)}</td>
         <td class="name" onclick="openDriverModal('${d.id}')">${d.name||d.id}</td>
         <td>${d.contractType==='monthly'?'شهري':'يومي'}</td>
@@ -843,7 +853,9 @@
         <td>${daysSince===9999?'—':('قبل '+daysSince+' يوم')}</td>
         ${cells}
       </tr>` };
-    }).sort((a,b)=>a.sortKey-b.sortKey).map(r=>r.html).join('');
+    }).sort((a,b)=>a.sortKey-b.sortKey);
+    gTabNavLists.drivers = rowObjs.map(r=>r.id);
+    const rows = rowObjs.map(r=>r.html).join('');
 
     document.getElementById('tab-drivers').innerHTML = `
       <div class="kpi-grid">
@@ -892,6 +904,7 @@
       if (x.activeThisWeek) { totExpected += x.expected; dueCount++; if (x.paid>0) paidCount++; }
     });
     data.sort((a,b)=> (a.activeThisWeek===b.activeThisWeek)?0:(a.activeThisWeek?-1:1));
+    gTabNavLists.weekly = data.map(x => x.d.id);
     const rows = data.map(x => {
       let status;
       if (!x.activeThisWeek) status='<span style="color:#6e7681;">—</span>';
@@ -968,6 +981,7 @@
         label: d.toLocaleDateString('ar-KW', { month:'short', year:'numeric' }) });
     }
     const monthly = gDrivers.filter(d => !d.isArchived && d.contractType==='monthly');
+    gTabNavLists.monthly = monthly.map(d => d.id);
     if (monthly.length === 0) {
       document.getElementById('tab-monthly').innerHTML = '<div class="card"><p style="color:#888;">لا يوجد سائقون شهريون</p></div>';
       return;
@@ -1293,6 +1307,17 @@
     gTxFilter = 'all';
     destroyModalCharts();
 
+    const navIds = (gTabNavLists[gActiveTab] || []).filter(id => gDriverMap[id]);
+    gNavIds = navIds;
+    gNavIndex = navIds.indexOf(driverId);
+    const hasNav = gNavIndex !== -1 && navIds.length > 1;
+    const navBar = hasNav ? `
+      <div class="modal-nav">
+        <button class="mnav-btn" onclick="navDriver(-1)" ${gNavIndex<=0?'disabled':''}>▲ السابق</button>
+        <span class="mnav-counter">${gNavIndex+1} من ${navIds.length}</span>
+        <button class="mnav-btn" onclick="navDriver(1)" ${gNavIndex>=navIds.length-1?'disabled':''}>التالي ▼</button>
+      </div>` : '';
+
     const today = new Date();
     const split = calcDebtSplit(driverId, driver);
     const reg = calcRegularity(driver);
@@ -1376,6 +1401,7 @@
         </div>
         <button class="close-x" onclick="closeModal()">×</button>
       </div>
+      ${navBar}
 
       <div class="mtabs">
         <button class="mtab-btn active" onclick="switchMTab('overview')">📊 نظرة عامة</button>
@@ -1812,6 +1838,23 @@
     gModalDriver = null;
     document.getElementById('driverModal').classList.remove('active');
   }
+
+  /* ===== التنقّل بين السائقين داخل البوب أب (يتبع ترتيب التبويب المفتوح) ===== */
+  function navDriver(delta) {
+    if (!gNavIds || !gNavIds.length || gNavIndex < 0) return;
+    const ni = gNavIndex + delta;
+    if (ni < 0 || ni >= gNavIds.length) return;
+    openDriverModal(gNavIds[ni]);
+  }
+  document.addEventListener('keydown', (e) => {
+    const modal = document.getElementById('driverModal');
+    if (!modal || !modal.classList.contains('active')) return;
+    const t = e.target;
+    if (t && (t.tagName==='INPUT' || t.tagName==='TEXTAREA' || t.tagName==='SELECT')) return;
+    if (e.key === 'ArrowUp') { e.preventDefault(); navDriver(-1); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); navDriver(1); }
+    else if (e.key === 'Escape') { closeModal(); }
+  });
 
   /* ================= QUICK SEARCH (شريط البحث) ================= */
   function onDriverSearch(q) {
