@@ -1250,7 +1250,7 @@
   // دفعات أسبوعية/شهرية للسائق (آخر N وحدة)
   function getPaymentBuckets(driver, units = 12) {
     const today = new Date();
-    const drvPays = gPayments.filter(p => p.driverId===driver.id && RENT_TYPES.includes(p.type));
+    const drvPays = gPayments.filter(p => p.driverId===driver.id);
     const buckets = [];
     if (driver.contractType === 'monthly') {
       const expected = parseFloat(driver.monthlyPayment||0);
@@ -1337,6 +1337,7 @@
     const isMonthly = driver.contractType === 'monthly';
     const cStartG = toDate(driver.contractStartDate)||toDate(driver.createdAt);
     const drvRentPays = gPayments.filter(p => p.driverId===driverId && RENT_TYPES.includes(p.type));
+    const drvAllPays = gPayments.filter(p => p.driverId===driverId);
 
     // خلايا آخر 12 (أسبوع لليومي / شهر للشهري)
     const cells = [];
@@ -1486,6 +1487,8 @@
         <div class="card">
           <h3>📈 اتجاه الدين الموحّد عبر الزمن</h3>
           <div class="range-pills">
+            <button class="range-pill" data-range="30" onclick="changeDebtRange(30)">30 يوم</button>
+            <button class="range-pill" data-range="60" onclick="changeDebtRange(60)">60 يوم</button>
             <button class="range-pill" data-range="90" onclick="changeDebtRange(90)">90 يوم</button>
             <button class="range-pill active" data-range="180" onclick="changeDebtRange(180)">180 يوم</button>
             <button class="range-pill" data-range="365" onclick="changeDebtRange(365)">سنة</button>
@@ -1504,25 +1507,26 @@
           <h3>💰 الدفعات ${driver.contractType==='monthly'?'الشهرية':'الأسبوعية'} (آخر 12)</h3>
           <div class="chart-box"><canvas id="paymentsChart"></canvas></div>
           <p class="small-muted" style="margin-top:8px;">
-            🔵 العمود = المدفوع فعلياً · 🟧 الخط = المتوقع (${fmtKD(driver.contractType==='monthly'?parseFloat(driver.monthlyPayment||0):parseFloat(driver.dailyRent||0)*7)})
+            🔵 العمود = كل المدفوع (أجرة + سداد دين + أي دفعة) · 🟧 الخط = الأجرة المتوقعة (${fmtKD(driver.contractType==='monthly'?parseFloat(driver.monthlyPayment||0):parseFloat(driver.dailyRent||0)*7)})
           </p>
         </div>
 
         <div class="card">
-          <h3>📜 سجل دفعات الإيجار (آخر 30)</h3>
+          <h3>📜 سجل كل الدفعات (آخر 30)</h3>
+          <p class="small-muted" style="margin-bottom:8px;">🟢 أجرة (يومي/شهري) · 🔵 دفعة أخرى (سداد دين / مبلغ إضافي)</p>
           <div class="table-wrap" style="max-height:340px;">
             <table>
               <thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>الوصف</th><th>المرجع</th></tr></thead>
               <tbody>${
-                drvRentPays.slice().sort((a,b)=>(toDate(b.date)||0)-(toDate(a.date)||0)).slice(0,30).map(p => `
+                drvAllPays.slice().sort((a,b)=>(toDate(b.date)||0)-(toDate(a.date)||0)).slice(0,30).map(p => `
                   <tr>
                     <td>${fmtDate(toDate(p.date))}</td>
                     <td>${p.type||''}</td>
-                    <td style="color:#3fb950;font-weight:600;">${fmtKD(parseFloat(p.amount||0))}</td>
+                    <td style="color:${RENT_TYPES.includes(p.type)?'#3fb950':'#58a6ff'};font-weight:600;">${fmtKD(parseFloat(p.amount||0))}</td>
                     <td style="text-align:right;">${p.description||'—'}</td>
                     <td><span class="small-muted">${p.refNum||'—'}</span></td>
                   </tr>`).join('') ||
-                '<tr><td colspan="5" style="color:#8b949e;padding:20px;">لا توجد دفعات إيجار</td></tr>'
+                '<tr><td colspan="5" style="color:#8b949e;padding:20px;">لا توجد دفعات</td></tr>'
               }</tbody>
             </table>
           </div>
