@@ -1467,21 +1467,13 @@
         <div class="card">
           <h3>📋 كل المعاملات</h3>
           <div class="tx-filters" id="txFilters">
-            <button class="tx-filter active" onclick="filterTx('all')">الكل</button>
-            <button class="tx-filter" onclick="filterTx('أجرة يومية')">أجرة يومية</button>
-            <button class="tx-filter" onclick="filterTx('أجرة شهرية')">أجرة شهرية</button>
-            <button class="tx-filter" onclick="filterTx('دين قديم')">دين قديم</button>
-            <button class="tx-filter" onclick="filterTx('سداد مخالفة')">سداد مخالفة</button>
-            <button class="tx-filter" onclick="filterTx('تحصيل مخالفة')">تحصيل مخالفة</button>
-            <button class="tx-filter" onclick="filterTx('سداد رسوم إقامة')">إقامة</button>
-            <button class="tx-filter" onclick="filterTx('expense')">مصروفات</button>
-            <button class="tx-filter" onclick="filterTx('revenue')">إيرادات</button>
           </div>
           <div id="txTableWrap"></div>
         </div>
       </div>
     `;
     document.getElementById('driverModal').classList.add('active');
+    renderTxFilters();
     renderTxTable();
     loadOwnerNotes(driverId);
     // الافتراضي = نظرة عامة (ما يحتاج chart)، لكن نهيئ debt chart عند فتح أول مرة على المتصفح
@@ -1711,10 +1703,34 @@
     gModalCharts.push(ch);
   }
 
+  function renderTxFilters() {
+    const wrap = document.getElementById('txFilters');
+    if (!wrap || !gModalDriver) return;
+    const txs = getAllTransactions(gModalDriver.id);
+    const payTypes = {};
+    let expCount = 0, revCount = 0;
+    txs.forEach(t => {
+      if (t.cat === 'expense') expCount++;
+      else if (t.cat === 'revenue') revCount++;
+      else payTypes[t.type || 'دفعة'] = (payTypes[t.type || 'دفعة'] || 0) + 1;
+    });
+    const btns = [{ key:'all', label:'الكل', count: txs.length }];
+    Object.keys(payTypes).sort((a,b) => payTypes[b] - payTypes[a])
+      .forEach(t => btns.push({ key: t, label: t, count: payTypes[t] }));
+    if (expCount) btns.push({ key:'expense', label:'مصروفات', count: expCount });
+    if (revCount) btns.push({ key:'revenue', label:'إيرادات', count: revCount });
+    wrap.innerHTML = btns.map(b =>
+      '<button class="tx-filter' + (gTxFilter === b.key ? ' active' : '') + '"'
+      + ' data-filter="' + escapeHtml(b.key) + '"'
+      + ' onclick="filterTx(this.getAttribute(\'data-filter\'))">'
+      + escapeHtml(b.label) + ' (' + b.count + ')</button>'
+    ).join('');
+  }
+
   function filterTx(filter) {
     gTxFilter = filter;
     document.querySelectorAll('#txFilters .tx-filter').forEach(b => {
-      b.classList.toggle('active', b.textContent.trim() === ({all:'الكل',expense:'مصروفات',revenue:'إيرادات','سداد رسوم إقامة':'إقامة'}[filter] || filter));
+      b.classList.toggle('active', b.getAttribute('data-filter') === filter);
     });
     renderTxTable();
   }
@@ -1727,7 +1743,7 @@
     if (gTxFilter !== 'all') {
       if (gTxFilter === 'expense') txs = txs.filter(t => t.cat === 'expense');
       else if (gTxFilter === 'revenue') txs = txs.filter(t => t.cat === 'revenue');
-      else txs = txs.filter(t => t.type === gTxFilter);
+      else txs = txs.filter(t => t.cat === 'payment' && t.type === gTxFilter);
     }
     const total = txs.reduce((s,t) => s + t.amount, 0);
     wrap.innerHTML = `
