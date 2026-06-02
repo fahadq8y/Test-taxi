@@ -1257,18 +1257,20 @@
       for (let i = units-1; i >= 0; i--) {
         const ms = new Date(today.getFullYear(), today.getMonth()-i, 1);
         const me = new Date(today.getFullYear(), today.getMonth()-i+1, 0, 23,59,59);
-        const paid = drvPays.filter(p => { const d=toDate(p.date); return d && d>=ms && d<=me; })
-                            .reduce((s,p)=>s+parseFloat(p.amount||0),0);
-        buckets.push({ label: ms.toLocaleDateString('ar-KW', {month:'short', year:'2-digit'}), paid, expected });
+        const inR = drvPays.filter(p => { const d=toDate(p.date); return d && d>=ms && d<=me; });
+        const rent = inR.filter(p=>RENT_TYPES.includes(p.type)).reduce((s,p)=>s+parseFloat(p.amount||0),0);
+        const other = inR.filter(p=>!RENT_TYPES.includes(p.type)).reduce((s,p)=>s+parseFloat(p.amount||0),0);
+        buckets.push({ label: ms.toLocaleDateString('ar-KW', {month:'short', year:'2-digit'}), rent, other, paid: rent+other, expected });
       }
     } else {
       const expected = parseFloat(driver.dailyRent||driver.dailyWage||0) * 7;
       for (let i = units-1; i >= 0; i--) {
         const mon = getMondayOfWeek(today); mon.setDate(mon.getDate() - i*7);
         const sun = new Date(mon); sun.setDate(sun.getDate()+6); sun.setHours(23,59,59);
-        const paid = drvPays.filter(p => { const d=toDate(p.date); return d && d>=mon && d<=sun; })
-                            .reduce((s,p)=>s+parseFloat(p.amount||0),0);
-        buckets.push({ label: mon.toLocaleDateString('ar-KW', {day:'numeric', month:'short'}), paid, expected });
+        const inR = drvPays.filter(p => { const d=toDate(p.date); return d && d>=mon && d<=sun; });
+        const rent = inR.filter(p=>RENT_TYPES.includes(p.type)).reduce((s,p)=>s+parseFloat(p.amount||0),0);
+        const other = inR.filter(p=>!RENT_TYPES.includes(p.type)).reduce((s,p)=>s+parseFloat(p.amount||0),0);
+        buckets.push({ label: mon.toLocaleDateString('ar-KW', {day:'numeric', month:'short'}), rent, other, paid: rent+other, expected });
       }
     }
     return buckets;
@@ -1739,7 +1741,8 @@
 
     const buckets = getPaymentBuckets(gModalDriver, 12);
     const labels = buckets.map(b => b.label);
-    const paid = buckets.map(b => +b.paid.toFixed(3));
+    const rentData = buckets.map(b => +b.rent.toFixed(3));
+    const otherData = buckets.map(b => +b.other.toFixed(3));
     const expectedLine = buckets.map(b => +b.expected.toFixed(3));
 
     const ch = new Chart(canvas, {
@@ -1748,12 +1751,16 @@
         labels,
         datasets: [
           {
-            label: 'المدفوع', data: paid,
-            backgroundColor: paid.map((v,i) => v >= buckets[i].expected*0.9 ? '#3fb950' : (v >= buckets[i].expected*0.5 ? '#d29922' : '#f85149')),
-            borderRadius: 4
+            label: 'الأجرة', data: rentData, stack: 'pay',
+            backgroundColor: buckets.map(b => b.paid >= b.expected*0.9 ? '#3fb950' : (b.paid > 0 ? '#d29922' : '#f85149')),
+            borderRadius: 3
           },
           {
-            label: 'المتوقع', type: 'line', data: expectedLine,
+            label: 'بنود أخرى', data: otherData, stack: 'pay',
+            backgroundColor: '#58a6ff', borderRadius: 3
+          },
+          {
+            label: 'المتوقع', type: 'line', data: expectedLine, stack: 'exp',
             borderColor: '#fb8500', borderWidth: 2, borderDash: [4,4],
             pointRadius: 3, pointBackgroundColor: '#fb8500', fill: false, tension: 0
           }
@@ -1763,11 +1770,19 @@
         responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { labels: { color: '#c9d1d9', font: { family: 'inherit' } } },
-          tooltip: { callbacks: { label: (ctx) => ctx.dataset.label + ': ' + (+ctx.parsed.y).toFixed(3) + ' د.ك' } }
+          tooltip: { callbacks: {
+            label: (ctx) => ctx.dataset.label + ': ' + (+ctx.parsed.y).toFixed(3) + ' د.ك',
+            footer: (items) => {
+              const b = buckets[items[0].dataIndex];
+              const diff = b.expected - b.paid;
+              return 'المجموع: ' + b.paid.toFixed(3) + ' / المتوقع: ' + b.expected.toFixed(3) + ' د.ك'
+                   + (diff <= 0.001 ? '  ✅ مكتمل' : '  ⚠️ ناقص ' + diff.toFixed(3));
+            }
+          } }
         },
         scales: {
-          x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
-          y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, beginAtZero: true }
+          x: { stacked: true, ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+          y: { stacked: true, ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, beginAtZero: true }
         }
       }
     });
