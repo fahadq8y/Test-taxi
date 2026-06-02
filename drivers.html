@@ -856,10 +856,18 @@
                 }
                 const sd = document.getElementById('contractStartDate');
                 if (sd) {
-                    sd.readOnly = true;
-                    sd.style.background = '#f3f4f6';
-                    sd.style.cursor = 'not-allowed';
-                    sd.title = '🔒 لتغيير تاريخ بداية العقد: استخدم "📋 عقد جديد"';
+                    const _canEditStart = !!(currentUser && currentUser.role === 'admin');
+                    if (_canEditStart) {
+                        sd.readOnly = false;
+                        sd.style.background = '';
+                        sd.style.cursor = '';
+                        sd.title = '✏️ تعديل بداية العقد متاح للمدير — سيُعاد حساب الدين تلقائياً';
+                    } else {
+                        sd.readOnly = true;
+                        sd.style.background = '#f3f4f6';
+                        sd.style.cursor = 'not-allowed';
+                        sd.title = '🔒 لتغيير تاريخ بداية العقد: استخدم "📋 عقد جديد"';
+                    }
                 }
             })();
             
@@ -1126,13 +1134,17 @@
                         return;
                     }
                     const oldStart = __existingDrv?.contractStartDate ? (__existingDrv.contractStartDate.toDate ? __existingDrv.contractStartDate.toDate() : new Date(__existingDrv.contractStartDate)) : null;
-                    if (__existingDrv && oldStart && driverData.contractStartDate && fmtD(oldStart) !== fmtD(driverData.contractStartDate)) {
+                    // FIX #024: المدير (admin) يقدر يعدّل بداية العقد، المحاسب لا
+                    const _isAdminUser = !!(currentUser && currentUser.role === 'admin');
+                    const startChanged = !!(__existingDrv && oldStart && driverData.contractStartDate && fmtD(oldStart) !== fmtD(driverData.contractStartDate));
+                    if (startChanged && !_isAdminUser) {
                         alert('⚠️ ما يمكن تغيير تاريخ بداية العقد من زر "تعديل".\n\nلتغيير البداية: استخدم زر "📋 عقد جديد".');
                         return;
                     }
-                    // ثبّت النوع والبداية بقيم السائق الأصلية (احتياط ضد أي تجاوز)
+                    // ثبّت النوع بقيمة السائق الأصلية (احتياط ضد أي تجاوز)
                     if (oldType) driverData.contractType = oldType;
-                    if (oldStart) driverData.contractStartDate = oldStart;
+                    // البداية: لو المدير غيّرها نخليها بالقيمة الجديدة، وإلا نرجّعها للأصل
+                    if (!startChanged && oldStart) driverData.contractStartDate = oldStart;
                     if (oldType === 'daily') driverData.monthlyPayment = 0;
                     if (oldType === 'monthly') driverData.dailyRent = 0;
                     
@@ -1174,6 +1186,14 @@
                             to: fmtDur(newMonths, newDays)
                         });
                     }
+                    // FIX #024: تغيير بداية العقد (للمدير فقط) ضمن تغييرات العقد
+                    if (startChanged) {
+                        contractChanges.push({
+                            label: 'تاريخ بداية العقد',
+                            from: fmtD(oldStart) || 'غير محدد',
+                            to: fmtD(driverData.contractStartDate) || 'غير محدد'
+                        });
+                    }
                     
                     // 3) لو فيه تغيير حقيقي بالعقد → احسب الدين قبل وبعد واعرض نافذة تأكيد
                     if (contractChanges.length > 0 && __existingDrv) {
@@ -1198,6 +1218,7 @@
                                         contractType: oldType,
                                         dailyRent: oldType === 'daily' ? newRate : 0,
                                         monthlyPayment: oldType === 'monthly' ? newRate : 0,
+                                        startDate: startChanged ? driverData.contractStartDate : futureHistory[lastIdx].startDate,
                                         endDate: newEnd || futureHistory[lastIdx].endDate,
                                         contractDurationMonths: newMonths,
                                         contractDurationDays: newDays
@@ -1208,6 +1229,7 @@
                                     contractType: oldType,
                                     dailyRent: oldType === 'daily' ? newRate : 0,
                                     monthlyPayment: oldType === 'monthly' ? newRate : 0,
+                                    contractStartDate: startChanged ? driverData.contractStartDate : __existingDrv.contractStartDate,
                                     contractEndDate: newEnd,
                                     contractHistory: futureHistory
                                 };
@@ -1261,6 +1283,7 @@
                                 contractType: oldType,
                                 dailyRent: oldType === 'daily' ? newRate : 0,
                                 monthlyPayment: oldType === 'monthly' ? newRate : 0,
+                                startDate: startChanged ? driverData.contractStartDate : existingHistory[lastIdx].startDate,
                                 endDate: newEnd || existingHistory[lastIdx].endDate,
                                 contractDurationMonths: newMonths,
                                 contractDurationDays: newDays,
