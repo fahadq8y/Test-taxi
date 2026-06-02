@@ -828,7 +828,7 @@
   }
   function weeklyRowsData(wk) {
     const today = new Date();
-    const active = gDrivers.filter(d => !d.isArchived);
+    const active = gDrivers.filter(d => !d.isArchived && d.contractType==='daily');
     return active.map(d => {
       const cStart = toDate(d.contractStartDate)||toDate(d.createdAt);
       const cEnd = toDate(d.contractEndDate);
@@ -887,7 +887,7 @@
       </div>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
-          <h3 style="border:none;margin:0;padding:0;">تفاصيل كل سائق</h3>
+          <h3 style="border:none;margin:0;padding:0;">تفاصيل السائقين اليوميين</h3>
           <button class="btn outline" onclick="exportWeekCSV()">📥 تصدير الأسبوع</button>
         </div>
         <div class="table-wrap"><table>
