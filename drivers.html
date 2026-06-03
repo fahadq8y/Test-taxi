@@ -367,7 +367,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, getDocs, addDoc, doc, getDoc, updateDoc, deleteDoc, setDoc, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, addDoc, doc, getDoc, updateDoc, deleteDoc, setDoc, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -418,6 +418,7 @@
                 populateContractDurationOptions();
                 populateCarOptions();
                 displayDrivers(allDrivers);
+                setupRealtimeDrivers();
                 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('driversGrid').style.display = 'grid';
@@ -616,6 +617,29 @@
             } catch (error) {
                 console.error('Error loading drivers:', error);
             }
+        }
+
+        // 🔴 تحديث لحظي: إعادة التحميل عند أي تغيير (يتخطّى أول لقطة)
+        let _rtTimer = null;
+        function _rtRefresh() {
+            clearTimeout(_rtTimer);
+            _rtTimer = setTimeout(async () => {
+                await loadCars();
+                await loadDrivers();
+                populateCarOptions();
+                displayDrivers(allDrivers);
+            }, 500);
+        }
+        function setupRealtimeDrivers() {
+            if (window._rtSetup) return;
+            window._rtSetup = true;
+            ['drivers', 'cars', 'driverPayments'].forEach(col => {
+                let first = true;
+                onSnapshot(collection(db, col), () => {
+                    if (first) { first = false; return; }
+                    _rtRefresh();
+                }, err => console.error('realtime ' + col, err));
+            });
         }
 
         // Display drivers
