@@ -533,7 +533,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="unified-balance.js"></script>
+    <script src="unified-balance.js?v=025"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -566,6 +566,18 @@
         }
 
         // Load data from Firebase
+        let _realtimeSetup = false;
+        function setupRealtimeOverview() {
+            if (_realtimeSetup) return; _realtimeSetup = true;
+            db.collection('drivers').onSnapshot(snap => {
+                drivers = []; snap.forEach(doc => drivers.push({ id: doc.id, ...doc.data() }));
+                allDrivers = drivers; displayDrivers(); updateStats();
+            }, err => console.error('drivers listener', err));
+            db.collection('driverPayments').onSnapshot(snap => {
+                driverPayments = []; snap.forEach(doc => driverPayments.push({ id: doc.id, ...doc.data() }));
+                displayDrivers(); updateStats();
+            }, err => console.error('payments listener', err));
+        }
         async function loadData() {
             try {
                 console.log('🔐 [DIAG] انتظار Firebase Auth...');
@@ -610,6 +622,7 @@
 
                 displayDrivers();
                 updateStats();
+                setupRealtimeOverview();
             } catch (error) {
                 console.error('Error loading data:', error);
                 document.getElementById('driversTableBody').innerHTML = 
@@ -631,204 +644,12 @@
 
         // Calculate driver statistics
         function calculateDriverStats(driver) {
-            const today = new Date();
-            const contractStart = parseDate(driver.contractStartDate || driver.createdAt);
-            const lastPayment = parseDate(driver.lastPaymentDate || driver.contractStartDate || driver.createdAt);
-            
-            // 🔧 FIX #010: contractEndDate guard
-            const contractEnd = driver.contractEndDate ? parseDate(driver.contractEndDate) : null;
-            const contractEnded = !!(contractEnd && !isNaN(contractEnd.getTime()) && today > contractEnd);
-            const effectiveToday = contractEnded ? contractEnd : today;
-            const daysAfterEnd = contractEnded ? Math.floor((today - contractEnd) / (1000 * 60 * 60 * 24)) : 0;
-            const daysSinceStart = Math.floor((effectiveToday - contractStart) / (1000 * 60 * 60 * 24));
-            
-            // Check contract type
-            const contractType = driver.contractType || 'daily';
-            let expectedTotal, totalPaid, lateAmount, daysLate, paidUntilDate, paidForCompletedDays;
-
-            // 🔧 #022: استخدام realContracts pattern لحساب expectedTotal الصحيح
-            //   - لو السائق غيّر عقده فعلياً (عقد جديد في history) → نحسب كل فترة بأجرتها
-            //   - وإلا → نستخدم بيانات السائق الحالية (نفس fallback الموحّد)
-            const realContracts022 = (driver.contractHistory || []).filter(c =>
-                c.note !== 'تعديل عقد' && c.type !== 'تعديل' && c.hidden !== true
-            );
-            let unifiedExpected = 0;
-            if (realContracts022.length > 0) {
-                realContracts022.forEach((c, idx) => {
-                    const ps = c.startDate ? (c.startDate.toDate ? c.startDate.toDate() : new Date(c.startDate)) : null;
-                    if (!ps || ps > today) return;
-                    let pe;
-                    if (idx < realContracts022.length - 1) {
-                        const nxt = realContracts022[idx + 1];
-                        pe = nxt.startDate ? (nxt.startDate.toDate ? nxt.startDate.toDate() : new Date(nxt.startDate)) : today;
-                    } else {
-                        const _e = c.endDate ? (c.endDate.toDate ? c.endDate.toDate() : new Date(c.endDate)) : contractEnd;
-                        pe = (_e && !isNaN(_e.getTime()) && today > _e) ? _e : today;
-                    }
-                    if (pe > today) pe = today;
-                    if (c.contractType === 'daily') {
-                        const d = Math.max(0, Math.floor((pe - ps) / 86400000));
-                        unifiedExpected += d * parseFloat(c.dailyRent || 0);
-                    } else {
-                        const m = Math.max(0, (pe.getFullYear()-ps.getFullYear())*12 + (pe.getMonth()-ps.getMonth()));
-                        unifiedExpected += m * parseFloat(c.monthlyPayment || 0);
-                    }
-                });
-                // 🔧 #022b: العقد الضمني للسائقين القدامى
-                const lastRC = realContracts022[realContracts022.length-1];
-                const lastT = lastRC.contractType;
-                const lastR = lastT==='daily' ? parseFloat(lastRC.dailyRent||0) : parseFloat(lastRC.monthlyPayment||0);
-                const drvR = contractType==='daily' ? parseFloat(driver.dailyRent||driver.dailyWage||0) : parseFloat(driver.monthlyPayment||0);
-                if (contractType !== lastT || drvR !== lastR) {
-                    let iS = lastRC.endDate ? (lastRC.endDate.toDate ? lastRC.endDate.toDate() : new Date(lastRC.endDate)) : null;
-                    const drvS = driver.contractStartDate ? (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) : null;
-                    if (drvS && (!iS || drvS > iS)) iS = drvS;
-                    if (iS && iS < today) {
-                        let iE = contractEnd && today > contractEnd ? contractEnd : today;
-                        if (iE > today) iE = today;
-                        if (contractType === 'daily') {
-                            const d = Math.max(0, Math.floor((iE - iS) / 86400000));
-                            unifiedExpected += d * drvR;
-                        } else {
-                            const m = Math.max(0, (iE.getFullYear()-iS.getFullYear())*12 + (iE.getMonth()-iS.getMonth()));
-                            unifiedExpected += m * drvR;
-                        }
-                    }
-                }
-            } else {
-                // Fallback - استخدم driver.contractType الحالي (نفس منطق unified-balance.js)
-                if (contractType === 'monthly') {
-                    const monthsSinceStart = Math.max(0, (effectiveToday.getFullYear()-contractStart.getFullYear())*12 + (effectiveToday.getMonth()-contractStart.getMonth()));
-                    unifiedExpected = monthsSinceStart * parseFloat(driver.monthlyPayment || 0);
-                } else {
-                    unifiedExpected = Math.max(0, daysSinceStart) * parseFloat(driver.dailyWage || driver.dailyRent || 0);
-                }
+            if (typeof window.calculateDriverDebtDetailed === 'function') {
+                return window.calculateDriverDebtDetailed(driver.id, driver, driverPayments);
             }
-
-            if (contractType === 'monthly') {
-                const monthlyPayment = parseFloat(driver.monthlyPayment || 0);
-                expectedTotal = unifiedExpected;
-
-                // إجمالي مدفوعات الأجرة (يومية + شهرية)
-                const rentPays = driverPayments.filter(p =>
-                    p.driverId === driver.id && (p.type === 'أجرة يومية' || p.type === 'أجرة شهرية')
-                );
-                totalPaid = rentPays.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-
-                // Calculate COMPLETE months only
-                const completedMonths = monthlyPayment > 0 ? Math.floor(totalPaid / monthlyPayment) : 0;
-                paidForCompletedDays = completedMonths * monthlyPayment;
-
-                lateAmount = Math.max(0, expectedTotal - totalPaid);
-
-                // خصم الإجازة السنوية
-                const annualLeave = driverPayments.filter(p =>
-                    p.driverId === driver.id && p.type === 'إجازة سنوية'
-                ).reduce((s, p) => s + parseFloat(p.amount || 0), 0);
-                lateAmount = Math.max(0, lateAmount - annualLeave);
-                daysLate = monthlyPayment > 0 ? Math.floor((lateAmount / monthlyPayment) * 30) : 0;
-
-                paidUntilDate = new Date(contractStart);
-                paidUntilDate.setMonth(paidUntilDate.getMonth() + completedMonths);
-            } else {
-                const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
-                expectedTotal = unifiedExpected;
-
-                // إجمالي مدفوعات الأجرة (يومية + شهرية للسلامة)
-                const rentPays = driverPayments.filter(p =>
-                    p.driverId === driver.id && (p.type === 'أجرة يومية' || p.type === 'أجرة شهرية')
-                );
-                totalPaid = rentPays.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-
-                const completedDays = dailyWage > 0 ? Math.floor(totalPaid / dailyWage) : 0;
-                paidForCompletedDays = completedDays * dailyWage;
-
-                lateAmount = Math.max(0, expectedTotal - totalPaid);
-
-                // خصم الإجازة السنوية
-                const annualLeave = driverPayments.filter(p =>
-                    p.driverId === driver.id && p.type === 'إجازة سنوية'
-                ).reduce((s, p) => s + parseFloat(p.amount || 0), 0);
-                lateAmount = Math.max(0, lateAmount - annualLeave);
-                daysLate = dailyWage > 0 ? Math.ceil(lateAmount / dailyWage) : 0;
-
-                paidUntilDate = new Date(contractStart);
-                paidUntilDate.setDate(paidUntilDate.getDate() + completedDays);
-            }
-            
-            // Calculate driver balance (partial day payment - the remainder after complete days)
-            // This represents the amount paid towards the next incomplete day
-            const driverBalance = totalPaid > expectedTotal ? 
-                (totalPaid - expectedTotal) : // If overpaid, show the extra amount
-                (paidForCompletedDays !== undefined ? (totalPaid - paidForCompletedDays) : 0); // Otherwise, show partial day payment
-            
-            // Calculate violations (positive = driver owes, negative = driver paid)
-            const violationPayments = driverPayments.filter(p => 
-                p.driverId === driver.id && (p.type === 'سداد مخالفة' || p.type === 'تحصيل مخالفة')
-            );
-            const violations = violationPayments.reduce((sum, p) => {
-                const amount = parseFloat(p.amount || 0);
-                // تحصيل مخالفة = السائق دفع (يقلل الدين)
-                // سداد مخالفة = الشركة دفعت عن السائق (يزيد الدين)
-                return p.type === 'تحصيل مخالفة' ? sum - amount : sum + amount;
-            }, 0);
-            
-            // Calculate residency fees (positive = driver owes, negative = driver paid)
-            const residencyPayments = driverPayments.filter(p => 
-                p.driverId === driver.id && (p.type === 'سداد رسوم إقامة' || p.type === 'تحصيل رسوم إقامة')
-            );
-            const residencyFees = residencyPayments.reduce((sum, p) => {
-                const amount = parseFloat(p.amount || 0);
-                // تحصيل رسوم إقامة = السائق دفع (يقلل الدين)
-                // سداد رسوم إقامة = الشركة دفعت عن السائق (يزيد الدين)
-                return p.type === 'تحصيل رسوم إقامة' ? sum - amount : sum + amount;
-            }, 0);
-            
-            // Old debts (الديون المسجلة - المدفوعات)
-            const oldDebtsInitial = parseFloat(driver.oldDebts || 0);
-            const oldDebtPayments = driverPayments.filter(p => 
-                p.driverId === driver.id && p.type === 'دين قديم'
-            );
-            const oldDebtsPaid = oldDebtPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-            const oldDebts = Math.max(0, oldDebtsInitial - oldDebtsPaid);
-            
-            // حساب السلف المستحقة
-            const advancePaymentsDriver = driverPayments.filter(p =>
-                p.driverId === driver.id && (p.type === 'سلفة إلى السائق' || p.type === 'تحصيل سلفة من السائق')
-            );
-            const advanceBalance = advancePaymentsDriver.reduce((sum, p) => {
-                const amount = parseFloat(p.amount || 0);
-                return p.type === 'سلفة إلى السائق' ? sum + amount : sum - amount;
-            }, 0);
-            const netAdvance = Math.max(0, advanceBalance);
-            
-            // Calculate total debt
-            // Note: driverBalance is NOT subtracted - it's a separate credit, not a debt reduction
-            const totalDebt = lateAmount + violations + residencyFees + oldDebts + netAdvance;
-            
-            // Determine status
-            let status = 'منتظم';
-            if (daysLate > 7) {
-                status = 'متأخر جداً';
-            } else if (daysLate > 3) {
-                status = 'متأخر';
-            }
-            
-            return {
-                dailyWage: contractType === 'monthly' ? parseFloat(driver.monthlyPayment || 0) : parseFloat(driver.dailyWage || driver.dailyRent || 0),
-                contractStart,
-                lastPayment,
-                paidUntilDate,
-                daysLate,
-                lateAmount,
-                driverBalance,
-                violations,
-                residencyFees,
-                oldDebts,
-                netAdvance,
-                totalDebt: Math.max(0, totalDebt),
-                status
-            };
+            console.warn('⚠️ unified-balance.js غير محمّل - الحساب قد يكون غير دقيق');
+            const od = parseFloat(driver.oldDebts || 0);
+            return { totalDebt: od, expectedRentTotal:0, totalRentPaid:0, lateAmount:0, driverBalance:0, violations:0, residencyFees:0, oldDebts:od, netAdvance:0, annualLeaveTotal:0, daysLate:0, paidUntilDate:new Date(), lastPayment:new Date(), status:'منتظم', dailyWage:0, contractStart:new Date(), contractEnd:null, contractEnded:false, daysAfterEnd:0 };
         }
 
         // Display drivers in table
