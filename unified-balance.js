@@ -170,8 +170,18 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
     let expectedRentTotal = 0;
     
     // #022: استخراج العقود الحقيقية فقط (تجاهل "تعديل عقد" و"تعديل" والمخفية يدوياً)
-    const realContracts = (driver.contractHistory || []).filter(c =>
-        c.note !== 'تعديل عقد' && c.type !== 'تعديل' && c.hidden !== true
+    // #024: الفترات المقفولة (رُحّل رصيدها للديون القديمة) لا يُعاد حساب إيجارها ولا تُحتسب دفعاتها
+      const _toDateSafe = (d) => { if (!d) return null; const x = d.toDate ? d.toDate() : new Date(d); return isNaN(x.getTime()) ? null : x; };
+      const _isSealed = (c) => !!(c && (c.sealed === true || c.type === 'إنهاء عقد' || c.carryOver !== undefined || c.transferredToOldDebts !== undefined));
+      let sealedUntil = null;
+      (driver.contractHistory || []).forEach(c => {
+          if (_isSealed(c)) {
+              const e = _toDateSafe(c.endDate) || _toDateSafe(c.actualEndDate);
+              if (e && (!sealedUntil || e > sealedUntil)) sealedUntil = e;
+          }
+      });
+      const realContracts = (driver.contractHistory || []).filter(c =>
+        c.note !== 'تعديل عقد' && c.type !== 'تعديل' && c.hidden !== true && !_isSealed(c)
     );
 
     // #005 + #022: إذا كان لدى السائق عقود حقيقية في contractHistory، نحسب كل فترة بعقدها
@@ -197,6 +207,7 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
             }
 
             // لا نحسب ما بعد اليوم
+            if (sealedUntil && periodStart < sealedUntil) periodStart = sealedUntil; // #024
             if (periodStart > today) return;
             if (periodEnd > today) periodEnd = today;
 
@@ -233,6 +244,7 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
                 const _drvStart = driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate);
                 if (!_implStart || _drvStart > _implStart) _implStart = _drvStart;
             }
+            if (sealedUntil && _implStart && _implStart < sealedUntil) _implStart = sealedUntil; // #024
             if (_implStart && _implStart < today) {
                 const _e = driver.contractEndDate ? (driver.contractEndDate.toDate ? driver.contractEndDate.toDate() : new Date(driver.contractEndDate)) : null;
                 let _implEnd = (_e && !isNaN(_e.getTime()) && today > _e) ? _e : today;
@@ -248,9 +260,10 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
         }
     } else {
         // #006: Fallback للسائقين القدامى بدون contractHistory
-        const contractStart = driver.contractStartDate ?
+        let contractStart = driver.contractStartDate ?
             (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) :
             (driver.createdAt ? (driver.createdAt.toDate ? driver.createdAt.toDate() : new Date(driver.createdAt)) : today);
+        if (sealedUntil && contractStart < sealedUntil) contractStart = sealedUntil; // #024
         
         const contractType = driver.contractType || 'daily';
         
@@ -276,7 +289,12 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
     }
     
     // حساب إجمالي الأجرة المدفوعة (يومية أو شهرية)
-    const rentPayments = payments.filter(p => p.type === 'أجرة يومية' || p.type === 'أجرة شهرية');
+    // #024: استبعاد دفعات الإيجار داخل الفترة المقفولة (حُسبت ضمن الترحيل للديون القديمة)
+      const _payDate = (p) => { const d = p.date ? (p.date.toDate ? p.date.toDate() : new Date(p.date)) : null; return (d && !isNaN(d.getTime())) ? d : null; };
+      const rentPayments = payments.filter(p =>
+          (p.type === 'أجرة يومية' || p.type === 'أجرة شهرية') &&
+          !(sealedUntil && _payDate(p) && _payDate(p) <= sealedUntil)
+      );
     const totalRentPaid = rentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
     
     // الأجرة المتأخرة = المتوقع - المدفوع
