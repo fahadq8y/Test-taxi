@@ -1392,11 +1392,32 @@
                 // Display expenses including driver payments
                 displayExpensesWithDriverPayments();
 
+                // 🔴 تفعيل التحديث اللحظي بعد جاهزية المصادقة وأول تحميل
+                setupRealtimeExpenses();
+
             } catch (error) {
                 console.error('خطأ في تحميل البيانات:', error);
                 document.getElementById('expenseTableBody').innerHTML = 
                     '<tr><td colspan="7" class="no-data">خطأ في تحميل البيانات</td></tr>';
             }
+        }
+
+        // 🔴 تحديث لحظي: إعادة التحميل عند أي تغيير بالبيانات (يتخطّى أول لقطة لتفادي تحميل مزدوج)
+        let _rtTimer = null;
+        function _rtRefresh() {
+            clearTimeout(_rtTimer);
+            _rtTimer = setTimeout(() => { loadAllData(); }, 500);
+        }
+        function setupRealtimeExpenses() {
+            if (window._rtSetup) return;
+            window._rtSetup = true;
+            ['expenses', 'revenues', 'driverPayments', 'drivers', 'archivedDrivers'].forEach(col => {
+                let first = true;
+                db.collection(col).onSnapshot(() => {
+                    if (first) { first = false; return; }
+                    _rtRefresh();
+                }, err => console.error('realtime ' + col, err));
+            });
         }
 
         // Filter by period (today, week, month, all)
