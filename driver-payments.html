@@ -25,7 +25,7 @@
         }
     </style>
     <script src="driver-payments-permissions-simple.js"></script>
-      <script src="unified-balance.js"></script>
+      <script src="unified-balance.js?v=025"></script>
       <style>
           .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
           .modal-content { background: white; margin: 5% auto; padding: 0; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
@@ -689,34 +689,28 @@
         }
 
         // Load driver data
-        async function loadDriverData() {
-            try {
-                const driverDoc = await db.collection('drivers').doc(currentDriverId).get();
-                if (driverDoc.exists) {
-                    currentDriver = { id: driverDoc.id, ...driverDoc.data() };
-                    
-                    // Update driver info display
-                    document.getElementById('driverName').textContent = currentDriver.name || 'غير محدد';
-                    document.getElementById('driverIdNumber').textContent = currentDriver.idNumber || currentDriver.civilId || 'غير محدد';
-                    document.getElementById('driverPhone').textContent = currentDriver.phone || currentDriver.phoneNumber || 'غير محدد';
-                    
-                    // تصفية خيارات الدفعة حسب نوع العقد
-                    filterPaymentTypes(currentDriver.contractType);
-                      
-                      // 🔧 FIX #019: تحديث الصناديق فور تحميل بيانات السائق
-                      updateOldDebtsBox();
-                      updateContractStatusBox();
-                } else {
-                    console.error('Driver not found');
-                    alert('السائق غير موجود');
-                    window.location.href = 'drivers-overview.html';
-                }
-            } catch (error) {
-                console.error('Error loading driver data:', error);
-                document.getElementById('driverName').textContent = 'خطأ في التحميل';
-                document.getElementById('driverIdNumber').textContent = 'خطأ في التحميل';
-                document.getElementById('driverPhone').textContent = 'خطأ في التحميل';
-            }
+        function loadDriverData() {
+            return new Promise((resolve) => {
+                if (window._dpDriverListener) { resolve(); return; }
+                window._dpDriverListener = true;
+                let first = true;
+                db.collection('drivers').doc(currentDriverId).onSnapshot(driverDoc => {
+                    if (driverDoc.exists) {
+                        currentDriver = { id: driverDoc.id, ...driverDoc.data() };
+                        document.getElementById('driverName').textContent = currentDriver.name || 'غير محدد';
+                        document.getElementById('driverIdNumber').textContent = currentDriver.idNumber || currentDriver.civilId || 'غير محدد';
+                        document.getElementById('driverPhone').textContent = currentDriver.phone || currentDriver.phoneNumber || 'غير محدد';
+                        filterPaymentTypes(currentDriver.contractType);
+                        updateOldDebtsBox();
+                        updateContractStatusBox();
+                        try { updateDriverDebt(); } catch (e) {}
+                    } else if (first) {
+                        console.error('Driver not found'); alert('السائق غير موجود');
+                        window.location.href = 'drivers-overview.html';
+                    }
+                    if (first) { first = false; resolve(); }
+                }, error => { console.error('Error loading driver data:', error); if (first) { first = false; resolve(); } });
+            });
         }
 
         // FIX #010: تحذير عند العقد المنتهي (يتم استدعاؤه بعد loadDriverData)
@@ -736,32 +730,24 @@
           }
           
           // Load driver payments
-          async function loadDriverPayments() {
-            try {
-                const paymentsSnapshot = await db.collection('driverPayments')
-                    .where('driverId', '==', currentDriverId)
-                    .get();
-                
-                driverPayments = [];
-                paymentsSnapshot.forEach(doc => {
-                    const paymentData = { id: doc.id, ...doc.data() };
-                    driverPayments.push(paymentData);
-                });
-                
-                // Sort by date (newest first)
-                driverPayments.sort((a, b) => {
-                    const dateA = new Date(a.date || a.createdAt?.toDate?.() || 0);
-                    const dateB = new Date(b.date || b.createdAt?.toDate?.() || 0);
-                    return dateB - dateA;
-                });
-                
-                displayPayments();
-                updateDriverDebt();
-            } catch (error) {
-                console.error('Error loading driver payments:', error);
-                const tbody = document.getElementById('paymentsTableBody');
-                tbody.innerHTML = '<tr><td colspan="6" class="no-data">خطأ في تحميل تاريخ الدفعات</td></tr>';
-            }
+          function loadDriverPayments() {
+            return new Promise((resolve) => {
+                if (window._dpPaymentsListener) { resolve(); return; }
+                window._dpPaymentsListener = true;
+                let first = true;
+                db.collection('driverPayments').where('driverId', '==', currentDriverId).onSnapshot(snapshot => {
+                    driverPayments = [];
+                    snapshot.forEach(doc => { driverPayments.push({ id: doc.id, ...doc.data() }); });
+                    driverPayments.sort((a, b) => {
+                        const dateA = new Date(a.date || a.createdAt?.toDate?.() || 0);
+                        const dateB = new Date(b.date || b.createdAt?.toDate?.() || 0);
+                        return dateB - dateA;
+                    });
+                    displayPayments();
+                    updateDriverDebt();
+                    if (first) { first = false; resolve(); }
+                }, error => { console.error('payments listener:', error); if (first) { first = false; resolve(); } });
+            });
         }
 
         // Display payments in table
