@@ -91,7 +91,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, getDocs, addDoc, doc, getDoc, updateDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, addDoc, doc, getDoc, updateDoc, deleteDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -139,6 +139,7 @@
                 await loadCars();
                 await loadDrivers();
                 displayCars(allCars);
+                setupRealtimeCars();
                 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('carsGrid').style.display = 'grid';
@@ -172,6 +173,28 @@
             } catch (error) {
                 console.error('Error loading drivers:', error);
             }
+        }
+
+        // 🔴 تحديث لحظي: إعادة التحميل عند أي تغيير (يتخطّى أول لقطة)
+        let _rtTimer = null;
+        function _rtRefresh() {
+            clearTimeout(_rtTimer);
+            _rtTimer = setTimeout(async () => {
+                await loadCars();
+                await loadDrivers();
+                displayCars(allCars);
+            }, 500);
+        }
+        function setupRealtimeCars() {
+            if (window._rtSetup) return;
+            window._rtSetup = true;
+            ['cars', 'drivers'].forEach(col => {
+                let first = true;
+                onSnapshot(collection(db, col), () => {
+                    if (first) { first = false; return; }
+                    _rtRefresh();
+                }, err => console.error('realtime ' + col, err));
+            });
         }
 
         // Display cars
