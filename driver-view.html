@@ -369,6 +369,29 @@
             </div>
         </div>
 
+        <style>
+          .dv-tx-table { width:100%; border-collapse:collapse; font-size:14px; }
+          .dv-tx-table th, .dv-tx-table td { padding:8px 10px; border-bottom:1px solid #eee; text-align:center; }
+          .dv-tx-table thead th { background:#f5f7fa; color:#444; font-weight:700; }
+          .dv-tx-table tfoot td { background:#fafafa; }
+        </style>
+
+        <!-- سجل المدفوعات -->
+        <div class="card">
+            <h2>💵 سجل مدفوعاتي</h2>
+            <div id="paymentsListContainer" style="overflow-x:auto;">
+                <p style="text-align:center;color:#888;">جاري التحميل…</p>
+            </div>
+        </div>
+
+        <!-- الإيرادات المرتبطة بالسائق -->
+        <div class="card">
+            <h2>📈 إيراداتي</h2>
+            <div id="revenuesListContainer" style="overflow-x:auto;">
+                <p style="text-align:center;color:#888;">جاري التحميل…</p>
+            </div>
+        </div>
+
         <!-- معلومات الصيانة -->
         <div class="card">
             <h2>🔧 معلومات الصيانة</h2>
@@ -532,6 +555,7 @@
         let driverData = {};
         let drivers = [];
         let driverPayments = [];
+        let revenues = [];
         let cars = [];
 
         // Parse date from various formats
@@ -590,6 +614,21 @@
                     if (first) { first = false; resolve(); }
                     else { try { updateDriverUI(); } catch (e) { console.error(e); } }
                 }, (error) => { console.error('❌ payments listener:', error); if (first) { first = false; resolve(); } });
+            });
+        }
+
+        // Load revenues linked to this driver (realtime)
+        function loadRevenues() {
+            return new Promise((resolve) => {
+                if (window._dvRevenuesListener) { resolve(); return; }
+                window._dvRevenuesListener = true;
+                let first = true;
+                onSnapshot(collection(db, 'revenues'), (querySnapshot) => {
+                    revenues = [];
+                    querySnapshot.forEach((doc) => { revenues.push({ id: doc.id, ...doc.data() }); });
+                    if (first) { first = false; resolve(); }
+                    else { try { updateDriverUI(); } catch (e) { console.error(e); } }
+                }, (error) => { console.error('❌ revenues listener:', error); if (first) { first = false; resolve(); } });
             });
         }
 
@@ -784,7 +823,7 @@
           async function loadDriverData() {
               if (!checkLogin()) return;
               console.log('🔊 بدء المستمع اللحظي للسائق:', driverId);
-              await Promise.all([loadCars(), loadDriverPayments()]);
+              await Promise.all([loadCars(), loadDriverPayments(), loadRevenues()]);
               setupDriverListener();
           }
 
@@ -921,6 +960,37 @@
                 const oilDate = parseDate(assignedCar.lastOilChangeDate);
                 document.getElementById('oilChangeDate').value = oilDate.toISOString().split('T')[0];
             }
+
+            try { renderPaymentsList(); } catch (e) { console.error('renderPaymentsList:', e); }
+            try { renderRevenuesList(); } catch (e) { console.error('renderRevenuesList:', e); }
+        }
+
+        // ===== عرض سجل المدفوعات والإيرادات الخاصة بالسائق =====
+        function dvFmtAmt(n) { return (Number(n) || 0).toFixed(3) + ' د.ك'; }
+        function dvTxField(item) { return item.date || item.paymentDate || item.createdAt || null; }
+        function dvTxDate(item) { const f = dvTxField(item); return f ? formatDate(f) : '-'; }
+        function dvTxTime(item) {
+            const f = dvTxField(item);
+            const d = f && f.seconds ? new Date(f.seconds * 1000) : (f ? new Date(f) : null);
+            return d && !isNaN(d) ? d.getTime() : 0;
+        }
+        function renderPaymentsList() {
+            const el = document.getElementById('paymentsListContainer');
+            if (!el) return;
+            const mine = driverPayments.filter(p => p.driverId === driverId).sort((a, b) => dvTxTime(b) - dvTxTime(a));
+            if (!mine.length) { el.innerHTML = '<p style="text-align:center;color:#888;">لا توجد مدفوعات</p>'; return; }
+            const rows = mine.map(p => `<tr><td>${dvTxDate(p)}</td><td>${p.type || '-'}</td><td style="font-weight:600;">${dvFmtAmt(p.amount)}</td><td>${p.note || p.notes || '-'}</td></tr>`).join('');
+            const total = mine.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+            el.innerHTML = `<table class="dv-tx-table"><thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>ملاحظة</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="2" style="font-weight:700;">الإجمالي (${mine.length})</td><td colspan="2" style="font-weight:700;">${dvFmtAmt(total)}</td></tr></tfoot></table>`;
+        }
+        function renderRevenuesList() {
+            const el = document.getElementById('revenuesListContainer');
+            if (!el) return;
+            const mine = revenues.filter(r => r.driverId === driverId).sort((a, b) => dvTxTime(b) - dvTxTime(a));
+            if (!mine.length) { el.innerHTML = '<p style="text-align:center;color:#888;">لا توجد إيرادات مرتبطة</p>'; return; }
+            const rows = mine.map(r => `<tr><td>${dvTxDate(r)}</td><td>${r.type || '-'}</td><td style="font-weight:600;">${dvFmtAmt(r.amount)}</td></tr>`).join('');
+            const total = mine.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+            el.innerHTML = `<table class="dv-tx-table"><thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td style="font-weight:700;">الإجمالي (${mine.length})</td><td></td><td style="font-weight:700;">${dvFmtAmt(total)}</td></tr></tfoot></table>`;
         }
 
         // Show message
