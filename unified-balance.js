@@ -160,8 +160,18 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
 // #004: إصلاح دعم العقود الشهرية
 // #005: إضافة دعم contractHistory لحساب كل فترة بعقدها
 // #006: Fallback للسائقين القدامى بدون contractHistory
-function calculateDriverDebt(driverId, driver, driverPayments) {
+function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
     let totalDebt = 0;
+    // ===== حقول العرض الموحّدة (تُستهلك في كل الصفحات) =====
+    const _pd = (d) => d ? (d.toDate ? d.toDate() : new Date(d)) : null;
+    const _contractStartOut = _pd(driver.contractStartDate) || _pd(driver.createdAt) || new Date();
+    const _contractEndOut = _pd(driver.contractEndDate);
+    const _todayOut = new Date();
+    const _contractEnded = !!(_contractEndOut && !isNaN(_contractEndOut.getTime()) && _todayOut > _contractEndOut);
+    const _daysAfterEnd = _contractEnded ? Math.floor((_todayOut - _contractEndOut)/86400000) : 0;
+    const _contractTypeOut = driver.contractType || 'daily';
+    const _dailyWageOut = _contractTypeOut === 'monthly' ? parseFloat(driver.monthlyPayment||0) : parseFloat(driver.dailyWage||driver.dailyRent||driver.dailyFee||0);
+    const _lastPaymentOut = _pd(driver.lastPaymentDate) || _pd(driver.contractStartDate) || _pd(driver.createdAt) || new Date();
     
     // الحصول على مدفوعات السائق
     const payments = driverPayments ? driverPayments.filter(payment => payment.driverId === driverId) : [];
@@ -350,9 +360,42 @@ function calculateDriverDebt(driverId, driver, driverPayments) {
     
     // 7. حساب إجمالي الدين
     totalDebt = lateAmount + violations + residencyFees + oldDebts + netAdvance - driverBalance - annualLeaveTotal;
-    
-    // الدين لا يمكن أن يكون سالب
-    return Math.max(0, totalDebt);
+    // ===== اشتقاق حقول العرض من الأرقام الموحّدة =====
+    let _daysLate = 0;
+    if (_contractTypeOut === 'monthly') _daysLate = _dailyWageOut > 0 ? Math.floor((lateAmount / _dailyWageOut) * 30) : 0;
+    else _daysLate = _dailyWageOut > 0 ? Math.ceil(lateAmount / _dailyWageOut) : 0;
+    let _paidUntil = new Date(_contractStartOut);
+    const _completed = _dailyWageOut > 0 ? Math.floor(totalRentPaid / _dailyWageOut) : 0;
+    if (_contractTypeOut === 'monthly') _paidUntil.setMonth(_paidUntil.getMonth() + _completed);
+    else _paidUntil.setDate(_paidUntil.getDate() + _completed);
+    let _status = 'منتظم';
+    if (_daysLate > 7) _status = 'متأخر جداً'; else if (_daysLate > 3) _status = 'متأخر';
+    return {
+        totalDebt: Math.max(0, totalDebt),
+        expectedRentTotal: expectedRentTotal,
+        totalRentPaid: totalRentPaid,
+        lateAmount: lateAmount,
+        driverBalance: driverBalance,
+        violations: violations,
+        residencyFees: residencyFees,
+        oldDebts: oldDebts,
+        netAdvance: netAdvance,
+        annualLeaveTotal: annualLeaveTotal,
+        daysLate: _daysLate,
+        paidUntilDate: _paidUntil,
+        lastPayment: _lastPaymentOut,
+        status: _status,
+        dailyWage: _dailyWageOut,
+        contractStart: _contractStartOut,
+        contractEnd: _contractEndOut,
+        contractEnded: _contractEnded,
+        daysAfterEnd: _daysAfterEnd
+    };
+}
+
+// دالة رفيعة للتوافق الخلفي: ترجّع الرقم فقط
+function calculateDriverDebt(driverId, driver, driverPayments) {
+    return calculateDriverDebtDetailed(driverId, driver, driverPayments).totalDebt;
 }
 
 // دالة موحدة لتحديث عرض الأرصدة
