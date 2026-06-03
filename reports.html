@@ -525,7 +525,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, doc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -609,6 +609,7 @@
                 document.getElementById('reportPeriod').textContent = period;
                 document.getElementById('reportBody').innerHTML = html;
                 document.getElementById('reportResults').style.display = 'block';
+                setupRealtimeReports();
             } catch (e) {
                 console.error(e);
                 alert('حدث خطأ في إنشاء التقرير: ' + e.message);
@@ -616,6 +617,27 @@
                 document.getElementById('loading').style.display = 'none';
             }
         };
+
+        // 🔴 تحديث لحظي: إعادة توليد التقرير المعروض عند أي تغيير بالبيانات (يتخطّى أول لقطة)
+        let _rtTimer = null;
+        function _rtRefreshReport() {
+            clearTimeout(_rtTimer);
+            _rtTimer = setTimeout(() => {
+                const rr = document.getElementById('reportResults');
+                if (rr && rr.style.display !== 'none') { window.generateReport(); }
+            }, 700);
+        }
+        function setupRealtimeReports() {
+            if (window._rtSetup) return;
+            window._rtSetup = true;
+            ['driverPayments', 'revenues', 'expenses', 'drivers', 'archivedDrivers', 'cars'].forEach(col => {
+                let first = true;
+                onSnapshot(collection(db, col), () => {
+                    if (first) { first = false; return; }
+                    _rtRefreshReport();
+                }, err => console.error('realtime ' + col, err));
+            });
+        }
 
         // ===== جلب البيانات في نطاق تاريخ =====
         async function fetchInRange(collectionName, from, to, dateField = null) {
