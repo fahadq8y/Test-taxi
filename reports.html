@@ -522,6 +522,7 @@
     </div>
 
     <!-- Firebase SDK -->
+    <script src="unified-balance.js?v=025"></script>
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
@@ -885,15 +886,16 @@
 
         // ===== 3. تقرير السائقين =====
         async function buildDriversReport(from, to) {
-            const [drivers, driverPayments] = await Promise.all([
+            const [drivers, driverPayments, allPayments] = await Promise.all([
                 fetchAll('drivers'),
-                fetchInRange('driverPayments', from, to)
+                fetchInRange('driverPayments', from, to),
+                fetchAll('driverPayments')
             ]);
 
             const driverMap = {};
             drivers.forEach(d => { driverMap[d.id] = d; });
 
-            // حساب الإجماليات لكل سائق
+            // حساب الإجماليات لكل سائق (ضمن الفترة المختارة)
             const stats = {};
             driverPayments.forEach(p => {
                 const did = p.driverId;
@@ -905,25 +907,53 @@
                 if (ADVANCE_COLLECT_TYPES.includes(p.type)) stats[did].advances -= (p.amount||0);
             });
 
+            // الدين الحالي + الحالة من محرك الحسابات الموحّد (نفس صفحات المتابعة)
+            const engineAvailable = typeof window.calculateDriverDebtDetailed === 'function';
+            const paymentsByDriver = {};
+            allPayments.forEach(p => { const did = p.driverId; if (!did) return; (paymentsByDriver[did] = paymentsByDriver[did] || []).push(p); });
+            const engine = {};
+            if (engineAvailable) {
+                drivers.forEach(d => {
+                    try { engine[d.id] = window.calculateDriverDebtDetailed(d.id, d, paymentsByDriver[d.id] || []); }
+                    catch (e) { engine[d.id] = null; }
+                });
+            }
+
             const totalDrivers = drivers.length;
-            const activeDrivers = drivers.filter(d => d.contractStatus === 'active').length;
+            const activeDrivers = engineAvailable
+                ? drivers.filter(d => engine[d.id] && !engine[d.id].contractEnded).length
+                : drivers.filter(d => d.contractStatus === 'active').length;
             const totalPaid = Object.values(stats).reduce((s,v) => s+v.paid, 0);
+            const totalCurrentDebt = Object.values(engine).reduce((s,v) => s + (v ? (v.totalDebt||0) : 0), 0);
 
             let html = summaryCards([
                 { title: 'إجمالي السائقين',  value: totalDrivers.toString(),  cls: 'info' },
                 { title: 'السائقين النشطين', value: activeDrivers.toString(),  cls: 'positive' },
                 { title: 'إجمالي التحصيل',   value: formatAmount(totalPaid),  cls: 'positive' },
-                { title: 'السائقين غير النشطين', value: (totalDrivers - activeDrivers).toString(), cls: 'warning' }
+                { title: 'إجمالي الديون الحالية', value: formatAmount(totalCurrentDebt), cls: 'warning' }
             ]);
+
+            const statusHtml = (d) => {
+                const e = engine[d.id];
+                if (!engineAvailable || !e) {
+                    return d.contractStatus === 'active' ? '<span style="color:#059669;font-weight:700;">نشط</span>' : '<span style="color:#dc2626;">غير نشط</span>';
+                }
+                if (e.contractEnded) return '<span style="color:#6b7280;font-weight:700;">منتهي العقد</span>';
+                if (e.status === 'متأخر جداً') return '<span style="color:#dc2626;font-weight:700;">متأخر جداً</span>';
+                if (e.status === 'متأخر') return '<span style="color:#d97706;font-weight:700;">متأخر</span>';
+                return '<span style="color:#059669;font-weight:700;">منتظم</span>';
+            };
 
             const rows = drivers.map(d => {
                 const s = stats[d.id] || { paid: 0, received: 0, advances: 0 };
-                const status = d.contractStatus === 'active' ? '<span style="color:#059669;font-weight:700;">نشط</span>' : '<span style="color:#dc2626;">غير نشط</span>';
+                const e = engine[d.id];
+                const debt = e ? (e.totalDebt||0) : 0;
                 return [
                     d.name || '—',
                     d.phone || '—',
                     formatAmount(d.dailyRent || 0),
-                    status,
+                    statusHtml(d),
+                    debt > 0 ? `<span class="amount-negative">${formatAmount(debt)}</span>` : `<span class="amount-neutral">—</span>`,
                     `<span class="amount-positive">${formatAmount(s.paid)}</span>`,
                     `<span class="amount-negative">${formatAmount(s.received)}</span>`,
                     s.advances > 0 ? `<span class="amount-negative">${formatAmount(s.advances)}</span>` : `<span class="amount-neutral">—</span>`
@@ -931,7 +961,7 @@
             });
 
             html += `<div class="report-section-title">👨‍💼 قائمة السائقين</div>`;
-            html += buildTable(['الاسم','الهاتف','الأجرة اليومية','الحالة','التحصيل','السداد','السلف المستحقة'], rows);
+            html += buildTable(['الاسم','الهاتف','الأجرة اليومية','الحالة','الدين الحالي','التحصيل','السداد','السلف المستحقة'], rows);
 
             return html;
         }
