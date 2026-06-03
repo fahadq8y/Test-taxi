@@ -1191,6 +1191,9 @@
                 
                 console.log('✅ تم تحميل جميع البيانات بنجاح!');
 
+                // 🔴 تفعيل التحديث اللحظي بعد جاهزية المصادقة وأول تحميل
+                setupRealtimeRevenues();
+
             } catch (error) {
                 console.error('❌ خطأ في تحميل البيانات:', error);
                 console.error('❌ تفاصيل الخطأ:', error.message);
@@ -1200,6 +1203,24 @@
                 // تحديث الإيرادات حتى في حالة الخطأ
                 updateTotalRevenues();
             }
+        }
+
+        // 🔴 تحديث لحظي: إعادة التحميل عند أي تغيير بالبيانات (يتخطّى أول لقطة لتفادي تحميل مزدوج)
+        let _rtTimer = null;
+        function _rtRefresh() {
+            clearTimeout(_rtTimer);
+            _rtTimer = setTimeout(() => { loadAllData(); }, 500);
+        }
+        function setupRealtimeRevenues() {
+            if (window._rtSetup) return;
+            window._rtSetup = true;
+            ['revenues', 'expenses', 'driverPayments', 'drivers', 'archivedDrivers'].forEach(col => {
+                let first = true;
+                db.collection(col).onSnapshot(() => {
+                    if (first) { first = false; return; }
+                    _rtRefresh();
+                }, err => console.error('realtime ' + col, err));
+            });
         }
 
         // Display revenues including relevant driver payments
