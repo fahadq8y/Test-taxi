@@ -1819,10 +1819,12 @@
 
         // Update filter statistics
         function updateFilterStats(filtered) {
-            const count = filtered.length;
-            const total = filtered.reduce((sum, rev) => sum + parseFloat(rev.amount || 0), 0);
+            // التحويل بين الحسابات (رامي ← وربه) حركة نقل وليس إيراد: يظهر بالجدول لكن لا يدخل بالإحصائيات
+            const statItems = filtered.filter(rev => rev.type !== 'تحويل من حساب رامي إلى بنك وربه');
+            const count = statItems.length;
+            const total = statItems.reduce((sum, rev) => sum + parseFloat(rev.amount || 0), 0);
             const average = count > 0 ? total / count : 0;
-            const amounts = filtered.map(rev => parseFloat(rev.amount || 0));
+            const amounts = statItems.map(rev => parseFloat(rev.amount || 0));
             const max = amounts.length > 0 ? Math.max(...amounts) : 0;
             const min = amounts.length > 0 ? Math.min(...amounts) : 0;
             
@@ -1991,6 +1993,17 @@
         let currentEditingType = null;
         let originalEditData = {};
         
+        // ملء قائمة الأنواع عند التعديل حسب طبيعة الحركة (دفعة سائق إيرادية / إيراد مباشر)
+        function populateEditTypeOptions(isDriverPayment, currentType) {
+            const sel = document.getElementById('editType');
+            if (!sel) return;
+            const driverTypes = ['أجرة يومية', 'أجرة شهرية', 'دين قديم', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'تحصيل سلفة من السائق'];
+            const directTypes = ['تحويل من حساب رامي إلى بنك وربه', 'أخرى'];
+            const opts = isDriverPayment ? driverTypes.slice() : directTypes.slice();
+            if (currentType && !opts.includes(currentType)) opts.unshift(currentType);
+            sel.innerHTML = opts.map(o => `<option value="${o}">${o}</option>`).join('');
+        }
+        
         // فتح نافذة التعديل
         async function openEditModal(id, type) {
             currentEditingId = id;
@@ -2002,11 +2015,13 @@
                     const doc = await db.collection('driverPayments').doc(id).get();
                     data = { id: doc.id, ...doc.data() };
                     
-                    // إخفاء حقل النوع لدفعات السائقين
-                    document.getElementById('editTypeGroup').style.display = 'none';
+                    // إظهار حقل النوع بأنواع دفعات السائق الإيرادية فقط
+                    populateEditTypeOptions(true, data.type);
+                    document.getElementById('editTypeGroup').style.display = 'block';
                 } else {
                     const doc = await db.collection('revenues').doc(id).get();
                     data = { id: doc.id, ...doc.data() };
+                    populateEditTypeOptions(false, data.type);
                     document.getElementById('editTypeGroup').style.display = 'block';
                 }
                 
@@ -2076,7 +2091,7 @@
                     });
                 }
                 
-                if (currentEditingType !== 'driverPayment' && originalEditData.type !== newType) {
+                if (originalEditData.type !== newType) {
                     changes.push({
                         field: 'type',
                         fieldLabel: 'النوع',
@@ -2119,9 +2134,7 @@
                     lastEditedBy: userName
                 };
                 
-                if (currentEditingType !== 'driverPayment') {
-                    updateData.type = newType;
-                }
+                updateData.type = newType;
                 
                 await db.collection(collection).doc(currentEditingId).update(updateData);
                 
