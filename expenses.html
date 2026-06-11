@@ -2069,6 +2069,17 @@
         let currentEditingType = null;
         let originalEditData = {};
         
+        // ملء قائمة الأنواع عند التعديل حسب طبيعة الحركة (دفعة سائق مصروفية / مصروف مباشر)
+        function populateEditTypeOptions(isDriverPayment, currentType) {
+            const sel = document.getElementById('editType');
+            if (!sel) return;
+            const driverTypes = ['سداد مخالفة', 'سداد رسوم إقامة', 'سلفة إلى السائق'];
+            const directTypes = ['تحويل من بنك وربه إلى حساب رامي', 'سحب فهد', 'وقود', 'صيانة', 'تأمين', 'رواتب', 'مصاريف إيداعات الرواتب', 'إيجار', 'كهرباء وماء', 'اتصالات', 'ضيافة', 'دعاية وإعلان', 'أخرى'];
+            const opts = isDriverPayment ? driverTypes.slice() : directTypes.slice();
+            if (currentType && !opts.includes(currentType)) opts.unshift(currentType);
+            sel.innerHTML = opts.map(o => `<option value="${o}">${o}</option>`).join('');
+        }
+        
         async function openEditModal(id, type) {
             currentEditingId = id;
             currentEditingType = type;
@@ -2077,10 +2088,12 @@
                 if (type === 'driverPayment') {
                     const doc = await db.collection('driverPayments').doc(id).get();
                     data = { id: doc.id, ...doc.data() };
-                    document.getElementById('editTypeGroup').style.display = 'none';
+                    populateEditTypeOptions(true, data.type);
+                    document.getElementById('editTypeGroup').style.display = 'block';
                 } else {
                     const doc = await db.collection('expenses').doc(id).get();
                     data = { id: doc.id, ...doc.data() };
+                    populateEditTypeOptions(false, data.type);
                     document.getElementById('editTypeGroup').style.display = 'block';
                 }
                 originalEditData = {
@@ -2134,7 +2147,7 @@
                 
                 if (originalEditData.date !== newDate)
                     changes.push({ field: 'date', fieldLabel: 'التاريخ', oldValue: originalEditData.date, newValue: newDate });
-                if (currentEditingType !== 'driverPayment' && originalEditData.type !== newType)
+                if (originalEditData.type !== newType)
                     changes.push({ field: 'type', fieldLabel: 'النوع', oldValue: originalEditData.type, newValue: newType });
                 if (originalEditData.amount !== newAmount)
                     changes.push({ field: 'amount', fieldLabel: 'المبلغ', oldValue: originalEditData.amount, newValue: newAmount });
@@ -2152,7 +2165,7 @@
                     isEdited: true,
                     lastEditedAt: timestamp, lastEditedBy: userName
                 };
-                if (currentEditingType !== 'driverPayment') updateData.type = newType;
+                updateData.type = newType;
                 
                 await db.collection(collection).doc(currentEditingId).update(updateData);
                 
