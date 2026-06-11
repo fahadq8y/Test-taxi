@@ -1797,6 +1797,7 @@
             // Update statistics
             updateFilterStats(filteredRevenues);
             
+            currentPage = 1; // إعادة للصفحة الأولى عند أي فلترة (يمنع جدول فاضي)
             displayRevenues();
         }
 
