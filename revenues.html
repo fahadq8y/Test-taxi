@@ -703,10 +703,12 @@
             
             <div class="filter-buttons">
                 <button class="filter-btn active" onclick="filterByPeriod('all')">الكل</button>
-                <button class="filter-btn" onclick="filterByPeriod('today')">اليوم</button>
-                <button class="filter-btn" onclick="filterByPeriod('week')">هذا الأسبوع</button>
-                <button class="filter-btn" onclick="filterByPeriod('month')">هذا الشهر</button>
+                <button class="filter-btn" onclick="filterByPeriod('24h')">٢٤ ساعة</button>
+                <button class="filter-btn" onclick="filterByPeriod('week')">أسبوع</button>
+                <button class="filter-btn" onclick="filterByPeriod('month')">شهر</button>
+                <button class="filter-btn" onclick="filterByPeriod('year')">سنة</button>
             </div>
+            <div id="activePeriodBar" style="margin:10px 0;padding:8px 14px;background:#eef2f7;border:1px solid #d6dee8;border-radius:8px;color:#34495e;font-size:14px;font-weight:600;display:inline-block;">📅 معروض: كل العمليات</div>
 
             <div class="filter-grid">
                 <div class="form-group">
@@ -1251,8 +1253,8 @@
             // Sort by date (newest first)
             allRevenueItems.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            filteredRevenues = allRevenueItems;
-            displayRevenues();
+            // 🔴 إعادة تطبيق الفلتر النشط بدل عرض الكل (يمنع رجوع الجدول لكل العمليات بعد التحديث اللحظي)
+            applyFilters();
             updateTotalRevenues(); // تحديث إجمالي الإيرادات
         }
 
@@ -1656,6 +1658,15 @@
         }
 
         // Filter functions
+        function updateActivePeriodBar(fromDate, toDate) {
+            const bar = document.getElementById('activePeriodBar');
+            if (!bar) return;
+            if (!fromDate && !toDate) bar.textContent = '📅 معروض: كل العمليات';
+            else if (fromDate && toDate) bar.textContent = `📅 معروض: من ${fromDate} إلى ${toDate}`;
+            else if (fromDate) bar.textContent = `📅 معروض: من ${fromDate}`;
+            else bar.textContent = `📅 معروض: حتى ${toDate}`;
+        }
+
         function filterByPeriod(period) {
             // Update active button
             document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
@@ -1665,19 +1676,30 @@
             let fromDate, toDate;
             
             switch(period) {
-                case 'today':
-                    fromDate = toDate = today.toISOString().split('T')[0];
-                    break;
-                case 'week':
-                    const weekStart = new Date(today);
-                    weekStart.setDate(today.getDate() - today.getDay());
-                    fromDate = weekStart.toISOString().split('T')[0];
+                case '24h': {
+                    const f = new Date(today); f.setDate(today.getDate() - 1);
+                    fromDate = f.toISOString().split('T')[0];
                     toDate = today.toISOString().split('T')[0];
                     break;
-                case 'month':
-                    fromDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+                }
+                case 'week': {
+                    const f = new Date(today); f.setDate(today.getDate() - 7);
+                    fromDate = f.toISOString().split('T')[0];
                     toDate = today.toISOString().split('T')[0];
                     break;
+                }
+                case 'month': {
+                    const f = new Date(today); f.setMonth(today.getMonth() - 1);
+                    fromDate = f.toISOString().split('T')[0];
+                    toDate = today.toISOString().split('T')[0];
+                    break;
+                }
+                case 'year': {
+                    const f = new Date(today); f.setFullYear(today.getFullYear() - 1);
+                    fromDate = f.toISOString().split('T')[0];
+                    toDate = today.toISOString().split('T')[0];
+                    break;
+                }
                 default:
                     fromDate = toDate = '';
             }
@@ -1697,6 +1719,9 @@
             const sourceFilter = document.getElementById('sourceFilter').value;
             const sortBy = document.getElementById('sortBy')?.value || 'date-desc';
             
+            // 📅 تحديث شريط الفترة المعروضة
+            updateActivePeriodBar(fromDate, toDate);
+
             // Get all revenue items (revenues + driver payments)
             let allRevenueItems = [...revenues];
             
