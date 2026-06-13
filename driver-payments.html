@@ -771,6 +771,7 @@
                 
                 // إنشاء زر الحذف بناءً على الصلاحيات
                 const deleteButton = getPaymentDeleteButton(payment.id, payment.date, payment.createdAt, 'deletePayment', 'delete-btn');
+                const editButton = `<button onclick="openDPEditModal('${payment.id}')" style="background:#f59e0b;color:white;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;margin-left:4px;font-weight:600;">✏️ تعديل</button>`;
                 
                 const payRefDisplay = payment.refNum ? `<span class="ref-num-badge-pay">${payment.refNum}</span>` : '<span class="ref-num-empty">—</span>';
                 row.innerHTML = `
@@ -779,7 +780,7 @@
                     <td>${payment.type || 'غير محدد'}</td>
                     <td class="amount ${amountClass}">${amountSign}${parseFloat(payment.amount || 0).toFixed(3)} د.ك</td>
                     <td>${payment.description || '-'}</td>
-                    <td>${deleteButton}</td>
+                    <td>${editButton} ${deleteButton}</td>
                 `;
                 tbody.appendChild(row);
             });
@@ -819,6 +820,7 @@
                         </div>
                     </div>
                     <div class="card-footer">
+                        <button onclick="openDPEditModal('${payment.id}')" style="background:#f59e0b;color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;font-size:13px;margin-left:6px;font-weight:600;">✏️ تعديل</button>
                         <button class="delete-btn" onclick="deletePayment('${payment.id}')">🗑️ حذف</button>
                     </div>
                 `;
@@ -1211,6 +1213,51 @@
           </div>
       </div>
 
+      <!-- تعديل عملية دفعة السائق (إيراد↔إيراد / مصروف↔مصروف، إجازة سنوية مقفولة) -->
+      <div id="editDriverPaymentModal" class="modal" style="display:none;">
+          <div class="modal-content" style="max-width: 480px;">
+              <div class="modal-header">
+                  <h2>✏️ تعديل العملية</h2>
+                  <span class="close" onclick="closeDPEditModal()">&times;</span>
+              </div>
+              <div class="modal-body" style="padding: 20px;">
+                  <div id="dpEditNatureInfo" style="background:#f0f9ff;border-radius:10px;padding:12px;margin-bottom:16px;border-right:4px solid #3b82f6;font-size:13px;color:#0c4a6e;"></div>
+
+                  <div style="margin-bottom:16px;">
+                      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">📋 البند *</label>
+                      <select id="dpEditType" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;"></select>
+                      <div id="dpEditTypeLockNote" style="display:none;font-size:11px;color:#d97706;margin-top:4px;">🔒 لا يمكن تغيير بند الإجازة السنوية</div>
+                  </div>
+
+                  <div style="margin-bottom:16px;">
+                      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">💰 المبلغ (د.ك) *</label>
+                      <input type="number" id="dpEditAmount" step="0.001" min="0" placeholder="0.000" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;">
+                  </div>
+
+                  <div style="margin-bottom:16px;">
+                      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">📅 التاريخ *</label>
+                      <input type="date" id="dpEditDate" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;">
+                  </div>
+
+                  <div style="margin-bottom:16px;">
+                      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">📝 الوصف (اختياري)</label>
+                      <textarea id="dpEditDescription" rows="2" placeholder="وصف إضافي..." style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;resize:vertical;"></textarea>
+                  </div>
+
+                  <div style="margin-bottom:16px;">
+                      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">سبب التعديل (إلزامي) *</label>
+                      <textarea id="dpEditReason" rows="2" placeholder="اكتب سبب التعديل..." style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;resize:vertical;"></textarea>
+                      <div style="font-size:11px;color:#dc2626;margin-top:4px;">⚠️ يجب كتابة سبب واضح للتعديل</div>
+                  </div>
+
+                  <div style="display:flex;gap:10px;justify-content:flex-end;">
+                      <button onclick="closeDPEditModal()" style="padding:10px 20px;border:1px solid #d1d5db;border-radius:8px;background:white;cursor:pointer;font-size:14px;">إلغاء</button>
+                      <button onclick="saveDriverPaymentEdit()" style="padding:10px 24px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">💾 حفظ التعديل</button>
+                  </div>
+              </div>
+          </div>
+      </div>
+
       <script>
           // 🔧 FIX #019: handlers لـ Modal تعديل الديون القديمة (Firebase compat v8)
           
@@ -1313,6 +1360,141 @@
                   alert('حدث خطأ: ' + error.message);
               }
           };
+
+          // ===== تعديل عملية دفعة السائق (إيراد↔إيراد / مصروف↔مصروف، إجازة سنوية مقفولة) =====
+          const DP_REVENUE_TYPES = ['أجرة يومية', 'أجرة شهرية', 'دين قديم', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'تحصيل سلفة من السائق'];
+          const DP_EXPENSE_TYPES = ['سداد مخالفة', 'سداد رسوم إقامة', 'سلفة إلى السائق'];
+          let dpEditingId = null;
+          let dpOriginalData = {};
+          let dpTypeLocked = false;
+
+          function populateDPEditTypeOptions(currentType) {
+              const sel = document.getElementById('dpEditType');
+              const lockNote = document.getElementById('dpEditTypeLockNote');
+              const natureInfo = document.getElementById('dpEditNatureInfo');
+              if (!sel) return;
+              let opts; let locked = false; let natureLabel = '';
+              if (DP_REVENUE_TYPES.includes(currentType)) {
+                  opts = DP_REVENUE_TYPES.slice();
+                  natureLabel = '💚 عملية إيراد — تقدر تغيّر البند إلى بند إيراد ثاني فقط';
+              } else if (DP_EXPENSE_TYPES.includes(currentType)) {
+                  opts = DP_EXPENSE_TYPES.slice();
+                  natureLabel = '🔴 عملية مصروف — تقدر تغيّر البند إلى بند مصروف ثاني فقط';
+              } else {
+                  opts = [currentType];
+                  locked = true;
+                  natureLabel = (currentType === 'إجازة سنوية')
+                      ? '🔒 إجازة سنوية — البند مقفول، تقدر تعدّل المبلغ/التاريخ/الوصف فقط'
+                      : '🔒 نوع خاص — البند مقفول، تقدر تعدّل المبلغ/التاريخ/الوصف فقط';
+              }
+              if (currentType && !opts.includes(currentType)) opts.unshift(currentType);
+              sel.innerHTML = opts.map(o => `<option value="${o}">${o}</option>`).join('');
+              sel.value = currentType || '';
+              sel.disabled = locked;
+              dpTypeLocked = locked;
+              if (lockNote) lockNote.style.display = locked ? 'block' : 'none';
+              if (natureInfo) natureInfo.textContent = natureLabel;
+          }
+
+          async function openDPEditModal(id) {
+              dpEditingId = id;
+              try {
+                  const doc = await db.collection('driverPayments').doc(id).get();
+                  if (!doc.exists) { alert('العملية غير موجودة'); return; }
+                  const data = { id: doc.id, ...doc.data() };
+                  dpOriginalData = {
+                      date: data.date || '',
+                      type: data.type || '',
+                      amount: parseFloat(data.amount || 0),
+                      description: data.description || ''
+                  };
+                  populateDPEditTypeOptions(data.type || '');
+                  document.getElementById('dpEditDate').value = data.date || '';
+                  document.getElementById('dpEditAmount').value = data.amount;
+                  document.getElementById('dpEditDescription').value = data.description || '';
+                  document.getElementById('dpEditReason').value = '';
+                  document.getElementById('editDriverPaymentModal').style.display = 'block';
+              } catch (e) {
+                  console.error('خطأ في تحميل بيانات التعديل:', e);
+                  alert('حدث خطأ في تحميل البيانات');
+              }
+          }
+          window.openDPEditModal = openDPEditModal;
+
+          function closeDPEditModal() {
+              document.getElementById('editDriverPaymentModal').style.display = 'none';
+              dpEditingId = null;
+              dpOriginalData = {};
+              dpTypeLocked = false;
+          }
+          window.closeDPEditModal = closeDPEditModal;
+
+          async function saveDriverPaymentEdit() {
+              if (!dpEditingId) return;
+              const newDate = document.getElementById('dpEditDate').value;
+              const newType = dpTypeLocked ? dpOriginalData.type : document.getElementById('dpEditType').value;
+              const newAmount = parseFloat(document.getElementById('dpEditAmount').value);
+              const newDescription = document.getElementById('dpEditDescription').value.trim();
+              const editReason = document.getElementById('dpEditReason').value.trim();
+
+              if (!newDate || isNaN(newAmount) || newAmount <= 0) {
+                  alert('يرجى ملء التاريخ والمبلغ بشكل صحيح');
+                  return;
+              }
+              if (!newType) {
+                  alert('يرجى اختيار البند');
+                  return;
+              }
+              if (!editReason || editReason.length < 3) {
+                  alert('يرجى كتابة سبب التعديل (حد أدنى 3 حروف)');
+                  return;
+              }
+
+              const changes = [];
+              if (dpOriginalData.date !== newDate) changes.push({ field:'date', fieldLabel:'التاريخ', oldValue: dpOriginalData.date, newValue: newDate });
+              if (dpOriginalData.type !== newType) changes.push({ field:'type', fieldLabel:'النوع', oldValue: dpOriginalData.type, newValue: newType });
+              if (dpOriginalData.amount !== newAmount) changes.push({ field:'amount', fieldLabel:'المبلغ', oldValue: dpOriginalData.amount, newValue: newAmount });
+              if (dpOriginalData.description !== newDescription) changes.push({ field:'description', fieldLabel:'الوصف', oldValue: dpOriginalData.description, newValue: newDescription });
+
+              if (changes.length === 0) {
+                  alert('لم يتم إجراء أي تغييرات');
+                  return;
+              }
+
+              try {
+                  const userName = localStorage.getItem('userName') || 'غير محدد';
+                  const timestamp = firebase.firestore.FieldValue.serverTimestamp();
+                  const updateData = {
+                      date: newDate,
+                      type: newType,
+                      amount: newAmount,
+                      description: newDescription,
+                      isEdited: true,
+                      lastEditedAt: timestamp,
+                      lastEditedBy: userName
+                  };
+                  await db.collection('driverPayments').doc(dpEditingId).update(updateData);
+
+                  try {
+                      await logEditHistoryDP({
+                          recordType: 'driverPayment', recordId: dpEditingId, action: 'edit',
+                          driverId: (typeof currentDriverId !== 'undefined' ? currentDriverId : null),
+                          driverName: (currentDriver && currentDriver.name) || null,
+                          changes: changes,
+                          description: 'تعديل عملية من صفحة دفعات السائق',
+                          editReason: editReason,
+                          source: 'driver-payments.html'
+                      });
+                  } catch (__lge) { console.error('⚠️ DP edit log:', __lge); }
+
+                  closeDPEditModal();
+                  alert('✅ تم حفظ التعديل بنجاح');
+              } catch (e) {
+                  console.error('خطأ في حفظ التعديل:', e);
+                  alert('حدث خطأ في حفظ التعديل: ' + e.message);
+              }
+          }
+          window.saveDriverPaymentEdit = saveDriverPaymentEdit;
       </script>
   </body>
 </html>
