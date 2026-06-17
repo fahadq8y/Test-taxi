@@ -361,7 +361,7 @@
     </div>
 
     <!-- محرك حساب الديون الموحد -->
-    <script src="unified-balance.js?v=025"></script>
+    <script src="unified-balance.js?v=026"></script>
 
     <!-- Firebase SDK -->
     <script type="module">
@@ -2083,7 +2083,12 @@
                   const dailyWage = parseFloat(driver.dailyRent || driver.dailyWage || 0);
                   const days = Math.floor((actualEndDate - contractStart) / (1000 * 60 * 60 * 24));
                   expectedRent = days * dailyWage;
-                  paidRent = payments.filter(p => p.type === 'أجرة يومية').reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+                  // #025: نحسب فقط دفعات الأجرة داخل فترة العقد (من البداية حتى تاريخ الإنهاء) — أي دفعة بعد الإنهاء ما تُحسب هنا
+                  paidRent = payments.filter(p => {
+                      if (p.type !== 'أجرة يومية') return false;
+                      const pd = p.date ? (p.date.toDate ? p.date.toDate() : new Date(p.date)) : null;
+                      return pd && pd >= contractStart && pd <= actualEndDate;
+                  }).reduce((s, p) => s + parseFloat(p.amount || 0), 0);
               } else {
                   const monthly = parseFloat(driver.monthlyPayment || 0);
                   const diffDays = (actualEndDate - contractStart) / (1000 * 60 * 60 * 24);

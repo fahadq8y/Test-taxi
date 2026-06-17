@@ -194,6 +194,10 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
         c.note !== 'تعديل عقد' && c.type !== 'تعديل' && c.hidden !== true && !_isSealed(c)
     );
 
+      // #025: عقد منتهي نهائياً ومقفول (ما فيه عقد نشط لاحق) — أي دفعة أجرة بعد تاريخ الإنهاء
+      // تُحتسب سداداً للدين القديم لا رصيداً وهمياً، وأي زيادة تتحوّل رصيداً فعلياً للسائق.
+      const _fullyEndedSealed = !!(sealedUntil && realContracts.length === 0 && _contractEnded);
+
     // #005 + #022: إذا كان لدى السائق عقود حقيقية في contractHistory، نحسب كل فترة بعقدها
     if (realContracts.length > 0) {
         realContracts.forEach((contract, index) => {
@@ -303,15 +307,20 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
       const _payDate = (p) => { const d = p.date ? (p.date.toDate ? p.date.toDate() : new Date(p.date)) : null; return (d && !isNaN(d.getTime())) ? d : null; };
       const rentPayments = payments.filter(p =>
           (p.type === 'أجرة يومية' || p.type === 'أجرة شهرية') &&
-          !(sealedUntil && _payDate(p) && _payDate(p) <= sealedUntil)
+          !(sealedUntil && _payDate(p) && _payDate(p) <= sealedUntil) &&
+          !(_fullyEndedSealed && _payDate(p) && _payDate(p) > sealedUntil)
       );
     const totalRentPaid = rentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+    // #025: دفعات الأجرة المسجّلة بعد إنهاء العقد المقفول تُحوّل لسداد الدين القديم (بالتاريخ، بدون تعديل السجلات)
+    const _afterEndRentPaid = _fullyEndedSealed ? payments.filter(p =>
+        (p.type === 'أجرة يومية' || p.type === 'أجرة شهرية') && _payDate(p) && _payDate(p) > sealedUntil
+    ).reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) : 0;
     
     // الأجرة المتأخرة = المتوقع - المدفوع
     const lateAmount = Math.max(0, expectedRentTotal - totalRentPaid);
     
     // حساب رصيد السائق (إذا دفع أكثر من المطلوب)
-    const driverBalance = Math.max(0, totalRentPaid - expectedRentTotal);
+    let driverBalance = Math.max(0, totalRentPaid - expectedRentTotal);
     
     // 2. حساب المخالفات (positive = driver owes, negative = driver paid)
     const violationPayments = payments.filter(p => 
@@ -338,8 +347,12 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
     // 4. حساب الديون القديمة (الديون المسجلة - المدفوعات)
     const oldDebtsInitial = parseFloat(driver.oldDebts || 0);
     const oldDebtPayments = payments.filter(p => p.type === 'دين قديم');
-    const oldDebtsPaid = oldDebtPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-    const oldDebts = Math.max(0, oldDebtsInitial - oldDebtsPaid);
+    const oldDebtsPaid = oldDebtPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) + _afterEndRentPaid;
+    const _oldDebtsRaw = oldDebtsInitial - oldDebtsPaid;
+    const oldDebts = Math.max(0, _oldDebtsRaw);
+    // #025: فائض سداد الدين القديم (دُفع أكثر من المستحق) يتحوّل رصيداً فعلياً للسائق بدل ضياعه
+    const _oldDebtCredit = Math.max(0, -_oldDebtsRaw);
+    driverBalance += _oldDebtCredit;
     
     // 5. حساب خصم الإجازة السنوية (تخفض الدين مباشرة)
     const annualLeavePayments = payments.filter(p => p.type === 'إجازة سنوية');
