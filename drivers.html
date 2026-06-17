@@ -1472,15 +1472,33 @@
             } else {
                 warnEl.style.display = 'none';
             }
-            // تجميع كل العقود السابقة من contractHistory (للفحص ضد newStart)
+            // 🔧 #026: حساب تاريخ الإنهاء الفعلي (المختوم) لتجاهل السجلات القديمة الممتدة بعده.
+            // عند "إنهاء عقد" يُضاف سجل جديد بتاريخ النهاية الصحيح، لكن السجلات الأقدم (مثل
+            // "تعديل عقد") تبقى محتفظة بتاريخ نهاية بعيد → تعارض وهمي عند بدء عقد جديد. الحل:
+            // نقصّ نهاية أي سجل سابق عند تاريخ الإنهاء الحقيقي. (لا يُقصّ العقد النشط الحالي.)
+            let _sealedEnd = null;
+            (driver.contractHistory || []).forEach((c) => {
+                const isSealed = c.type === 'إنهاء عقد' || c.sealed === true || c.carryOver !== undefined || c.transferredToOldDebts !== undefined;
+                if (!isSealed) return;
+                const ae = c.actualEndDate || c.endDate;
+                const aed = ae ? (ae.toDate ? ae.toDate() : new Date(ae)) : null;
+                if (aed && !isNaN(aed.getTime()) && (!_sealedEnd || aed > _sealedEnd)) _sealedEnd = aed;
+            });
+            // إذا كان عقد السائق الحالي منتهياً فعلاً (تاريخ نهايته بالماضي) فهو أيضاً حدّ ختم
+            if (_drvEnd && !isNaN(_drvEnd.getTime()) && _today_w > _drvEnd && (!_sealedEnd || _drvEnd > _sealedEnd)) _sealedEnd = _drvEnd;
+
+            // تجميع كل العقود السابقة من contractHistory (للفحص ضد newStart) — مع قصّها عند الإنهاء الحقيقي
             (driver.contractHistory || []).forEach((c, idx) => {
                 const cs = c.startDate ? (c.startDate.toDate ? c.startDate.toDate() : new Date(c.startDate)) : null;
-                const ce = c.endDate ? (c.endDate.toDate ? c.endDate.toDate() : new Date(c.endDate)) : null;
+                let ce = c.endDate ? (c.endDate.toDate ? c.endDate.toDate() : new Date(c.endDate)) : null;
                 if (cs && ce && !isNaN(cs.getTime()) && !isNaN(ce.getTime())) {
-                    _previousContractsForOverlap.push({ startDate: cs, endDate: ce, label: `سجل #${idx+1} (${c.note || c.contractType || ''})` });
+                    if (_sealedEnd && ce > _sealedEnd) ce = _sealedEnd; // قصّ النهاية عند الإنهاء الحقيقي
+                    if (ce > cs) {
+                        _previousContractsForOverlap.push({ startDate: cs, endDate: ce, label: `سجل #${idx+1} (${c.note || c.contractType || ''})` });
+                    }
                 }
             });
-            // أضف العقد الحالي نفسه (driver.contractStart/End) للفحص
+            // أضف العقد الحالي نفسه (driver.contractStart/End) للفحص — بدون قصّ (هو المرجع الحالي)
             if (_drvStart && _drvEnd && !isNaN(_drvStart.getTime()) && !isNaN(_drvEnd.getTime())) {
                 _previousContractsForOverlap.push({ startDate: _drvStart, endDate: _drvEnd, label: 'العقد النشط الحالي' });
             }
