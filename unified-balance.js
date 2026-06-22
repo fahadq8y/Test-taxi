@@ -319,11 +319,15 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
         (p.type === 'أجرة يومية' || p.type === 'أجرة شهرية') && _payDate(p) && _payDate(p) > sealedUntil
     ).reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) : 0;
     
-    // الأجرة المتأخرة = المتوقع - المدفوع
-    const lateAmount = Math.max(0, expectedRentTotal - totalRentPaid);
+    // 🔧 FIX #028: الإجازة السنوية تُحتسب مثل دفعة إيجار (تخفّض التأخير وتقدّم "مسدد حتى")، وتظل محايدة على إجمالي الدين
+    const annualLeaveTotal = payments.filter(p => p.type === 'إجازة سنوية').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+    const _effectiveRentPaid = totalRentPaid + annualLeaveTotal;
+    
+    // الأجرة المتأخرة = المتوقع - (المدفوع + الإجازة السنوية)
+    const lateAmount = Math.max(0, expectedRentTotal - _effectiveRentPaid);
     
     // حساب رصيد السائق (إذا دفع أكثر من المطلوب)
-    let driverBalance = Math.max(0, totalRentPaid - expectedRentTotal);
+    let driverBalance = Math.max(0, _effectiveRentPaid - expectedRentTotal);
     
     // 2. حساب المخالفات (positive = driver owes, negative = driver paid)
     const violationPayments = payments.filter(p => 
@@ -357,9 +361,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
     const _oldDebtCredit = Math.max(0, -_oldDebtsRaw);
     driverBalance += _oldDebtCredit;
     
-    // 5. حساب خصم الإجازة السنوية (تخفض الدين مباشرة)
-    const annualLeavePayments = payments.filter(p => p.type === 'إجازة سنوية');
-    const annualLeaveTotal = annualLeavePayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+    // 5. الإجازة السنوية: حُسبت أعلاه (FIX #028) ضمن "المدفوع الفعّال" فتنعكس على التأخير والدين معاً
     
     // 6. حساب السلف المستحقة (positive = سلفة مفتوحة, negative = تحصيل أكثر من السلفة)
     const advancePayments = payments.filter(p =>
@@ -375,13 +377,13 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
     const netAdvance = Math.max(0, advanceBalance);
     
     // 7. حساب إجمالي الدين
-    totalDebt = lateAmount + violations + residencyFees + oldDebts + netAdvance - driverBalance - annualLeaveTotal;
+    totalDebt = lateAmount + violations + residencyFees + oldDebts + netAdvance - driverBalance;
     // ===== اشتقاق حقول العرض من الأرقام الموحّدة =====
     let _daysLate = 0;
     if (_contractTypeOut === 'monthly') _daysLate = _dailyWageOut > 0 ? Math.floor((lateAmount / _dailyWageOut) * 30) : 0;
     else _daysLate = _dailyWageOut > 0 ? Math.ceil(lateAmount / _dailyWageOut) : 0;
     let _paidUntil = new Date(_contractStartOut);
-    const _completed = _dailyWageOut > 0 ? Math.floor(totalRentPaid / _dailyWageOut) : 0;
+    const _completed = _dailyWageOut > 0 ? Math.floor(_effectiveRentPaid / _dailyWageOut) : 0;
     if (_contractTypeOut === 'monthly') _paidUntil = _addMonthsClamped(_paidUntil, _completed); // FIX #027
     else _paidUntil.setDate(_paidUntil.getDate() + _completed);
     let _status = 'منتظم';
