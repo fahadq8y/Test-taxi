@@ -161,6 +161,9 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
 // #005: إضافة دعم contractHistory لحساب كل فترة بعقدها
 // #006: Fallback للسائقين القدامى بدون contractHistory
 function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
+    // 🔧 FIX #027: حساب الأشهر حسب يوم الاستحقاق (anniversary) + تثبيت "مسدد حتى" على يوم العقد
+    function _completedMonthsAnchored(startDate, asOfDate){ if(!startDate||!asOfDate) return 0; let count=(asOfDate.getFullYear()-startDate.getFullYear())*12+(asOfDate.getMonth()-startDate.getMonth()); const anchorDay=startDate.getDate(); const lastDayAsOf=new Date(asOfDate.getFullYear(),asOfDate.getMonth()+1,0).getDate(); const anniv=Math.min(anchorDay,lastDayAsOf); if(asOfDate.getDate()<anniv) count-=1; return Math.max(0,count); }
+    function _addMonthsClamped(date,n){ const total=date.getMonth()+n; const ty=date.getFullYear()+Math.floor(total/12); const tm=((total%12)+12)%12; const lastDay=new Date(ty,tm+1,0).getDate(); return new Date(ty,tm,Math.min(date.getDate(),lastDay)); }
     let totalDebt = 0;
     // ===== حقول العرض الموحّدة (تُستهلك في كل الصفحات) =====
     const _pd = (d) => d ? (d.toDate ? d.toDate() : new Date(d)) : null;
@@ -237,7 +240,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
                 const startMonth = periodStart.getMonth();
                 const endYear = periodEnd.getFullYear();
                 const endMonth = periodEnd.getMonth();
-                const monthsDiff = Math.max(0, (endYear - startYear) * 12 + (endMonth - startMonth));
+                const monthsDiff = _completedMonthsAnchored(periodStart, periodEnd); // FIX #027
                 expectedRentTotal += monthsDiff * rate;
             }
         });
@@ -267,7 +270,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
                     const _d = Math.max(0, Math.floor((_implEnd - _implStart) / 86400000));
                     expectedRentTotal += _d * _drvRate;
                 } else {
-                    const _m = Math.max(0, (_implEnd.getFullYear()-_implStart.getFullYear())*12 + (_implEnd.getMonth()-_implStart.getMonth()));
+                    const _m = _completedMonthsAnchored(_implStart, _implEnd); // FIX #027
                     expectedRentTotal += _m * _drvRate;
                 }
             }
@@ -290,7 +293,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
             const startMonth = contractStart.getMonth();
             const endYear = _eff.getFullYear();
             const endMonth = _eff.getMonth();
-            const monthsDiff = (endYear - startYear) * 12 + (endMonth - startMonth);
+            const monthsDiff = _completedMonthsAnchored(contractStart, _eff); // FIX #027
             expectedRentTotal = monthsDiff * rate;
         } else {
             // عقد يومي - 🔧 FIX #010: capping at contractEndDate
@@ -379,7 +382,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
     else _daysLate = _dailyWageOut > 0 ? Math.ceil(lateAmount / _dailyWageOut) : 0;
     let _paidUntil = new Date(_contractStartOut);
     const _completed = _dailyWageOut > 0 ? Math.floor(totalRentPaid / _dailyWageOut) : 0;
-    if (_contractTypeOut === 'monthly') _paidUntil.setMonth(_paidUntil.getMonth() + _completed);
+    if (_contractTypeOut === 'monthly') _paidUntil = _addMonthsClamped(_paidUntil, _completed); // FIX #027
     else _paidUntil.setDate(_paidUntil.getDate() + _completed);
     let _status = 'منتظم';
     if (_daysLate > 7) _status = 'متأخر جداً'; else if (_daysLate > 3) _status = 'متأخر';
