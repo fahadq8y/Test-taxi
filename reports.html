@@ -610,7 +610,6 @@
                 document.getElementById('reportPeriod').textContent = period;
                 document.getElementById('reportBody').innerHTML = html;
                 document.getElementById('reportResults').style.display = 'block';
-                setupRealtimeReports();
             } catch (e) {
                 console.error(e);
                 alert('حدث خطأ في إنشاء التقرير: ' + e.message);
@@ -619,26 +618,9 @@
             }
         };
 
-        // 🔴 تحديث لحظي: إعادة توليد التقرير المعروض عند أي تغيير بالبيانات (يتخطّى أول لقطة)
-        let _rtTimer = null;
-        function _rtRefreshReport() {
-            clearTimeout(_rtTimer);
-            _rtTimer = setTimeout(() => {
-                const rr = document.getElementById('reportResults');
-                if (rr && rr.style.display !== 'none') { window.generateReport(); }
-            }, 700);
-        }
-        function setupRealtimeReports() {
-            if (window._rtSetup) return;
-            window._rtSetup = true;
-            ['driverPayments', 'revenues', 'expenses', 'drivers', 'archivedDrivers', 'cars'].forEach(col => {
-                let first = true;
-                onSnapshot(collection(db, col), () => {
-                    if (first) { first = false; return; }
-                    _rtRefreshReport();
-                }, err => console.error('realtime ' + col, err));
-            });
-        }
+        // 🔕 تم إيقاف التحديث اللحظي بصفحة التقارير بناءً على طلب المالك:
+        // كان يعيد بناء التقرير باستمرار بسبب تحدّث بيانات السواق من التطبيق، فيمنع فتح القوائم.
+        // الآن التقرير يُولَّد عند الضغط على "عرض التقرير" فقط.
 
         // ===== جلب البيانات في نطاق تاريخ =====
         async function fetchInRange(collectionName, from, to, dateField = null) {
