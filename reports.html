@@ -118,6 +118,25 @@
             box-shadow: 0 6px 16px rgba(102,126,234,0.4);
         }
 
+        .preset-btn {
+            background: #eef2ff;
+            color: #4338ca;
+            border: 1px solid #c7d2fe;
+            padding: 0.4rem 0.85rem;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.82rem;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .preset-btn:hover { background: #e0e7ff; }
+        .preset-btn.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            border-color: transparent;
+        }
+
         /* ===== منطقة نتائج التقرير ===== */
         .report-results {
             background: rgba(255,255,255,0.95);
@@ -478,6 +497,16 @@
                 <label>إلى تاريخ</label>
                 <input type="date" class="filter-input" id="toDate">
             </div>
+            <div class="filter-group" style="flex:1 1 100%;">
+                <label>فترات سريعة</label>
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                    <button type="button" class="preset-btn" onclick="setDatePreset('today')">اليوم</button>
+                    <button type="button" class="preset-btn" onclick="setDatePreset('7')">آخر ٧ أيام</button>
+                    <button type="button" class="preset-btn" onclick="setDatePreset('30')">آخر ٣٠ يوم</button>
+                    <button type="button" class="preset-btn" onclick="setDatePreset('12m')">آخر ١٢ شهر</button>
+                    <button type="button" class="preset-btn" onclick="setDatePreset('month')">هذا الشهر</button>
+                </div>
+            </div>
             <div class="filter-group">
                 <label>نوع التقرير</label>
                 <select class="filter-input" id="reportTypeSelect">
@@ -522,7 +551,7 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script src="unified-balance.js?v=028"></script>
+    <script src="unified-balance.js?v=029"></script>
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
@@ -564,6 +593,30 @@
             document.getElementById('fromDate').value = firstDay.toISOString().split('T')[0];
             document.getElementById('toDate').value = today.toISOString().split('T')[0];
         }
+
+        // ===== فترات سريعة متحركة =====
+        const _fmtDateInput = (d) => {
+            const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+            return z.toISOString().split('T')[0];
+        };
+        window.setDatePreset = (kind) => {
+            const today = new Date();
+            const to = new Date(today);
+            let from;
+            if (kind === 'today')      { from = new Date(today); }
+            else if (kind === '7')     { from = new Date(today); from.setDate(from.getDate() - 6); }
+            else if (kind === '30')    { from = new Date(today); from.setDate(from.getDate() - 29); }
+            else if (kind === '12m')   { from = new Date(today); from.setMonth(from.getMonth() - 12); from.setDate(from.getDate() + 1); }
+            else if (kind === 'month') { from = new Date(today.getFullYear(), today.getMonth(), 1); }
+            else return;
+            document.getElementById('fromDate').value = _fmtDateInput(from);
+            document.getElementById('toDate').value = _fmtDateInput(to);
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            if (typeof event !== 'undefined' && event && event.target) event.target.classList.add('active');
+            const results = document.getElementById('reportResults');
+            const type = document.getElementById('reportTypeSelect').value || selectedType;
+            if (results && results.style.display !== 'none' && type) generateReport();
+        };
 
         // ===== اختيار نوع التقرير =====
         window.selectType = (type) => {
@@ -1347,16 +1400,17 @@
             return debt;
         }
 
-        // ===== 10. تقرير أداء السائق الفردي =====
+        // ===== 10. تقرير أداء السائق الفردي (إعادة بناء #029) =====
         async function buildIndividualDriverReport(from, to) {
-            const [drivers, allDP] = await Promise.all([
+            const [drivers, allDP, editHistoryAll] = await Promise.all([
                 fetchAll('drivers'),
-                fetchInRange('driverPayments', from, to)
+                fetchAll('driverPayments'),
+                fetchAll('editHistory').catch(() => [])
             ]);
             const driverSelect = document.getElementById('individualDriverSelect');
             let selectedDriverId = driverSelect ? driverSelect.value : '';
             if (!selectedDriverId) {
-                const options = drivers.sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(d => `<option value="${d.id}">${d.name || d.id}</option>`).join('');
+                const options = drivers.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(d => `<option value="${d.id}">${d.name || d.id}</option>`).join('');
                 return `<div style="padding:1.5rem;">
                     <div class="report-section-title">👤 اختر السائق</div>
                     <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
@@ -1364,43 +1418,217 @@
                             <option value="">-- اختر سائقاً --</option>${options}
                         </select>
                         <button class="generate-btn" onclick="generateReport()">📊 عرض التقرير</button>
-                    </div></div>`;
+                    </div>
+                    <div style="margin-top:0.75rem;color:#6b7280;font-size:0.85rem;">اختر السائق ثم اضغط "عرض التقرير". تقدر تغيّر الفترة من الأعلى (اليوم / آخر ٧ / آخر ٣٠ / آخر ١٢ شهر) أو يدوياً.</div>
+                </div>`;
             }
             const driver = drivers.find(d => d.id === selectedDriverId);
             if (!driver) return '<div class="no-data">السائق غير موجود</div>';
-            const dPayments = allDP.filter(p => p.driverId === selectedDriverId);
-            let totalPaid = 0, totalReceived = 0, netAdvances = 0;
-            dPayments.forEach(p => {
-                if (REVENUE_PAYMENT_TYPES.filter(t=>t!=='إجازة سنوية').includes(p.type)) totalPaid += (p.amount||0);
-                if (EXPENSE_PAYMENT_TYPES.includes(p.type)) totalReceived += (p.amount||0);
-                if (p.type === 'سلفة إلى السائق') netAdvances += (p.amount||0);
-                if (p.type === 'تحصيل سلفة من السائق') netAdvances -= (p.amount||0);
-            });
-            const netDebt = calcDriverDebtSimple(dPayments);
-            let html = `<div style="background:#f0f9ff;border-radius:12px;padding:1.25rem;margin-bottom:1.5rem;border-right:4px solid #2563eb;">
-                <div style="font-size:1.1rem;font-weight:800;color:#1e40af;margin-bottom:0.5rem;">👤 ${driver.name||'—'}</div>
+
+            const winStart = new Date(from); winStart.setHours(0,0,0,0);
+            const winEnd   = new Date(to);   winEnd.setHours(23,59,59,999);
+
+            const dpAll = allDP.filter(p => p.driverId === selectedDriverId);
+            const dpWin = dpAll.filter(p => { const d = getItemDate(p); return d && d >= winStart && d <= winEnd; });
+
+            const engineAvailable = typeof window.calculateDriverDebtDetailed === 'function';
+            const st = engineAvailable ? window.calculateDriverDebtDetailed(driver.id, driver, dpAll) : null;
+
+            // مساعدات محلية مطابقة للمحرّك (نافذة المدى)
+            const _cmA = (typeof window._completedMonthsAnchored === 'function') ? window._completedMonthsAnchored
+                : function(startDate, asOfDate){ if(!startDate||!asOfDate) return 0; let count=(asOfDate.getFullYear()-startDate.getFullYear())*12+(asOfDate.getMonth()-startDate.getMonth()); const anchorDay=startDate.getDate(); const lastDayAsOf=new Date(asOfDate.getFullYear(),asOfDate.getMonth()+1,0).getDate(); const anniv=Math.min(anchorDay,lastDayAsOf); if(asOfDate.getDate()<anniv) count-=1; return Math.max(0,count); };
+            const _ppaid = (payments,start,end)=>{ if(!start||!end) return 0; return (payments||[]).filter(p=>(p.type==='أجرة يومية'||p.type==='أجرة شهرية'||p.type==='إجازة سنوية')).reduce((s,p)=>{ const d=p&&p.date?(p.date.toDate?p.date.toDate():new Date(p.date)):null; return (d&&!isNaN(d.getTime())&&d>=start&&d<=end)? s+parseFloat(p.amount||0):s; },0); };
+
+            // ===== رأس السائق =====
+            const rentNow = driver.contractType === 'monthly' ? (driver.monthlyPayment||0) : (driver.dailyRent||driver.dailyWage||0);
+            let html = `<div style="background:#f0f9ff;border-radius:12px;padding:1.25rem;margin-bottom:1.25rem;border-right:4px solid #2563eb;">
+                <div style="font-size:1.15rem;font-weight:800;color:#1e40af;margin-bottom:0.6rem;">👤 ${driver.name||'—'}</div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.5rem;font-size:0.85rem;color:#374151;">
+                    <div>🪪 الرقم: ${driver.id||driver.employeeNumber||'—'}</div>
                     <div>📱 ${driver.phone||'—'}</div>
                     <div>🚗 ${driver.carPlate||driver.assignedCar||'—'}</div>
-                    <div>📋 ${driver.contractType==='daily'?'يومي':'شهري'}</div>
-                    <div>💰 أجرة: ${formatAmount(driver.dailyRent||driver.monthlyRent||0)}</div>
-                    <div>${driver.contractStatus==='active'?'🟢 نشط':'🔴 غير نشط'}</div>
+                    <div>📋 ${driver.contractType==='monthly'?'عقد شهري':'عقد يومي'}</div>
+                    <div>💰 الأجرة الحالية: ${formatAmount(rentNow)}${driver.contractType==='monthly'?' / شهر':' / يوم'}</div>
+                    <div>${(driver.contractStatus==='active'||driver.status==='active')?'🟢 نشط':'🔴 غير نشط'}</div>
                 </div></div>`;
-            html += summaryCards([
-                { title: 'إجمالي التحصيل',  value: formatAmount(totalPaid),     cls: 'positive' },
-                { title: 'إجمالي السداد',    value: formatAmount(totalReceived), cls: 'negative' },
-                { title: 'السلف المستحقة',   value: formatAmount(netAdvances),   cls: netAdvances>0?'warning':'positive' },
-                { title: 'صافي الدين',       value: formatAmount(netDebt),       cls: netDebt>0?'negative':'positive' }
-            ]);
-            const rows = dPayments.sort((a,b)=>(getItemDate(a)||0)-(getItemDate(b)||0)).map(p => [
-                formatDate(getItemDate(p)), p.type,
+
+            // ===== تفصيل العقود ضمن الفترة المحددة =====
+            html += `<div class="report-section-title">📆 أداء الفترة المحددة (${formatDate(winStart)} — ${formatDate(winEnd)})</div>`;
+            const periodRows = [];
+            let wExpSum = 0, wPaidSum = 0;
+            if (st && st.periods && st.periods.length) {
+                st.periods.forEach(p => {
+                    const pS = p.start ? new Date(p.start) : null;
+                    const pE = p.end ? new Date(p.end) : null;
+                    if (!pS || !pE) return;
+                    const ovS = new Date(Math.max(pS.getTime(), winStart.getTime()));
+                    const ovE = new Date(Math.min(pE.getTime(), winEnd.getTime()));
+                    if (ovS.getTime() > ovE.getTime()) return; // لا تقاطع مع الفترة
+                    let wExp = 0;
+                    if (p.contractType === 'monthly') {
+                        wExp = Math.max(0, (_cmA(pS, ovE) - _cmA(pS, ovS))) * (p.rate||0);
+                    } else {
+                        const dTo = Math.max(0, Math.floor((ovE - pS) / 86400000));
+                        const dFrom = Math.max(0, Math.floor((ovS - pS) / 86400000));
+                        wExp = Math.max(0, (dTo - dFrom)) * (p.rate||0);
+                    }
+                    const wPaid = _ppaid(dpAll, ovS, ovE);
+                    wExpSum += wExp; wPaidSum += wPaid;
+                    const diff = wExp - wPaid;
+                    const diffCell = diff > 0.0005
+                        ? `<span class="amount-negative">باقٍ ${formatAmount(diff)}</span>`
+                        : (diff < -0.0005 ? `<span class="amount-positive">زائد ${formatAmount(-diff)}</span>` : '<span style="color:#16a34a;">مكتمل ✓</span>');
+                    periodRows.push([
+                        `${p.contractType==='monthly'?'شهري':'يومي'}${p.isImplicit?' (ضمني)':''}`,
+                        `${formatAmount(p.rate||0)}${p.contractType==='monthly'?'/شهر':'/يوم'}`,
+                        `${formatDate(ovS)} — ${formatDate(ovE)}`,
+                        formatAmount(wExp),
+                        formatAmount(wPaid),
+                        diffCell
+                    ]);
+                });
+            }
+            if (periodRows.length > 1) {
+                const tSum = wExpSum - wPaidSum;
+                periodRows.push([
+                    '<b>الإجمالي</b>', '', '',
+                    `<b>${formatAmount(wExpSum)}</b>`,
+                    `<b>${formatAmount(wPaidSum)}</b>`,
+                    tSum>0.0005?`<b class="amount-negative">باقٍ ${formatAmount(tSum)}</b>`:(tSum<-0.0005?`<b class="amount-positive">زائد ${formatAmount(-tSum)}</b>`:'<b>مكتمل ✓</b>')
+                ]);
+            }
+            html += buildTable(['نوع العقد','الأجرة','الفترة ضمن المدى','الإيجار المتوقع','المسدّد (شامل الإجازة)','الفرق'], periodRows, 'لا توجد فترة عقد ضمن المدى المحدد');
+            html += `<div style="margin:0.5rem 0 1rem;color:#6b7280;font-size:0.8rem;">ℹ️ "المسدّد" يشمل دفعات الإيجار والإجازة السنوية ضمن المدى. الأرقام محسوبة بنفس محرّك الحسابات الموحّد.</div>`;
+
+            // ===== عقود منتهية رُحّلت للديون القديمة =====
+            if (st && st.sealedPeriods && st.sealedPeriods.length) {
+                const sealedRows = [];
+                st.sealedPeriods.forEach(p => {
+                    const pS = p.start ? new Date(p.start) : null;
+                    const pE = p.end ? new Date(p.end) : null;
+                    if (pS && pE && (pE.getTime() < winStart.getTime() || pS.getTime() > winEnd.getTime())) return; // خارج المدى
+                    sealedRows.push([
+                        `${p.contractType==='monthly'?'شهري':'يومي'}`,
+                        formatAmount(p.rate||0),
+                        `${pS?formatDate(pS):'—'} — ${pE?formatDate(pE):'—'}`,
+                        p.expected!=null?formatAmount(p.expected):'—',
+                        p.paid!=null?formatAmount(p.paid):'—',
+                        p.carryOver!=null?`<span class="amount-negative">${formatAmount(p.carryOver)}</span>`:'—'
+                    ]);
+                });
+                if (sealedRows.length) {
+                    html += `<div class="report-section-title">🔒 عقود منتهية (رُحّلت للديون القديمة)</div>`;
+                    html += buildTable(['نوع العقد','الأجرة','فترة العقد','المتوقع','المسدّد','المُرحّل للديون القديمة'], sealedRows, '');
+                    html += `<div style="margin:0.5rem 0 1rem;color:#6b7280;font-size:0.8rem;">ℹ️ هذه عقود مُغلقة، أرقامها كاملة للعقد (غير مقصوصة على المدى). المتبقّي منها أُضيف لخانة "الديون القديمة".</div>`;
+                }
+            }
+
+            // ===== الوضعية المالية الإجمالية حتى اليوم (المحرّك) =====
+            if (st) {
+                html += `<div class="report-section-title">📌 الوضعية المالية الإجمالية (حتى اليوم)</div>`;
+                html += summaryCards([
+                    { title:'إجمالي الإيجار المتوقع', value: formatAmount(st.expectedRentTotal), cls:'' },
+                    { title:'إجمالي المسدّد للإيجار', value: formatAmount(st.totalRentPaid), cls:'positive' },
+                    { title:'الإجازة السنوية', value: formatAmount(st.annualLeaveTotal), cls:'' },
+                    { title:'متأخر الإيجار', value: formatAmount(st.lateAmount), cls: st.lateAmount>0?'negative':'positive' }
+                ]);
+                html += summaryCards([
+                    { title:'مخالفات غير مسددة', value: formatAmount(st.violations), cls: st.violations>0?'warning':'positive' },
+                    { title:'رسوم الإقامة', value: formatAmount(st.residencyFees), cls: st.residencyFees>0?'warning':'positive' },
+                    { title:'ديون قديمة', value: formatAmount(st.oldDebts), cls: st.oldDebts>0?'warning':'positive' },
+                    { title:'سلف مستحقة', value: formatAmount(st.netAdvance), cls: st.netAdvance>0?'warning':'positive' }
+                ]);
+                html += summaryCards([
+                    { title:'رصيد للسائق', value: formatAmount(st.driverBalance), cls: st.driverBalance>0?'positive':'' },
+                    { title:'إجمالي الدين (الصافي)', value: formatAmount(st.totalDebt), cls: st.totalDebt>0?'negative':'positive' },
+                    { title:'الحالة', value: `${st.status||'—'}${st.daysLate?(' • '+st.daysLate+' يوم'):''}`, cls: st.daysLate>7?'negative':(st.daysLate>3?'warning':'positive') },
+                    { title:'مدفوع حتى تاريخ', value: st.paidUntilDate?formatDate(st.paidUntilDate):'—', cls:'' }
+                ]);
+                if (st.contractEnded) {
+                    html += `<div style="background:#fef2f2;border-radius:10px;padding:0.85rem 1rem;margin:0.5rem 0 1rem;border-right:4px solid #ef4444;color:#991b1b;font-weight:600;">🛑 هذا العقد منتهٍ منذ ${st.daysAfterEnd} يوم — لا يُحتسب إيجار جديد بعد تاريخ الانتهاء.</div>`;
+                }
+            } else {
+                html += `<div class="no-data">محرّك الحسابات غير متوفر — تعذّر عرض الوضعية الإجمالية.</div>`;
+            }
+
+            // ===== حركات الفترة حسب النوع =====
+            html += `<div class="report-section-title">🧾 حركات الفترة حسب النوع</div>`;
+            const byType = {};
+            dpWin.forEach(p => {
+                const t = p.type || 'غير محدد';
+                if (!byType[t]) byType[t] = { count:0, total:0 };
+                byType[t].count++; byType[t].total += (p.amount||0);
+            });
+            const catRows = Object.keys(byType).sort((a,b)=>byType[b].total-byType[a].total).map(t => {
+                const isRev = REVENUE_PAYMENT_TYPES.includes(t);
+                const isExp = EXPENSE_PAYMENT_TYPES.includes(t);
+                const cat = isRev?'<span class="amount-positive">إيراد</span>':(isExp?'<span class="amount-negative">مصروف</span>':'محايد');
+                return [t, byType[t].count, formatAmount(byType[t].total), cat];
+            });
+            html += buildTable(['نوع الحركة','العدد','الإجمالي','التصنيف'], catRows, 'لا توجد حركات ضمن المدى المحدد');
+
+            // ===== سجل الحركات التفصيلي =====
+            html += `<div class="report-section-title">📋 سجل الحركات التفصيلي</div>`;
+            const txRows = dpWin.slice().sort((a,b)=>(getItemDate(a)||0)-(getItemDate(b)||0)).map(p => [
+                formatDate(getItemDate(p)),
+                p.type||'—',
                 REVENUE_PAYMENT_TYPES.includes(p.type)
                     ? `<span class="amount-positive">+${formatAmount(p.amount)}</span>`
-                    : `<span class="amount-negative">-${formatAmount(p.amount)}</span>`,
-                p.description||p.note||'—', p.editedBy||'—'
+                    : (EXPENSE_PAYMENT_TYPES.includes(p.type) ? `<span class="amount-negative">-${formatAmount(p.amount)}</span>` : formatAmount(p.amount)),
+                p.description||p.note||'—',
+                p.editedBy||'—'
             ]);
-            html += `<div class="report-section-title">📋 سجل الحركات</div>`;
-            html += buildTable(['التاريخ','النوع','المبلغ','الوصف','بواسطة'], rows, 'لا توجد حركات لهذا السائق في الفترة المحددة');
+            html += buildTable(['التاريخ','النوع','المبلغ','الوصف','بواسطة'], txRows, 'لا توجد حركات ضمن المدى المحدد');
+
+            // ===== تعديلات المحاسب على هذا السائق ضمن المدى =====
+            html += `<div class="report-section-title">🔎 تعديلات المحاسب على هذا السائق (ضمن المدى)</div>`;
+            const tsOf = (e) => {
+                const t = e.timestamp;
+                if (!t) return null;
+                if (t.toDate) return t.toDate();
+                if (t.seconds) return new Date(t.seconds*1000);
+                return new Date(t);
+            };
+            const drvEdits = editHistoryAll.filter(e => {
+                if (e.driverId !== selectedDriverId && e.driverName !== driver.name) return false;
+                const t = tsOf(e); if (!t || isNaN(t.getTime())) return false;
+                return t >= winStart && t <= winEnd;
+            }).sort((a,b)=> ((tsOf(b)&&tsOf(b).getTime())||0) - ((tsOf(a)&&tsOf(a).getTime())||0));
+            const rtMeta = { revenue:'💰 إيراد', expense:'💸 مصروف', driverPayment:'👤 دفعة سائق', driver:'🪪 سائق', contract:'📝 عقد', oldDebts:'💼 ديون قديمة', archive:'🗄️ أرشيف', restore:'♻️ استعادة', user:'👥 مستخدم' };
+            const actMeta = { edit:'✏️ تعديل', delete:'🗑️ حذف', newContract:'📝 عقد جديد', endContract:'🛑 إنهاء عقد', archive:'🗄️ أرشفة', restore:'♻️ استعادة', permanentDelete:'⚠️ حذف نهائي' };
+            const editRows = drvEdits.map(e => {
+                const t = tsOf(e);
+                const when = t ? t.toLocaleString('ar-EG') : '—';
+                const rt = rtMeta[e.recordType] || e.recordType || '—';
+                const act = actMeta[e.action] || e.action || '—';
+                let change = '—';
+                if (e.action === 'edit' && Array.isArray(e.changes) && e.changes.length) {
+                    change = e.changes.map(ch => {
+                        const f = ch.fieldLabel || ch.field || '';
+                        const ov = (ch.oldValue!==undefined && ch.oldValue!==null && ch.oldValue!=='') ? ch.oldValue : '—';
+                        const nv = (ch.newValue!==undefined && ch.newValue!==null && ch.newValue!=='') ? ch.newValue : '—';
+                        return `${f?('<b>'+f+'</b>: '):''}<span class="amount-negative">${ov}</span> ← <span class="amount-positive">${nv}</span>`;
+                    }).join('<br>');
+                } else if (e.action === 'edit') {
+                    const f = e.fieldLabel || e.field || '';
+                    const ov = (e.oldValue!==undefined && e.oldValue!==null) ? e.oldValue : '—';
+                    const nv = (e.newValue!==undefined && e.newValue!==null) ? e.newValue : '—';
+                    change = `${f?('<b>'+f+'</b>: '):''}<span class="amount-negative">${ov}</span> ← <span class="amount-positive">${nv}</span>`;
+                } else if (e.action === 'delete' || e.action === 'permanentDelete') {
+                    const amt = (e.fullSnapshot && e.fullSnapshot.amount!==undefined) ? (' ('+formatAmount(e.fullSnapshot.amount)+')') : '';
+                    change = `<span class="amount-negative">حذف${amt}</span>${e.description?(' — '+e.description):''}`;
+                } else if (e.description) {
+                    change = e.description;
+                }
+                const eb = e.editedBy || e.deletedBy || '—';
+                const rawRole = e.editedByRole || e.deletedByRole || '';
+                const role = rawRole === 'admin' ? 'مدير' : ((rawRole==='accountant'||rawRole==='محاسب')?'محاسب':rawRole);
+                const who = `${eb}${role?(' ('+role+')'):''}`;
+                const flag = (e.recordType==='oldDebts' || e.action==='delete' || e.action==='permanentDelete') ? ' ⚠️' : '';
+                return [when, rt, act+flag, change, who];
+            });
+            html += buildTable(['التاريخ والوقت','النوع','العملية','التغيير','بواسطة'], editRows, 'لا توجد تعديلات على هذا السائق ضمن المدى المحدد');
+
             return html;
         }
 

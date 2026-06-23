@@ -156,15 +156,22 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
     };
 }
 
+// 🔧 FIX #027 helpers — مرفوعة لنطاق الوحدة عشان تقرير "أداء السائق الفردي" يستخدم نفس حساب الأشهر بالضبط
+function _completedMonthsAnchored(startDate, asOfDate){ if(!startDate||!asOfDate) return 0; let count=(asOfDate.getFullYear()-startDate.getFullYear())*12+(asOfDate.getMonth()-startDate.getMonth()); const anchorDay=startDate.getDate(); const lastDayAsOf=new Date(asOfDate.getFullYear(),asOfDate.getMonth()+1,0).getDate(); const anniv=Math.min(anchorDay,lastDayAsOf); if(asOfDate.getDate()<anniv) count-=1; return Math.max(0,count); }
+function _addMonthsClamped(date,n){ const total=date.getMonth()+n; const ty=date.getFullYear()+Math.floor(total/12); const tm=((total%12)+12)%12; const lastDay=new Date(ty,tm+1,0).getDate(); return new Date(ty,tm,Math.min(date.getDate(),lastDay)); }
+// 🆕 FIX #029: مساعدات تفصيل فترات العقود (إضافة فقط لأجل العرض — لا تغيّر أي حساب قائم)
+function _ubPayDate(p){ const d=p&&p.date?(p.date.toDate?p.date.toDate():new Date(p.date)):null; return (d&&!isNaN(d.getTime()))?d:null; }
+function _ubPeriodPaid(payments, start, end){ if(!start||!end) return 0; return (payments||[]).filter(p=>(p.type==='أجرة يومية'||p.type==='أجرة شهرية'||p.type==='إجازة سنوية')).reduce((s,p)=>{ const d=_ubPayDate(p); return (d&&d>=start&&d<=end)? s+parseFloat(p.amount||0):s; },0); }
+
 // دالة موحدة لحساب ديون السائق حسب النظام المحاسبي الجديد
 // #004: إصلاح دعم العقود الشهرية
 // #005: إضافة دعم contractHistory لحساب كل فترة بعقدها
 // #006: Fallback للسائقين القدامى بدون contractHistory
+// 🆕 #029: ترجع أيضاً periods[] و sealedPeriods[] لعرض تفصيلي (إضافة فقط — لا تؤثر على totalDebt ولا أي حقل قائم)
 function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
-    // 🔧 FIX #027: حساب الأشهر حسب يوم الاستحقاق (anniversary) + تثبيت "مسدد حتى" على يوم العقد
-    function _completedMonthsAnchored(startDate, asOfDate){ if(!startDate||!asOfDate) return 0; let count=(asOfDate.getFullYear()-startDate.getFullYear())*12+(asOfDate.getMonth()-startDate.getMonth()); const anchorDay=startDate.getDate(); const lastDayAsOf=new Date(asOfDate.getFullYear(),asOfDate.getMonth()+1,0).getDate(); const anniv=Math.min(anchorDay,lastDayAsOf); if(asOfDate.getDate()<anniv) count-=1; return Math.max(0,count); }
-    function _addMonthsClamped(date,n){ const total=date.getMonth()+n; const ty=date.getFullYear()+Math.floor(total/12); const tm=((total%12)+12)%12; const lastDay=new Date(ty,tm+1,0).getDate(); return new Date(ty,tm,Math.min(date.getDate(),lastDay)); }
     let totalDebt = 0;
+    const _periods = [];        // 🆕 #029
+    const _sealedPeriods = [];  // 🆕 #029
     // ===== حقول العرض الموحّدة (تُستهلك في كل الصفحات) =====
     const _pd = (d) => d ? (d.toDate ? d.toDate() : new Date(d)) : null;
     const _contractStartOut = _pd(driver.contractStartDate) || _pd(driver.createdAt) || new Date();
@@ -197,6 +204,20 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
         c.note !== 'تعديل عقد' && c.type !== 'تعديل' && c.hidden !== true && !_isSealed(c)
     );
 
+      // 🆕 #029: جمع الفترات المقفولة (المنتهية المرحّلة للديون القديمة) للعرض التفصيلي فقط
+      (driver.contractHistory || []).forEach(c => {
+          if (!_isSealed(c)) return;
+          if (c.note === 'تعديل عقد' || c.type === 'تعديل' || c.hidden === true) return;
+          const s = _toDateSafe(c.startDate);
+          const e = _toDateSafe(c.endDate) || _toDateSafe(c.actualEndDate);
+          const ctype = c.contractType || 'daily';
+          const rate = ctype === 'monthly' ? parseFloat(c.monthlyPayment||0) : parseFloat(c.dailyRent||0);
+          const exp = (c.expectedRent !== undefined && c.expectedRent !== null) ? parseFloat(c.expectedRent||0) : null;
+          const paid = (c.paidRent !== undefined && c.paidRent !== null) ? parseFloat(c.paidRent||0) : ((s&&e) ? _ubPeriodPaid(payments, s, e) : null);
+          const carry = (c.carryOver !== undefined && c.carryOver !== null) ? parseFloat(c.carryOver||0) : null;
+          _sealedPeriods.push({ contractType: ctype, rate: rate, start: s, end: e, expected: exp, paid: paid, carryOver: carry, sealed: true });
+      });
+
       // #025: عقد منتهي نهائياً ومقفول (ما فيه عقد نشط لاحق) — أي دفعة أجرة بعد تاريخ الإنهاء
       // تُحتسب سداداً للدين القديم لا رصيداً وهمياً، وأي زيادة تتحوّل رصيداً فعلياً للسائق.
       const _fullyEndedSealed = !!(sealedUntil && realContracts.length === 0 && _contractEnded);
@@ -228,10 +249,12 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
             if (periodStart > today) return;
             if (periodEnd > today) periodEnd = today;
 
+            let _pExp = 0, _pRate = 0; // 🆕 #029
             if (contract.contractType === 'daily') {
                 // عقد يومي: عدد الأيام × الأجرة اليومية
                 const days = Math.max(0, Math.floor((periodEnd - periodStart) / (1000 * 60 * 60 * 24)));
                 const rate = parseFloat(contract.dailyRent || 0);
+                _pRate = rate; _pExp = days * rate; // 🆕 #029
                 expectedRentTotal += days * rate;
             } else if (contract.contractType === 'monthly') {
                 // عقد شهري: عدد الأشهر الكاملة × المبلغ الشهري
@@ -241,8 +264,11 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
                 const endYear = periodEnd.getFullYear();
                 const endMonth = periodEnd.getMonth();
                 const monthsDiff = _completedMonthsAnchored(periodStart, periodEnd); // FIX #027
+                _pRate = rate; _pExp = monthsDiff * rate; // 🆕 #029
                 expectedRentTotal += monthsDiff * rate;
             }
+            // 🆕 #029: حفظ الفترة للعرض التفصيلي (لا يؤثر على الحساب)
+            _periods.push({ contractType: contract.contractType||'daily', rate: _pRate, start: periodStart, end: periodEnd, expected: _pExp, paid: _ubPeriodPaid(payments, periodStart, periodEnd), isImplicit: false, sealed: false });
         });
 
         // 🔧 #022b: اكتشاف "العقد الضمني" للسائقين القدامى
@@ -266,13 +292,18 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
                 const _e = driver.contractEndDate ? (driver.contractEndDate.toDate ? driver.contractEndDate.toDate() : new Date(driver.contractEndDate)) : null;
                 let _implEnd = (_e && !isNaN(_e.getTime()) && today > _e) ? _e : today;
                 if (_implEnd > today) _implEnd = today;
+                let _iExp = 0; // 🆕 #029
                 if (_drvType === 'daily') {
                     const _d = Math.max(0, Math.floor((_implEnd - _implStart) / 86400000));
+                    _iExp = _d * _drvRate; // 🆕 #029
                     expectedRentTotal += _d * _drvRate;
                 } else {
                     const _m = _completedMonthsAnchored(_implStart, _implEnd); // FIX #027
+                    _iExp = _m * _drvRate; // 🆕 #029
                     expectedRentTotal += _m * _drvRate;
                 }
+                // 🆕 #029: العقد الضمني كفترة عرض
+                _periods.push({ contractType: _drvType, rate: _drvRate, start: _implStart, end: _implEnd, expected: _iExp, paid: _ubPeriodPaid(payments, _implStart, _implEnd), isImplicit: true, sealed: false });
             }
         }
     } else {
@@ -295,6 +326,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
             const endMonth = _eff.getMonth();
             const monthsDiff = _completedMonthsAnchored(contractStart, _eff); // FIX #027
             expectedRentTotal = monthsDiff * rate;
+            _periods.push({ contractType: 'monthly', rate: rate, start: contractStart, end: _eff, expected: expectedRentTotal, paid: _ubPeriodPaid(payments, contractStart, _eff), isImplicit: false, sealed: false }); // 🆕 #029
         } else {
             // عقد يومي - 🔧 FIX #010: capping at contractEndDate
             const _cEnd = driver.contractEndDate ? (driver.contractEndDate.toDate ? driver.contractEndDate.toDate() : new Date(driver.contractEndDate)) : null;
@@ -302,6 +334,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
             const daysSinceStart = Math.floor((_eff - contractStart) / (1000 * 60 * 60 * 24));
             const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
             expectedRentTotal = daysSinceStart * dailyWage;
+            _periods.push({ contractType: 'daily', rate: dailyWage, start: contractStart, end: _eff, expected: expectedRentTotal, paid: _ubPeriodPaid(payments, contractStart, _eff), isImplicit: false, sealed: false }); // 🆕 #029
         }
     }
     
@@ -407,7 +440,9 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
         contractStart: _contractStartOut,
         contractEnd: _contractEndOut,
         contractEnded: _contractEnded,
-        daysAfterEnd: _daysAfterEnd
+        daysAfterEnd: _daysAfterEnd,
+        periods: _periods,            // 🆕 #029
+        sealedPeriods: _sealedPeriods // 🆕 #029
     };
 }
 
