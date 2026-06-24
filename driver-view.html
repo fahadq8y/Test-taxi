@@ -597,7 +597,7 @@
             }
             console.warn('⚠️ unified-balance.js غير محمّل - الحساب قد يكون غير دقيق');
             const od = parseFloat(driver.oldDebts || 0);
-            return { totalDebt: od, expectedRentTotal:0, totalRentPaid:0, lateAmount:0, driverBalance:0, violations:0, residencyFees:0, oldDebts:od, netAdvance:0, annualLeaveTotal:0, daysLate:0, paidUntilDate:new Date(), lastPayment:new Date(), status:'منتظم', dailyWage:0, contractStart:new Date(), contractEnd:null, contractEnded:false, daysAfterEnd:0 };
+            return { totalDebt: od, expectedRentTotal:0, totalRentPaid:0, lateAmount:0, driverBalance:0, violations:0, residencyFees:0, oldDebts:od, netAdvance:0, annualLeaveTotal:0, daysLate:0, paidUntilDate:new Date(), lastPayment:null, status:'منتظم', dailyWage:0, contractStart:new Date(), contractEnd:null, contractEnded:false, daysAfterEnd:0 };
         }
 
 
@@ -870,7 +870,7 @@
 
             // Financial info using new calculations
             document.getElementById('dailyRent').textContent = `${stats.dailyWage} د.ك`;
-            document.getElementById('lastPaymentDate').textContent = formatDate(stats.lastPayment);
+            document.getElementById('lastPaymentDate').textContent = stats.lastPayment ? formatDate(stats.lastPayment) : 'لا يوجد سداد';
             document.getElementById('paidUntilDate').textContent = formatDate(stats.paidUntilDate);
             document.getElementById('overdueDays').innerHTML = (stats.contractEnded && stats.daysLate === 0) ? '<span style="color:#059669;font-weight:600">0 يوم ✓ (العقد منتهي)</span>' : (stats.contractEnded ? '<span style="color:#dc2626">' + stats.daysLate + ' يوم (متراكم قبل انتهاء العقد)</span>' : stats.daysLate + ' يوم');
             document.getElementById('overdueAmount').textContent = `${stats.lateAmount.toFixed(3)} د.ك`;
