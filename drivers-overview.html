@@ -533,7 +533,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="unified-balance.js?v=029"></script>
+    <script src="unified-balance.js?v=030"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -649,7 +649,7 @@
             }
             console.warn('⚠️ unified-balance.js غير محمّل - الحساب قد يكون غير دقيق');
             const od = parseFloat(driver.oldDebts || 0);
-            return { totalDebt: od, expectedRentTotal:0, totalRentPaid:0, lateAmount:0, driverBalance:0, violations:0, residencyFees:0, oldDebts:od, netAdvance:0, annualLeaveTotal:0, daysLate:0, paidUntilDate:new Date(), lastPayment:new Date(), status:'منتظم', dailyWage:0, contractStart:new Date(), contractEnd:null, contractEnded:false, daysAfterEnd:0 };
+            return { totalDebt: od, expectedRentTotal:0, totalRentPaid:0, lateAmount:0, driverBalance:0, violations:0, residencyFees:0, oldDebts:od, netAdvance:0, annualLeaveTotal:0, daysLate:0, paidUntilDate:new Date(), lastPayment:null, status:'منتظم', dailyWage:0, contractStart:new Date(), contractEnd:null, contractEnded:false, daysAfterEnd:0 };
         }
 
         // Display drivers in table
@@ -685,7 +685,7 @@
                         <td><span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 12px; border-radius: 15px; font-weight: 600; font-size: 12px;">${driver.employeeNumber || 'غير محدد'}</span></td>
                         <td class="amount">${stats.dailyWage.toFixed(3)} د.ك</td>
                         <td>${formatDate(stats.contractStart)}</td>
-                        <td>${formatDate(stats.lastPayment)}</td>
+                        <td>${stats.lastPayment ? formatDate(stats.lastPayment) : 'لا يوجد سداد'}</td>
                         <td>${formatDate(stats.paidUntilDate)}</td>
                         <td style="cursor:pointer; text-decoration: underline dotted;" onclick="showLateDetails('${driver.id}')" title="اضغط للتفاصيل">${stats.daysLate}</td>
                         <td class="amount ${stats.lateAmount > 0 ? 'negative' : 'zero'}" style="cursor:pointer;" onclick="showLateDetails('${driver.id}')" title="اضغط للتفاصيل">${stats.lateAmount.toFixed(3)} د.ك</td>

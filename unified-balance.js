@@ -181,10 +181,19 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
     const _daysAfterEnd = _contractEnded ? Math.floor((_todayOut - _contractEndOut)/86400000) : 0;
     const _contractTypeOut = driver.contractType || 'daily';
     const _dailyWageOut = _contractTypeOut === 'monthly' ? parseFloat(driver.monthlyPayment||0) : parseFloat(driver.dailyWage||driver.dailyRent||driver.dailyFee||0);
-    const _lastPaymentOut = _pd(driver.lastPaymentDate) || _pd(driver.contractStartDate) || _pd(driver.createdAt) || new Date();
+    let _lastPaymentOut = null; // 🆕 يُحسب أدناه من الدفعات الفعلية (فلوس دخلت من السائق فقط)
     
     // الحصول على مدفوعات السائق
     const payments = driverPayments ? driverPayments.filter(payment => payment.driverId === driverId) : [];
+
+    // 🆕 آخر سداد = آخر دفعة فلوس دخلت من السائق فقط (تقلّل دينه أو تزيد رصيده).
+    // تُستثنى خصومات الشركة عنه (سداد مخالفة، سداد رسوم إقامة، سلفة إلى السائق). null = لا يوجد سداد.
+    const _MONEY_IN_TYPES = ['أجرة يومية','أجرة شهرية','إجازة سنوية','دين قديم','تحصيل مخالفة','تحصيل رسوم إقامة','تحصيل رسوم إيداعات الرواتب','تحصيل رسوم رواتب','تحصيل سلفة من السائق'];
+    payments.forEach(p => {
+        if (_MONEY_IN_TYPES.indexOf(p.type) === -1) return;
+        const _dpDate = _pd(p.date);
+        if (_dpDate && !isNaN(_dpDate.getTime()) && (!_lastPaymentOut || _dpDate > _lastPaymentOut)) _lastPaymentOut = _dpDate;
+    });
     
     const today = new Date();
     let expectedRentTotal = 0;
@@ -225,7 +234,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
     // #005 + #022: إذا كان لدى السائق عقود حقيقية في contractHistory، نحسب كل فترة بعقدها
     if (realContracts.length > 0) {
         realContracts.forEach((contract, index) => {
-            const periodStart = contract.startDate ?
+            let periodStart = contract.startDate ?
                 (contract.startDate.toDate ? contract.startDate.toDate() : new Date(contract.startDate)) : null;
 
             if (!periodStart) return;
