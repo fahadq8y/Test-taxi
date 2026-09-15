@@ -164,10 +164,13 @@
     body { background:var(--paper); color:var(--ink); font-family:"Tahoma","Segoe UI",sans-serif; }
     .container { max-width:1680px; padding:20px; }
     .header { background:var(--navy); border:0; border-radius:16px; box-shadow:0 12px 30px rgba(18,52,59,.14); }
-    .header h1,.card h3,.modal-head h2 { color:#f7d58c; }
-    .header .meta span,.small-muted { color:#b8c9c6; }
+    .header h1 { color:#f7d58c; }
+    .card h3,.modal-head h2 { color:var(--navy); }
+    .header .meta span { color:#dce9e5; }
+    .small-muted,.modal-head .sub { color:#526467; }
     .btn { background:var(--teal); border-radius:8px; }
-    .btn.outline { border-color:#537378; color:#ecf4ef; }
+    .btn.outline { border-color:#789397; color:var(--navy); background:#fffaf2; }
+    .btn.outline:hover { background:#e9f1ef; color:#092b32; border-color:#39717a; }
     .tabs { background:#e7e0d4; border-color:var(--line); }
     .tab-btn { color:#526467; } .tab-btn.active { background:var(--navy); color:#f7d58c; }
     .card,.kpi,table,.modal { background:var(--card); border-color:var(--line); box-shadow:0 7px 20px rgba(26,42,44,.06); }
@@ -177,6 +180,31 @@
     .kpi .val { color:var(--navy); } .kpi.red .val { color:var(--danger); } .kpi.green .val { color:#16815a; }
     .alert { background:var(--card); border-color:var(--line); } .alert.red { border-left-color:var(--danger); }
     .modal-bg { background:rgba(11,35,39,.72); } .modal { background:#fbf8f1; }
+    .modal-nav { background:#ece5d9; border:1px solid var(--line); border-radius:10px; padding:8px; }
+    .mnav-counter { color:var(--navy); font-weight:700; }
+    .mnav-btn:disabled { background:#d8d2c8; color:#667477; }
+    .mtabs { background:#ece5d9; border-color:var(--line); }
+    .mtab-btn { color:#465c60; }
+    .mtab-btn:hover { background:#dcd4c7; color:var(--navy); }
+    .range-pill { background:#eee7dc; color:#40575b; border-color:#c5bcad; }
+    .modal input,.modal select,.modal textarea {
+      width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid #9eaaab;
+      border-radius:7px; background:#ffffff; color:#142d34; font-family:inherit; font-size:13px;
+    }
+    .modal input::placeholder,.modal textarea::placeholder { color:#66777a; opacity:1; }
+    .modal input:focus,.modal select:focus,.modal textarea:focus {
+      outline:3px solid rgba(8,127,140,.18); border-color:var(--teal);
+    }
+    .owner-note-item {
+      border:1px solid #c9c0b1; border-right:4px solid var(--note-color);
+      border-radius:8px; padding:11px 13px; margin-bottom:9px; background:#fffaf1;
+      color:#172b35; box-shadow:0 2px 8px rgba(23,43,53,.05);
+    }
+    .owner-note-head { display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:7px; }
+    .owner-note-type { color:var(--note-color); font-weight:800; font-size:12px; }
+    .owner-note-text { white-space:pre-wrap; line-height:1.7; font-size:14px; color:#10262d; font-weight:500; }
+    .owner-note-meta { color:#526467; font-size:11px; }
+    #ownerNoteAddBtn { margin-top:8px; }
     .section-kicker { color:var(--teal); font-size:11px; letter-spacing:.08em; font-weight:bold; margin-bottom:5px; }
     .decision-grid { display:grid; grid-template-columns:1.25fr 1fr; gap:14px; }
     .followup { border-right:4px solid var(--gold); padding:10px 12px; background:#fbf6e9; border-radius:8px; margin:7px 0; cursor:pointer; }
@@ -1609,13 +1637,13 @@
       const meta = noteTypeMeta(n.type);
       const dt = toDate(n.at);
       const when = dt ? dt.toLocaleString('ar-KW') : '—';
-      return '<div style="border:1px solid #30363d;border-right:3px solid '+meta.color+';border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#0d1117;">'
-        + '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">'
-        + '<span style="color:'+meta.color+';font-weight:600;font-size:12px;">'+meta.icon+' '+escapeHtml(n.type||'ملاحظة')+'</span>'
-        + '<span class="small-muted" style="font-size:11px;">🕒 '+when+'</span>'
+      return '<div class="owner-note-item" style="--note-color:'+meta.color+';">'
+        + '<div class="owner-note-head">'
+        + '<span class="owner-note-type">'+meta.icon+' '+escapeHtml(n.type||'ملاحظة')+'</span>'
+        + '<span class="owner-note-meta">🕒 '+when+'</span>'
         + '</div>'
-        + '<div style="white-space:pre-wrap;line-height:1.6;font-size:13px;">'+escapeHtml(n.text)+'</div>'
-        + (n.by ? '<div class="small-muted" style="font-size:11px;margin-top:6px;">— '+escapeHtml(n.by)+'</div>' : '')
+        + '<div class="owner-note-text">'+escapeHtml(n.text)+'</div>'
+        + (n.by ? '<div class="owner-note-meta" style="margin-top:7px;">— '+escapeHtml(n.by)+'</div>' : '')
         + '</div>';
     }).join('');
   }
@@ -2178,7 +2206,7 @@
       <div class="card"><h3>شرح تغيّر الدين</h3><div class="explain-list">${[['إيجار متراكم',x.lateAmount],['مخالفات',x.violations],['إقامات',x.residencyFees],['دين قديم',x.oldDebts],['سلف صافية',x.netAdvance],['رصيد للسائق',-x.driverBalance],['الصافي',x.totalDebt]].map(q=>`<div class="explain-item">${q[0]}<strong>${money(q[1])}</strong></div>`).join('')}</div><p class="small-muted" style="margin-top:8px">الصافي = الإيجار المتراكم + كل الرسوم والسلف + الدين القديم − رصيد السائق. الأرقام محسوبة من محرك الرصيد الموحد.</p></div>
       <div class="card"><h3>حركة الدين التاريخية <span class="small-muted">التاريخ تقديري عند عدم توفر لقطات محفوظة</span></h3><div class="range-pills"><button class="range-pill ${ownerChartRange===30?'active':''}" onclick="setOwnerChartRange(30)">30 يوم</button><button class="range-pill ${ownerChartRange===90?'active':''}" onclick="setOwnerChartRange(90)">90 يوم</button><button class="range-pill ${ownerChartRange===365?'active':''}" onclick="setOwnerChartRange(365)">سنة</button></div><div class="mtabs"><button class="mtab-btn ${ownerChartMode==='detail'?'active':''}" onclick="setOwnerChartMode('detail')">تفصيل البنود</button><button class="mtab-btn ${ownerChartMode==='total'?'active':''}" onclick="setOwnerChartMode('total')">حركة إجمالي الدين</button></div><div class="chart-box tall"><canvas id="ownerDebtChart"></canvas></div></div>
       <div class="card"><h3>متابعة المالك</h3><div class="mini-grid"><select id="fuStatus"><option value="daily follow-up">متابعة يومية</option><option value="weekly follow-up">متابعة أسبوعية</option><option value="promised payment">دفعة موعودة</option><option value="contract review">مراجعة عقد</option><option value="operational issue">مشكلة تشغيلية</option><option value="no follow-up">لا توجد متابعة</option></select><input id="fuDate" type="date"><input id="fuAmount" type="number" step=".001" placeholder="المبلغ الموعود"><input id="fuPromised" type="date"></div><div id="followupFulfillment" class="small-muted" style="margin:8px 0">جاري تحميل المتابعة...</div><button class="btn success" onclick="saveFollowup('${safe(id)}')">حفظ المتابعة</button></div>
-      <div class="card"><h3>ملاحظات المالك الخاصة</h3><textarea id="ownerNoteText" placeholder="اكتب ملاحظة متابعة" style="width:100%;min-height:70px"></textarea><button class="btn success" id="ownerNoteAddBtn" onclick="addOwnerNote()">إضافة ملاحظة</button><div id="ownerNotesList">جاري التحميل...</div></div>`;
+      <div class="card"><h3>ملاحظات المالك الخاصة</h3><textarea id="ownerNoteText" placeholder="اكتب ملاحظة متابعة" style="min-height:85px"></textarea><button class="btn success" id="ownerNoteAddBtn" onclick="addOwnerNote()">إضافة ملاحظة</button><div id="ownerNotesList" style="margin-top:14px">جاري التحميل...</div></div>`;
     document.getElementById('driverModal').classList.add('active');
     renderOwnerChart(id);
     loadOwnerNotes(id);
