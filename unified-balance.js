@@ -213,6 +213,9 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
         c.note !== 'تعديل عقد' && c.type !== 'تعديل' && c.hidden !== true && !_isSealed(c)
     );
 
+      // 🆕 #031: سائق بلا عقد نهائياً (أُضيف بدون تاريخ بداية ولا سجل عقود) → لا استحقاق إيجار إطلاقاً
+      const _noContract = (driver.contractHistory || []).length === 0 && !driver.contractStartDate;
+
       // 🆕 #029: جمع الفترات المقفولة (المنتهية المرحّلة للديون القديمة) للعرض التفصيلي فقط
       (driver.contractHistory || []).forEach(c => {
           if (!_isSealed(c)) return;
@@ -315,8 +318,8 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
                 _periods.push({ contractType: _drvType, rate: _drvRate, start: _implStart, end: _implEnd, expected: _iExp, paid: _ubPeriodPaid(payments, _implStart, _implEnd), isImplicit: true, sealed: false });
             }
         }
-    } else {
-        // #006: Fallback للسائقين القدامى بدون contractHistory
+    } else if (!_noContract) {
+        // #006: Fallback للسائقين القدامى بدون contractHistory (يتجاوزه سائق "بلا عقد" — #031)
         let contractStart = driver.contractStartDate ?
             (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) :
             (driver.createdAt ? (driver.createdAt.toDate ? driver.createdAt.toDate() : new Date(driver.createdAt)) : today);
@@ -430,6 +433,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
     else _paidUntil.setDate(_paidUntil.getDate() + _completed);
     let _status = 'منتظم';
     if (_daysLate > 7) _status = 'متأخر جداً'; else if (_daysLate > 3) _status = 'متأخر';
+    if (_noContract) _status = 'بلا عقد'; // 🆕 #031
     return {
         totalDebt: Math.max(0, totalDebt),
         expectedRentTotal: expectedRentTotal,
@@ -442,11 +446,11 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
         netAdvance: netAdvance,
         annualLeaveTotal: annualLeaveTotal,
         daysLate: _daysLate,
-        paidUntilDate: _paidUntil,
+        paidUntilDate: _noContract ? null : _paidUntil, // #031
         lastPayment: _lastPaymentOut,
         status: _status,
         dailyWage: _dailyWageOut,
-        contractStart: _contractStartOut,
+        contractStart: _noContract ? null : _contractStartOut, // #031
         contractEnd: _contractEndOut,
         contractEnded: _contractEnded,
         daysAfterEnd: _daysAfterEnd,

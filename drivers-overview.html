@@ -533,7 +533,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="unified-balance.js?v=030"></script>
+    <script src="unified-balance.js?v=031"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -684,9 +684,9 @@
                         <td><span class="driver-name" onclick="showDriverDetails('${driver.id}')">${driver.name || 'غير محدد'}</span>${_expBadge}</td>
                         <td><span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 12px; border-radius: 15px; font-weight: 600; font-size: 12px;">${driver.employeeNumber || 'غير محدد'}</span></td>
                         <td class="amount">${stats.dailyWage.toFixed(3)} د.ك</td>
-                        <td>${formatDate(stats.contractStart)}</td>
+                        <td>${stats.contractStart ? formatDate(stats.contractStart) : '—'}</td>
                         <td>${stats.lastPayment ? formatDate(stats.lastPayment) : 'لا يوجد سداد'}</td>
-                        <td>${formatDate(stats.paidUntilDate)}</td>
+                        <td>${stats.paidUntilDate ? formatDate(stats.paidUntilDate) : '—'}</td>
                         <td style="cursor:pointer; text-decoration: underline dotted;" onclick="showLateDetails('${driver.id}')" title="اضغط للتفاصيل">${stats.daysLate}</td>
                         <td class="amount ${stats.lateAmount > 0 ? 'negative' : 'zero'}" style="cursor:pointer;" onclick="showLateDetails('${driver.id}')" title="اضغط للتفاصيل">${stats.lateAmount.toFixed(3)} د.ك</td>
                         <td class="amount ${stats.driverBalance > 0 ? 'positive' : 'zero'}">${stats.driverBalance.toFixed(3)} د.ك</td>
@@ -1561,7 +1561,7 @@
                         <div>الأجرة: <strong>${rate}</strong></div>
                         <div>بداية العقد: <strong>${contractStart}</strong></div>
                         <div>اليوم: <strong>${today}</strong></div>
-                        <div>سداد حتى: <strong>${formatDetailDate(stats.paidUntilDate)}</strong></div>
+                        <div>سداد حتى: <strong>${stats.paidUntilDate ? formatDetailDate(stats.paidUntilDate) : '—'}</strong></div>
                         <div>أيام التأخير: <strong style="color:#dc2626;">${stats.daysLate} يوم</strong></div>
                     </div>
                 </div>

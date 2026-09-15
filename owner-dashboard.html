@@ -160,6 +160,40 @@
       .card, .kpi, table { background: white !important; color: black !important; border: 1px solid #ccc !important; }
       th, td { color: black !important; }
     }
+    :root { --ink:#172b35; --navy:#12343b; --paper:#f4f0e8; --card:#fffdf8; --line:#d9d2c5; --teal:#087f8c; --gold:#c99034; --danger:#9b3030; --muted:#68787b; }
+    body { background:var(--paper); color:var(--ink); font-family:"Tahoma","Segoe UI",sans-serif; }
+    .container { max-width:1680px; padding:20px; }
+    .header { background:var(--navy); border:0; border-radius:16px; box-shadow:0 12px 30px rgba(18,52,59,.14); }
+    .header h1,.card h3,.modal-head h2 { color:#f7d58c; }
+    .header .meta span,.small-muted { color:#b8c9c6; }
+    .btn { background:var(--teal); border-radius:8px; }
+    .btn.outline { border-color:#537378; color:#ecf4ef; }
+    .tabs { background:#e7e0d4; border-color:var(--line); }
+    .tab-btn { color:#526467; } .tab-btn.active { background:var(--navy); color:#f7d58c; }
+    .card,.kpi,table,.modal { background:var(--card); border-color:var(--line); box-shadow:0 7px 20px rgba(26,42,44,.06); }
+    .card h3 { border-color:var(--line); }
+    th { background:#e9e2d6; color:#526467; } td { border-color:#ebe5db; } tr:hover td { background:#f3ecdf; }
+    td.name { color:var(--teal); } .kpi .lbl,.kpi .sub,.alert .desc { color:var(--muted); }
+    .kpi .val { color:var(--navy); } .kpi.red .val { color:var(--danger); } .kpi.green .val { color:#16815a; }
+    .alert { background:var(--card); border-color:var(--line); } .alert.red { border-left-color:var(--danger); }
+    .modal-bg { background:rgba(11,35,39,.72); } .modal { background:#fbf8f1; }
+    .section-kicker { color:var(--teal); font-size:11px; letter-spacing:.08em; font-weight:bold; margin-bottom:5px; }
+    .decision-grid { display:grid; grid-template-columns:1.25fr 1fr; gap:14px; }
+    .followup { border-right:4px solid var(--gold); padding:10px 12px; background:#fbf6e9; border-radius:8px; margin:7px 0; cursor:pointer; }
+    .followup:hover { transform:translateX(-3px); background:#f4ead3; }
+    .mini-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); gap:9px; }
+    .money-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #ebe5db; font-size:12px; }
+    .money-row b { color:var(--navy); }
+    .radar-count { font-size:24px; font-weight:800; color:var(--navy); }
+    .chart-legend { display:flex; flex-wrap:wrap; gap:7px; margin:8px 0; }
+    .legend-toggle { border:1px solid var(--line); background:#f4efe5; color:var(--ink); border-radius:15px; padding:5px 9px; cursor:pointer; font-size:11px; }
+    .legend-toggle.off { opacity:.38; text-decoration:line-through; }
+    .explain-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:8px; }
+    .explain-item { padding:9px; background:#f1eadf; border-radius:8px; font-size:12px; }
+    .explain-item strong { display:block; color:var(--navy); font-size:15px; margin-top:4px; }
+    .tracking-dot { width:8px;height:8px;border-radius:50%;display:inline-block;margin-left:5px; }
+    .tracking-online { background:#16815a; } .tracking-stale { background:#c99034; } .tracking-offline { background:#9b3030; }
+    @media(max-width:800px){ .decision-grid{grid-template-columns:1fr;} .container{padding:10px;} .header{padding:14px;} .kpi-grid{grid-template-columns:repeat(2,1fr);} }
   </style>
   </head>
   <body>
@@ -237,6 +271,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <!-- Chart.js للجداول البيانية في مودال السائق -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="unified-balance.js?v=031"></script>
   <script>
   const firebaseConfig = {
       apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -334,20 +369,19 @@
   async function loadAllData() {
     const db = firebase.firestore();
     try {
-      const [dSnap, pSnap, eSnap, exSnap, rvSnap, hSnap] = await Promise.all([
+      const [dSnap, pSnap, expensesSnap, revenuesSnap, historySnap] = await Promise.all([
         db.collection('drivers').get(),
         db.collection('driverPayments').get(),
         db.collection('expenses').get(),
         db.collection('revenues').get(),
-        db.collection('editHistory').orderBy('timestamp','desc').limit(2000).get(),
-        Promise.resolve(null)
+        db.collection('editHistory').orderBy('timestamp','desc').limit(2000).get()
       ]);
       gDrivers = dSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       gDriverMap = {}; gDrivers.forEach(d => gDriverMap[d.id] = d);
       gPayments = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      gExpenses = eSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      gRevenues = rvSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      gEditHistory = eSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      gExpenses = expensesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      gRevenues = revenuesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      gEditHistory = historySnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
       renderAll();
       document.getElementById('lastUpdateTime').textContent = '🕒 ' + new Date().toLocaleTimeString('ar-KW');
@@ -1933,6 +1967,233 @@
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  /* ================= OWNER UPGRADE / DECISION CENTER ================= */
+  const UPGRADE_TYPES = {
+    rent:['أجرة يومية','أجرة شهرية'], old:['دين قديم'], violationIn:['تحصيل مخالفة'],
+    violationOut:['سداد مخالفة'], residencyIn:['تحصيل رسوم إقامة'], residencyOut:['سداد رسوم إقامة'],
+    advanceIn:['تحصيل سلفة من السائق'], advanceOut:['سلفة إلى السائق']
+  };
+  const TRANSFER_TYPES = ['تحويل من حساب رامي إلى بنك وربه','تحويل من بنك وربه إلى حساب رامي'];
+  const money = n => fmtKD(Number(n)||0);
+  const safe = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  function detailed(d){ return calculateDriverDebtDetailed(d.id,d,gPayments); }
+  function trackingHealth(d){
+    const last=toDate(d.lastUpdate), age=last?Math.max(0,(Date.now()-last.getTime())/60000):Infinity;
+    const state=d.isActive===false||age>180?'offline':age>20?'stale':'online';
+    return {state,age,last,accuracy:Number(d.accuracy||0),version:d.appVersion||'غير معروف'};
+  }
+  function trackingLabel(d){
+    const h=trackingHealth(d), text=h.state==='online'?'متصل':h.state==='stale'?'متأخر':'غير متصل';
+    const age=isFinite(h.age)?`منذ ${Math.floor(h.age)} دقيقة`:'لا يوجد تحديث';
+    const quality=h.accuracy>100?` · دقة ضعيفة ${h.accuracy.toFixed(0)}م`:'';
+    return `<span class="tracking-dot tracking-${h.state}"></span>${text} · ${age}${quality}`;
+  }
+  function getDetailedSplit(d){ const x=detailed(d); return {current:x.lateAmount,old:x.oldDebts,total:x.totalDebt,detail:x}; }
+  calcDebtSplit = function(id,d){ return getDetailedSplit(d); };
+  function isIncomingPayment(p){ return !['سداد مخالفة','سداد رسوم إقامة','سلفة إلى السائق'].includes(p.type); }
+  function dateOf(x){ return toDate(x.date||x.paymentDate||x.expenseDate||x.createdAt); }
+  function sumRows(rows,types){ return rows.filter(x=>types.includes(x.type)).reduce((s,x)=>s+Number(x.amount||0),0); }
+  function cashSummary(){
+    const p=gPayments.filter(isIncomingPayment), exp=gExpenses.filter(x=>!TRANSFER_TYPES.includes(x.type));
+    const revenue=gRevenues.filter(x=>!TRANSFER_TYPES.includes(x.type));
+    const out=gPayments.filter(x=>['سداد مخالفة','سداد رسوم إقامة','سلفة إلى السائق'].includes(x.type));
+    const rent=sumRows(p,UPGRADE_TYPES.rent), old=sumRows(p,UPGRADE_TYPES.old), vio=sumRows(p,UPGRADE_TYPES.violationIn);
+    const res=sumRows(p,UPGRADE_TYPES.residencyIn), adv=sumRows(p,UPGRADE_TYPES.advanceIn);
+    const companyV=sumRows(out,UPGRADE_TYPES.violationOut), companyR=sumRows(out,UPGRADE_TYPES.residencyOut), companyA=sumRows(out,UPGRADE_TYPES.advanceOut);
+    const external=revenue.reduce((s,x)=>s+Number(x.amount||x.revenueAmount||0),0);
+    const expenses=exp.reduce((s,x)=>s+Number(x.amount||x.expenseAmount||0),0);
+    return {rent,old,vio,res,adv,companyV,companyR,companyA,external,expenses,net:rent+old+vio+res+adv+external-companyV-companyR-companyA-expenses};
+  }
+  function priorityItems(){
+    const now=new Date(), out=[];
+    gDrivers.filter(d=>!d.isArchived).forEach(d=>{
+      const x=detailed(d), end=toDate(x.contractEnd), h=trackingHealth(d), pays=gPayments.filter(p=>p.driverId===d.id).filter(isIncomingPayment);
+      const last=pays.map(p=>toDate(p.date)).filter(Boolean).sort((a,b)=>b-a)[0];
+      if(x.status==='بلا عقد') out.push({d,kind:'critical',title:'بلا عقد',reason:'ما في عقد صالح يحكم الاستحقاق الحالي'});
+      if(end&&!x.contractEnded&&((end-now)/86400000)<=30&&((end-now)/86400000)>=0) out.push({d,kind:'watch',title:'العقد ينتهي قريب',reason:`ينتهي خلال ${Math.ceil((end-now)/86400000)} يوم`});
+      if(x.contractEnded&&pays.some(p=>{const q=toDate(p.date);return q&&q>end})) out.push({d,kind:'critical',title:'دفعات بعد انتهاء العقد',reason:'وصلت دفعة بعد تاريخ نهاية العقد'});
+      if(x.totalDebt>Math.max(100,x.dailyWage*15)&&x.totalDebt-(d._lastDebt||x.totalDebt)>Math.max(50,x.dailyWage*4)) out.push({d,kind:'critical',title:'الدين يرتفع بسرعة',reason:'الدين الحالي أعلى بوضوح من آخر قراءة'});
+      if(last&&((now-last)/86400000)>14) out.push({d,kind:'watch',title:'توقف عن السداد',reason:`آخر سداد ${fmtDate(last)}`});
+      if(h.state!=='online') out.push({d,kind:'watch',title:'التتبع يحتاج متابعة',reason:`${trackingLabel(d).replace(/<[^>]+>/g,'')}`});
+      if(h.version!=='غير معروف'&&window.OWNER_APP_VERSION&&h.version!==window.OWNER_APP_VERSION) out.push({d,kind:'watch',title:'إصدار التطبيق قديم',reason:`الإصدار ${h.version}`});
+      d._lastDebt=x.totalDebt;
+    });
+    return out;
+  }
+  function buildHome(){
+    const s=cashSummary(), items=priorityItems(), noContract=gDrivers.filter(d=>detailed(d).status==='بلا عقد'), expiring=gDrivers.filter(d=>{const e=toDate(detailed(d).contractEnd);return e&&!detailed(d).contractEnded&&((e-new Date())/86400000)<=30&&e>=new Date();}), ended=gDrivers.filter(d=>detailed(d).contractEnded);
+    const monthEnd=new Date(); monthEnd.setMonth(monthEnd.getMonth()+1,0); monthEnd.setHours(23,59,59,999);
+    const recent=gPayments.filter(p=>isIncomingPayment(p)&&dateOf(p)>new Date(Date.now()-28*86400000));
+    const daily=recent.reduce((m,p)=>{const k=dateOf(p).toISOString().slice(0,10);m[k]=(m[k]||0)+Number(p.amount||0);return m;},{}), regular=Object.values(daily).length?Object.values(daily).reduce((a,b)=>a+b,0)/Object.values(daily).length:0;
+    const daysLeft=Math.max(1,Math.ceil((monthEnd-new Date())/86400000)), forecast=regular*daysLeft;
+    document.getElementById('tab-home').innerHTML=`
+      <div class="section-kicker">مركز القرار · اليوم</div>
+      <div class="decision-grid">
+        <div class="card"><h3>الأولوية الآن <span class="badge cat-critical">${items.length}</span></h3>
+          ${items.length?items.slice(0,14).map(i=>`<div class="followup ${i.kind}" ${i.d?`onclick="openDriverModal('${safe(i.d.id)}')"`:''}><b>${safe(i.title)}${i.d?' · '+safe(i.d.name||i.d.id):''}</b><div class="small-muted">${safe(i.reason)}${i.d?' · فتح ملف السائق':''}</div></div>`).join(''):'<div class="empty-state">ما في عناصر تحتاج قرار حالياً</div>'}
+        </div>
+        <div class="card"><h3>صورة النقد</h3>
+          ${[['إيجارات محصلة',s.rent],['ديون قديمة محصلة',s.old],['مخالفات محصلة',s.vio],['إقامات محصلة',s.res],['سلف محصلة',s.adv],['إيراد خارجي',s.external],['مصروفات',-s.expenses],['صافي التدفق',s.net]].map(r=>`<div class="money-row"><span>${r[0]}</span><b>${money(r[1])}</b></div>`).join('')}
+        </div>
+      </div>
+      <div class="kpi-grid">
+       ${[['إيجارات محصلة',s.rent,'green'],['قديم محصل',s.old,'blue'],['مخالفات محصلة',s.vio,'orange'],['إقامات محصلة',s.res,'purple'],['سلف محصلة',s.adv,'blue'],['شركة دفعت مخالفات',s.companyV,'red'],['إيراد خارجي',s.external,'green'],['صافي التدفق',s.net,s.net>=0?'green':'red']].map(x=>`<div class="kpi ${x[2]}"><div class="lbl">${x[0]}</div><div class="val">${money(x[1])}</div><div class="sub">الفترة الحالية · بدون تحويلات</div></div>`).join('')}
+      </div>
+      <div class="card"><h3>رادار العقود</h3><div class="mini-grid">
+       ${[['بلا عقد',noContract.length,'critical'],['تنتهي خلال 30 يوم',expiring.length,'watch'],['منتهية',ended.length,'danger'],['بيانات تحتاج تدقيق',contractInconsistencies().length,'watch']].map(x=>`<div class="kpi ${x[2]}"><div class="lbl">${x[0]}</div><div class="radar-count">${x[1]}</div></div>`).join('')}</div>
+      </div>
+      <div class="decision-grid"><div class="card"><h3>توقع التحصيل · تقديري</h3><div class="money-row"><span>المتوقع لنهاية الشهر</span><b>${money(forecast)}</b></div><div class="money-row"><span>المحصّل حتى الآن</span><b>${money(s.rent+s.old+s.vio+s.res+s.adv)}</b></div><div class="small-muted">تقدير محافظ مبني على انتظام التحصيل خلال آخر 28 يوم، وليس وعداً.</div></div>
+      <div class="card"><h3>صحة التتبع</h3>${gDrivers.slice(0,5).map(d=>`<div class="money-row"><span>${safe(d.name||d.id)}</span><b>${trackingLabel(d)}</b></div>`).join('')}</div></div>`;
+  }
+  function contractInconsistencies(){ return gDrivers.filter(d=>{const x=detailed(d);return (x.contractStart&&x.contractEnd&&x.contractEnd<x.contractStart)||(d.contractType==='monthly'&&!Number(d.monthlyPayment));}); }
+  function buildDriversTab(){
+    const rows=gDrivers.filter(d=>!d.isArchived);
+    document.getElementById('tab-drivers').innerHTML=`<div class="card"><div class="section-kicker">الملفات المالية والتشغيلية</div><h3>السائقين</h3><input id="driverTableSearch" placeholder="بحث بالاسم أو الرقم" oninput="renderDriverRows(this.value)"><div class="table-wrap"><table><thead><tr><th>السائق</th><th>الحالة المالية</th><th>الدين الموحد</th><th>آخر سداد</th><th>العقد</th><th>التتبع</th><th></th></tr></thead><tbody id="driverRows"></tbody></table></div></div>`;
+    window.renderDriverRows=function(value){const v=(value||'').toLowerCase(),body=document.getElementById('driverRows');if(!body)return;body.innerHTML=rows.filter(d=>(d.name||'').toLowerCase().includes(v)||d.id.toLowerCase().includes(v)||(d.employeeNumber||'').toLowerCase().includes(v)).map(d=>{const x=detailed(d);return `<tr><td class="name" onclick="openDriverModal('${safe(d.id)}')">${safe(d.name||d.id)}<div class="small-muted">${safe(d.employeeNumber||d.id)}</div></td><td><span class="badge ${x.status==='منتظم'?'cat-excellent':x.status==='بلا عقد'?'cat-critical':'cat-watch'}">${x.status}</span></td><td>${money(x.totalDebt)}<div class="small-muted">تأخير ${money(x.lateAmount)}</div></td><td>${fmtDate(x.lastPayment)}</td><td>${x.contractEnded?'منتهي':x.contractStart?fmtDate(x.contractStart):'بلا عقد'}</td><td>${trackingLabel(d)}</td><td><button class="btn outline" onclick="openDriverModal('${safe(d.id)}')">فتح الملف</button></td></tr>`}).join('')||'<tr><td colspan="7">ما في نتائج</td></tr>';};renderDriverRows('');}
+  function buildMonitorSection(){
+    const flagged=gEditHistory.filter(e=>monitorReason(e)),decisions=JSON.parse(localStorage.getItem('ownerMonitorDecisions')||'{}'),ignored=Object.keys(decisions).filter(k=>decisions[k]==='ignore');
+    document.getElementById('tab-monitor').innerHTML=`<div class="card"><div class="section-kicker">متابعة محايدة</div><h3>عمليات المحاسب · مراجعة مطلوبة</h3><p class="small-muted">هذه إشارات للمراجعة وليست اتهاماً. نشاط الليل وحده لا يرفع الإشارة.</p><div class="table-wrap"><table><thead><tr><th>العملية</th><th>قبل / بعد</th><th>الفرق المالي</th><th>الفاعل والوقت</th><th>السائق والسبب</th><th>الإجراء</th></tr></thead><tbody>${flagged.length?flagged.map(e=>{const id=e.id;return `<tr style="${ignored.includes(id)?'opacity:.45':''}"><td>${safe(e.action||'تعديل')} · ${safe(e.recordType||'سجل')}</td><td>${safe(changeText(e))}</td><td>${money(changeDiff(e))}</td><td>${safe(e.editedBy||'غير معروف')}<div class="small-muted">${fmtDate(toDate(e.timestamp))}</div></td><td>${safe(gDriverMap[e.driverId]?.name||e.driverId||'عام')}<div class="small-muted">${safe(monitorReason(e))}</div></td><td><button class="btn outline" onclick="monitorDecision('${safe(id)}','review')">مراجعة</button> <button class="btn outline" onclick="monitorDecision('${safe(id)}','defer')">تأجيل</button> <button class="btn outline" onclick="monitorDecision('${safe(id)}','ignore')">تجاهل</button></td></tr>`}).join(''):'<tr><td colspan="6">لا توجد عمليات تحتاج مراجعة</td></tr>'}</tbody></table></div></div>`;
+  }
+  function monitorReason(e){const fields=(e.changes||[]).map(c=>c.field||'').join('|'),a=e.action||'';if(a==='delete'||a==='permanentDelete')return'حذف سجل';if(fields.includes('amount'))return(e.changes||[]).some(c=>+c.newValue<+c.oldValue)?'تخفيض مبلغ':'تغيير مبلغ';if(fields.match(/date|paymentDate/))return'تغيير أو تأخير تاريخ الدفعة';if(fields.includes('type'))return'تغيير نوع الدفعة';if(fields.includes('oldDebts'))return'تغيير الدين القديم';if(fields.match(/contractStart|contractEnd|dailyRent|monthlyPayment/))return'تغيير بيانات العقد';return fields?'تعديل مالي يحتاج مراجعة':'';}
+  function changeText(e){return(e.changes||[]).map(c=>`${c.field}: ${c.oldValue??'—'} ← ${c.newValue??'—'}`).join(' · ')||'لا يوجد تفصيل';}
+  function changeDiff(e){return(e.changes||[]).filter(c=>c.field==='amount').reduce((s,c)=>s+Number(c.newValue||0)-Number(c.oldValue||0),0);}
+  window.monitorDecision=function(id,decision){const state=JSON.parse(localStorage.getItem('ownerMonitorDecisions')||'{}');state[id]=decision;localStorage.setItem('ownerMonitorDecisions',JSON.stringify(state));buildMonitorSection();};
+  window.saveFollowup=async function(id){const d=gDriverMap[id],old=d.ownerNotes||{},payload={...old,followUpStatus:document.getElementById('fuStatus').value,followUpDate:document.getElementById('fuDate').value||null,promisedAmount:Number(document.getElementById('fuAmount').value||0),promisedDate:document.getElementById('fuPromised').value||null};try{await firebase.firestore().collection('drivers').doc(id).set({ownerNotes:payload},{merge:true});d.ownerNotes=payload;showToast('تم حفظ المتابعة','تم تحديث سجل المالك بدون حذف الملاحظات السابقة');}catch(e){showToast('تعذر الحفظ',e.message);}};
+  function fulfillment(d){const n=d.ownerNotes||{},amt=Number(n.promisedAmount||0),pd=toDate(n.promisedDate);if(!amt||!pd)return'لا يوجد وعد مالي';const paid=gPayments.filter(p=>p.driverId===d.id&&isIncomingPayment(p)&&toDate(p.date)&&toDate(p.date)>=pd).reduce((s,p)=>s+Number(p.amount||0),0);return paid>=amt?'تم الوفاء بالوعد':`المحصّل بعد الوعد ${money(paid)} من ${money(amt)}`;}
+  let ownerChart=null,ownerChartMode='detail',ownerChartRange=30;
+  window.setOwnerChartMode=function(m){ownerChartMode=m;renderOwnerChart(gNavIds[gNavIndex]);};
+  window.setOwnerChartRange=function(n){ownerChartRange=n;renderOwnerChart(gNavIds[gNavIndex]);};
+  function chartBuckets(d,range){const end=new Date(),start=new Date(end.getTime()-range*86400000),map={};gPayments.filter(p=>p.driverId===d.id).forEach(p=>{const dt=toDate(p.date);if(!dt||dt<start||dt>end)return;const k=range>45?`${dt.getFullYear()}-${dt.getMonth()+1}`:getMondayOfWeek(dt).toISOString().slice(0,10);map[k]||={label:k,rentPaid:0,violationsCharged:0,violationsCollected:0,oldPayment:0,residencyCharged:0,residencyCollected:0,advancesGiven:0,advancesCollected:0,totalDebt:0};const b=map[k],a=Number(p.amount||0);if(UPGRADE_TYPES.rent.includes(p.type))b.rentPaid+=a;if(p.type==='تحصيل مخالفة')b.violationsCollected+=a;if(p.type==='سداد مخالفة')b.violationsCharged+=a;if(p.type==='دين قديم')b.oldPayment+=a;if(p.type==='سداد رسوم إقامة')b.residencyCharged+=a;if(p.type==='تحصيل رسوم إقامة')b.residencyCollected+=a;if(p.type==='سلفة إلى السائق')b.advancesGiven+=a;if(p.type==='تحصيل سلفة من السائق')b.advancesCollected+=a;});const a=Object.values(map).sort((x,y)=>x.label.localeCompare(y.label));let run=detailed(d).totalDebt;a.forEach(b=>{run+=b.violationsCharged+b.residencyCharged+b.advancesGiven-b.rentPaid-b.violationsCollected-b.residencyCollected-b.advancesCollected-b.oldPayment;b.totalDebt=run;});return a;}
+  function renderOwnerChart(id){const d=gDriverMap[id],el=document.getElementById('ownerDebtChart');if(!d||!el)return;const a=chartBuckets(d,ownerChartRange),defs=ownerChartMode==='detail'?[['rentPaid','إيجار محصل','#16815a'],['violationsCharged','مخالفات محملة','#c26a2e'],['violationsCollected','مخالفات محصلة','#2e8b72'],['oldPayment','سداد دين قديم','#6573a6'],['residencyCharged','إقامة محملة','#aa5360'],['residencyCollected','إقامة محصلة','#4c9b9b'],['advancesGiven','سلف معطاة','#a87626'],['advancesCollected','سلف محصلة','#5b7e58'],['totalDebt','إجمالي الدين','#8f2525']]:[['totalDebt','إجمالي الدين','#8f2525']];if(ownerChart)ownerChart.destroy();ownerChart=new Chart(el,{type:'line',data:{labels:a.map(x=>x.label),datasets:defs.map(x=>({label:x[1],data:a.map(b=>b[x[0]]),borderColor:x[2],backgroundColor:x[2],borderWidth:x[0]==='totalDebt'?4:2,tension:.25,pointRadius:2}))},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:true,rtl:true},tooltip:{rtl:true}},scales:{y:{ticks:{callback:v=>v+' د.ك'}}}}});}
+  /* Corrected chart, period cash, tracking aliases and ownerNotes persistence. */
+  function transferRow(x){
+    const text=[x.type,x.description,x.note,x.notes,x.category,x.title].filter(Boolean).join(' ').toLowerCase();
+    return TRANSFER_TYPES.includes(x.type)||/تحويل|transfer|نقل بين الحسابات|من حساب.*إلى حساب/.test(text);
+  }
+  function monthToDate(x){
+    const d=dateOf(x), n=new Date(); if(!d)return false;
+    return d>=new Date(n.getFullYear(),n.getMonth(),1)&&d<=n&&!transferRow(x);
+  }
+  cashSummary=function(){
+    const p=gPayments.filter(x=>monthToDate(x)), exp=gExpenses.filter(monthToDate), rev=gRevenues.filter(monthToDate);
+    const out=p.filter(x=>['سداد مخالفة','سداد رسوم إقامة','سلفة إلى السائق'].includes(x.type));
+    const inRows=p.filter(x=>!['سداد مخالفة','سداد رسوم إقامة','سلفة إلى السائق'].includes(x.type));
+    const v=(a,t)=>sumRows(a,t), external=rev.reduce((s,x)=>s+Number(x.amount||x.revenueAmount||0),0);
+    const expenses=exp.reduce((s,x)=>s+Number(x.amount||x.expenseAmount||0),0);
+    const rent=v(inRows,UPGRADE_TYPES.rent),old=v(inRows,UPGRADE_TYPES.old),vio=v(inRows,UPGRADE_TYPES.violationIn),res=v(inRows,UPGRADE_TYPES.residencyIn),adv=v(inRows,UPGRADE_TYPES.advanceIn);
+    const companyV=v(out,UPGRADE_TYPES.violationOut),companyR=v(out,UPGRADE_TYPES.residencyOut),companyA=v(out,UPGRADE_TYPES.advanceOut);
+    return {rent,old,vio,res,adv,companyV,companyR,companyA,external,expenses,net:rent+old+vio+res+adv+external-companyV-companyR-companyA-expenses};
+  };
+  trackingHealth=function(d){
+    const raw=d.lastUpdate||d.updatedAt||d.lastLocationUpdate||d.locationUpdatedAt||d.tracking?.lastUpdate||d.location?.updatedAt;
+    const last=toDate(raw),age=last?Math.max(0,(Date.now()-last.getTime())/60000):Infinity;
+    return {state:d.isActive===false||age>180?'offline':age>20?'stale':'online',age,last,accuracy:Number(d.accuracy??d.location?.accuracy??d.tracking?.accuracy??0),version:d.appVersion||d.version||d.tracking?.appVersion||'غير معروف'};
+  };
+  function engineRentDue(periods,start,end){
+    return (periods||[]).reduce((sum,p)=>{
+      const a=p.start&&new Date(p.start)>start?new Date(p.start):start,b=p.end&&new Date(p.end)<end?new Date(p.end):end;
+      if(!a||!b||b<=a)return sum;
+      if(p.contractType==='monthly'){
+        const months=Math.max(0,(b.getFullYear()-a.getFullYear())*12+b.getMonth()-a.getMonth()-(b.getDate()<Math.min(a.getDate(),new Date(b.getFullYear(),b.getMonth()+1,0).getDate())?1:0));
+        return sum+months*Number(p.rate||0);
+      }
+      return sum+Math.max(0,Math.floor((b-a)/86400000))*Number(p.rate||0);
+    },0);
+  }
+  chartBuckets=function(d,range){
+    const end=new Date(),start=new Date(end.getTime()-range*86400000),detail=detailed(d),monthly=range>45,map={};
+    const bucketKey=dt=>monthly?`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`:getMondayOfWeek(dt).toISOString().slice(0,10);
+    const bounds={};
+    for(let cursor=new Date(start);cursor<=end;cursor.setDate(cursor.getDate()+1)){
+      const dt=new Date(cursor),k=bucketKey(dt);
+      if(!bounds[k])bounds[k]={label:k,start:new Date(dt),end:new Date(dt)};
+      bounds[k].end=new Date(dt);bounds[k].end.setHours(23,59,59,999);
+    }
+    Object.keys(bounds).forEach(k=>map[k]={label:k,rentDue:engineRentDue(detail.periods,bounds[k].start,bounds[k].end),rentPaid:0,violationsCharged:0,violationsCollected:0,oldDebtOpening:0,oldPayment:0,residencyCharged:0,residencyCollected:0,advancesGiven:0,advancesCollected:0,totalDebt:0});
+    gPayments.filter(p=>p.driverId===d.id).forEach(p=>{const dt=toDate(p.date);if(!dt||dt<start||dt>end)return;const b=map[bucketKey(dt)];if(!b)return;const a=Number(p.amount||0);if(UPGRADE_TYPES.rent.includes(p.type))b.rentPaid+=a;if(p.type==='تحصيل مخالفة')b.violationsCollected+=a;if(p.type==='سداد مخالفة')b.violationsCharged+=a;if(p.type==='دين قديم')b.oldPayment+=a;if(p.type==='سداد رسوم إقامة')b.residencyCharged+=a;if(p.type==='تحصيل رسوم إقامة')b.residencyCollected+=a;if(p.type==='سلفة إلى السائق')b.advancesGiven+=a;if(p.type==='تحصيل سلفة من السائق')b.advancesCollected+=a;});
+    const arr=Object.values(map).sort((a,b)=>a.start-b.start);
+    if(arr[0])arr[0].oldDebtOpening=Number(detailed(d).oldDebts||0)+arr.reduce((s,b)=>s+b.oldPayment,0);
+    const delta=b=>b.rentDue-b.rentPaid+b.violationsCharged-b.violationsCollected+b.residencyCharged-b.residencyCollected+b.advancesGiven-b.advancesCollected-b.oldPayment;
+    let endpoint=detail.totalDebt; for(let i=arr.length-1;i>=0;i--){arr[i].totalDebt=endpoint;endpoint-=delta(arr[i]);}
+    if(arr.length)arr[arr.length-1].totalDebt=detail.totalDebt;
+    return arr;
+  };
+  renderOwnerChart=function(id){
+    const d=gDriverMap[id],el=document.getElementById('ownerDebtChart');if(!d||!el)return;const a=chartBuckets(d,ownerChartRange);
+    const defs=ownerChartMode==='detail'?[['rentDue','إيجار مستحق','#b36b20','bar'],['rentPaid','إيجار محصل','#15805a','bar'],['violationsCharged','مخالفات محملة','#9f3d3d','bar'],['violationsCollected','مخالفات محصلة','#267a78','bar'],['oldDebtOpening','رصيد الدين القديم','#5967a0','bar'],['oldPayment','سداد دين قديم','#7c83b8','bar'],['residencyCharged','إقامة محملة','#a95060','bar'],['residencyCollected','إقامة محصلة','#438f91','bar'],['advancesGiven','سلف معطاة','#a57620','bar'],['advancesCollected','سلف محصلة','#557c58','bar'],['totalDebt','إجمالي الدين','#8f2525','line']]:[['totalDebt','إجمالي الدين','#8f2525','line']];
+    if(ownerChart)ownerChart.destroy();
+    ownerChart=new Chart(el,{type:'bar',data:{labels:a.map(x=>x.label),datasets:defs.map(x=>({type:x[3],label:x[1],data:a.map(b=>b[x[0]]),backgroundColor:x[2],borderColor:x[2],borderWidth:x[0]==='totalDebt'?4:1,borderRadius:3,tension:.25,pointRadius:x[0]==='totalDebt'?3:0,fill:false}))},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:true,rtl:true},tooltip:{rtl:true,mode:'index',intersect:false}},scales:{x:{stacked:false},y:{beginAtZero:false,ticks:{callback:v=>v+' د.ك'}}}}});
+  };
+  priorityItems=function(){
+    const out=[],now=new Date();
+    gDrivers.filter(d=>!d.isArchived).forEach(d=>{
+      const x=detailed(d),h=trackingHealth(d),series=chartBuckets(d,30);
+      const old7=chartBuckets(d,7),past=old7.length?old7[0].totalDebt:x.totalDebt, rise=x.totalDebt-past;
+      const end=toDate(x.contractEnd), pays=gPayments.filter(p=>p.driverId===d.id&&isIncomingPayment(p)).map(p=>toDate(p.date)).filter(Boolean).sort((a,b)=>b-a);
+      if(x.status==='بلا عقد')out.push({d,kind:'critical',title:'بلا عقد',reason:'ما في عقد صالح يحكم الاستحقاق الحالي'});
+      if(end&&!x.contractEnded&&((end-now)/86400000)<=30&&end>=now)out.push({d,kind:'watch',title:'العقد ينتهي قريب',reason:`ينتهي خلال ${Math.ceil((end-now)/86400000)} يوم`});
+      if(x.contractEnded&&pays.some(p=>p>end))out.push({d,kind:'critical',title:'دفعات بعد انتهاء العقد',reason:'وصلت دفعة بعد تاريخ نهاية العقد'});
+      if(rise>Math.max(50,(x.dailyWage||0)*4))out.push({d,kind:'critical',title:'الدين يرتفع بسرعة',reason:`ارتفع تقريباً ${money(rise)} خلال آخر 7 أيام`});
+      if(pays[0]&&((now-pays[0])/86400000)>14)out.push({d,kind:'watch',title:'توقف عن السداد',reason:`آخر سداد ${fmtDate(pays[0])}`});
+      if(h.state!=='online')out.push({d,kind:'watch',title:'التتبع يحتاج متابعة',reason:`${h.state==='stale'?'آخر تحديث متأخر':'السائق غير متصل'}`});
+    });
+    gEditHistory.filter(e=>monitorReason(e)).slice(0,5).forEach(e=>out.push({d:gDriverMap[e.driverId],kind:'watch',title:'عملية محاسب تحتاج مراجعة',reason:monitorReason(e)}));
+    return out;
+  };
+  const oldBuildHome=buildHome;
+  buildHome=function(){
+    oldBuildHome();
+    const s=cashSummary(),rows=gDrivers.filter(d=>!d.isArchived),groups=[
+      ['بلا عقد',rows.filter(d=>detailed(d).status==='بلا عقد')],
+      ['ينتهي خلال 7 أيام',rows.filter(d=>{const x=detailed(d),z=toDate(x.contractEnd);return z&&!x.contractEnded&&z>=new Date()&&(z-new Date())/86400000<=7;})],
+      ['ينتهي خلال 14 يوم',rows.filter(d=>{const x=detailed(d),z=toDate(x.contractEnd);return z&&!x.contractEnded&&z>=new Date()&&(z-new Date())/86400000<=14;})],
+      ['ينتهي خلال 30 يوم',rows.filter(d=>{const x=detailed(d),z=toDate(x.contractEnd);return z&&!x.contractEnded&&z>=new Date()&&(z-new Date())/86400000<=30;})],
+      ['منتهي',rows.filter(d=>detailed(d).contractEnded)],
+      ['بيانات غير متسقة',contractInconsistencies()]
+    ];
+    document.querySelector('#tab-home .card:nth-of-type(3)')?.insertAdjacentHTML('afterend',`<div class="card"><h3>رادار العقود · قائمة القرار</h3>${groups.map(g=>`<div class="money-row"><b>${g[0]} (${g[1].length})</b><span>${g[1].slice(0,8).map(d=>`<button class="btn outline" style="margin:2px" onclick="openDriverModal('${safe(d.id)}')">${safe(d.name||d.id)}</button>`).join('')||'لا يوجد'}</span></div>`).join('')}</div>`);
+    document.querySelector('#tab-home .section-kicker').textContent='مركز القرار · من بداية الشهر إلى اليوم';
+    document.querySelectorAll('#tab-home .kpi .sub').forEach(e=>e.textContent='من بداية الشهر · بدون تحويلات');
+  };
+  const oldOpenDriverModal=window.openDriverModal;
+  window.openDriverModal=function(id){
+    oldOpenDriverModal(id);
+    const box=document.getElementById('modalContent');
+    if(box&&!document.getElementById('ownerNotesList')){
+      box.insertAdjacentHTML('beforeend',`<div class="card"><h3>ملاحظات المالك الخاصة</h3><textarea id="ownerNoteText" placeholder="اكتب ملاحظة متابعة" style="width:100%;min-height:70px"></textarea><button class="btn success" id="ownerNoteAddBtn" onclick="addOwnerNote()">إضافة ملاحظة</button><div id="ownerNotesList">جاري التحميل...</div></div>`);
+      loadOwnerNotes(id);
+      firebase.firestore().collection('ownerNotes').doc(id).get().then(s=>{const n=s.exists?s.data():{};['fuStatus','fuDate','fuAmount','fuPromised'].forEach(k=>{const e=document.getElementById(k);if(!e)return;if(k==='fuStatus')e.value=n.followUpStatus||'no follow-up';if(k==='fuDate')e.value=n.followUpDate||'';if(k==='fuAmount')e.value=n.promisedAmount||'';if(k==='fuPromised')e.value=n.promisedDate||'';});});
+    }
+  };
+  window.saveFollowup=async function(id){
+    const ref=firebase.firestore().collection('ownerNotes').doc(id),snap=await ref.get(),existing=snap.exists?snap.data():{},payload={...existing,followUpStatus:document.getElementById('fuStatus').value,followUpDate:document.getElementById('fuDate').value||null,promisedAmount:Number(document.getElementById('fuAmount').value||0),promisedDate:document.getElementById('fuPromised').value||null};
+    try{await ref.set(payload,{merge:true});showToast('تم حفظ المتابعة','تم حفظها في سجل ملاحظات المالك');}catch(e){showToast('تعذر الحفظ',e.message);}
+  };
+  window.openDriverModal=function(id){
+    const d=gDriverMap[id];if(!d)return;gNavIds=gDrivers.filter(x=>!x.isArchived).map(x=>x.id);gNavIndex=gNavIds.indexOf(id);const x=detailed(d),n=d.ownerNotes||{};
+    document.getElementById('modalContent').innerHTML=`<div class="modal-head"><div><h2>${safe(d.name||id)}</h2><div class="sub">${safe(d.employeeNumber||id)} · ${x.status} · ${trackingLabel(d)}</div></div><button class="close-x" onclick="closeModal()">×</button></div>
+      <div class="mini-grid"><div class="kpi red"><div class="lbl">إجمالي الدين</div><div class="val">${money(x.totalDebt)}</div></div><div class="kpi orange"><div class="lbl">متأخر إيجار</div><div class="val">${money(x.lateAmount)}</div></div><div class="kpi"><div class="lbl">دين قديم</div><div class="val">${money(x.oldDebts)}</div></div><div class="kpi"><div class="lbl">آخر سداد</div><div class="val" style="font-size:16px">${fmtDate(x.lastPayment)}</div></div></div>
+      <div class="card"><h3>شرح تغيّر الدين</h3><div class="explain-list">${[['إيجار متراكم',x.lateAmount],['مخالفات',x.violations],['إقامات',x.residencyFees],['دين قديم',x.oldDebts],['سلف صافية',x.netAdvance],['رصيد للسائق',-x.driverBalance],['الصافي',x.totalDebt]].map(q=>`<div class="explain-item">${q[0]}<strong>${money(q[1])}</strong></div>`).join('')}</div><p class="small-muted" style="margin-top:8px">الصافي = الإيجار المتراكم + كل الرسوم والسلف + الدين القديم − رصيد السائق. الأرقام محسوبة من محرك الرصيد الموحد.</p></div>
+      <div class="card"><h3>حركة الدين التاريخية <span class="small-muted">التاريخ تقديري عند عدم توفر لقطات محفوظة</span></h3><div class="range-pills"><button class="range-pill ${ownerChartRange===30?'active':''}" onclick="setOwnerChartRange(30)">30 يوم</button><button class="range-pill ${ownerChartRange===90?'active':''}" onclick="setOwnerChartRange(90)">90 يوم</button><button class="range-pill ${ownerChartRange===365?'active':''}" onclick="setOwnerChartRange(365)">سنة</button></div><div class="mtabs"><button class="mtab-btn ${ownerChartMode==='detail'?'active':''}" onclick="setOwnerChartMode('detail')">تفصيل البنود</button><button class="mtab-btn ${ownerChartMode==='total'?'active':''}" onclick="setOwnerChartMode('total')">حركة إجمالي الدين</button></div><div class="chart-box tall"><canvas id="ownerDebtChart"></canvas></div></div>
+      <div class="card"><h3>متابعة المالك</h3><div class="mini-grid"><select id="fuStatus"><option value="daily follow-up">متابعة يومية</option><option value="weekly follow-up">متابعة أسبوعية</option><option value="promised payment">دفعة موعودة</option><option value="contract review">مراجعة عقد</option><option value="operational issue">مشكلة تشغيلية</option><option value="no follow-up">لا توجد متابعة</option></select><input id="fuDate" type="date"><input id="fuAmount" type="number" step=".001" placeholder="المبلغ الموعود"><input id="fuPromised" type="date"></div><div id="followupFulfillment" class="small-muted" style="margin:8px 0">جاري تحميل المتابعة...</div><button class="btn success" onclick="saveFollowup('${safe(id)}')">حفظ المتابعة</button></div>
+      <div class="card"><h3>ملاحظات المالك الخاصة</h3><textarea id="ownerNoteText" placeholder="اكتب ملاحظة متابعة" style="width:100%;min-height:70px"></textarea><button class="btn success" id="ownerNoteAddBtn" onclick="addOwnerNote()">إضافة ملاحظة</button><div id="ownerNotesList">جاري التحميل...</div></div>`;
+    document.getElementById('driverModal').classList.add('active');
+    renderOwnerChart(id);
+    loadOwnerNotes(id);
+    firebase.firestore().collection('ownerNotes').doc(id).get().then(s=>{
+      const note=s.exists?s.data():{};
+      d.ownerNotes=note;
+      document.getElementById('fuStatus').value=note.followUpStatus||'no follow-up';
+      document.getElementById('fuDate').value=note.followUpDate||'';
+      document.getElementById('fuAmount').value=note.promisedAmount||'';
+      document.getElementById('fuPromised').value=note.promisedDate||'';
+      document.getElementById('followupFulfillment').textContent=fulfillment(d);
+    }).catch(e=>{
+      const status=document.getElementById('followupFulfillment');
+      if(status)status.textContent='تعذر تحميل المتابعة: '+e.message;
+    });
+  };
   </script>
   </body>
   </html>

@@ -361,7 +361,7 @@
     </div>
 
     <!-- محرك حساب الديون الموحد -->
-    <script src="unified-balance.js?v=030"></script>
+    <script src="unified-balance.js?v=031"></script>
 
     <!-- Firebase SDK -->
     <script type="module">
@@ -1124,19 +1124,22 @@
                 driverData.isArchived = false;
                 driverData.driverId = driverData.employeeNumber; // Use employeeNumber as driverId
                 driverData.isActive = false; // Will be activated when driver starts tracking
-                // #003: إنشاء contractHistory عند إضافة سائق جديد
-                driverData.contractHistory = [{
-                    contractType: driverData.contractType,
-                    dailyRent: driverData.dailyRent || 0,
-                    monthlyPayment: driverData.monthlyPayment || 0,
-                    contractDurationMonths: driverData.contractDurationMonths || 0,
-                    contractDurationDays: driverData.contractDurationDays || 0,
-                    startDate: driverData.contractStartDate || new Date(),
-                    endDate: driverData.contractEndDate || null,
-                    createdAt: new Date(),
-                    createdBy: currentUser.name || currentUser.email,
-                    note: 'عقد أولي'
-                }];
+                // #003 + 🔧 #031: إنشاء "عقد أولي" فقط إذا حُدّد تاريخ بداية العقد.
+                // بدون تاريخ = سائق "بلا عقد": لا يُخترع تاريخ بداية من يوم الإضافة، ولا يُحسب عليه إيجار.
+                if (driverData.contractStartDate) {
+                    driverData.contractHistory = [{
+                        contractType: driverData.contractType,
+                        dailyRent: driverData.dailyRent || 0,
+                        monthlyPayment: driverData.monthlyPayment || 0,
+                        contractDurationMonths: driverData.contractDurationMonths || 0,
+                        contractDurationDays: driverData.contractDurationDays || 0,
+                        startDate: driverData.contractStartDate,
+                        endDate: driverData.contractEndDate || null,
+                        createdAt: new Date(),
+                        createdBy: currentUser.name || currentUser.email,
+                        note: 'عقد أولي'
+                    }];
+                }
             }
 
             try {
@@ -1163,8 +1166,10 @@
                     const oldStart = __existingDrv?.contractStartDate ? (__existingDrv.contractStartDate.toDate ? __existingDrv.contractStartDate.toDate() : new Date(__existingDrv.contractStartDate)) : null;
                     // FIX #024: المدير (admin) يقدر يعدّل بداية العقد، المحاسب لا
                     const _isAdminUser = !!(currentUser && currentUser.role === 'admin');
-                    const startChanged = !!(__existingDrv && oldStart && driverData.contractStartDate && fmtD(oldStart) !== fmtD(driverData.contractStartDate));
-                    if (startChanged && !_isAdminUser) {
+                    // 🔧 #031: "فاضية → محددة" تُعتبر تغييراً أيضاً حتى يتزامن سجل العقود الداخلي مع البيانات الظاهرة
+                    const startChanged = !!(__existingDrv && driverData.contractStartDate && fmtD(oldStart) !== fmtD(driverData.contractStartDate));
+                    const _startFirstSet = startChanged && !oldStart; // تحديد البداية لأول مرة (كانت فاضية)
+                    if (startChanged && !_startFirstSet && !_isAdminUser) {
                         alert('⚠️ ما يمكن تغيير تاريخ بداية العقد من زر "تعديل".\n\nلتغيير البداية: استخدم زر "📋 عقد جديد".');
                         return;
                     }
@@ -1250,6 +1255,18 @@
                                         contractDurationMonths: newMonths,
                                         contractDurationDays: newDays
                                     };
+                                } else if (driverData.contractStartDate) {
+                                    // 🆕 #031: سائق كان "بلا عقد" — عاين الحساب كأن "عقد أولي" انضاف
+                                    futureHistory.push({
+                                        contractType: oldType || driverData.contractType,
+                                        dailyRent: (oldType || driverData.contractType) === 'daily' ? newRate : 0,
+                                        monthlyPayment: (oldType || driverData.contractType) === 'monthly' ? newRate : 0,
+                                        contractDurationMonths: newMonths,
+                                        contractDurationDays: newDays,
+                                        startDate: driverData.contractStartDate,
+                                        endDate: newEnd || null,
+                                        note: 'عقد أولي'
+                                    });
                                 }
                                 const futureDriver = {
                                     ...__existingDrv,
@@ -1299,7 +1316,7 @@
                     //    • حدّث آخر سجل عقد فعلي (عقد أولي/جديد) بالقيم الجديدة → يصبح هو "العقد الحالي" للحسابات
                     //    • ضِف صف "✏️ تعديل" واحد للعرض في سجل العقود (unified-balance يتجاهله تلقائياً)
                     const existingHistory = (__existingDrv?.contractHistory) ? __existingDrv.contractHistory.map(c => ({ ...c })) : [];
-                    if (contractChanges.length > 0 && existingHistory.length > 0) {
+                    if (contractChanges.length > 0) { // 🔧 #031: حتى لو السجل فاضي (سائق بلا عقد)
                         let lastIdx = -1;
                         for (let i = existingHistory.length - 1; i >= 0; i--) {
                             if (existingHistory[i].note !== 'تعديل عقد' && existingHistory[i].type !== 'تعديل') { lastIdx = i; break; }
@@ -1317,6 +1334,20 @@
                                 lastEditedAt: new Date(),
                                 lastEditedBy: currentUser.name || currentUser.email
                             };
+                        } else if (driverData.contractStartDate) {
+                            // 🆕 #031: سائق كان "بلا عقد" — أنشئ سجل "عقد أولي" الآن بالتواريخ المحددة
+                            existingHistory.push({
+                                contractType: oldType || driverData.contractType,
+                                dailyRent: (oldType || driverData.contractType) === 'daily' ? newRate : 0,
+                                monthlyPayment: (oldType || driverData.contractType) === 'monthly' ? newRate : 0,
+                                contractDurationMonths: newMonths,
+                                contractDurationDays: newDays,
+                                startDate: driverData.contractStartDate,
+                                endDate: newEnd || null,
+                                createdAt: new Date(),
+                                createdBy: currentUser.name || currentUser.email,
+                                note: 'عقد أولي'
+                            });
                         }
                         // صف تعديل واحد فقط مع تفاصيل التغييرات
                         existingHistory.push({
