@@ -242,6 +242,11 @@
             font-style: italic;
             padding: 40px 20px;
         }
+        .debt-audit-card { border:1px solid #dbeafe; border-right:4px solid #2563eb; border-radius:10px; padding:12px; margin:10px 0; background:#f8fbff; }
+        .debt-audit-card summary { cursor:pointer; font-weight:700; color:#1e3a8a; }
+        .debt-audit-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:7px; margin-top:10px; font-size:12px; }
+        .debt-audit-grid span { display:block; color:#64748b; } .debt-audit-grid strong { color:#1e293b; }
+        .audit-warning { color:#b45309; background:#fffbeb; border:1px solid #fde68a; border-radius:7px; padding:7px; font-size:12px; margin-top:8px; }
     </style>
 </head>
 <body>
@@ -533,7 +538,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="unified-balance.js?v=031"></script>
+    <script src="unified-balance.js?v=032"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -636,7 +641,7 @@
             const driver = allDrivers.find(d => d.id === driverId);
             if (!driver) return 0;
             if (typeof window.calculateDriverDebt === 'function' && window.calculateDriverDebt !== calculateDriverDebt) {
-                return window.calculateDriverDebt(driverId, driver, driverPayments);
+                return window.calculateDriverDebt(driverId, driver, driverPayments.filter(p => String(p.status || '').toLowerCase() !== 'voided'));
             }
             console.warn('⚠️ unified-balance.js غير محمّل - الحساب قد يكون غير دقيق');
             return parseFloat(driver.oldDebts || 0);
@@ -645,7 +650,7 @@
         // Calculate driver statistics
         function calculateDriverStats(driver) {
             if (typeof window.calculateDriverDebtDetailed === 'function') {
-                return window.calculateDriverDebtDetailed(driver.id, driver, driverPayments);
+                return window.calculateDriverDebtDetailed(driver.id, driver, driverPayments.filter(p => String(p.status || '').toLowerCase() !== 'voided'));
             }
             console.warn('⚠️ unified-balance.js غير محمّل - الحساب قد يكون غير دقيق');
             const od = parseFloat(driver.oldDebts || 0);
@@ -692,7 +697,7 @@
                         <td class="amount ${stats.driverBalance > 0 ? 'positive' : 'zero'}">${stats.driverBalance.toFixed(3)} د.ك</td>
                         <td class="amount ${stats.violations > 0 ? 'negative' : 'zero'}" style="cursor:pointer;" onclick="showViolationsDetails('${driver.id}')" title="اضغط للتفاصيل">${stats.violations.toFixed(3)} د.ك 🔍</td>
                         <td class="amount ${stats.residencyFees > 0 ? 'negative' : 'zero'}" style="cursor:pointer;" onclick="showResidencyDetails('${driver.id}')" title="اضغط للتفاصيل">${stats.residencyFees.toFixed(3)} د.ك 🔍</td>
-                        <td class="amount ${stats.oldDebts > 0 ? 'negative' : 'zero'}" style="cursor:pointer;" onclick="showOldDebtsDetails('${driver.id}')" title="اضغط للتفاصيل">${stats.oldDebts.toFixed(3)} د.ك 🔍</td>
+                        <td class="amount ${stats.oldDebts > 0 ? 'negative' : 'zero'}" style="cursor:pointer;" onclick="showOldDebtsDetails('${driver.id}')" title="اضغط للتفاصيل">${stats.oldDebts.toFixed(3)} د.ك 🔍${oldDebtAuditBadge(driver)}</td>
                         <td class="amount ${stats.totalDebt > 0 ? 'negative' : 'positive'}" style="cursor:pointer;" onclick="showTotalDebtDetails('${driver.id}')" title="اضغط للتفاصيل">${stats.totalDebt.toFixed(3)} د.ك 🔍</td>
                     </tr>
                 `;
@@ -1091,7 +1096,7 @@
                 const driver = drivers.find(d => d.id === driverId);
                 if (!driver) return;
                 
-                const payments = driverPayments.filter(p => p.driverId === driverId)
+                const payments = driverPayments.filter(p => p.driverId === driverId && String(p.status || '').toLowerCase() !== 'voided')
                     .sort((a, b) => {
                         const dateA = parseDate(a.date);
                         const dateB = parseDate(b.date);
@@ -1613,57 +1618,89 @@
             openDetailModal(`تفاصيل مصاريف الإقامة - ${driver.name}`, content);
         };
 
+        function oldDebtObligations(driver) {
+            const list = Array.isArray(driver.oldDebtDetails) ? driver.oldDebtDetails : [];
+            return list.map((o, i) => ({
+                id: o.id || `legacy-debt-${driver.id}-${i + 1}`,
+                contractId: o.contractId || o.sourceContractId || '',
+                contractLabel: o.contractLabel || o.contractName || 'دين قديم غير مربوط بعقد',
+                contractType: o.contractType || '',
+                contractStart: o.contractStart || o.startDate,
+                contractEnd: o.contractEnd || o.endDate,
+                rate: Number(o.rate || o.dailyRent || o.monthlyPayment || 0),
+                expectedRent: Number(o.expectedRent || 0),
+                paidDuringContract: Number(o.paidDuringContract || 0),
+                originalAmount: Number(o.originalAmount ?? o.amount ?? 0),
+                remainingAmount: Number(o.remainingAmount ?? o.originalAmount ?? o.amount ?? 0),
+                status: o.status || 'open',
+                note: o.note || '',
+                createdAt: o.createdAt,
+                createdBy: o.createdBy || o.createdByName || ''
+            }));
+        }
+        function paymentIsVoided(p) { return String(p.status || '').toLowerCase() === 'voided'; }
+        function normalizedPaymentParts(p) {
+            if (paymentIsVoided(p)) return [];
+            if (Array.isArray(p.allocations) && p.allocations.length) return p.allocations.map(a => ({ ...a, amount: Number(a.amount ?? a.allocationAmount ?? 0) }));
+            if (p.allocationKind || p.obligationId || p.contractId) return [{ allocationKind:p.allocationKind, obligationId:p.obligationId, contractId:p.contractId, amount:Number(p.allocationAmount ?? p.amount ?? 0), allocationReason:p.allocationReason }];
+            return [{ allocationKind:null, obligationId:null, contractId:null, amount:Number(p.amount || 0), legacy:true }];
+        }
+        function obligationSettledAmount(driverId, obligationId) {
+            return driverPayments.filter(p => p.driverId === driverId).reduce((sum, p) =>
+                sum + normalizedPaymentParts(p).filter(a => a.allocationKind === 'oldDebt' && a.obligationId === obligationId)
+                    .reduce((s, a) => s + Number(a.amount || 0), 0), 0);
+        }
+        function oldDebtSettlements(driverId, obligationId) {
+            return driverPayments.filter(p => p.driverId === driverId &&
+                normalizedPaymentParts(p).some(a => (a.allocationKind === 'oldDebt' && (!obligationId || a.obligationId === obligationId)) ||
+                 (!a.allocationKind && p.type === 'دين قديم')));
+        }
+        function oldDebtSettlementAmount(p, obligationId) {
+            return normalizedPaymentParts(p).filter(a => (a.allocationKind === 'oldDebt' && (!obligationId || a.obligationId === obligationId)) || (!a.allocationKind && p.type === 'دين قديم'))
+                .reduce((s, a) => s + Number(a.amount || 0), 0);
+        }
+        function oldDebtAuditBadge(driver) {
+            const obligations = oldDebtObligations(driver);
+            const missing = obligations.some(o => !o.contractId) || (!obligations.length && Number(driver.oldDebts || 0) > 0);
+            const payments = driverPayments.filter(p => p.driverId === driver.id);
+            const unallocated = payments.some(p => normalizedPaymentParts(p).some(a => !a.allocationKind && ['أجرة يومية','أجرة شهرية','دين قديم'].includes(p.type) && p.date && driver.contractEndDate && parseDate(p.date) > parseDate(driver.contractEndDate)));
+            return missing ? '<span title="دين يحتاج مصدر" style="color:#b45309;font-size:11px;">⚠️</span>' : (unallocated ? '<span title="دفعة تحتاج مراجعة" style="color:#b45309;font-size:11px;">⚠️</span>' : '');
+        }
+
         // تفاصيل الديون القديمة
         window.showOldDebtsDetails = (driverId) => {
             const driver = drivers.find(d => d.id === driverId);
             if (!driver) return;
-
-            const oldDebtsInitial = parseFloat(driver.oldDebts || 0);
-            const oldDebtPayments = driverPayments.filter(p => p.driverId === driverId && p.type === 'دين قديم');
-            const oldDebtsPaid = oldDebtPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-
-            // الرصيد المرحَّل من عقود سابقة
-            const contractHistory = driver.contractHistory || [];
-            const carryOvers = contractHistory.filter(h => h.type === 'عقد جديد' && h.carryOver && h.carryOver !== 0);
-
-            let content = `<div style="margin-bottom:14px;">`;
-
-            // قسم 1: الدين اليدوي
-            content += `<div style="background:#fff7ed;border-radius:10px;padding:12px;margin-bottom:12px;border-right:4px solid #f59e0b;">
-                <div style="font-weight:600;margin-bottom:6px;">📝 دين يدوي مسجّل</div>
-                <div style="font-size:14px;">المبلغ المسجّل: <strong>${oldDebtsInitial.toFixed(3)} د.ك</strong></div>
-            </div>`;
-
-            // قسم 2: الرصيد المرحَّل من عقود سابقة
-            if (carryOvers.length > 0) {
-                content += `<div style="background:#f0f9ff;border-radius:10px;padding:12px;margin-bottom:12px;border-right:4px solid #3b82f6;">
-                    <div style="font-weight:600;margin-bottom:8px;">📊 رصيد مرحَّل من عقود سابقة</div>`;
-                carryOvers.forEach(h => {
-                    const startDate = h.startDate ? formatDetailDate(h.startDate) : '-';
-                    const endDate = h.endDate ? formatDetailDate(h.endDate) : '-';
-                    content += `<div style="font-size:13px;margin-bottom:4px;">
-                        مرحَّل من عقد (${startDate} – ${endDate}): 
-                        <strong style="color:${h.carryOver>0?'#dc2626':'#059669'};">${Math.abs(h.carryOver).toFixed(3)} د.ك ${h.carryOver>0?'(دين)':'(زائد)'}</strong>
-                    </div>`;
-                });
-                content += `</div>`;
-            }
-
-            // قسم 3: المدفوعات مقابل الديون القديمة
-            if (oldDebtPayments.length > 0) {
-                content += `<div style="background:#f0fdf4;border-radius:10px;padding:12px;margin-bottom:12px;border-right:4px solid #10b981;">
-                    <div style="font-weight:600;margin-bottom:8px;">✅ مدفوعات مقابل الديون القديمة</div>`;
-                oldDebtPayments.forEach(p => {
-                    content += `<div style="font-size:13px;margin-bottom:4px;">${formatDetailDate(p.date||p.createdAt)}: <strong style="color:#059669;">-${parseFloat(p.amount||0).toFixed(3)} د.ك</strong></div>`;
-                });
-                content += `</div>`;
-            }
-
+            const obligations = oldDebtObligations(driver);
+            const legacyAmount = Number(driver.oldDebts || 0);
+            let content = `<div class="audit-warning">ℹ️ هذه التفاصيل من سجل الدين المرتبط بالعقد. السجلات القديمة التي لا تحتوي على مصدر تظهر بوضوح وتحتاج مراجعة.</div>`;
+            if (!obligations.length && legacyAmount) content += `<div class="debt-audit-card"><strong>⚠️ دين قديم بلا مصدر</strong><div class="debt-audit-grid"><div><span>المبلغ</span><strong>${legacyAmount.toFixed(3)} د.ك</strong></div><div><span>الحالة</span><strong>يحتاج مراجعة</strong></div></div></div>`;
+            obligations.forEach(o => {
+                const settlements = oldDebtSettlements(driverId, o.id);
+                const settled = obligationSettledAmount(driverId, o.id);
+                const remaining = Math.max(0, Number(o.originalAmount || 0) - settled);
+                content += `<details class="debt-audit-card" open>
+                    <summary>📄 ${o.contractLabel} — ${remaining.toFixed(3)} د.ك متبقي <span style="font-size:11px;color:#64748b;">(${o.status === 'closed' || remaining === 0 ? 'مسدد' : 'مفتوح'})</span></summary>
+                    <div class="debt-audit-grid">
+                        <div><span>رقم العقد</span><strong>${o.contractId || 'غير مربوط ⚠️'}</strong></div>
+                        <div><span>الفترة</span><strong>${o.contractStart ? formatDetailDate(o.contractStart) : '—'} – ${o.contractEnd ? formatDetailDate(o.contractEnd) : '—'}</strong></div>
+                        <div><span>الأجرة</span><strong>${o.rate.toFixed(3)} د.ك</strong></div>
+                        <div><span>استحقاق العقد</span><strong>${o.expectedRent.toFixed(3)} د.ك</strong></div>
+                        <div><span>مدفوع أثناء العقد</span><strong>${o.paidDuringContract.toFixed(3)} د.ك</strong></div>
+                        <div><span>المرحّل عند الإنهاء</span><strong>${o.originalAmount.toFixed(3)} د.ك</strong></div>
+                        <div><span>المتبقي</span><strong>${remaining.toFixed(3)} د.ك</strong></div>
+                        <div><span>أنشئ بواسطة</span><strong>${o.createdBy || 'غير مسجل'}</strong></div>
+                    </div>
+                    ${o.note ? `<div style="margin-top:8px;color:#475569;">📝 ${o.note}</div>` : ''}
+                    ${(o.correctionOf || o.correctedAt || o.correctedBy || o.correctionReason) ? `<div style="margin-top:8px;color:#b45309;font-size:12px;">✏️ تصحيح: ${o.correctionReason || 'تصحيح مسجل'} · ${o.correctedBy || 'غير مسجل'} · ${o.correctedAt ? formatDetailDate(o.correctedAt) : ''}</div>` : ''}
+                    <div style="margin-top:10px;font-weight:700;color:#166534;">✅ التسويات اللاحقة (${settlements.length})</div>
+                    ${settlements.length ? settlements.map(p => `<div style="font-size:12px;margin-top:4px;">${formatDetailDate(p.date || p.createdAt)} · ${p.refNum || p.id || 'بدون مرجع'} · ${oldDebtSettlementAmount(p, o.id).toFixed(3)} د.ك ${normalizedPaymentParts(p).some(a => a.allocationKind === 'oldDebt') ? '· مخصص لهذا الدين' : '· قديم يحتاج تحقق'}</div>`).join('') : '<div style="font-size:12px;color:#64748b;margin-top:4px;">لا توجد تسويات مسجلة</div>'}
+                </details>`;
+            });
+            const timeline = (driver.contractHistory || []).slice().sort((a,b) => parseDate(a.startDate || a.createdAt) - parseDate(b.startDate || b.createdAt));
+            if (timeline.length) content += `<details class="debt-audit-card"><summary>🗂️ خط زمني للعقود (${timeline.length})</summary>${timeline.map(h => `<div style="padding:7px 0;border-bottom:1px solid #e2e8f0;font-size:12px;"><strong>${h.contractLabel || h.type || 'عقد'}</strong> · ${h.startDate ? formatDetailDate(h.startDate) : '—'} – ${h.endDate ? formatDetailDate(h.endDate) : '—'} · مرحّل ${Number(h.carryOver || 0).toFixed(3)} د.ك</div>`).join('')}</details>`;
             const stats = calculateDriverStats(driver);
-            content += `<div style="background:#fef2f2;border-radius:10px;padding:12px;border-right:4px solid #dc2626;">
-                <div style="font-weight:700;color:#dc2626;">صافي الديون القديمة: ${stats.oldDebts.toFixed(3)} د.ك</div>
-            </div></div>`;
-
+            content += `<div class="debt-audit-card" style="border-right-color:#dc2626;"><strong>الرصيد المحسوب من النظام: ${stats.oldDebts.toFixed(3)} د.ك</strong></div>`;
             openDetailModal(`تفاصيل الديون القديمة - ${driver.name}`, content);
         };
 

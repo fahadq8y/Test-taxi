@@ -314,7 +314,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="unified-balance.js?v=031"></script>
+    <script src="unified-balance.js?v=032"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -341,19 +341,19 @@
                 const revenues = revenuesSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
-                }));
+                })).filter(item => item.status !== 'voided');
 
                 const expensesSnapshot = await db.collection('expenses').orderBy('date', 'desc').get();
                 const expenses = expensesSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
-                }));
+                })).filter(item => item.status !== 'voided');
 
                 const paymentsSnapshot = await db.collection('driverPayments').orderBy('date', 'desc').get();
                 const driverPayments = paymentsSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
-                }));
+                })).filter(item => item.status !== 'voided');
 
                 const driversSnapshot = await db.collection('drivers').get();
                 const drivers = driversSnapshot.docs.map(doc => ({
@@ -376,6 +376,41 @@
         }
 
         // تم نقل جميع الدوال إلى unified-balance.js
+        function balancePaymentParts(payment) {
+            if (payment.status === 'voided') return [];
+            if (Array.isArray(payment.allocations) && payment.allocations.length) {
+                return payment.allocations.map(part => ({ ...part, amount: Number(part.amount ?? part.allocationAmount) || 0 }));
+            }
+            if (payment.allocationKind || payment.obligationId || payment.contractId) {
+                return [{ ...payment, amount: Number(payment.allocationAmount ?? payment.amount) || 0 }];
+            }
+            return [{ ...payment, amount: Number(payment.amount) || 0 }];
+        }
+
+        function deriveOldDebtDetails(driver, payments, detailed) {
+            const source = detailed && Array.isArray(detailed.oldDebtDetails)
+                ? detailed.oldDebtDetails
+                : (Array.isArray(driver.oldDebtDetails) ? driver.oldDebtDetails : []);
+            return source.map((obligation, index) => {
+                const id = obligation.id || obligation.obligationId;
+                const original = Number(obligation.originalAmount) || 0;
+                const adjustments = (Array.isArray(obligation.adjustments) ? obligation.adjustments : [])
+                    .filter(a => a.status !== 'voided')
+                    .reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+                const allocated = payments.reduce((sum, payment) => sum + balancePaymentParts(payment)
+                    .filter(part => {
+                        if (part.allocationKind === 'oldDebt') return id && part.obligationId === id;
+                        return !part.allocationKind && part.type === 'دين قديم' &&
+                            (!obligation.contractId || part.contractId === obligation.contractId);
+                    })
+                    .reduce((inner, part) => inner + part.amount, 0), 0);
+                return {
+                    ...obligation,
+                    id: id || `legacy-${index}`,
+                    derivedRemainingAmount: Math.max(0, original + adjustments - allocated)
+                };
+            });
+        }
 
         async function showDriversDebt() {
             const modal = document.getElementById('driversDebtModal');
@@ -391,7 +426,8 @@
                 
                 const allPayments = [];
                 paymentsSnapshot.forEach(doc => {
-                    allPayments.push({ id: doc.id, ...doc.data() });
+                    const payment = { id: doc.id, ...doc.data() };
+                    if (payment.status !== 'voided') allPayments.push(payment);
                 });
                 
                 let hasDebts = false;
@@ -404,13 +440,27 @@
                     
                     if (totalDebt > 0) {
                         hasDebts = true;
+                        let detailed = null;
+                        try {
+                            if (typeof calculateDriverDebtDetailed === 'function') {
+                                detailed = calculateDriverDebtDetailed(driver.id, driver, driverPayments);
+                            }
+                        } catch (detailError) {
+                            console.warn('تعذر حساب تفاصيل الدين القديم:', detailError);
+                        }
+                        const debtDetails = deriveOldDebtDetails(driver, driverPayments, detailed);
+                        const detailSummary = debtDetails.length
+                            ? `<br>بنود الدين القديم: ${debtDetails.map((d, i) =>
+                                `${d.contractLabel || d.contractId || `بند ${i + 1}`} — المتبقي ${d.derivedRemainingAmount.toFixed(3)} د.ك`
+                              ).join('، ')}`
+                            : '';
                         debtHtml += `
                             <div class="debt-item">
                                 <div class="debt-driver">${driver.name}</div>
                                 <div class="debt-amount">${totalDebt.toFixed(3)} د.ك</div>
                                 <div class="debt-details">
                                     الهاتف: ${driver.phone || 'غير محدد'}<br>
-                                    آخر تحديث: ${driver.lastPaymentDate || 'غير محدد'}
+                                    آخر تحديث: ${driver.lastPaymentDate || 'غير محدد'}${detailSummary}
                                 </div>
                             </div>
                         `;

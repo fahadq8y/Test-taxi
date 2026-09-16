@@ -221,6 +221,9 @@
     .explain-item strong { display:block; color:var(--navy); font-size:15px; margin-top:4px; }
     .tracking-dot { width:8px;height:8px;border-radius:50%;display:inline-block;margin-left:5px; }
     .tracking-online { background:#16815a; } .tracking-stale { background:#c99034; } .tracking-offline { background:#9b3030; }
+    .audit-summary { border:1px solid #e9d5a7; border-right:4px solid var(--gold); border-radius:10px; padding:11px 13px; background:#fffaf1; margin-bottom:14px; }
+    .audit-summary strong { color:var(--navy); } .audit-summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; margin-top:9px; }
+    .audit-summary-grid div { font-size:12px; color:var(--muted); } .audit-summary-grid b { display:block; font-size:18px; color:var(--navy); }
     @media(max-width:800px){ .decision-grid{grid-template-columns:1fr;} .container{padding:10px;} .header{padding:14px;} .kpi-grid{grid-template-columns:repeat(2,1fr);} }
   </style>
   </head>
@@ -299,7 +302,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <!-- Chart.js للجداول البيانية في مودال السائق -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="unified-balance.js?v=031"></script>
+  <script src="unified-balance.js?v=032"></script>
   <script>
   const firebaseConfig = {
       apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -479,6 +482,26 @@
       o.frequency.value = 880; g.gain.value = 0.1;
       o.start(); setTimeout(()=>o.stop(), 200);
     } catch(e) {}
+  }
+
+  function debtAuditSummary() {
+    const missingSource = gDrivers.filter(d => Number(d.oldDebts || 0) > 0 && (!Array.isArray(d.oldDebtDetails) || !d.oldDebtDetails.length)).length;
+    const active = p => String(p.status || '').toLowerCase() !== 'voided';
+    const parts = p => {
+      if (!active(p)) return [];
+      if (Array.isArray(p.allocations) && p.allocations.length) return p.allocations.map(a => ({...a, amount:Number(a.amount ?? a.allocationAmount ?? 0)}));
+      if (p.allocationKind || p.obligationId || p.contractId) return [{allocationKind:p.allocationKind, obligationId:p.obligationId, contractId:p.contractId, amount:Number(p.allocationAmount ?? p.amount ?? 0)}];
+      return [{allocationKind:null, amount:Number(p.amount || 0), legacy:true}];
+    };
+    const unallocated = gPayments.filter(p => parts(p).some(a => !a.allocationKind && ['أجرة يومية','أجرة شهرية','دين قديم'].includes(p.type))).length;
+    const backdated = gPayments.filter(p => active(p) && !Array.isArray(p.allocations) && (() => { const d=toDate(p.date), c=toDate(p.createdAt||p.timestamp); return d && c && Math.floor((c-d)/86400000)>=3; })()).length;
+    const allocated = gPayments.filter(p => parts(p).some(a => a.allocationKind)).length;
+    const contractMismatch = gPayments.filter(p => {
+      const d = gDriverMap[p.driverId]; if (!d) return false;
+      const ids = new Set([(d.contractId || d.id), ...((d.contractHistory || []).map(h => h.id || h.contractId).filter(Boolean))]);
+      return parts(p).some(a => a.allocationKind === 'currentRent' && (!a.contractId || !ids.has(a.contractId)));
+    }).length;
+    return { missingSource, unallocated, backdated, allocated, contractMismatch };
   }
 
   /* ================= HELPERS ================= */
@@ -1104,6 +1127,7 @@
     const archives = accountantOps.filter(e => e.action==='archive');
     const driverEdits = accountantOps.filter(e => e.recordType==='driver');
     const contractOps = accountantOps.filter(e => e.action==='newContract' || e.action==='endContract');
+    const debtAudit = debtAuditSummary();
 
     // المبلغ المختفي
     const deletedAmount = deletes.reduce((s,e) => {
@@ -1163,6 +1187,18 @@
         <div class="kpi blue"><div class="lbl">عمليات أرشفة</div><div class="val">${archives.length}</div></div>
         <div class="kpi blue"><div class="lbl">استعادة من الأرشيف</div><div class="val">${restores.length}</div></div>
         <div class="kpi purple"><div class="lbl">عمليات عقود</div><div class="val">${contractOps.length}</div></div>
+      </div>
+
+      <div class="audit-summary">
+        <strong>🧾 مطابقة الديون والعقود</strong>
+        <div class="audit-summary-grid">
+          <div>دفعات موزعة صراحة<b>${debtAudit.allocated}</b></div>
+          <div>دفعات تحتاج تخصيص<b style="color:${debtAudit.unallocated?'#b45309':'#16815a'}">${debtAudit.unallocated}</b></div>
+          <div>تسجيلات بأثر رجعي<b style="color:${debtAudit.backdated?'#b45309':'#16815a'}">${debtAudit.backdated}</b></div>
+          <div>ديون بلا مصدر عقد<b style="color:${debtAudit.missingSource?'#9b3030':'#16815a'}">${debtAudit.missingSource}</b></div>
+          <div>تخصيص عقد غير مطابق<b style="color:${debtAudit.contractMismatch?'#9b3030':'#16815a'}">${debtAudit.contractMismatch}</b></div>
+        </div>
+        <div class="small-muted" style="margin-top:8px;">الأرقام للتنبيه والمراجعة فقط؛ لا يتم نقل دفعة مخصصة صراحة إلى عقد آخر.</div>
       </div>
 
       ${suspicious.length > 0 ? `<div class="card"><h3>🕵️ أنماط مشبوهة (${suspicious.length})</h3>
@@ -1363,6 +1399,41 @@
     gModalCharts = [];
   }
 
+  function ownerDebtAuditHtml(driverId, driver) {
+    const details = Array.isArray(driver.oldDebtDetails) ? driver.oldDebtDetails : [];
+    const legacy = Number(driver.oldDebts || 0);
+    const paymentParts = p => {
+      if (String(p.status || '').toLowerCase() === 'voided') return [];
+      if (Array.isArray(p.allocations) && p.allocations.length) return p.allocations.map(a => ({...a, amount:Number(a.amount ?? a.allocationAmount ?? 0)}));
+      if (p.allocationKind || p.obligationId || p.contractId) return [{allocationKind:p.allocationKind, obligationId:p.obligationId, contractId:p.contractId, amount:Number(p.allocationAmount ?? p.amount ?? 0)}];
+      return [{allocationKind:null, amount:Number(p.amount || 0), legacy:true}];
+    };
+    const pays = gPayments.filter(p => p.driverId === driverId && paymentParts(p).length);
+    const unallocated = pays.filter(p => paymentParts(p).some(a => !a.allocationKind && ['أجرة يومية','أجرة شهرية','دين قديم'].includes(p.type)));
+    let html = `<div class="card"><h3>🧾 سجل الدين المرتبط بالعقد</h3>`;
+    if (unallocated.length) html += `<div class="alert yellow"><div class="icon">⚠️</div><div class="body"><div class="title">دفعات تحتاج مراجعة (${unallocated.length})</div><div class="desc">هذه الدفعات قديمة أو بلا تخصيص صريح، ولا يعاد توزيعها تلقائياً.</div></div></div>`;
+    if (!details.length && legacy) html += `<div class="audit-summary"><strong>⚠️ دين قديم بلا مصدر عقد</strong><div class="small-muted">المبلغ: ${fmtKD(legacy)} · يحتاج ربطاً بعقد أو مستند مصدر</div></div>`;
+    html += details.map((o, i) => {
+      const id = o.id || `legacy-debt-${driverId}-${i + 1}`;
+      const settled = pays.filter(p => paymentParts(p).some(a => a.allocationKind === 'oldDebt' && a.obligationId === id));
+      const original = Number(o.originalAmount ?? o.amount ?? 0);
+      const remaining = Math.max(0, original - settled.reduce((s,p)=>s + paymentParts(p).filter(a=>a.allocationKind==='oldDebt' && a.obligationId===id).reduce((x,a)=>x+Number(a.amount||0),0),0));
+      return `<details class="audit-summary" open><summary><strong>${o.contractLabel || 'دين عقد سابق'}</strong> · المتبقي ${fmtKD(remaining)}</summary>
+        <div class="audit-summary-grid">
+          <div>رقم العقد<b style="font-size:13px">${o.contractId || 'غير مربوط ⚠️'}</b></div>
+          <div>الفترة<b style="font-size:13px">${o.contractStart ? fmtDate(o.contractStart) : '—'} – ${o.contractEnd ? fmtDate(o.contractEnd) : '—'}</b></div>
+          <div>الاستحقاق<b>${fmtKD(o.expectedRent)}</b></div>
+          <div>مدفوع أثناء العقد<b>${fmtKD(o.paidDuringContract)}</b></div>
+          <div>المرحّل<b>${fmtKD(original)}</b></div>
+          <div>الحالة<b style="font-size:13px">${o.status || (remaining ? 'مفتوح' : 'مسدد')}</b></div>
+        </div>
+        <div class="small-muted" style="margin-top:8px;">تسويات لاحقة: ${settled.length} · أنشئ بواسطة: ${o.createdBy || 'غير مسجل'}${o.note ? ' · '+o.note : ''}</div>
+        ${(o.correctionOf || o.correctedAt || o.correctedBy || o.correctionReason) ? `<div class="small-muted" style="margin-top:6px;color:#b45309;">✏️ تصحيح: ${o.correctionReason || 'تصحيح مسجل'} · ${o.correctedBy || 'غير مسجل'} · ${o.correctedAt ? fmtDate(o.correctedAt) : ''}</div>` : ''}
+      </details>`;
+    }).join('');
+    return html + '</div>';
+  }
+
   function openDriverModal(driverId) {
     const driver = gDriverMap[driverId];
     if (!driver) return;
@@ -1495,6 +1566,7 @@
             <div class="sub">دفع ${fmtKD(periodPaid)} من ${fmtKD(periodExpected)}</div>
           </div>
         </div>
+       ${ownerDebtAuditHtml(driverId, driver)}
 
         <div class="card">
           <h3>📅 آخر 12 ${isMonthly?'شهر':'أسبوع'}</h3>
@@ -2005,7 +2077,7 @@
   const TRANSFER_TYPES = ['تحويل من حساب رامي إلى بنك وربه','تحويل من بنك وربه إلى حساب رامي'];
   const money = n => fmtKD(Number(n)||0);
   const safe = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-  function detailed(d){ return calculateDriverDebtDetailed(d.id,d,gPayments); }
+  function detailed(d){ return calculateDriverDebtDetailed(d.id,d,gPayments.filter(p => String(p.status || '').toLowerCase() !== 'voided')); }
   function trackingHealth(d){
     const last=toDate(d.lastUpdate), age=last?Math.max(0,(Date.now()-last.getTime())/60000):Infinity;
     const state=d.isActive===false||age>180?'offline':age>20?'stale':'online';

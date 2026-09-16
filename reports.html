@@ -516,7 +516,8 @@
                     <option value="drivers">تقرير السائقين</option>
                     <option value="cars">تقرير السيارات</option>
                     <option value="expenses">تقرير المصروفات</option>
-                    <option value="revenues">تقرير الإيرادات</option>
+            <option value="revenues">تقرير الإيرادات</option>
+            <option value="debt_rollforward">مطابقة الديون القديمة</option>
                     <option value="salary">تقرير رصيد الرواتب</option>
                     <option value="advances">تقرير السلف</option>
                     <option value="rami">تقرير حساب رامي</option>
@@ -551,7 +552,7 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script src="unified-balance.js?v=031"></script>
+    <script src="unified-balance.js?v=032"></script>
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
@@ -650,6 +651,7 @@
                     case 'cars':      html = await buildCarsReport(from, to); break;
                     case 'expenses':  html = await buildExpensesReport(from, to); break;
                     case 'revenues':  html = await buildRevenuesReport(from, to); break;
+                    case 'debt_rollforward': html = await buildDebtRollforwardReport(from, to); break;
                     case 'salary':    html = await buildSalaryReport(from, to); break;
                     case 'advances':  html = await buildAdvancesReport(from, to); break;
                     case 'rami':         html = await buildRamiReport(from, to); break;
@@ -691,14 +693,14 @@
                         break;
                     }
                 }
-                if (itemDate && itemDate >= start && itemDate <= end) result.push(item);
+                if (item.status !== 'voided' && itemDate && itemDate >= start && itemDate <= end) result.push(item);
             });
             return result;
         }
 
         async function fetchAll(collectionName) {
             const snap = await getDocs(collection(db, collectionName));
-            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(item => item.status !== 'voided');
         }
 
         // ===== أنواع دفعات السائقين التي تُحسب إيراداً =====
@@ -729,7 +731,49 @@
         }
 
         function formatAmount(n) {
-            return (n || 0).toFixed(3) + ' د.ك';
+            return (Number(n) || 0).toFixed(3) + ' د.ك';
+        }
+
+        // التصنيف الموحد: الحقول الجديدة لها الأولوية، والصفوف القديمة تبقى مدعومة.
+        function classifyDriverPayment(p) {
+            const kind = p.allocationKind;
+            if (kind === 'currentRent') return (p.contractId || p.sourceContractId) ? 'operatingRevenue' : 'unallocated';
+            if (['oldDebt', 'violation', 'residency', 'advance'].includes(kind)) return 'receivableSettlement';
+            if (kind === 'noncash') return 'noncash';
+            if (kind === 'unallocated') return 'unallocated';
+            if (kind) return 'other';
+            if (['أجرة يومية', 'أجرة شهرية'].includes(p.type)) return 'operatingRevenue';
+            if (['تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم', 'تحصيل سلفة من السائق'].includes(p.type)) return 'receivableSettlement';
+            if (p.type === 'إجازة سنوية') return 'noncash';
+            if (['تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب'].includes(p.type)) return 'salaryIncome';
+            if (['سداد مخالفة', 'سداد رسوم إقامة', 'سلفة إلى السائق'].includes(p.type)) return 'recoverableCost';
+            if (p.type === 'سداد رواتب') return 'salaryExpense';
+            return 'other';
+        }
+
+        function normalizedAllocationParts(payment) {
+            if (payment.status === 'voided') return [];
+            if (Array.isArray(payment.allocations) && payment.allocations.length) {
+                return payment.allocations.map(a => ({ ...a, amount: Number(a.amount ?? a.allocationAmount) || 0 }));
+            }
+            if (payment.allocationKind || payment.obligationId || payment.contractId) {
+                return [{ ...payment, amount: Number(payment.allocationAmount ?? payment.amount) || 0 }];
+            }
+            return [{ ...payment, amount: Number(payment.amount) || 0 }];
+        }
+
+        function classifyPaymentPart(part, parent) {
+            return classifyDriverPayment({ ...parent, ...part, amount: part.amount });
+        }
+
+        function paymentPartTotal(payment, predicate) {
+            return normalizedAllocationParts(payment)
+                .filter(part => predicate(classifyPaymentPart(part, payment), part))
+                .reduce((sum, part) => sum + part.amount, 0);
+        }
+
+        function isInternalTransfer(item) {
+            return ['تحويل من حساب رامي إلى بنك وربه', 'تحويل من بنك وربه إلى حساب رامي'].includes(item.type);
         }
 
         function getItemDate(item) {
@@ -757,6 +801,7 @@
                 cars:      'تقرير السيارات',
                 expenses:  'تقرير المصروفات',
                 revenues:  'تقرير الإيرادات',
+                debt_rollforward: 'مطابقة الديون القديمة',
                 salary:    'تقرير رصيد الرواتب',
                 advances:  'تقرير السلف',
                 rami:         'تقرير حساب رامي',
@@ -808,18 +853,19 @@
             ]);
 
             // إيرادات من revenues collection
-            const revTotal = revenues.reduce((s,i) => s + (i.amount||0), 0);
+            const revTotal = revenues.filter(i => !isInternalTransfer(i)).reduce((s,i) => s + (Number(i.amount)||0), 0);
 
             // إيرادات من driverPayments
-            const dpRevItems = driverPayments.filter(p => REVENUE_PAYMENT_TYPES.includes(p.type));
-            const dpRevTotal = dpRevItems.reduce((s,i) => s + (i.amount||0), 0);
+            const dpRevItems = driverPayments.filter(p => paymentPartTotal(p, kind => ['operatingRevenue', 'salaryIncome'].includes(kind)) > 0);
+            const dpRevTotal = driverPayments.reduce((s,p) => s + paymentPartTotal(p, kind => ['operatingRevenue', 'salaryIncome'].includes(kind)), 0);
 
             // مصروفات من expenses collection
-            const expTotal = expenses.reduce((s,i) => s + (i.amount||0), 0);
+            const expTotal = expenses.filter(i => !isInternalTransfer(i)).reduce((s,i) => s + (Number(i.amount)||0), 0);
 
             // مصروفات من driverPayments
-            const dpExpItems = driverPayments.filter(p => EXPENSE_PAYMENT_TYPES.includes(p.type));
-            const dpExpTotal = dpExpItems.reduce((s,i) => s + (i.amount||0), 0);
+            // تكاليف السائق القابلة للاسترداد حركة ذمم وليست مصروف ربح وخسارة.
+            const dpExpItems = driverPayments.filter(p => paymentPartTotal(p, kind => kind === 'salaryExpense') > 0);
+            const dpExpTotal = driverPayments.reduce((s,p) => s + paymentPartTotal(p, kind => kind === 'salaryExpense'), 0);
 
             const totalRevenues = revTotal + dpRevTotal;
             const totalExpenses = expTotal + dpExpTotal;
@@ -832,7 +878,10 @@
                 expByType[t] = (expByType[t]||0) + (e.amount||0);
             });
             dpExpItems.forEach(e => {
-                expByType[e.type] = (expByType[e.type]||0) + (e.amount||0);
+                normalizedAllocationParts(e).forEach(part => {
+                    const kind = classifyPaymentPart(part, e);
+                    if (kind === 'salaryExpense') expByType[part.type || e.type] = (expByType[part.type || e.type]||0) + part.amount;
+                });
             });
 
             const expTypeItems = Object.entries(expByType).map(([k,v]) => ({ label: k, value: v }))
@@ -877,12 +926,14 @@
                 if (!months[key]) months[key] = { rev: 0, exp: 0 };
                 months[key][type] += (item.amount || 0);
             };
+            const addPaymentParts = (payment, predicate, bucket) => normalizedAllocationParts(payment)
+                .filter(part => predicate(classifyPaymentPart(part, payment)))
+                .forEach(part => addToMonth({ ...payment, ...part }, bucket));
 
-            revenues.forEach(i => addToMonth(i, 'rev'));
-            // إجازة سنوية تُستثنى من الإيرادات لأنها تُلغي نفسها ولا تؤثر على حساب رامي
-            driverPayments.filter(p => REVENUE_PAYMENT_TYPES.includes(p.type) && p.type !== 'إجازة سنوية').forEach(i => addToMonth(i, 'rev'));
-            expenses.forEach(i => addToMonth(i, 'exp'));
-            driverPayments.filter(p => EXPENSE_PAYMENT_TYPES.includes(p.type)).forEach(i => addToMonth(i, 'exp'));
+            revenues.filter(i => !isInternalTransfer(i)).forEach(i => addToMonth(i, 'rev'));
+            driverPayments.forEach(p => addPaymentParts(p, kind => ['operatingRevenue', 'salaryIncome'].includes(kind), 'rev'));
+            expenses.filter(i => !isInternalTransfer(i)).forEach(i => addToMonth(i, 'exp'));
+            driverPayments.forEach(p => addPaymentParts(p, kind => kind === 'salaryExpense', 'exp'));
 
             const sortedMonths = Object.keys(months).sort();
             if (!sortedMonths.length) return '<div class="no-data">لا توجد بيانات في هذه الفترة</div>';
@@ -936,10 +987,12 @@
                 const did = p.driverId;
                 if (!did) return;
                 if (!stats[did]) stats[did] = { paid: 0, received: 0, advances: 0 };
-                if (REVENUE_PAYMENT_TYPES.includes(p.type)) stats[did].paid += (p.amount||0);
-                if (EXPENSE_PAYMENT_TYPES.includes(p.type)) stats[did].received += (p.amount||0);
-                if (ADVANCE_GIVEN_TYPES.includes(p.type)) stats[did].advances += (p.amount||0);
-                if (ADVANCE_COLLECT_TYPES.includes(p.type)) stats[did].advances -= (p.amount||0);
+                stats[did].paid += paymentPartTotal(p, kind => ['operatingRevenue', 'receivableSettlement', 'salaryIncome'].includes(kind));
+                stats[did].received += paymentPartTotal(p, kind => kind === 'recoverableCost');
+                stats[did].advances += paymentPartTotal(p, (kind, part) =>
+                    kind === 'recoverableCost' && (part.allocationKind === 'advance' || part.type === 'سلفة إلى السائق'));
+                stats[did].advances -= paymentPartTotal(p, (kind, part) =>
+                    kind === 'receivableSettlement' && (part.allocationKind === 'advance' || part.type === 'تحصيل سلفة من السائق'));
             });
 
             // الدين الحالي + الحالة من محرك الحسابات الموحّد (نفس صفحات المتابعة)
@@ -1056,10 +1109,10 @@
                 fetchInRange('driverPayments', from, to)
             ]);
 
-            const dpExpItems = driverPayments.filter(p => EXPENSE_PAYMENT_TYPES.includes(p.type));
+            const dpExpItems = driverPayments.filter(p => paymentPartTotal(p, kind => kind === 'salaryExpense') > 0);
 
             const expTotal = expenses.reduce((s,i) => s+(i.amount||0), 0);
-            const dpExpTotal = dpExpItems.reduce((s,i) => s+(i.amount||0), 0);
+            const dpExpTotal = driverPayments.reduce((s,p) => s + paymentPartTotal(p, kind => kind === 'salaryExpense'), 0);
             const total = expTotal + dpExpTotal;
 
             // تجميع حسب النوع
@@ -1124,9 +1177,9 @@
                 fetchInRange('driverPayments', from, to)
             ]);
 
-            const dpRevItems = driverPayments.filter(p => REVENUE_PAYMENT_TYPES.includes(p.type));
-            const revTotal   = revenues.reduce((s,i) => s+(i.amount||0), 0);
-            const dpRevTotal = dpRevItems.reduce((s,i) => s+(i.amount||0), 0);
+            const dpRevItems = driverPayments.filter(p => paymentPartTotal(p, kind => ['operatingRevenue', 'salaryIncome'].includes(kind)) > 0);
+            const revTotal   = revenues.filter(i => !isInternalTransfer(i)).reduce((s,i) => s+(Number(i.amount)||0), 0);
+            const dpRevTotal = dpRevItems.reduce((s,i) => s+(Number(i.amount)||0), 0);
             const total = revTotal + dpRevTotal;
 
             // تجميع حسب النوع
@@ -1164,7 +1217,7 @@
                 ...dpRevItems.map(p => [
                     formatDate(getItemDate(p)),
                     p.type,
-                    `<span class="amount-positive">${formatAmount(p.amount)}</span>`,
+                    `<span class="amount-positive">${formatAmount(paymentPartTotal(p, kind => ['operatingRevenue', 'salaryIncome'].includes(kind)))}</span>`,
                     p.description || '—',
                     p.driverName || '—'
                 ])
@@ -1173,6 +1226,60 @@
             html += `<div class="report-section-title">📄 تفاصيل الإيرادات</div>`;
             html += buildTable(['التاريخ','المصدر / النوع','المبلغ','الوصف','السائق'], detailRows);
 
+            return html;
+        }
+
+        // ===== مطابقة الديون القديمة =====
+        async function buildDebtRollforwardReport(from, to) {
+            const [drivers, payments] = await Promise.all([fetchAll('drivers'), fetchAll('driverPayments')]);
+            const start = new Date(from); start.setHours(0,0,0,0);
+            const end = new Date(to); end.setHours(23,59,59,999);
+            const rows = [];
+            let opening = 0, created = 0, settled = 0, remaining = 0;
+            drivers.forEach(driver => {
+                (Array.isArray(driver.oldDebtDetails) ? driver.oldDebtDetails : []).forEach((obligation, index) => {
+                    const original = Number(obligation.originalAmount) || 0;
+                    const linked = payments.filter(p => p.driverId === driver.id &&
+                        normalizedAllocationParts(p).some(part =>
+                            (part.allocationKind === 'oldDebt' && part.obligationId === obligation.id) ||
+                            (!part.allocationKind && part.type === 'دين قديم' && (!obligation.contractId || part.contractId === obligation.contractId))));
+                    const periodSettled = linked.filter(p => {
+                        const d = getItemDate(p);
+                        return d && d >= start && d <= end;
+                    }).reduce((s,p) => s + paymentPartTotal(p, (kind, part) =>
+                        kind === 'receivableSettlement' && (!part.obligationId || part.obligationId === obligation.id)), 0);
+                    const adjustments = (Array.isArray(obligation.adjustments) ? obligation.adjustments : [])
+                        .filter(a => a.status !== 'voided')
+                        .reduce((s,a) => s + (Number(a.amount) || 0), 0);
+                    const paidTotal = linked.reduce((s,p) => s + paymentPartTotal(p, (kind, part) =>
+                        kind === 'receivableSettlement' && (!part.obligationId || part.obligationId === obligation.id)), 0);
+                    const balance = Math.max(0, original + adjustments - paidTotal);
+                    const createdDate = getItemDate(obligation);
+                    if (createdDate && createdDate < start) opening += balance + periodSettled;
+                    else created += original;
+                    settled += periodSettled;
+                    remaining += balance;
+                    rows.push([
+                        driver.name || driver.employeeNumber || '—',
+                        obligation.contractLabel || obligation.contractId || `بند ${index + 1}`,
+                        `${formatDate(obligation.contractStart)} — ${formatDate(obligation.contractEnd)}`,
+                        formatAmount(original),
+                        formatAmount(periodSettled),
+                        formatAmount(balance),
+                        obligation.status || (balance <= 0.001 ? 'مسدد' : 'مفتوح')
+                    ]);
+                });
+            });
+            let html = summaryCards([
+                { title: 'رصيد أول الفترة', value: formatAmount(opening), cls: 'warning' },
+                { title: 'ديون منشأة', value: formatAmount(created), cls: 'negative' },
+                { title: 'مسدد خلال الفترة', value: formatAmount(settled), cls: 'positive' },
+                { title: 'الرصيد المتبقي', value: formatAmount(remaining), cls: remaining > 0 ? 'negative' : 'positive' }
+            ]);
+            html += `<div class="report-section-title">📋 كشف كل بند دين ومصدره</div>`;
+            html += buildTable(['السائق','العقد المصدر','الفترة','أصل الدين','المسدد بالفترة','المتبقي','الحالة'], rows,
+                'لا توجد بنود دين مفصلة. السجلات القديمة التي لا تحتوي oldDebtDetails تحتاج مراجعة.');
+            html += `<p style="color:#6b7280;font-size:0.82rem;margin-top:1rem;">يتم عرض الدفعات الصريحة allocationKind=oldDebt وربطها بالعقد، مع دعم دفعات «دين قديم» القديمة بدون تغيير بياناتها.</p>`;
             return html;
         }
 

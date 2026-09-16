@@ -1018,7 +1018,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="unified-balance.js?v=031"></script>
+    <script src="unified-balance.js?v=032"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -1115,7 +1115,7 @@
                 revenues = revenuesSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
-                }));
+                })).filter(item => item.status !== 'voided');
 
                 // Load expenses
                 console.log('📊 تحميل expenses...');
@@ -1124,7 +1124,7 @@
                 expenses = expensesSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
-                }));
+                })).filter(item => item.status !== 'voided');
 
                 // Load driver payments
                 console.log('📊 تحميل driverPayments...');
@@ -1133,7 +1133,7 @@
                 driverPayments = paymentsSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
-                }));
+                })).filter(item => item.status !== 'voided');
 
                 // Load drivers
                 console.log('📊 تحميل drivers...');
@@ -1228,17 +1228,20 @@
         // Display revenues including relevant driver payments
         function displayRevenuesWithDriverPayments() {
             // Combine revenues with relevant driver payments
-            let allRevenueItems = [...revenues];
+            let allRevenueItems = revenues.filter(r => r.type !== 'تحويل من حساب رامي إلى بنك وربه');
 
             // Add driver payments that should appear in revenues
             driverPayments.forEach(payment => {
-                if (['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'تحصيل سلفة من السائق'].includes(payment.type)) {
+                const operatingAmount = normalizedAllocationParts(payment)
+                    .filter(part => revenuePartKind(part, payment) === 'operating')
+                    .reduce((sum, part) => sum + part.amount, 0);
+                if (operatingAmount > 0) {
                     const driver = drivers.find(d => d.id === payment.driverId);
                     allRevenueItems.push({
                         id: payment.id,
                         date: payment.date,
                         type: payment.type,
-                        amount: payment.amount,
+                        amount: operatingAmount,
                         description: `${payment.type} - ${driver ? driver.name : 'سائق غير محدد'}`,
                         driverId: payment.driverId,
                         driverName: driver ? driver.name : 'سائق غير محدد',
@@ -1256,6 +1259,28 @@
             // 🔴 إعادة تطبيق الفلتر النشط بدل عرض الكل (يمنع رجوع الجدول لكل العمليات بعد التحديث اللحظي)
             applyFilters();
             updateTotalRevenues(); // تحديث إجمالي الإيرادات
+        }
+
+        function normalizedAllocationParts(payment) {
+            if (payment.status === 'voided') return [];
+            if (Array.isArray(payment.allocations) && payment.allocations.length) {
+                return payment.allocations.map(a => ({ ...a, amount: Number(a.amount ?? a.allocationAmount) || 0 }));
+            }
+            if (payment.allocationKind || payment.obligationId || payment.contractId) {
+                return [{ ...payment, amount: Number(payment.allocationAmount ?? payment.amount) || 0 }];
+            }
+            return [{ ...payment, amount: Number(payment.amount) || 0 }];
+        }
+
+        function revenuePartKind(part, parent) {
+            const kind = part.allocationKind || parent.allocationKind;
+            if (kind === 'currentRent') return (part.contractId || part.sourceContractId || parent.contractId) ? 'operating' : 'unallocated';
+            if (kind === 'oldDebt' || kind === 'violation' || kind === 'residency' || kind === 'advance') return 'receivable';
+            if (kind === 'noncash') return 'noncash';
+            if (kind) return 'other';
+            if (['أجرة يومية', 'أجرة شهرية'].includes(part.type || parent.type)) return 'operating';
+            if (['تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب'].includes(part.type || parent.type)) return 'operating';
+            return 'receivable';
         }
 
         // Calculate and update total revenues
@@ -1276,8 +1301,11 @@
             // حساب إجمالي دفعات السائقين التي تُعتبر إيرادات
             console.log('💰 دفعات السائقين:', driverPayments.length);
             driverPayments.forEach(payment => {
-                if (['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'تحصيل سلفة من السائق'].includes(payment.type)) {
-                    totalRevenues += payment.amount || 0;
+                const operatingAmount = normalizedAllocationParts(payment)
+                    .filter(part => revenuePartKind(part, payment) === 'operating')
+                    .reduce((sum, part) => sum + part.amount, 0);
+                if (operatingAmount > 0) {
+                    totalRevenues += operatingAmount;
                     console.log('💰 دفعة سائق:', payment.type, payment.amount, 'الإجمالي الحالي:', totalRevenues);
                 }
             });
@@ -1435,8 +1463,20 @@
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                // تنفيذ الحذف
-                await db.collection(collection).doc(pendingDeleteId).delete();
+                // الدفعة الموزعة/المجزأة حدث اقتصادي: نعكسها ولا نحذفها.
+                const hasAllocation = pendingDeleteType === 'driverPayment' &&
+                    (Array.isArray(pendingDeleteSnapshot.allocations) ||
+                     Boolean(pendingDeleteSnapshot.allocationKind || pendingDeleteSnapshot.obligationId || pendingDeleteSnapshot.contractId));
+                if (hasAllocation) {
+                    await db.collection(collection).doc(pendingDeleteId).update({
+                        status: 'voided',
+                        voidedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        voidedBy: userName,
+                        voidReason: reason
+                    });
+                } else {
+                    await db.collection(collection).doc(pendingDeleteId).delete();
+                }
 
                 closeDeleteConfirmModal();
                 loadAllData();
@@ -1723,16 +1763,19 @@
             updateActivePeriodBar(fromDate, toDate);
 
             // Get all revenue items (revenues + driver payments)
-            let allRevenueItems = [...revenues];
+            let allRevenueItems = revenues.filter(r => r.type !== 'تحويل من حساب رامي إلى بنك وربه');
             
             driverPayments.forEach(payment => {
-                if (['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'تحصيل رسوم رواتب', 'تحصيل رسوم إيداعات الرواتب', 'دين قديم', 'تحصيل سلفة من السائق'].includes(payment.type)) {
+                const operatingAmount = normalizedAllocationParts(payment)
+                    .filter(part => revenuePartKind(part, payment) === 'operating')
+                    .reduce((sum, part) => sum + part.amount, 0);
+                if (operatingAmount > 0) {
                     const driverInfo = getDriverInfo(payment.driverId);
                     allRevenueItems.push({
                         id: payment.id,
                         date: payment.date,
                         type: payment.type,
-                        amount: payment.amount,
+                        amount: operatingAmount,
                         description: `${payment.type} - ${driverInfo.name}`,
                         source: 'driverPayment',
                         driverId: payment.driverId,
@@ -1837,16 +1880,19 @@
 
         // Get all revenues (without filters)
         function getAllRevenues() {
-            let allRevenueItems = [...revenues];
+            let allRevenueItems = revenues.filter(r => r.status !== 'voided' && r.type !== 'تحويل من حساب رامي إلى بنك وربه');
             
             driverPayments.forEach(payment => {
-                if (['أجرة يومية', 'أجرة شهرية', 'تحصيل مخالفة', 'تحصيل رسوم إقامة', 'دين قديم', 'تحصيل سلفة من السائق'].includes(payment.type)) {
+                const operatingAmount = normalizedAllocationParts(payment)
+                    .filter(part => revenuePartKind(part, payment) === 'operating')
+                    .reduce((sum, part) => sum + part.amount, 0);
+                if (operatingAmount > 0) {
                     const driver = drivers.find(d => d.id === payment.driverId);
                     allRevenueItems.push({
                         id: payment.id,
                         date: payment.date,
                         type: payment.type,
-                        amount: payment.amount,
+                        amount: operatingAmount,
                         description: `${payment.type} - ${driver ? driver.name : 'سائق غير محدد'}`,
                         source: 'driverPayment',
                         driverId: payment.driverId
@@ -2014,6 +2060,12 @@
                 if (type === 'driverPayment') {
                     const doc = await db.collection('driverPayments').doc(id).get();
                     data = { id: doc.id, ...doc.data() };
+                    if (data.status === 'voided' || Array.isArray(data.allocations) ||
+                        data.allocationKind || data.obligationId || data.contractId) {
+                        closeEditModal();
+                        alert('هذه الدفعة مرتبطة بتوزيع محاسبي. لا يمكن تعديل المبلغ أو النوع أو التاريخ مباشرة. استخدم إلغاء الدفعة ثم سجّل دفعة جديدة بالتوزيع الصحيح.');
+                        return;
+                    }
                     
                     // إظهار حقل النوع بأنواع دفعات السائق الإيرادية فقط
                     populateEditTypeOptions(true, data.type);
@@ -2030,7 +2082,11 @@
                     date: data.date,
                     type: data.type,
                     amount: data.amount,
-                    description: data.description || ''
+                    description: data.description || '',
+                    allocations: data.allocations,
+                    allocationKind: data.allocationKind,
+                    obligationId: data.obligationId,
+                    contractId: data.contractId
                 };
                 
                 // ملء الحقول
@@ -2058,6 +2114,12 @@
         
         // حفظ التعديل
         async function saveRevenueEdit() {
+            if (currentEditingType === 'driverPayment' &&
+                (Array.isArray(originalEditData.allocations) || originalEditData.allocationKind ||
+                 originalEditData.obligationId || originalEditData.contractId)) {
+                alert('لا يمكن تعديل دفعة موزعة مباشرة. استخدم إلغاء الدفعة ثم سجّل دفعة جديدة.');
+                return;
+            }
             const newDate = document.getElementById('editDate').value;
             const newType = document.getElementById('editType').value;
             const newAmount = parseFloat(document.getElementById('editAmount').value);

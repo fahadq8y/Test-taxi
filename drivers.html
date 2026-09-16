@@ -361,7 +361,7 @@
     </div>
 
     <!-- محرك حساب الديون الموحد -->
-    <script src="unified-balance.js?v=031"></script>
+    <script src="unified-balance.js?v=032"></script>
 
     <!-- Firebase SDK -->
     <script type="module">
@@ -611,9 +611,9 @@
                 // تحميل المدفوعات لحساب الرصيد المرحَّل في نافذة عقد جديد
                 const paymentsSnapshot = await getDocs(collection(db, 'driverPayments'));
                 allPayments = [];
-                paymentsSnapshot.forEach(doc => {
-                    allPayments.push({ id: doc.id, ...doc.data() });
-                });
+                 paymentsSnapshot.forEach(doc => {
+                     if (doc.data().status !== 'voided') allPayments.push({ id: doc.id, ...doc.data() });
+                 });
             } catch (error) {
                 console.error('Error loading drivers:', error);
             }
@@ -1234,7 +1234,7 @@
                             if (typeof calculateDriverDebt === 'function') {
                                 const pSnap = await getDocs(query(collection(db, 'driverPayments'), where('driverId', '==', editingDriverId)));
                                 const pays = [];
-                                pSnap.forEach(dx => pays.push({ id: dx.id, ...dx.data() }));
+                                 pSnap.forEach(dx => { if (dx.data().status !== 'voided') pays.push({ id: dx.id, ...dx.data() }); });
                                 
                                 debtBefore = calculateDriverDebt(editingDriverId, __existingDrv, pays);
                                 
@@ -1697,6 +1697,11 @@
                 `• الفترة المحسوبة: <strong>${drvStart.toLocaleDateString('en-GB')} → ${cutoff.toLocaleDateString('en-GB')}</strong><br>` +
                 `• المتوقع: ${periodLabel} = <strong>${expectedRent.toFixed(3)} د.ك</strong><br>` +
                 `• المدفوع فعلياً: <strong>${paidRent.toFixed(3)} د.ك</strong><br>`;
+            const explicitlyAllocated = payments.filter(p => p.allocationKind && p.allocationKind !== 'currentRent');
+            if (explicitlyAllocated.length) {
+                const protectedTotal = explicitlyAllocated.reduce((s, p) => s + parseFloat(p.allocationAmount !== undefined ? p.allocationAmount : p.amount || 0), 0);
+                resultHtml += `<div style="margin:6px 0;padding:7px;background:#ecfdf5;border-radius:6px;color:#166534;">🔒 ${explicitlyAllocated.length} دفعة مخصصة صراحةً (${protectedTotal.toFixed(3)} د.ك) لن تتغير عند إنشاء العقد الجديد.</div>`;
+            }
             if (newCarry > 0) {
                 resultHtml += `• <span style="color:#dc2626;font-weight:700;">⚠️ النتيجة: دين ${newCarry.toFixed(3)} د.ك</span> ← يُضاف للديون القديمة<br>`;
                 resultHtml += `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #93c5fd;">• ديون قديمة قبل: ${currentOld.toFixed(3)} → بعد: <strong>${newOldAfter.toFixed(3)} د.ك</strong></div>`;
@@ -1768,7 +1773,7 @@
                 return;
             }
 
-            const finalCarryOver = manualVal !== '' ? parseFloat(manualVal) : calculatedCarryOver;
+            const finalCarryOver = Math.round((manualVal !== '' ? parseFloat(manualVal) : calculatedCarryOver) * 1000) / 1000;
             const carryOverLabel = finalCarryOver > 0 ? 'دين' : 'رصيد زائد';
 
             // تأكيد قبل الحفظ
@@ -1784,6 +1789,7 @@
             try {
                 const driver = allDrivers.find(d => d.id === newContractDriverId);
                 if (!driver) return;
+                const contractId = `${newContractDriverId}-${newStart}`;
 
                 // حفظ العقد القديم في contractHistory
                 const existingHistory = driver.contractHistory ? [...driver.contractHistory] : [];
@@ -1796,6 +1802,7 @@
                 
                 // إضافة سجل العقد القديم (للأرشيف)
                 existingHistory.push({
+                    contractId: `${newContractDriverId}-${driver.contractStartDate ? (driver.contractStartDate.toDate ? driver.contractStartDate.toDate().toISOString().split('T')[0] : String(driver.contractStartDate).slice(0,10)) : 'legacy'}`,
                     type: 'عقد جديد',
                     contractType: driver.contractType,
                     dailyRent: driver.dailyRent || 0,
@@ -1810,11 +1817,52 @@
                     archivedBy: currentUser.name || currentUser.email,
                     note: note || 'تجديد عقد'
                 });
+                const currentOldDebts = parseFloat(driver.oldDebts || 0);
+                const oldDebtDetails = Array.isArray(driver.oldDebtDetails) ? [...driver.oldDebtDetails] : [];
+                if (!oldDebtDetails.length && currentOldDebts > 0) {
+                    oldDebtDetails.push({
+                        id: `${newContractDriverId}-legacy-opening`,
+                        contractId: `${newContractDriverId}-legacy-opening`,
+                        contractLabel: 'رصيد ديون قديمة سابق (ترحيل توافق)',
+                        contractType: 'legacy',
+                        contractStart: null,
+                        contractEnd: null,
+                        rate: 0,
+                        expectedRent: currentOldDebts,
+                        paidDuringContract: 0,
+                        originalAmount: Math.round(currentOldDebts * 1000) / 1000,
+                        remainingAmount: Math.round(currentOldDebts * 1000) / 1000,
+                        createdAt: new Date(),
+                        createdBy: currentUser.name || currentUser.email,
+                        status: 'open',
+                        note: 'حفظ الرصيد القديم كسجل تفصيلي بدون تغيير قيمته'
+                    });
+                }
+                if (finalCarryOver > 0) {
+                    oldDebtDetails.push({
+                        id: `${contractId}-carry`,
+                        contractId: contractId,
+                        contractLabel: `${driver.name || ''} - ${newStart}`,
+                        contractType: driver.contractType || 'daily',
+                        contractStart: driver.contractStartDate || null,
+                        contractEnd: historyEndDate,
+                        rate: driver.contractType === 'monthly' ? parseFloat(driver.monthlyPayment || 0) : parseFloat(driver.dailyRent || driver.dailyWage || 0),
+                        expectedRent: Math.round((parseFloat(driver.contractType === 'monthly' ? driver.monthlyPayment : driver.dailyRent || driver.dailyWage) || 0) * 1000) / 1000,
+                        paidDuringContract: 0,
+                        originalAmount: finalCarryOver,
+                        remainingAmount: finalCarryOver,
+                        createdAt: new Date(),
+                        createdBy: currentUser.name || currentUser.email,
+                        status: 'open',
+                        note: note || 'رصيد مرحّل عند إنشاء عقد جديد'
+                    });
+                }
 
                 // 🔧 #022b: إضافة سجل العقد الجديد أيضاً في contractHistory
                 // عشان unified-balance.js يحسب الفترة الأخيرة بأجرة العقد الجديد الصحيحة
                 // (المشكلة القديمة: كان يُحفظ القديم فقط → نتائج غلط لكل صفحات الحسابات)
                 existingHistory.push({
+                    contractId: contractId,
                     type: 'عقد جديد',
                     contractType: newType,
                     dailyRent: newType === 'daily' ? newRate : 0,
@@ -1828,7 +1876,6 @@
 
                 // 🔧 #023: الديون القديمة = الحالية + الرصيد المرحَّل
                 // يقبل قيم سالبة (= رصيد زائد للسائق) لو الديون القديمة كانت صفر أو أقل من الرصيد الزائد
-                const currentOldDebts = parseFloat(driver.oldDebts || 0);
                 const newOldDebts = currentOldDebts + finalCarryOver;
 
                 // تحديث بيانات السائق بالعقد الجديد
@@ -1837,6 +1884,8 @@
                     contractStartDate: new Date(newStart),
                     contractEndDate: new Date(newEnd),
                     oldDebts: newOldDebts,
+                    oldDebtDetails: oldDebtDetails,
+                    currentContractId: contractId,
                     contractHistory: existingHistory,
                     updatedAt: new Date(),
                     updatedBy: currentUser.name || currentUser.email
@@ -2124,34 +2173,35 @@
               let payments = [];
               try {
                   const paymentsSnap = await getDocs(query(collection(db, 'driverPayments'), where('driverId', '==', endContractDriverId)));
-                  payments = paymentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                  payments = paymentsSnap.docs.filter(d => d.data().status !== 'voided').map(d => ({ id: d.id, ...d.data() }));
               } catch(e) { console.error('فشل جلب الدفعات:', e); alert('فشل جلب دفعات السائق'); return; }
               
-              let expectedRent = 0, paidRent = 0;
+               let expectedRent = 0, paidRent = 0;
+               const currentContractId = driver.currentContractId || `${endContractDriverId}-${contractStart.toISOString().split('T')[0]}`;
+               const rentPaidForClosure = payments.filter(p => p.status !== 'voided').reduce((sum, p) => {
+                   const pd = p.date ? (p.date.toDate ? p.date.toDate() : new Date(p.date)) : null;
+                   if (!pd || pd < contractStart || pd > actualEndDate) return sum;
+                   const parts = typeof _ubPaymentParts === 'function' ? _ubPaymentParts(p) : [];
+                   return sum + parts.filter(a => a.allocationKind === 'legacyRent' || (a.allocationKind === 'currentRent' && a.contractId === currentContractId)).reduce((s,a) => s + parseFloat(a.amount || 0), 0);
+               }, 0);
               if (driver.contractType === 'daily') {
                   const dailyWage = parseFloat(driver.dailyRent || driver.dailyWage || 0);
                   const days = Math.floor((actualEndDate - contractStart) / (1000 * 60 * 60 * 24));
                   expectedRent = days * dailyWage;
                   // #025: نحسب فقط دفعات الأجرة داخل فترة العقد (من البداية حتى تاريخ الإنهاء) — أي دفعة بعد الإنهاء ما تُحسب هنا
-                  paidRent = payments.filter(p => {
-                      if (p.type !== 'أجرة يومية') return false;
-                      const pd = p.date ? (p.date.toDate ? p.date.toDate() : new Date(p.date)) : null;
-                      return pd && pd >= contractStart && pd <= actualEndDate;
-                  }).reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+                   paidRent = rentPaidForClosure;
               } else {
                   const monthly = parseFloat(driver.monthlyPayment || 0);
                   const diffDays = (actualEndDate - contractStart) / (1000 * 60 * 60 * 24);
                   const fullMonths = Math.floor(diffDays / 30.44);
                   expectedRent = fullMonths * monthly;
-                  paidRent = payments.filter(p => {
-                      if (p.type !== 'أجرة شهرية' && p.type !== 'أجرة يومية') return false;
-                      const pd = p.date ? (p.date.toDate ? p.date.toDate() : new Date(p.date)) : null;
-                      return pd && pd >= contractStart && pd <= actualEndDate;
-                  }).reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+                   paidRent = rentPaidForClosure;
               }
               
               const carryOver = expectedRent - paidRent;
-              const oldDebtsCurrent = parseFloat(driver.oldDebts || 0);
+                const oldDebtsCurrent = Array.isArray(driver.oldDebtDetails) && typeof calculateDriverDebtDetailed === 'function'
+                    ? calculateDriverDebtDetailed(endContractDriverId, driver, payments).oldDebts
+                    : parseFloat(driver.oldDebts || 0);
               const oldDebtsNew = carryOver > 0 ? oldDebtsCurrent + carryOver : Math.max(0, oldDebtsCurrent + carryOver);
               
               endContractCalculation = { actualEndDate, expectedRent, paidRent, carryOver, oldDebtsCurrent, oldDebtsNew };
@@ -2194,8 +2244,49 @@
               if (!confirm(confirmMsg)) return;
               
               try {
-                  const existingHistory = driver.contractHistory ? [...driver.contractHistory] : [];
+                   const existingHistory = driver.contractHistory ? [...driver.contractHistory] : [];
+                   const contractId = `${endContractDriverId}-${calc.actualEndDate.toISOString().split('T')[0]}`;
+                   const oldDebtDetails = Array.isArray(driver.oldDebtDetails) ? [...driver.oldDebtDetails] : [];
+                    if (!oldDebtDetails.length && calc.oldDebtsCurrent > 0) {
+                       oldDebtDetails.push({
+                           id: `${endContractDriverId}-legacy-opening`,
+                           contractId: `${endContractDriverId}-legacy-opening`,
+                           contractLabel: 'رصيد ديون قديمة سابق (ترحيل توافق)',
+                           contractType: 'legacy',
+                           contractStart: null,
+                           contractEnd: null,
+                           rate: 0,
+                            expectedRent: calc.oldDebtsCurrent,
+                           paidDuringContract: 0,
+                            originalAmount: Math.round(calc.oldDebtsCurrent * 1000) / 1000,
+                            remainingAmount: Math.round(calc.oldDebtsCurrent * 1000) / 1000,
+                           createdAt: new Date(),
+                           createdBy: currentUser.name || currentUser.email,
+                           status: 'open',
+                           note: 'حفظ الرصيد القديم كسجل تفصيلي بدون تغيير قيمته'
+                       });
+                   }
+                   if (calc.carryOver > 0) {
+                       oldDebtDetails.push({
+                           id: `${contractId}-closure`,
+                           contractId,
+                           contractLabel: `${driver.name || ''} - ${calc.actualEndDate.toISOString().split('T')[0]}`,
+                           contractType: driver.contractType || 'daily',
+                           contractStart: driver.contractStartDate || null,
+                           contractEnd: calc.actualEndDate,
+                           rate: driver.contractType === 'monthly' ? parseFloat(driver.monthlyPayment || 0) : parseFloat(driver.dailyRent || driver.dailyWage || 0),
+                           expectedRent: Math.round(calc.expectedRent * 1000) / 1000,
+                           paidDuringContract: Math.round(calc.paidRent * 1000) / 1000,
+                           originalAmount: Math.round(calc.carryOver * 1000) / 1000,
+                           remainingAmount: Math.round(calc.carryOver * 1000) / 1000,
+                           createdAt: new Date(),
+                           createdBy: currentUser.name || currentUser.email,
+                           status: 'open',
+                           note: note || reason
+                       });
+                   }
                   existingHistory.push({
+                       contractId,
                       type: 'إنهاء عقد',
                       contractType: driver.contractType,
                       dailyRent: driver.dailyRent || 0,
@@ -2210,13 +2301,14 @@
                       reason: reason,
                       note: note || '',
                       archivedAt: new Date(),
-                      archivedBy: currentUser.name || currentUser.email,
+                       archivedBy: currentUser.name || currentUser.email,
                   });
                   
                   await updateDoc(doc(db, 'drivers', endContractDriverId), {
                       contractEndDate: calc.actualEndDate,
                       isActive: false,
-                      oldDebts: calc.oldDebtsNew,
+                       oldDebts: calc.oldDebtsNew,
+                       oldDebtDetails,
                       contractHistory: existingHistory,
                       updatedAt: new Date(),
                       updatedBy: currentUser.name || currentUser.email,
@@ -2287,9 +2379,35 @@
 
                 const currentHistory = driver.contractHistory || [];
                 const updatedHistory = [...currentHistory, historyEntry];
+                const updatedDebtDetails = Array.isArray(driver.oldDebtDetails) ? driver.oldDebtDetails.map(d => ({ ...d })) : [];
+                if (updatedDebtDetails.length) {
+                    let detailedTotal = updatedDebtDetails.reduce((s, d) => s + (parseFloat(d.originalAmount || 0) + parseFloat(d.adjustmentAmount || d.signedAdjustment || 0)), 0);
+                    let delta = Math.round((newValue - detailedTotal) * 1000) / 1000;
+                    if (delta > 0) {
+                        updatedDebtDetails.push({
+                            id: `${editOldDebtsDriverId}-adjustment-${Date.now()}`,
+                            contractId: null, contractLabel: 'تعديل رصيد دين قديم',
+                            contractType: 'adjustment', contractStart: null, contractEnd: null,
+                            rate: 0, expectedRent: delta, paidDuringContract: 0,
+                            originalAmount: delta, remainingAmount: delta,
+                            createdAt: new Date(), createdBy: currentUser ? (currentUser.name || currentUser.email) : 'مستخدم',
+                            status: 'open', note
+                        });
+                    } else if (delta < 0) {
+                        let reduction = Math.abs(delta);
+                        updatedDebtDetails.slice().reverse().forEach(d => {
+                            if (reduction <= 0) return;
+                            const available = Math.max(0, parseFloat(d.originalAmount || 0) + parseFloat(d.adjustmentAmount || d.signedAdjustment || 0));
+                            const applied = Math.min(available, reduction);
+                            d.adjustmentAmount = Math.round((parseFloat(d.adjustmentAmount || d.signedAdjustment || 0) - applied) * 1000) / 1000;
+                            reduction = Math.round((reduction - applied) * 1000) / 1000;
+                        });
+                    }
+                }
 
                 await updateDoc(doc(db, 'drivers', editOldDebtsDriverId), {
                     oldDebts: newValue,
+                    ...(updatedDebtDetails.length ? { oldDebtDetails: updatedDebtDetails } : {}),
                     contractHistory: updatedHistory
                 });
                   

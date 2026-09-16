@@ -1,3 +1,20 @@
+// تصنيف موحد للربح والخسارة: النقد يُرحّل من الدفعة الأم مرة واحدة،
+// أما الإيراد/المصروف فيُستخرج من أجزاء التخصيص فقط.
+function classifyDriverPaymentForPL(payment) {
+    if (!payment || payment.status === 'voided') return { operatingRevenue: 0, operatingExpense: 0 };
+    const parts = _ubPaymentParts(payment);
+    const operatingRevenue = parts
+        .filter(p => p.allocationKind === 'currentRent' || p.allocationKind === 'legacyRent')
+        .reduce((sum, p) => sum + p.amount, 0);
+    // Old debt, violation/residency/advance collections, company-paid driver
+    // costs and advances are receivable movements, not new P&L activity.
+    // Annual leave is non-cash; transfers are handled by their own collections.
+    const operatingExpense = 0;
+    const salaryFee = (payment.type === 'تحصيل رسوم رواتب' || payment.type === 'تحصيل رسوم إيداعات الرواتب')
+        ? _ubPaymentAmount(payment) : 0;
+    return { operatingRevenue: _ubMoney(operatingRevenue + salaryFee), operatingExpense };
+}
+
 // دالة موحدة لحساب الأرصدة في جميع الصفحات حسب النظام المحاسبي الجديد
 function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
     console.log('🔄 بدء حساب الأرصدة الموحدة...');
@@ -58,25 +75,21 @@ function calculateUnifiedBalances(revenues, expenses, driverPayments, drivers) {
         });
     }
 
-    // حساب المصروفات من دفعات السائقين (سداد مخالفة، سداد رسوم إقامة)
+    // تصنيف دفعات السائقين: النقد يُحتسب لاحقاً من الدفعة الأم مرة واحدة،
+    // بينما إجمالي الربح والخسارة يعتمد على أجزاء التخصيص.
     if (driverPayments && driverPayments.length > 0) {
         driverPayments.forEach(payment => {
-            const amount = parseFloat(payment.amount) || 0;
-            
-            // المصروفات التي يجب احتسابها في إجمالي المصروفات
-            if (payment.type === 'سداد مخالفة' || payment.type === 'سداد رسوم إقامة' || payment.type === 'سلفة إلى السائق') {
-                totalExpenses += amount;
-            }
-            // الإيرادات من دفعات السائقين التي تُحتسب في إجمالي الإيرادات
-            if (payment.type === 'تحصيل سلفة من السائق') {
-                totalRevenues += amount;
-            }
+            if (payment.status === 'voided') return;
+            const classification = classifyDriverPaymentForPL(payment);
+            totalRevenues += classification.operatingRevenue;
+            totalExpenses += classification.operatingExpense;
         });
     }
 
     // حساب دفعات السائقين حسب النظام المحاسبي الجديد
     if (driverPayments && driverPayments.length > 0) {
         driverPayments.forEach(payment => {
+            if (payment.status === 'voided') return;
             const amount = parseFloat(payment.amount) || 0;
             
             switch(payment.type) {
@@ -161,7 +174,59 @@ function _completedMonthsAnchored(startDate, asOfDate){ if(!startDate||!asOfDate
 function _addMonthsClamped(date,n){ const total=date.getMonth()+n; const ty=date.getFullYear()+Math.floor(total/12); const tm=((total%12)+12)%12; const lastDay=new Date(ty,tm+1,0).getDate(); return new Date(ty,tm,Math.min(date.getDate(),lastDay)); }
 // 🆕 FIX #029: مساعدات تفصيل فترات العقود (إضافة فقط لأجل العرض — لا تغيّر أي حساب قائم)
 function _ubPayDate(p){ const d=p&&p.date?(p.date.toDate?p.date.toDate():new Date(p.date)):null; return (d&&!isNaN(d.getTime()))?d:null; }
-function _ubPeriodPaid(payments, start, end){ if(!start||!end) return 0; return (payments||[]).filter(p=>(p.type==='أجرة يومية'||p.type==='أجرة شهرية'||p.type==='إجازة سنوية')).reduce((s,p)=>{ const d=_ubPayDate(p); return (d&&d>=start&&d<=end)? s+parseFloat(p.amount||0):s; },0); }
+ function _ubMoney(value){ const n=parseFloat(value); return Number.isFinite(n) ? Math.round(n*1000)/1000 : 0; }
+ function _ubPaymentAmount(p){ return _ubMoney(p && p.amount); }
+ function _ubPaymentParts(p){
+     if (!p) return [];
+     if (Array.isArray(p.allocations) && p.allocations.length) {
+         const parts = p.allocations.map(a => ({
+         allocationKind: a.allocationKind || a.kind,
+         amount: _ubMoney(a.allocationAmount !== undefined ? a.allocationAmount : a.amount),
+         obligationId: a.obligationId || null, contractId: a.contractId || null
+         })).filter(a => a.amount > 0 && a.allocationKind);
+         const total = parts.reduce((s,a) => s + a.amount, 0);
+         const parent = _ubPaymentAmount(p);
+         if (total > parent + 0.001) return [{ allocationKind:'unallocated', amount:parent }];
+         if (parent - total > 0.001) parts.push({ allocationKind:'unallocated', amount:_ubMoney(parent - total) });
+         return parts;
+     }
+     if (p.allocationKind) {
+         const parent = _ubPaymentAmount(p);
+         const amount = _ubMoney(p.allocationAmount !== undefined ? p.allocationAmount : p.amount);
+         if (amount > parent + 0.001) return [{ allocationKind:'unallocated', amount:parent }];
+         const part = { allocationKind:p.allocationKind, amount:Math.min(amount, parent), obligationId:p.obligationId || null, contractId:p.contractId || null };
+         return parent - part.amount > 0.001 ? [part, { allocationKind:'unallocated', amount:_ubMoney(parent - part.amount) }] : [part];
+     }
+     if (p.type === 'دين قديم') return [{ allocationKind:'legacyOldDebt', amount:_ubPaymentAmount(p) }];
+     if (p.type === 'أجرة يومية' || p.type === 'أجرة شهرية') return [{ allocationKind:'legacyRent', amount:_ubPaymentAmount(p) }];
+     if (p.type === 'إجازة سنوية') return [{ allocationKind:'noncash', amount:_ubPaymentAmount(p) }];
+     return [];
+ }
+ function _ubAllocatedAmount(p, kinds){ return _ubPaymentParts(p).filter(a => kinds.indexOf(a.allocationKind) >= 0).reduce((s,a) => s + a.amount, 0); }
+ function _ubIsRentPayment(p){ return _ubAllocatedAmount(p, ['currentRent','legacyRent']) > 0; }
+ function _ubPeriodPaid(payments, start, end, contractId){ if(!start||!end) return 0; return (payments||[]).filter(p=>_ubIsRentPayment(p)).reduce((s,p)=>{ const d=_ubPayDate(p); if(!(d&&d>=start&&d<=end)) return s; return s + _ubPaymentParts(p).filter(a => a.allocationKind === 'legacyRent' || (a.allocationKind === 'currentRent' && contractId && a.contractId === contractId)).reduce((x,a)=>x+a.amount,0); },0); }
+ function _ubObligationOpening(o){ return _ubMoney((o && (o.originalAmount !== undefined ? o.originalAmount : o.amount)) || 0) + _ubMoney(o && (o.adjustmentAmount !== undefined ? o.adjustmentAmount : o.signedAdjustment) || 0); }
+ function deriveOldDebtObligations(details, payments){
+     const activePayments = (payments || []).filter(p => p.status !== 'voided');
+     return (details || []).map(o => {
+         const opening = _ubObligationOpening(o);
+         const paid = activePayments.reduce((sum,p) => sum + _ubPaymentParts(p).filter(a => a.allocationKind === 'oldDebt' && a.obligationId === o.id).reduce((s,a) => s + a.amount, 0), 0);
+         return { ...o, originalAmount: _ubMoney(o.originalAmount !== undefined ? o.originalAmount : o.amount), remainingAmount: Math.max(0, _ubMoney(opening - paid)), derivedOpeningAmount: opening, derivedPaidAmount: _ubMoney(paid) };
+     });
+ }
+ function buildPaymentAllocationPlan(amount, obligations, contractId, reason){
+     let remaining = _ubMoney(amount); const result = [];
+     (obligations || []).filter(o => _ubMoney(o.derivedOpeningAmount !== undefined ? o.derivedOpeningAmount - (o.derivedPaidAmount || 0) : _ubObligationOpening(o)) > 0).forEach(o => {
+         if (remaining <= 0) return;
+         const available = _ubMoney(o.derivedOpeningAmount !== undefined ? o.derivedOpeningAmount - (o.derivedPaidAmount || 0) : _ubObligationOpening(o));
+         const part = Math.min(remaining, available);
+         result.push({ allocationKind:'oldDebt', kind:'oldDebt', allocationAmount:_ubMoney(part), amount:_ubMoney(part), obligationId:o.id, reason:reason || 'اقتراح النظام — الأقدم أولاً' });
+         remaining = _ubMoney(remaining - part);
+     });
+     if (remaining > 0 && contractId) result.push({ allocationKind:'currentRent', kind:'currentRent', allocationAmount:remaining, amount:remaining, contractId, reason:reason || 'اقتراح النظام — المتبقي للعقد الحالي' });
+     if (remaining > 0 && !contractId) result.push({ allocationKind:'unallocated', kind:'unallocated', allocationAmount:remaining, amount:remaining, reason:reason || 'لا يوجد عقد نشط' });
+     return result;
+ }
 
 // دالة موحدة لحساب ديون السائق حسب النظام المحاسبي الجديد
 // #004: إصلاح دعم العقود الشهرية
@@ -184,7 +249,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
     let _lastPaymentOut = null; // 🆕 يُحسب أدناه من الدفعات الفعلية (فلوس دخلت من السائق فقط)
     
     // الحصول على مدفوعات السائق
-    const payments = driverPayments ? driverPayments.filter(payment => payment.driverId === driverId) : [];
+    const payments = driverPayments ? driverPayments.filter(payment => payment.driverId === driverId && payment.status !== 'voided') : [];
 
     // 🆕 آخر سداد = آخر دفعة فلوس دخلت من السائق فقط (تقلّل دينه أو تزيد رصيده).
     // تُستثنى خصومات الشركة عنه (سداد مخالفة، سداد رسوم إقامة، سلفة إلى السائق). null = لا يوجد سداد.
@@ -225,7 +290,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
           const ctype = c.contractType || 'daily';
           const rate = ctype === 'monthly' ? parseFloat(c.monthlyPayment||0) : parseFloat(c.dailyRent||0);
           const exp = (c.expectedRent !== undefined && c.expectedRent !== null) ? parseFloat(c.expectedRent||0) : null;
-          const paid = (c.paidRent !== undefined && c.paidRent !== null) ? parseFloat(c.paidRent||0) : ((s&&e) ? _ubPeriodPaid(payments, s, e) : null);
+          const paid = (c.paidRent !== undefined && c.paidRent !== null) ? parseFloat(c.paidRent||0) : ((s&&e) ? _ubPeriodPaid(payments, s, e, c.contractId) : null);
           const carry = (c.carryOver !== undefined && c.carryOver !== null) ? parseFloat(c.carryOver||0) : null;
           _sealedPeriods.push({ contractType: ctype, rate: rate, start: s, end: e, expected: exp, paid: paid, carryOver: carry, sealed: true });
       });
@@ -280,7 +345,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
                 expectedRentTotal += monthsDiff * rate;
             }
             // 🆕 #029: حفظ الفترة للعرض التفصيلي (لا يؤثر على الحساب)
-            _periods.push({ contractType: contract.contractType||'daily', rate: _pRate, start: periodStart, end: periodEnd, expected: _pExp, paid: _ubPeriodPaid(payments, periodStart, periodEnd), isImplicit: false, sealed: false });
+            _periods.push({ contractId: contract.contractId || null, contractType: contract.contractType||'daily', rate: _pRate, start: periodStart, end: periodEnd, expected: _pExp, paid: _ubPeriodPaid(payments, periodStart, periodEnd, contract.contractId), isImplicit: false, sealed: false });
         });
 
         // 🔧 #022b: اكتشاف "العقد الضمني" للسائقين القدامى
@@ -315,7 +380,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
                     expectedRentTotal += _m * _drvRate;
                 }
                 // 🆕 #029: العقد الضمني كفترة عرض
-                _periods.push({ contractType: _drvType, rate: _drvRate, start: _implStart, end: _implEnd, expected: _iExp, paid: _ubPeriodPaid(payments, _implStart, _implEnd), isImplicit: true, sealed: false });
+                _periods.push({ contractId: driver.currentContractId || null, contractType: _drvType, rate: _drvRate, start: _implStart, end: _implEnd, expected: _iExp, paid: _ubPeriodPaid(payments, _implStart, _implEnd, driver.currentContractId), isImplicit: true, sealed: false });
             }
         }
     } else if (!_noContract) {
@@ -338,7 +403,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
             const endMonth = _eff.getMonth();
             const monthsDiff = _completedMonthsAnchored(contractStart, _eff); // FIX #027
             expectedRentTotal = monthsDiff * rate;
-            _periods.push({ contractType: 'monthly', rate: rate, start: contractStart, end: _eff, expected: expectedRentTotal, paid: _ubPeriodPaid(payments, contractStart, _eff), isImplicit: false, sealed: false }); // 🆕 #029
+            _periods.push({ contractId: driver.currentContractId || null, contractType: 'monthly', rate: rate, start: contractStart, end: _eff, expected: expectedRentTotal, paid: _ubPeriodPaid(payments, contractStart, _eff, driver.currentContractId), isImplicit: false, sealed: false }); // 🆕 #029
         } else {
             // عقد يومي - 🔧 FIX #010: capping at contractEndDate
             const _cEnd = driver.contractEndDate ? (driver.contractEndDate.toDate ? driver.contractEndDate.toDate() : new Date(driver.contractEndDate)) : null;
@@ -346,7 +411,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
             const daysSinceStart = Math.floor((_eff - contractStart) / (1000 * 60 * 60 * 24));
             const dailyWage = parseFloat(driver.dailyWage || driver.dailyRent || 0);
             expectedRentTotal = daysSinceStart * dailyWage;
-            _periods.push({ contractType: 'daily', rate: dailyWage, start: contractStart, end: _eff, expected: expectedRentTotal, paid: _ubPeriodPaid(payments, contractStart, _eff), isImplicit: false, sealed: false }); // 🆕 #029
+            _periods.push({ contractId: driver.currentContractId || null, contractType: 'daily', rate: dailyWage, start: contractStart, end: _eff, expected: expectedRentTotal, paid: _ubPeriodPaid(payments, contractStart, _eff, driver.currentContractId), isImplicit: false, sealed: false }); // 🆕 #029
         }
     }
     
@@ -354,18 +419,20 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
     // #024: استبعاد دفعات الإيجار داخل الفترة المقفولة (حُسبت ضمن الترحيل للديون القديمة)
       const _payDate = (p) => { const d = p.date ? (p.date.toDate ? p.date.toDate() : new Date(p.date)) : null; return (d && !isNaN(d.getTime())) ? d : null; };
       const rentPayments = payments.filter(p =>
-          (p.type === 'أجرة يومية' || p.type === 'أجرة شهرية') &&
+          _ubIsRentPayment(p) && p.type !== 'إجازة سنوية' &&
           !(sealedUntil && _payDate(p) && _payDate(p) <= sealedUntil) &&
           !(_fullyEndedSealed && _payDate(p) && _payDate(p) > sealedUntil)
       );
-    const totalRentPaid = rentPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+    const validContractIds = new Set((driver.contractHistory || []).map(c => c.contractId).filter(Boolean));
+    if (driver.currentContractId) validContractIds.add(driver.currentContractId);
+    const totalRentPaid = rentPayments.reduce((sum, p) => sum + _ubPaymentParts(p).filter(a => a.allocationKind === 'legacyRent' || (a.allocationKind === 'currentRent' && validContractIds.has(a.contractId))).reduce((s,a) => s + a.amount, 0), 0);
     // #025: دفعات الأجرة المسجّلة بعد إنهاء العقد المقفول تُحوّل لسداد الدين القديم (بالتاريخ، بدون تعديل السجلات)
     const _afterEndRentPaid = _fullyEndedSealed ? payments.filter(p =>
-        (p.type === 'أجرة يومية' || p.type === 'أجرة شهرية') && _payDate(p) && _payDate(p) > sealedUntil
-    ).reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) : 0;
+        !p.allocations && !p.allocationKind && (p.type === 'أجرة يومية' || p.type === 'أجرة شهرية') && _payDate(p) && _payDate(p) > sealedUntil
+    ).reduce((sum, p) => sum + _ubPaymentAmount(p), 0) : 0;
     
     // 🔧 FIX #028: الإجازة السنوية تُحتسب مثل دفعة إيجار (تخفّض التأخير وتقدّم "مسدد حتى")، وتظل محايدة على إجمالي الدين
-    const annualLeaveTotal = payments.filter(p => p.type === 'إجازة سنوية').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+    const annualLeaveTotal = payments.filter(p => p.type === 'إجازة سنوية' && (!p.allocationKind || p.allocationKind === 'noncash')).reduce((sum, p) => sum + _ubPaymentAmount(p), 0);
     const _effectiveRentPaid = totalRentPaid + annualLeaveTotal;
     
     // الأجرة المتأخرة = المتوقع - (المدفوع + الإجازة السنوية)
@@ -397,10 +464,31 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
     }, 0);
     
     // 4. حساب الديون القديمة (الديون المسجلة - المدفوعات)
-    const oldDebtsInitial = parseFloat(driver.oldDebts || 0);
-    const oldDebtPayments = payments.filter(p => p.type === 'دين قديم');
-    const oldDebtsPaid = oldDebtPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) + _afterEndRentPaid;
-    const _oldDebtsRaw = oldDebtsInitial - oldDebtsPaid;
+    const oldDebtDetails = Array.isArray(driver.oldDebtDetails) ? driver.oldDebtDetails : [];
+    const hasDetailedOldDebt = oldDebtDetails.length > 0;
+    const explicitOldDebtPayments = payments.filter(p => _ubPaymentParts(p).some(a => a.allocationKind === 'oldDebt' && a.obligationId));
+    const legacyOldDebtPayments = payments.filter(p => !p.allocations && !p.allocationKind && p.type === 'دين قديم');
+    const derivedOldDebtDetails = deriveOldDebtObligations(oldDebtDetails, payments);
+    let detailedOldDebtTotal = 0;
+    let detailedOldDebtPaid = 0;
+    const legacyPaidById = {};
+    if (hasDetailedOldDebt) {
+        let legacySettlementPool = legacyOldDebtPayments.reduce((sum, p) => sum + _ubPaymentAmount(p), 0) + _afterEndRentPaid;
+        derivedOldDebtDetails.forEach(obligation => {
+            const openingRemaining = _ubMoney(obligation.derivedOpeningAmount);
+            const explicitPaid = _ubMoney(obligation.derivedPaidAmount);
+            const legacyPaid = Math.min(Math.max(0, openingRemaining - explicitPaid), legacySettlementPool);
+            legacySettlementPool = _ubMoney(legacySettlementPool - legacyPaid);
+            const paid = _ubMoney(explicitPaid + legacyPaid);
+            legacyPaidById[obligation.id] = legacyPaid;
+            detailedOldDebtTotal += openingRemaining;
+            detailedOldDebtPaid += Math.min(openingRemaining, paid);
+        });
+    }
+    const oldDebtsInitial = hasDetailedOldDebt ? detailedOldDebtTotal : _ubMoney(driver.oldDebts || 0);
+    const oldDebtPayments = hasDetailedOldDebt ? explicitOldDebtPayments : legacyOldDebtPayments;
+    const oldDebtsPaid = hasDetailedOldDebt ? detailedOldDebtPaid : legacyOldDebtPayments.reduce((sum, p) => sum + _ubPaymentAmount(p), 0) + _afterEndRentPaid;
+    const _oldDebtsRaw = _ubMoney(oldDebtsInitial - oldDebtsPaid);
     const oldDebts = Math.max(0, _oldDebtsRaw);
     // #025: فائض سداد الدين القديم (دُفع أكثر من المستحق) يتحوّل رصيداً فعلياً للسائق بدل ضياعه
     const _oldDebtCredit = Math.max(0, -_oldDebtsRaw);
@@ -443,6 +531,11 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
         violations: violations,
         residencyFees: residencyFees,
         oldDebts: oldDebts,
+        oldDebtDetails: derivedOldDebtDetails.map(o => {
+            const remaining = Math.max(0, _ubMoney(o.derivedOpeningAmount - o.derivedPaidAmount - (legacyPaidById[o.id] || 0)));
+            return { ...o, originalAmount: _ubMoney(o.originalAmount), remainingAmount: remaining, status: remaining === 0 ? 'closed' : (o.derivedPaidAmount > 0 ? 'partial' : (o.status || 'open')) };
+        }),
+        oldDebtPaid: oldDebtsPaid,
         netAdvance: netAdvance,
         annualLeaveTotal: annualLeaveTotal,
         daysLate: _daysLate,

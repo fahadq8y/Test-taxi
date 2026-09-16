@@ -243,6 +243,11 @@
         }
         .wake-lock-btn:hover { background: rgba(255,255,255,0.12); }
         .wake-lock-btn.active { background: var(--green); color: white; border-color: transparent; }
+        .audit-debt-card { border:1px solid rgba(59,130,246,.35); border-right:4px solid var(--blue); border-radius:10px; padding:12px; margin:9px 0; background:rgba(59,130,246,.06); }
+        .audit-debt-card summary { cursor:pointer; font-weight:700; color:#bfdbfe; }
+        .audit-debt-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:8px; margin-top:10px; font-size:12px; }
+        .audit-debt-grid span { display:block; color:var(--text-muted); } .audit-debt-grid strong { color:var(--text); }
+        .audit-flag { color:#fbbf24; font-size:12px; padding:8px; border:1px solid rgba(245,158,11,.35); border-radius:8px; margin-bottom:10px; }
     </style>
     <link rel="manifest" href="driver-manifest.json">
     <meta name="theme-color" content="#1a1a2e">
@@ -384,6 +389,12 @@
             </div>
         </div>
 
+        <!-- كشف الدين المرتبط بالعقود: التفاصيل الموسعة عند الحاجة فقط -->
+        <div class="card">
+            <h2>🧾 تفاصيل الديون والعقود</h2>
+            <div id="oldDebtAuditContainer"><p style="text-align:center;color:#888;">جاري التحميل…</p></div>
+        </div>
+
         <!-- الإيرادات المرتبطة بالسائق -->
         <div class="card">
             <h2>📈 إيراداتي</h2>
@@ -521,7 +532,7 @@
       </div>
 
     <!-- Firebase SDK -->
-    <script src="unified-balance.js?v=031"></script>
+    <script src="unified-balance.js?v=032"></script>
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
         import { getFirestore, doc, getDoc, updateDoc, getDocs, collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
@@ -593,7 +604,7 @@
         // Force rebuild - 2025-10-25 22:30
         function calculateDriverStats(driver) {
             if (typeof window.calculateDriverDebtDetailed === 'function') {
-                return window.calculateDriverDebtDetailed(driver.id, driver, driverPayments);
+                return window.calculateDriverDebtDetailed(driver.id, driver, driverPayments.filter(p => String(p.status || '').toLowerCase() !== 'voided'));
             }
             console.warn('⚠️ unified-balance.js غير محمّل - الحساب قد يكون غير دقيق');
             const od = parseFloat(driver.oldDebts || 0);
@@ -965,6 +976,7 @@
 
             try { renderPaymentsList(); } catch (e) { console.error('renderPaymentsList:', e); }
             try { renderRevenuesList(); } catch (e) { console.error('renderRevenuesList:', e); }
+            try { renderOldDebtAudit(); } catch (e) { console.error('renderOldDebtAudit:', e); }
         }
 
         // ===== عرض سجل المدفوعات والإيرادات الخاصة بالسائق =====
@@ -979,11 +991,53 @@
         function renderPaymentsList() {
             const el = document.getElementById('paymentsListContainer');
             if (!el) return;
-            const mine = driverPayments.filter(p => p.driverId === driverId).sort((a, b) => dvTxTime(b) - dvTxTime(a));
+            const mine = driverPayments.filter(p => p.driverId === driverId && String(p.status || '').toLowerCase() !== 'voided').sort((a, b) => dvTxTime(b) - dvTxTime(a));
             if (!mine.length) { el.innerHTML = '<p style="text-align:center;color:#888;">لا توجد مدفوعات</p>'; return; }
-            const rows = mine.map(p => `<tr><td>${dvTxDate(p)}</td><td>${p.type || '-'}</td><td style="font-weight:600;">${dvFmtAmt(p.amount)}</td><td>${p.note || p.notes || '-'}</td></tr>`).join('');
+            const rows = mine.map(p => `<tr><td>${dvTxDate(p)}</td><td>${p.type || '-'}</td><td style="font-weight:600;">${dvFmtAmt(p.amount)}</td><td>${Array.isArray(p.allocations) && p.allocations.length ? `🎯 ${p.allocations.map(a=>a.allocationKind || 'غير موزع').join(' + ')}` : p.allocationKind ? `🎯 ${p.allocationKind === 'oldDebt' ? 'دين قديم' : p.allocationKind === 'currentRent' ? 'العقد الحالي' : p.allocationKind}` : 'قديم/غير موزع'}</td><td>${p.note || p.notes || '-'}</td></tr>`).join('');
             const total = mine.reduce((s, p) => s + (Number(p.amount) || 0), 0);
-            el.innerHTML = `<table class="dv-tx-table"><thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>ملاحظة</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="2" style="font-weight:700;">الإجمالي (${mine.length})</td><td colspan="2" style="font-weight:700;">${dvFmtAmt(total)}</td></tr></tfoot></table>`;
+            el.innerHTML = `<table class="dv-tx-table"><thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>التخصيص</th><th>ملاحظة</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="2" style="font-weight:700;">الإجمالي (${mine.length})</td><td colspan="3" style="font-weight:700;">${dvFmtAmt(total)}</td></tr></tfoot></table>`;
+        }
+
+        function renderOldDebtAudit() {
+            const el = document.getElementById('oldDebtAuditContainer');
+            if (!el) return;
+            const details = Array.isArray(driverData.oldDebtDetails) ? driverData.oldDebtDetails : [];
+            const paymentParts = p => {
+                if (String(p.status || '').toLowerCase() === 'voided') return [];
+                if (Array.isArray(p.allocations) && p.allocations.length) return p.allocations.map(a => ({...a, amount:Number(a.amount ?? a.allocationAmount ?? 0)}));
+                if (p.allocationKind || p.obligationId || p.contractId) return [{allocationKind:p.allocationKind, obligationId:p.obligationId, contractId:p.contractId, amount:Number(p.allocationAmount ?? p.amount ?? 0)}];
+                return [{allocationKind:null, obligationId:null, amount:Number(p.amount || 0), legacy:true}];
+            };
+            const oldPayments = driverPayments.filter(p => p.driverId === driverId && paymentParts(p).some(a => a.allocationKind === 'oldDebt' || (!a.allocationKind && p.type === 'دين قديم')));
+            const allocatedFor = (id) => driverPayments.filter(p => p.driverId === driverId).reduce((s,p) => s + paymentParts(p).filter(a => a.allocationKind === 'oldDebt' && a.obligationId === id).reduce((x,a)=>x+Number(a.amount||0),0), 0);
+            const legacy = Number(driverData.oldDebts || 0);
+            const unallocated = driverPayments.filter(p => p.driverId === driverId && paymentParts(p).some(a => !a.allocationKind && ['أجرة يومية','أجرة شهرية','دين قديم'].includes(p.type)));
+            let html = unallocated.length ? `<div class="audit-flag">⚠️ توجد ${unallocated.length} دفعة قديمة بلا تخصيص صريح. لا يتم نقلها تلقائياً عند إنشاء عقد رجعي.</div>` : '';
+            if (!details.length && legacy) html += `<div class="audit-debt-card"><strong>⚠️ دين قديم بلا مصدر عقد</strong><div class="audit-debt-grid"><div><span>المبلغ</span><strong>${legacy.toFixed(3)} د.ك</strong></div><div><span>الحالة</span><strong>يحتاج مراجعة</strong></div></div></div>`;
+            html += details.map((o, i) => {
+                const id = o.id || `legacy-debt-${driverId}-${i + 1}`;
+                const original = Number(o.originalAmount ?? o.amount ?? 0);
+                const remaining = Math.max(0, original - allocatedFor(id));
+                const allocated = oldPayments.filter(p => paymentParts(p).some(a => a.allocationKind === 'oldDebt' && a.obligationId === id));
+                return `<details class="audit-debt-card" open><summary>📄 ${o.contractLabel || 'دين عقد سابق'} — المتبقي ${remaining.toFixed(3)} د.ك</summary>
+                    <div class="audit-debt-grid">
+                      <div><span>رقم العقد</span><strong>${o.contractId || 'غير مربوط ⚠️'}</strong></div>
+                      <div><span>الفترة</span><strong>${o.contractStart ? dvTxDate({date:o.contractStart}) : '—'} – ${o.contractEnd ? dvTxDate({date:o.contractEnd}) : '—'}</strong></div>
+                      <div><span>الأجرة</span><strong>${Number(o.rate || 0).toFixed(3)} د.ك</strong></div>
+                      <div><span>استحقاق العقد</span><strong>${Number(o.expectedRent || 0).toFixed(3)} د.ك</strong></div>
+                      <div><span>مدفوع أثناء العقد</span><strong>${Number(o.paidDuringContract || 0).toFixed(3)} د.ك</strong></div>
+                      <div><span>المرحّل</span><strong>${original.toFixed(3)} د.ك</strong></div>
+                      <div><span>الحالة</span><strong>${o.status || (remaining ? 'مفتوح' : 'مسدد')}</strong></div>
+                      <div><span>أنشأ بواسطة</span><strong>${o.createdBy || 'غير مسجل'}</strong></div>
+                    </div>
+                    ${allocated.length ? `<div style="margin-top:10px;color:#86efac;font-weight:700;">✅ التسويات اللاحقة</div>${allocated.map(p => `<div style="font-size:12px;margin-top:4px;">${dvTxDate(p)} · ${p.refNum || p.id || 'بدون مرجع'} · ${paymentParts(p).filter(a=>a.allocationKind==='oldDebt' && a.obligationId===id).reduce((s,a)=>s+Number(a.amount||0),0).toFixed(3)} د.ك</div>`).join('')}` : '<div style="margin-top:10px;color:var(--text-muted);font-size:12px;">لا توجد تسويات لاحقة</div>'}
+                    ${o.note ? `<div style="margin-top:8px;color:var(--text-muted);font-size:12px;">📝 ${o.note}</div>` : ''}
+                    ${(o.correctionOf || o.correctedAt || o.correctedBy || o.correctionReason) ? `<div style="margin-top:8px;color:#fbbf24;font-size:12px;">✏️ تصحيح: ${o.correctionReason || 'تصحيح مسجل'} · ${o.correctedBy || 'غير مسجل'} · ${o.correctedAt ? dvTxDate({date:o.correctedAt}) : ''}</div>` : ''}
+                </details>`;
+            }).join('');
+            const history = Array.isArray(driverData.contractHistory) ? driverData.contractHistory : [];
+            if (history.length) html += `<details class="audit-debt-card"><summary>🗂️ خط زمني للعقود (${history.length})</summary>${history.map(h => `<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;"><strong>${h.contractLabel || h.type || 'عقد'}</strong> · ${h.startDate ? dvTxDate({date:h.startDate}) : '—'} – ${h.endDate ? dvTxDate({date:h.endDate}) : '—'} · مرحّل ${Number(h.carryOver || 0).toFixed(3)} د.ك</div>`).join('')}</details>`;
+            el.innerHTML = html || '<p style="text-align:center;color:#888;">لا توجد بنود دين قديم مرتبطة بعقود</p>';
         }
         function renderRevenuesList() {
             const el = document.getElementById('revenuesListContainer');

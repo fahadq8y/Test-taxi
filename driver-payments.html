@@ -25,7 +25,7 @@
         }
     </style>
     <script src="driver-payments-permissions-simple.js"></script>
-      <script src="unified-balance.js?v=031"></script>
+      <script src="unified-balance.js?v=032"></script>
       <style>
           .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
           .modal-content { background: white; margin: 5% auto; padding: 0; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
@@ -544,10 +544,16 @@
                             </select>
                             <div id="paymentNote" class="payment-note"></div>
                         </div>
+                        <div class="form-group" id="allocationGroup" style="display:none;">
+                            <label for="paymentAllocation">🎯 التخصيص المقترح</label>
+                            <select id="paymentAllocation" onchange="onAllocationChange()"></select>
+                            <div id="allocationPreview" class="payment-note" style="display:block;"></div>
+                            <input type="text" id="allocationReason" placeholder="سبب تغيير التخصيص" style="display:none;margin-top:8px;">
+                        </div>
 
                         <div class="form-group">
                             <label for="amount">💰 المبلغ (د.ك)</label>
-                            <input type="number" id="amount" step="0.001" min="0" required placeholder="0.000">
+                            <input type="number" id="amount" step="0.001" min="0" required placeholder="0.000" oninput="updateAllocationPreview()">
                         </div>
 
                         <div class="form-group">
@@ -625,6 +631,8 @@
         let currentDriverId = null;
         let currentDriver = null;
         let driverPayments = [];
+        let suggestedAllocationValue = '';
+        let currentAllocationPlan = [];
 
         // Get driver ID from URL
         function getDriverIdFromUrl() {
@@ -737,7 +745,7 @@
                 let first = true;
                 db.collection('driverPayments').where('driverId', '==', currentDriverId).onSnapshot(snapshot => {
                     driverPayments = [];
-                    snapshot.forEach(doc => { driverPayments.push({ id: doc.id, ...doc.data() }); });
+                     snapshot.forEach(doc => { if (doc.data().status !== 'voided') driverPayments.push({ id: doc.id, ...doc.data() }); });
                     driverPayments.sort((a, b) => {
                         const dateA = new Date(a.date || a.createdAt?.toDate?.() || 0);
                         const dateB = new Date(b.date || b.createdAt?.toDate?.() || 0);
@@ -855,7 +863,10 @@
               if (!currentDriver) return;
               const el = document.getElementById('oldDebtsBox');
               if (!el) return;
-              el.textContent = parseFloat(currentDriver.oldDebts || 0).toFixed(3) + ' د.ك';
+               const detailed = typeof window.calculateDriverDebtDetailed === 'function'
+                   ? window.calculateDriverDebtDetailed(currentDriverId, currentDriver, driverPayments || [])
+                   : null;
+               el.textContent = parseFloat(detailed ? detailed.oldDebts : currentDriver.oldDebts || 0).toFixed(3) + ' د.ك';
           }
           
           // 🔧 FIX #019: عرض حالة العقد (نشط / منتهي / موقوف)
@@ -941,6 +952,80 @@
             } else {
                 noteDiv.style.display = 'none';
             }
+            updateAllocationOptions();
+        }
+
+        function _dpAmount(value) {
+            const n = parseFloat(value);
+            return Number.isFinite(n) ? Math.round(n * 1000) / 1000 : 0;
+        }
+        function _dpContractId() {
+            if (!currentDriver) return null;
+            if (currentDriver.currentContractId) return currentDriver.currentContractId;
+            const start = currentDriver.contractStartDate ? (currentDriver.contractStartDate.toDate ? currentDriver.contractStartDate.toDate() : new Date(currentDriver.contractStartDate)) : null;
+            return start && !isNaN(start.getTime()) ? `${currentDriverId}-${start.toISOString().split('T')[0]}` : `${currentDriverId}-current`;
+        }
+        function _dpObligationSortValue(o) {
+            const raw = o && (o.contractEnd || o.contractStart || o.createdAt);
+            const d = raw && raw.toDate ? raw.toDate() : (raw ? new Date(raw) : null);
+            return d && !isNaN(d.getTime()) ? d.getTime() : Number.MAX_SAFE_INTEGER;
+        }
+        function updateAllocationOptions() {
+            const group = document.getElementById('allocationGroup');
+            const select = document.getElementById('paymentAllocation');
+            if (!group || !select || !currentDriver) return;
+            const type = document.getElementById('paymentType').value;
+            const applicable = type === 'دين قديم' || type === 'أجرة يومية' || type === 'أجرة شهرية';
+            if (!applicable) { group.style.display = 'none'; return; }
+            group.style.display = 'block';
+            const details = Array.isArray(currentDriver.oldDebtDetails) ? currentDriver.oldDebtDetails : [];
+            const derived = typeof deriveOldDebtObligations === 'function' ? deriveOldDebtObligations(details, driverPayments || []) : details;
+            const open = derived.filter(o => _dpAmount(o.derivedOpeningAmount !== undefined ? o.derivedOpeningAmount - (o.derivedPaidAmount || 0) : o.originalAmount) > 0);
+            open.sort((a,b) => _dpObligationSortValue(a) - _dpObligationSortValue(b));
+            let html = open.length ? '<option value="fifo">اقتراح النظام: الأقدم أولاً (توزيع تلقائي)</option>' : '';
+            open.forEach(o => { html += `<option value="oldDebt:${o.id}">تخصيص يدوي: ${o.contractLabel || o.contractId || o.id} (المتبقي ${_dpAmount(o.derivedOpeningAmount !== undefined ? o.derivedOpeningAmount - (o.derivedPaidAmount || 0) : o.originalAmount).toFixed(3)})</option>`; });
+            if (_dpContractId() && currentDriver.isActive !== false) html += `<option value="currentRent:${_dpContractId()}">تخصيص يدوي: أجرة العقد الحالي</option>`;
+            if (!html) html = '<option value="legacy">دين قديم — الرصيد القديم (توافق)</option>';
+            select.innerHTML = html;
+            suggestedAllocationValue = select.options.length ? select.options[0].value : '';
+            currentAllocationPlan = _dpPlanForChoice(suggestedAllocationValue);
+            updateAllocationPreview();
+        }
+        function _dpPlanForChoice(choice, reason) {
+            const amount = _dpAmount(document.getElementById('amount')?.value);
+            const rawDetails = Array.isArray(currentDriver?.oldDebtDetails) ? currentDriver.oldDebtDetails : [];
+            const details = typeof deriveOldDebtObligations === 'function' ? deriveOldDebtObligations(rawDetails, driverPayments || []) : rawDetails;
+            const open = details.slice().sort((a,b) => _dpObligationSortValue(a) - _dpObligationSortValue(b)).filter(o => _dpAmount(o.derivedOpeningAmount !== undefined ? o.derivedOpeningAmount - (o.derivedPaidAmount || 0) : o.originalAmount) > 0);
+            if (choice === 'fifo') return typeof buildPaymentAllocationPlan === 'function'
+                ? buildPaymentAllocationPlan(amount, open, currentDriver && currentDriver.isActive !== false ? _dpContractId() : null)
+                : [];
+            if (choice && choice.startsWith('oldDebt:')) {
+                const selected = open.filter(o => `oldDebt:${o.id}` === choice);
+                return typeof buildPaymentAllocationPlan === 'function'
+                    ? buildPaymentAllocationPlan(amount, selected, currentDriver && currentDriver.isActive !== false ? _dpContractId() : null, reason)
+                    : [];
+            }
+            if (choice && choice.startsWith('currentRent:')) return [{ allocationKind:'currentRent', kind:'currentRent', allocationAmount:amount, amount, contractId:_dpContractId(), reason:reason || 'تخصيص يدوي' }];
+            if (choice === 'unallocated') return [{ allocationKind:'unallocated', kind:'unallocated', allocationAmount:amount, amount, reason:reason || 'تحت المراجعة' }];
+            return [];
+        }
+        function onAllocationChange() {
+            const select = document.getElementById('paymentAllocation');
+            const reason = document.getElementById('allocationReason');
+            if (reason) reason.style.display = select && select.value !== suggestedAllocationValue ? 'block' : 'none';
+            currentAllocationPlan = _dpPlanForChoice(select && select.value, reason?.value.trim());
+            updateAllocationPreview();
+        }
+        function updateAllocationPreview() {
+            const preview = document.getElementById('allocationPreview');
+            const select = document.getElementById('paymentAllocation');
+            if (!preview || !select) return;
+            const choice = select.value || '';
+            currentAllocationPlan = _dpPlanForChoice(choice, document.getElementById('allocationReason')?.value.trim());
+            if (choice === 'legacy') { preview.textContent = 'سيتم حفظها بالطريقة القديمة حتى يتم إنشاء بند تفصيلي للدين.'; return; }
+            preview.innerHTML = currentAllocationPlan.length
+                ? currentAllocationPlan.map(a => `${a.allocationKind === 'oldDebt' ? 'دين قديم' : a.allocationKind === 'currentRent' ? 'إيجار العقد الحالي' : 'غير موزع'}: <strong>${_dpAmount(a.amount).toFixed(3)} د.ك</strong>`).join('<br>')
+                : 'سيبقى المبلغ غير موزع حتى تتم مراجعته.';
         }
 
         // Check residence renewal
@@ -1036,7 +1121,18 @@
                     editReason: reason,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                await db.collection('driverPayments').doc(pendingDeletePaymentId).delete();
+                if (pendingDeletePaymentSnapshot && (pendingDeletePaymentSnapshot.allocationKind || (Array.isArray(pendingDeletePaymentSnapshot.allocations) && pendingDeletePaymentSnapshot.allocations.length))) {
+                    await db.collection('driverPayments').doc(pendingDeletePaymentId).update({
+                        status: 'voided',
+                        voidedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        voidedBy: userName,
+                        voidReason: reason,
+                        reversalOf: pendingDeletePaymentId
+                    });
+                } else {
+                    // Legacy rows retain their historical delete behavior.
+                    await db.collection('driverPayments').doc(pendingDeletePaymentId).delete();
+                }
                 closeDeleteConfirmModal();
                 await loadDriverPayments();
             } catch (error) {
@@ -1061,6 +1157,9 @@
             const amount = parseFloat(document.getElementById('amount').value);
             const paymentDate = document.getElementById('paymentDate').value;
             const description = document.getElementById('description').value;
+            const allocationSelect = document.getElementById('paymentAllocation');
+            const allocationValue = allocationSelect && document.getElementById('allocationGroup').style.display !== 'none' ? allocationSelect.value : '';
+            const allocationReason = document.getElementById('allocationReason')?.value.trim() || '';
             
             // تحقق من رصيد السلفة عند تحصيل سلفة من السائق
             if (paymentType === 'تحصيل سلفة من السائق') {
@@ -1096,6 +1195,29 @@
             }
             
             try {
+                if (amount <= 0 || !Number.isFinite(amount)) throw new Error('يجب إدخال مبلغ صحيح أكبر من صفر');
+                if (amount !== _dpAmount(amount)) throw new Error('المبلغ يجب أن يكون لثلاث خانات عشرية كحد أقصى');
+                if ((paymentType === 'أجرة يومية' || paymentType === 'أجرة شهرية' || paymentType === 'دين قديم') && !allocationValue) {
+                    throw new Error('يرجى تأكيد تخصيص الدفعة');
+                }
+                if (allocationValue === 'unallocated' && allocationReason.length < 5) {
+                    throw new Error('يرجى كتابة سبب التخصيص غير الموزع (5 أحرف على الأقل)');
+                }
+                if (allocationValue && allocationValue !== suggestedAllocationValue && allocationValue !== 'legacy' && allocationReason.length < 5) {
+                    throw new Error('تغيير التخصيص يحتاج سبباً واضحاً (5 أحرف على الأقل)');
+                }
+                const allocationPlan = allocationValue && allocationValue !== 'legacy'
+                    ? _dpPlanForChoice(allocationValue, allocationReason || 'اقتراح النظام — الأقدم أولاً')
+                    : [];
+                if (allocationValue && allocationValue !== 'legacy' && !allocationPlan.length) {
+                    throw new Error('تعذر إنشاء توزيع آمن للدفعة؛ يرجى مراجعة بند الدين أو العقد');
+                }
+                if (allocationPlan.length) {
+                    const allocationTotal = _dpAmount(allocationPlan.reduce((s, a) => s + _dpAmount(a.amount), 0));
+                    if (Math.abs(allocationTotal - _dpAmount(amount)) > 0.001) {
+                        throw new Error('مجموع التخصيصات لا يساوي مبلغ الدفعة؛ لم يتم الحفظ');
+                    }
+                }
                 // توليد الرقم المرجعي للدفعة الجديدة
                 const refNum = await generateNextRefNum('driverPayments', 'PAY', paymentDate);
                 
@@ -1104,12 +1226,35 @@
                     driverName: currentDriver.name,
                     employeeNumber: currentDriver.employeeNumber || null,
                     type: paymentType,
-                    amount: amount,
+                    amount: _dpAmount(amount),
                     date: paymentDate,
                     description: description,
                     refNum: refNum,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
+                if (allocationPlan.length) {
+                    paymentData.allocations = allocationPlan.map(a => ({
+                        allocationKind: a.allocationKind, kind: a.kind || a.allocationKind,
+                        allocationAmount: _dpAmount(a.allocationAmount !== undefined ? a.allocationAmount : a.amount),
+                        amount: _dpAmount(a.amount !== undefined ? a.amount : a.allocationAmount),
+                        ...(a.obligationId ? { obligationId: a.obligationId } : {}),
+                        ...(a.contractId ? { contractId: a.contractId } : {}),
+                        reason: a.reason || allocationReason || 'اقتراح النظام — الأقدم أولاً'
+                    }));
+                    if (paymentData.allocations.length === 1) {
+                        const one = paymentData.allocations[0];
+                        paymentData.allocationKind = one.allocationKind;
+                        paymentData.allocationAmount = one.allocationAmount;
+                        if (one.obligationId) paymentData.obligationId = one.obligationId;
+                        if (one.contractId) paymentData.contractId = one.contractId;
+                        paymentData.allocationReason = one.reason;
+                    }
+                    paymentData.allocatedAt = firebase.firestore.FieldValue.serverTimestamp();
+                    paymentData.allocatedBy = localStorage.getItem('userName') || 'مستخدم';
+                } else if (paymentType === 'إجازة سنوية') {
+                    paymentData.allocationKind = 'noncash';
+                    paymentData.allocationAmount = _dpAmount(amount);
+                }
                 
                 await db.collection('driverPayments').add(paymentData);
                 
@@ -1124,11 +1269,12 @@
                 document.getElementById('paymentForm').reset();
                 document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
                 document.getElementById('paymentNote').style.display = 'none';
+                document.getElementById('allocationGroup').style.display = 'none';
                 
                 alert('تم إضافة الدفعة بنجاح!');
             } catch (error) {
                 console.error('Error adding payment:', error);
-                alert('حدث خطأ أثناء إضافة الدفعة');
+                alert(error && error.message ? error.message : 'حدث خطأ أثناء إضافة الدفعة');
             } finally {
                 // إعادة تفعيل الزر
                 submitBtn.disabled = false;
@@ -1339,9 +1485,33 @@
                   
                   const currentHistory = currentDriver.contractHistory || [];
                   const updatedHistory = [...currentHistory, historyEntry];
+                  const updatedDebtDetails = Array.isArray(currentDriver.oldDebtDetails) ? currentDriver.oldDebtDetails.map(d => ({ ...d })) : [];
+                  if (updatedDebtDetails.length) {
+                    const detailedTotal = updatedDebtDetails.reduce((s, d) => s + (parseFloat(d.originalAmount || 0) + parseFloat(d.adjustmentAmount || d.signedAdjustment || 0)), 0);
+                      let delta = Math.round((newValue - detailedTotal) * 1000) / 1000;
+                      if (delta > 0) {
+                          updatedDebtDetails.push({
+                              id: `${editOldDebtsDriverIdLocal}-adjustment-${Date.now()}`,
+                              contractId: null, contractLabel: 'تعديل رصيد دين قديم', contractType: 'adjustment',
+                              contractStart: null, contractEnd: null, rate: 0, expectedRent: delta,
+                              paidDuringContract: 0, originalAmount: delta, remainingAmount: delta,
+                              createdAt: new Date(), createdBy: userName, status: 'open', note
+                          });
+                      } else if (delta < 0) {
+                          let reduction = Math.abs(delta);
+                          updatedDebtDetails.slice().reverse().forEach(d => {
+                              if (reduction <= 0) return;
+                              const available = Math.max(0, parseFloat(d.originalAmount || 0) + parseFloat(d.adjustmentAmount || d.signedAdjustment || 0));
+                              const applied = Math.min(available, reduction);
+                              d.adjustmentAmount = Math.round((parseFloat(d.adjustmentAmount || d.signedAdjustment || 0) - applied) * 1000) / 1000;
+                              reduction = Math.round((reduction - applied) * 1000) / 1000;
+                          });
+                      }
+                  }
                   
                   await db.collection('drivers').doc(editOldDebtsDriverIdLocal).update({
                       oldDebts: newValue,
+                      ...(updatedDebtDetails.length ? { oldDebtDetails: updatedDebtDetails } : {}),
                       contractHistory: updatedHistory
                   });
                     
@@ -1420,7 +1590,9 @@
                       date: data.date || '',
                       type: data.type || '',
                       amount: parseFloat(data.amount || 0),
-                      description: data.description || ''
+                       description: data.description || '',
+                       hasAllocation: !!(data.allocationKind || (Array.isArray(data.allocations) && data.allocations.length)),
+                       allocations: Array.isArray(data.allocations) ? data.allocations : null
                   };
                   populateDPEditTypeOptions(data.type || '');
                   document.getElementById('dpEditDate').value = data.date || '';
@@ -1461,6 +1633,10 @@
               }
               if (!editReason || editReason.length < 3) {
                   alert('يرجى كتابة سبب التعديل (حد أدنى 3 حروف)');
+                  return;
+              }
+              if (dpOriginalData.hasAllocation) {
+                  alert('⚠️ هذه الدفعة مرتبطة بتوزيع محاسبي. لا يمكن تعديلها مباشرة؛ ألغِها بسبب واضح وسجّل دفعة جديدة بتوزيع صحيح.');
                   return;
               }
 
