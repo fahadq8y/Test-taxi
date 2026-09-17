@@ -2,7 +2,8 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta id="viewModeViewport" name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="view-toggle.js?v=001"></script>
     <title>إدارة السائقين - نظام إدارة التاكسي</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2563eb">
@@ -361,7 +362,7 @@
     </div>
 
     <!-- محرك حساب الديون الموحد -->
-    <script src="unified-balance.js?v=032"></script>
+    <script src="unified-balance.js?v=033"></script>
 
     <!-- Firebase SDK -->
     <script type="module">
@@ -1226,10 +1227,19 @@
                             to: fmtD(driverData.contractStartDate) || 'غير محدد'
                         });
                     }
+                     const currentHistoryRow = __existingDrv && Array.isArray(__existingDrv.contractHistory)
+                         ? (__existingDrv.contractHistory.find(c => c && c.contractId === __existingDrv.currentContractId) ||
+                            __existingDrv.contractHistory.slice().reverse().find(c => c && c.type !== 'تعديل' && c.note !== 'تعديل عقد')) : null;
+                     if (currentHistoryRow && (currentHistoryRow.sealed === true || currentHistoryRow.type === 'إنهاء عقد' || currentHistoryRow.carryOver !== undefined) && contractChanges.length) {
+                         alert('هذا العقد مختوم محاسبياً؛ لا يمكن تعديل تاريخه أو أجرته. استخدم تصحيحاً موثقاً بعد مراجعة التخصيصات.');
+                         return;
+                     }
                     
                     // 3) لو فيه تغيير حقيقي بالعقد → احسب الدين قبل وبعد واعرض نافذة تأكيد
-                    if (contractChanges.length > 0 && __existingDrv) {
-                        let debtBefore = 0, debtAfter = 0, calcOk = false;
+                     let contractEditReason = '';
+                     let debtBefore = 0, debtAfter = 0;
+                     if (contractChanges.length > 0 && __existingDrv) {
+                         let calcOk = false;
                         try {
                             if (typeof calculateDriverDebt === 'function') {
                                 const pSnap = await getDocs(query(collection(db, 'driverPayments'), where('driverId', '==', editingDriverId)));
@@ -1309,7 +1319,11 @@
                             msg += '\n⚠️ تعذّر حساب الدين الآن - سيُحسب بعد الحفظ.\n';
                         }
                         msg += '\n━━━━━━━━━━━━━━━━━━━━━━\nهل تريد تأكيد التعديل؟';
-                        if (!confirm(msg)) return;
+                         if (calcOk && (Math.abs(diff) > 0.001 || (newEnd && new Date(newEnd) <= new Date()))) {
+                             contractEditReason = (window.prompt('سبب تعديل العقد أو تغيّر الدين (مطلوب):', '') || '').trim();
+                             if (contractEditReason.length < 5) { alert('يجب كتابة سبب واضح (5 أحرف على الأقل)'); return; }
+                         }
+                         if (!confirm(msg)) return;
                     }
                     
                     // 4) ابنِ contractHistory:
@@ -1364,7 +1378,9 @@
                             contractDurationMonths: newMonths,
                             contractDurationDays: newDays,
                             createdAt: new Date(),
-                            createdBy: currentUser.name || currentUser.email
+                             createdBy: currentUser.name || currentUser.email,
+                             reason: contractEditReason || 'تعديل من نموذج السائق',
+                             debtBefore: debtBefore, debtAfter: debtAfter, debtDelta: debtAfter - debtBefore
                         });
                     }
                     if (existingHistory.length > 0) driverData.contractHistory = existingHistory;
@@ -1419,7 +1435,12 @@
                                   driverName: driverData.name || (__old.name || ''),
                                   changes: __changes,
                                   description: 'تعديل بيانات السائق (' + __changes.length + ' حقل)',
-                                  editReason: 'تعديل من نموذج السائق'
+                                   editReason: contractEditReason || 'تعديل من نموذج السائق',
+                                   debtBefore: (typeof debtBefore !== 'undefined' ? debtBefore : null),
+                                   debtAfter: (typeof debtAfter !== 'undefined' ? debtAfter : null),
+                                   debtDelta: (typeof debtBefore !== 'undefined' && typeof debtAfter !== 'undefined' ? debtAfter - debtBefore : null),
+                                   auditedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                                   auditedBy: currentUser.name || currentUser.email
                               });
                           }
                       } catch (__lge) { console.error('⚠️ FIX #020 driver edit log:', __lge); }
@@ -1773,16 +1794,58 @@
                 return;
             }
 
-            const finalCarryOver = Math.round((manualVal !== '' ? parseFloat(manualVal) : calculatedCarryOver) * 1000) / 1000;
-            const carryOverLabel = finalCarryOver > 0 ? 'دين' : 'رصيد زائد';
+             let finalCarryOver = 0;
+             let carryOverLabel = 'رصيد زائد';
 
             // تأكيد قبل الحفظ
-            const confirmMsg = `سيتم إنشاء عقد جديد للسائق:\n\n` +
-                `• بداية: ${newStart}\n` +
-                `• نهاية: ${newEnd}\n` +
-                `• الأجرة: ${newRate.toFixed(3)} د.ك (${newType === 'daily' ? 'يومي' : 'شهري'})\n` +
-                `• الرصيد المرحَّل: ${Math.abs(finalCarryOver).toFixed(3)} د.ك (${carryOverLabel})\n\n` +
-                `هل تريد المتابعة؟`;
+             const priorDriver = _newContractDriver || allDrivers.find(d => d.id === newContractDriverId);
+             const priorDetails = priorDriver && typeof ensureExpiredContractObligations === 'function'
+                 ? ensureExpiredContractObligations(newContractDriverId, priorDriver, _newContractPayments || [], newStart) : [];
+             const priorStartForId = priorDriver && priorDriver.contractStartDate ? (priorDriver.contractStartDate.toDate ? priorDriver.contractStartDate.toDate() : new Date(priorDriver.contractStartDate)) : null;
+             const priorContractId = priorDriver && priorDriver.currentContractId || (priorStartForId ? `${newContractDriverId}-${priorStartForId.toISOString().slice(0,10)}` : null);
+             const targetObligationId = priorContractId ? `${priorContractId}-closure` : null;
+             const priorDetailsScoped = priorDetails.filter(d => d && d.contractId === priorContractId);
+             const priorExpected = priorDetailsScoped.reduce((s,d) => s + parseFloat(d.expectedRent || 0), 0);
+             const priorOriginalDebt = priorDetailsScoped.reduce((s,d) => s + parseFloat(d.originalAmount || 0), 0);
+             const priorPaid = Math.max(0, priorExpected - priorOriginalDebt);
+             const priorEnd = priorDriver && priorDriver.contractEndDate ? (priorDriver.contractEndDate.toDate ? priorDriver.contractEndDate.toDate() : new Date(priorDriver.contractEndDate)) : null;
+             const priorDerived = typeof deriveOldDebtObligations === 'function' ? deriveOldDebtObligations(priorDetailsScoped, _newContractPayments || []) : priorDetailsScoped;
+             const priorForAllocation = priorDerived.filter(d => d.contractId === priorContractId && d.id === targetObligationId && d.originalAmount > 0);
+             const priorRemaining = new Map(priorForAllocation.map(d => [d.id, Math.max(0, parseFloat(d.derivedOpeningAmount !== undefined ? d.derivedOpeningAmount : d.originalAmount || 0) - parseFloat(d.derivedPaidAmount || 0))]));
+             const eligiblePostEndTypes = new Set(['أجرة يومية','أجرة شهرية','دين قديم']);
+             const legacyPostEndPlans = (_newContractPayments || []).filter(p => {
+                 const pd = p.date ? (p.date.toDate ? p.date.toDate() : new Date(p.date)) : null;
+                 return p.status !== 'voided' && eligiblePostEndTypes.has(p.type) && !p.allocations && !p.allocationKind && priorEnd && pd && pd > priorEnd;
+             }).map(p => {
+                 let left = Math.round(parseFloat(p.amount || 0) * 1000) / 1000;
+                 const allocations = [];
+                 priorForAllocation.forEach(o => {
+                     if (left <= 0) return;
+                     const take = Math.min(left, priorRemaining.get(o.id) || 0);
+                     if (take > 0) {
+                         allocations.push({ allocationKind:'oldDebt', kind:'oldDebt', allocationAmount:Math.round(take*1000)/1000, amount:Math.round(take*1000)/1000, obligationId:o.id, contractId:o.contractId, reason:'تسوية تلقائية عند فتح عقد جديد' });
+                         priorRemaining.set(o.id, Math.round(((priorRemaining.get(o.id) || 0) - take) * 1000) / 1000);
+                         left = Math.round((left - take) * 1000) / 1000;
+                     }
+                 });
+                 if (left > 0) allocations.push({ allocationKind:'unallocated', kind:'unallocated', allocationAmount:left, amount:left, reason:'رصيد زائد بعد تسوية العقد السابق' });
+                 return { id:p.id, amount:parseFloat(p.amount || 0), allocations };
+             });
+             const postEndSettlements = legacyPostEndPlans.reduce((s,p) => s + p.allocations.filter(a => a.allocationKind === 'oldDebt').reduce((x,a) => x + a.amount, 0), 0);
+             finalCarryOver = Math.round(Math.max(0, priorOriginalDebt - postEndSettlements) * 1000) / 1000;
+             carryOverLabel = finalCarryOver > 0 ? 'دين' : 'رصيد زائد';
+             const confirmMsg = `سيتم إنشاء عقد جديد للسائق:\n\n` +
+                 `• السابق المتوقع: ${priorExpected.toFixed(3)} د.ك\n` +
+                 `• المدفوع خلال العقد: ${priorPaid.toFixed(3)} د.ك\n` +
+                 `• أصل الدين: ${priorOriginalDebt.toFixed(3)} د.ك\n` +
+                 `• تسويات ما بعد النهاية: ${postEndSettlements.toFixed(3)} د.ك\n` +
+                 `• المتبقي قبل العقد الجديد: ${Math.max(0, priorOriginalDebt - postEndSettlements).toFixed(3)} د.ك\n\n` +
+                 `دفعات ما بعد النهاية التي سيُحفظ تخصيصها:\n` +
+                 `${legacyPostEndPlans.length ? legacyPostEndPlans.map(p => `• ${p.id}: ${p.allocations.map(a => `${a.allocationKind} ${a.amount.toFixed(3)}`).join(' + ')}`).join('\n') : '• لا توجد دفعات مؤهلة'}\n\n` +
+                  `• بداية العقد الجديد: ${newStart}\n` +
+                  `• نهاية العقد الجديد: ${newEnd}\n` +
+                  `• الأجرة: ${newRate.toFixed(3)} د.ك (${newType === 'daily' ? 'يومي' : 'شهري'})\n\n` +
+                 `سيتم ختم العقد السابق مرة واحدة وإنشاء/تثبيت بند الدين دون تغيير التخصيصات.\nهل تريد المتابعة؟`;
 
             if (!confirm(confirmMsg)) return;
 
@@ -1818,8 +1881,17 @@
                     note: note || 'تجديد عقد'
                 });
                 const currentOldDebts = parseFloat(driver.oldDebts || 0);
-                const oldDebtDetails = Array.isArray(driver.oldDebtDetails) ? [...driver.oldDebtDetails] : [];
-                if (!oldDebtDetails.length && currentOldDebts > 0) {
+                 // Scalar compatibility is authoritative independently of the
+                 // newly generated current-contract closure. Compute residual
+                 // only from sources that existed before ensure() ran.
+                 const preEnsureDetails = Array.isArray(driver.oldDebtDetails) ? driver.oldDebtDetails.map(d => ({ ...d })) : [];
+                 const oldDebtDetails = typeof ensureExpiredContractObligations === 'function'
+                     ? ensureExpiredContractObligations(newContractDriverId, driver, _newContractPayments || [], newStart)
+                     : (Array.isArray(driver.oldDebtDetails) ? [...driver.oldDebtDetails] : []);
+                const hasLegacyOpening = preEnsureDetails.some(d => d && (d.contractType === 'legacy' || d.id === `${newContractDriverId}-legacy-opening`));
+                const representedOpening = preEnsureDetails.reduce((s,d) => s + parseFloat(d.originalAmount || 0) + parseFloat(d.adjustmentAmount || 0), 0);
+                const scalarResidual = Math.max(0, Math.round((currentOldDebts - representedOpening) * 1000) / 1000);
+                if (!hasLegacyOpening && scalarResidual > 0) {
                     oldDebtDetails.push({
                         id: `${newContractDriverId}-legacy-opening`,
                         contractId: `${newContractDriverId}-legacy-opening`,
@@ -1828,33 +1900,15 @@
                         contractStart: null,
                         contractEnd: null,
                         rate: 0,
-                        expectedRent: currentOldDebts,
+                        expectedRent: scalarResidual,
                         paidDuringContract: 0,
-                        originalAmount: Math.round(currentOldDebts * 1000) / 1000,
-                        remainingAmount: Math.round(currentOldDebts * 1000) / 1000,
+                        originalAmount: scalarResidual,
+                        remainingAmount: scalarResidual,
                         createdAt: new Date(),
                         createdBy: currentUser.name || currentUser.email,
                         status: 'open',
-                        note: 'حفظ الرصيد القديم كسجل تفصيلي بدون تغيير قيمته'
-                    });
-                }
-                if (finalCarryOver > 0) {
-                    oldDebtDetails.push({
-                        id: `${contractId}-carry`,
-                        contractId: contractId,
-                        contractLabel: `${driver.name || ''} - ${newStart}`,
-                        contractType: driver.contractType || 'daily',
-                        contractStart: driver.contractStartDate || null,
-                        contractEnd: historyEndDate,
-                        rate: driver.contractType === 'monthly' ? parseFloat(driver.monthlyPayment || 0) : parseFloat(driver.dailyRent || driver.dailyWage || 0),
-                        expectedRent: Math.round((parseFloat(driver.contractType === 'monthly' ? driver.monthlyPayment : driver.dailyRent || driver.dailyWage) || 0) * 1000) / 1000,
-                        paidDuringContract: 0,
-                        originalAmount: finalCarryOver,
-                        remainingAmount: finalCarryOver,
-                        createdAt: new Date(),
-                        createdBy: currentUser.name || currentUser.email,
-                        status: 'open',
-                        note: note || 'رصيد مرحّل عند إنشاء عقد جديد'
+                            note: 'دين مرحّل من النظام السابق',
+                            sourceNeedsReview: true
                     });
                 }
 
@@ -1876,7 +1930,13 @@
 
                 // 🔧 #023: الديون القديمة = الحالية + الرصيد المرحَّل
                 // يقبل قيم سالبة (= رصيد زائد للسائق) لو الديون القديمة كانت صفر أو أقل من الرصيد الزائد
-                const newOldDebts = currentOldDebts + finalCarryOver;
+                 const plannedPayments = (_newContractPayments || []).map(p => {
+                     const plan = legacyPostEndPlans.find(x => x.id === p.id);
+                     return plan ? { ...p, allocations: plan.allocations } : p;
+                 });
+                 const newOldDebts = typeof calculateDriverDebtDetailed === 'function'
+                     ? calculateDriverDebtDetailed(newContractDriverId, { ...driver, oldDebtDetails }, plannedPayments).oldDebts
+                     : Math.max(0, currentOldDebts);
 
                 // تحديث بيانات السائق بالعقد الجديد
                 const updateData = {
@@ -1898,7 +1958,95 @@
                     updateData.monthlyPayment = newRate;
                 }
 
-                await updateDoc(doc(db, 'drivers', newContractDriverId), updateData);
+                 await db.runTransaction(async tx => {
+                     const driverRef = db.collection('drivers').doc(newContractDriverId);
+                     const snap = await tx.get(driverRef);
+                     if (!snap.exists) throw new Error('السائق غير موجود');
+                     const live = snap.data() || {};
+                     const liveHistory = Array.isArray(live.contractHistory) ? live.contractHistory : [];
+                     if (liveHistory.some(h => h && h.contractId === contractId)) throw new Error('تم إنشاء هذا العقد مسبقاً');
+                      const liveRevision = parseInt(live.debtAllocationRevision || 0) || 0;
+                      const expectedRevision = parseInt(driver.debtAllocationRevision || 0) || 0;
+                      if (liveRevision !== expectedRevision) throw new Error('تغيّر حجز التخصيص أثناء فتح العقد؛ أعد المحاولة');
+                      const allLivePayments = (_newContractPayments || []).filter(p => p.status !== 'voided');
+                      const priorLive = live.currentContractId ? liveHistory.find(h => h && h.contractId === live.currentContractId) : null;
+                      if (!priorContractId || (priorLive && priorLive.contractId !== priorContractId)) throw new Error('تغيّر العقد السابق المستهدف؛ أعد المعاينة');
+                      const liveDetails = Array.isArray(live.oldDebtDetails) ? live.oldDebtDetails.map(d => ({...d})) : [];
+                      const liveCandidate = ensureExpiredContractObligations(newContractDriverId, live, allLivePayments, newStart);
+                      const detailById = new Map(liveDetails.map(d => [d.id, d]));
+                      liveCandidate.forEach(d => { if (!detailById.has(d.id)) detailById.set(d.id, d); });
+                      const liveHasLegacy = liveDetails.some(d => d && (d.contractType === 'legacy' || d.id === `${newContractDriverId}-legacy-opening`));
+                      const liveRepresented = liveDetails.reduce((s,d) => s + parseFloat(d.originalAmount || 0) + parseFloat(d.adjustmentAmount || 0), 0);
+                      const liveScalarResidual = Math.max(0, Math.round((parseFloat(live.oldDebts || 0) - liveRepresented) * 1000) / 1000);
+                      if (!liveHasLegacy && liveScalarResidual > 0) {
+                          const legacyId = `${newContractDriverId}-legacy-opening`;
+                          detailById.set(legacyId, {
+                              id: legacyId, obligationId: legacyId, contractId: legacyId,
+                              contractLabel: 'دين مرحّل من النظام السابق', contractType:'legacy',
+                              contractStart:null, contractEnd:null, rate:0,
+                              expectedRent:liveScalarResidual, paidDuringContract:0,
+                              originalAmount:liveScalarResidual, remainingAmount:liveScalarResidual,
+                              allocationReservedAmount:0, status:'open',
+                              note:'دين مرحّل من النظام السابق', sourceNeedsReview:true
+                          });
+                      }
+                      const reservation = {};
+                      allLivePayments.forEach(p => _ubPaymentParts(p).filter(a => a.allocationKind === 'oldDebt' && a.obligationId).forEach(a => {
+                          reservation[a.obligationId] = _dpAmount((reservation[a.obligationId] || 0) + a.amount);
+                      }));
+                      const reservationExists = liveDetails.some(d => d && d.allocationReservedAmount !== undefined);
+                      if (reservationExists) {
+                          liveDetails.forEach(d => { if (d && d.allocationReservedAmount !== undefined) reservation[d.id] = _dpAmount(d.allocationReservedAmount || 0); });
+                      }
+                      const liveTarget = liveCandidate.find(d => d && d.contractId === priorContractId && d.id === targetObligationId);
+                      if (!liveTarget) throw new Error('لم يعد بند العقد السابق المستهدف متاحاً؛ أعد المعاينة');
+                      const liveOpen = [liveTarget].map(d => ({ ...d, derivedOpeningAmount: _ubObligationOpening(d), derivedPaidAmount: reservation[d.id] || 0 }))
+                          .filter(d => _dpAmount(d.derivedOpeningAmount - d.derivedPaidAmount) > 0)
+                          .sort((a,b) => _dpObligationSortValue(a) - _dpObligationSortValue(b));
+                      const livePaymentById = {};
+                      for (const plan of legacyPostEndPlans) {
+                          const paymentSnap = await tx.get(db.collection('driverPayments').doc(plan.id));
+                          if (!paymentSnap.exists) throw new Error('تغيّرت دفعة أثناء فتح العقد؛ أعد المحاولة');
+                          livePaymentById[plan.id] = paymentSnap.data();
+                      }
+                     for (const plan of legacyPostEndPlans) {
+                         const paymentRef = db.collection('driverPayments').doc(plan.id);
+                          const livePayment = livePaymentById[plan.id];
+                          if (livePayment.status === 'voided') throw new Error('تغيّرت دفعة أثناء فتح العقد؛ أعد المحاولة');
+                         if (livePayment.allocations || livePayment.allocationKind) throw new Error('تم تخصيص دفعة أثناء فتح العقد؛ أعد المعاينة');
+                          const initialAllocations = buildPaymentAllocationPlan(plan.amount, liveOpen, null);
+                          const rebuilt = initialAllocations.length ? initialAllocations : [{ allocationKind:'unallocated', kind:'unallocated', amount:plan.amount, allocationAmount:plan.amount, reason:'رصيد زائد بعد تسوية العقد السابق' }];
+                          if (_dpAmount(rebuilt.reduce((s,a) => s + a.amount, 0)) !== _dpAmount(plan.amount)) throw new Error('تعذر إعادة بناء تخصيص دفعة العقد السابق');
+                          rebuilt.forEach(a => {
+                              if (a.allocationKind === 'oldDebt' && a.obligationId) {
+                                  const row = liveOpen.find(o => o.id === a.obligationId);
+                                  if (row) row.derivedPaidAmount = _dpAmount((row.derivedPaidAmount || 0) + a.amount);
+                              }
+                          });
+                          const rebuiltAllocations = rebuilt.map(a => ({ ...a, allocationAmount: Math.round(a.amount*1000)/1000 }));
+                          const update = { allocations: rebuiltAllocations };
+                          if (rebuiltAllocations.length === 1) {
+                              update.allocationKind = rebuiltAllocations[0].allocationKind;
+                              update.allocationAmount = rebuiltAllocations[0].allocationAmount;
+                              update.obligationId = rebuiltAllocations[0].obligationId || null;
+                              update.contractId = rebuiltAllocations[0].contractId || null;
+                         }
+                         tx.update(paymentRef, update);
+                          rebuiltAllocations.filter(a => a.allocationKind === 'oldDebt' && a.obligationId).forEach(a => {
+                              reservation[a.obligationId] = _dpAmount((reservation[a.obligationId] || 0) + a.amount);
+                          });
+                     }
+                      const reservedDetails = [...detailById.values()].map(d => ({ ...d, allocationReservedAmount: reservation[d.id] || 0 }));
+                      let historyForWrite = liveHistory.filter(h => !h || h.contractId !== contractId);
+                      if (priorLive && priorLive.contractId) {
+                          historyForWrite = historyForWrite.map(h => h && h.contractId === priorLive.contractId
+                              ? { ...h, sealed:true, type:h.type || 'عقد سابق', carryOver:finalCarryOver, transferredToOldDebts:finalCarryOver }
+                              : h);
+                      }
+                      historyForWrite.push(existingHistory.find(h => h && h.contractId === contractId) || { contractId, type:'عقد جديد', contractType:newType, startDate:new Date(newStart), endDate:new Date(newEnd), dailyRent:newType === 'daily' ? newRate : 0, monthlyPayment:newType === 'monthly' ? newRate : 0, note:'العقد الحالي' });
+                      tx.update(driverRef, { ...updateData, oldDebts:Math.round(parseFloat(live.oldDebts || 0) * 1000) / 1000, oldDebtDetails:reservedDetails, contractHistory:historyForWrite,
+                          debtAllocationRevision:(parseInt(live.debtAllocationRevision || 0) || 0) + 1 });
+                 });
                   
                   // 🔧 FIX #020: تسجيل عقد جديد في editHistory
                   try {
@@ -1917,8 +2065,8 @@
                       });
                   } catch (__lge) { console.error('⚠️ FIX #020 newContract log:', __lge); }
 
-                alert(`✅ تم إنشاء العقد الجديد بنجاح!\n` +
-                    `الرصيد المرحَّل (${Math.abs(finalCarryOver).toFixed(3)} د.ك) تم إضافته للديون القديمة`);
+                 alert(`✅ تم إنشاء العقد الجديد بنجاح!\n` +
+                     `تم تثبيت أصل الدين المرحّل (${Math.abs(finalCarryOver).toFixed(3)} د.ك) مرة واحدة وتوثيق التخصيصات`);
 
                 closeNewContractModal();
                 await loadDrivers();
@@ -2165,7 +2313,7 @@
               const contractStart = driver.contractStartDate ?
                   (driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)) : null;
               
-              if (!contractStart || actualEndDate < contractStart) {
+              if (!contractStart || actualEndDate <= contractStart) {
                   alert('تاريخ الإيقاف لازم يكون بعد بداية العقد');
                   return;
               }
@@ -2192,8 +2340,9 @@
                    paidRent = rentPaidForClosure;
               } else {
                   const monthly = parseFloat(driver.monthlyPayment || 0);
-                  const diffDays = (actualEndDate - contractStart) / (1000 * 60 * 60 * 24);
-                  const fullMonths = Math.floor(diffDays / 30.44);
+                  const fullMonths = typeof _completedMonthsAnchored === 'function'
+                      ? _completedMonthsAnchored(contractStart, actualEndDate)
+                      : Math.floor((actualEndDate - contractStart) / (1000 * 60 * 60 * 24) / 30.44);
                   expectedRent = fullMonths * monthly;
                    paidRent = rentPaidForClosure;
               }
@@ -2204,7 +2353,23 @@
                     : parseFloat(driver.oldDebts || 0);
               const oldDebtsNew = carryOver > 0 ? oldDebtsCurrent + carryOver : Math.max(0, oldDebtsCurrent + carryOver);
               
-              endContractCalculation = { actualEndDate, expectedRent, paidRent, carryOver, oldDebtsCurrent, oldDebtsNew };
+              endContractCalculation = {
+                  actualEndDate, expectedRent, paidRent, carryOver, oldDebtsCurrent, oldDebtsNew,
+                  debtAllocationRevision: parseInt(driver.debtAllocationRevision || 0) || 0,
+                  currentContractId: driver.currentContractId || null,
+                  contractFingerprint: JSON.stringify({
+                      currentContractId: driver.currentContractId || null,
+                      start: contractStart.toISOString(), end: actualEndDate.toISOString(),
+                      type: driver.contractType || 'daily',
+                      dailyRent: parseFloat(driver.dailyRent || driver.dailyWage || 0),
+                      monthlyPayment: parseFloat(driver.monthlyPayment || 0)
+                  }),
+                  paymentIds: payments.map(p => p.id).filter(Boolean),
+                  paymentFingerprint: JSON.stringify(payments.filter(p => p.status !== 'voided').map(p => ({
+                      id:p.id, status:p.status || null, amount:parseFloat(p.amount || 0),
+                      allocationKind:p.allocationKind || null, allocations:p.allocations || null
+                  })))
+              };
               
               const sign = carryOver >= 0 ? '+' : '';
               const carryColor = carryOver > 0 ? '#dc2626' : carryOver < 0 ? '#059669' : '#64748b';
@@ -2245,9 +2410,21 @@
               
               try {
                    const existingHistory = driver.contractHistory ? [...driver.contractHistory] : [];
-                   const contractId = `${endContractDriverId}-${calc.actualEndDate.toISOString().split('T')[0]}`;
+                   const contractId = driver.currentContractId || `${endContractDriverId}-${(driver.contractStartDate && driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate)).toISOString().split('T')[0]}`;
+                   if (existingHistory.some(h => {
+                       const he = h && h.endDate ? (h.endDate.toDate ? h.endDate.toDate() : new Date(h.endDate)) : null;
+                        return h && ((h.contractId === contractId && (h.sealed === true || h.type === 'إنهاء عقد' || h.carryOver !== undefined)) ||
+                            (h.type === 'إنهاء عقد' && he && he.getTime() === calc.actualEndDate.getTime()));
+                   })) {
+                       alert('هذا العقد مُغلق مسبقاً ولا يمكن إغلاقه مرة أخرى.');
+                       return;
+                   }
                    const oldDebtDetails = Array.isArray(driver.oldDebtDetails) ? [...driver.oldDebtDetails] : [];
-                    if (!oldDebtDetails.length && calc.oldDebtsCurrent > 0) {
+                    const hasLegacyOpening = oldDebtDetails.some(d => d && (d.contractType === 'legacy' || d.id === `${endContractDriverId}-legacy-opening`));
+                    const detailedOpening = oldDebtDetails.reduce((s, d) => s + parseFloat(d.originalAmount || 0) + parseFloat(d.adjustmentAmount || 0), 0);
+                    const scalarSource = Math.max(parseFloat(driver.oldDebts || 0), calc.oldDebtsCurrent);
+                    const legacyResidual = Math.max(0, Math.round((scalarSource - detailedOpening) * 1000) / 1000);
+                    if (!hasLegacyOpening && legacyResidual > 0) {
                        oldDebtDetails.push({
                            id: `${endContractDriverId}-legacy-opening`,
                            contractId: `${endContractDriverId}-legacy-opening`,
@@ -2256,14 +2433,15 @@
                            contractStart: null,
                            contractEnd: null,
                            rate: 0,
-                            expectedRent: calc.oldDebtsCurrent,
+                            expectedRent: legacyResidual,
                            paidDuringContract: 0,
-                            originalAmount: Math.round(calc.oldDebtsCurrent * 1000) / 1000,
-                            remainingAmount: Math.round(calc.oldDebtsCurrent * 1000) / 1000,
+                            originalAmount: legacyResidual,
+                            remainingAmount: legacyResidual,
                            createdAt: new Date(),
                            createdBy: currentUser.name || currentUser.email,
                            status: 'open',
-                           note: 'حفظ الرصيد القديم كسجل تفصيلي بدون تغيير قيمته'
+                        note: 'دين مرحّل من النظام السابق',
+                        sourceNeedsReview: true
                        });
                    }
                    if (calc.carryOver > 0) {
@@ -2304,16 +2482,58 @@
                        archivedBy: currentUser.name || currentUser.email,
                   });
                   
-                  await updateDoc(doc(db, 'drivers', endContractDriverId), {
+                   const endDriverUpdate = {
                       contractEndDate: calc.actualEndDate,
                       isActive: false,
-                       oldDebts: calc.oldDebtsNew,
+                       oldDebts: Math.round((calc.oldDebtsNew + legacyResidual) * 1000) / 1000,
                        oldDebtDetails,
                       contractHistory: existingHistory,
                       updatedAt: new Date(),
                       updatedBy: currentUser.name || currentUser.email,
                       endContractReason: reason,
-                  });
+                   };
+                   await db.runTransaction(async tx => {
+                       const endRef = db.collection('drivers').doc(endContractDriverId);
+                       const endSnap = await tx.get(endRef);
+                       if (!endSnap.exists) throw new Error('السائق غير موجود');
+                       const live = endSnap.data() || {};
+                       const liveHistory = Array.isArray(live.contractHistory) ? live.contractHistory : [];
+                       if (live.currentContractId && live.currentContractId !== contractId) throw new Error('تغيّر العقد الحالي؛ أعد المعاينة');
+                       const liveStart = live.contractStartDate && (live.contractStartDate.toDate ? live.contractStartDate.toDate() : new Date(live.contractStartDate));
+                       const liveFingerprint = JSON.stringify({
+                           currentContractId: live.currentContractId || null,
+                           start: liveStart && liveStart.toISOString(), end: calc.actualEndDate.toISOString(),
+                           type: live.contractType || 'daily',
+                           dailyRent: parseFloat(live.dailyRent || live.dailyWage || 0),
+                           monthlyPayment: parseFloat(live.monthlyPayment || 0)
+                       });
+                       if ((parseInt(live.debtAllocationRevision || 0) || 0) !== calc.debtAllocationRevision ||
+                           (liveFingerprint !== calc.contractFingerprint)) throw new Error('تغيّر العقد أو الدفعات بعد المعاينة؛ يرجى إعادة المعاينة قبل الحفظ');
+                       const previewPaymentIds = Array.isArray(calc.paymentIds) ? calc.paymentIds : [];
+                       const livePreviewPayments = [];
+                       for (const paymentId of previewPaymentIds) {
+                           const paymentSnap = await tx.get(db.collection('driverPayments').doc(paymentId));
+                           if (!paymentSnap.exists) throw new Error('تغيّرت دفعات السائق بعد المعاينة؛ يرجى إعادة المعاينة');
+                           const pd = paymentSnap.data();
+                           if (pd.status !== 'voided') livePreviewPayments.push({
+                               id:paymentId, status:pd.status || null, amount:parseFloat(pd.amount || 0),
+                               allocationKind:pd.allocationKind || null, allocations:pd.allocations || null
+                           });
+                       }
+                       if (JSON.stringify(livePreviewPayments) !== calc.paymentFingerprint) throw new Error('تغيّرت دفعات السائق بعد المعاينة؛ يرجى إعادة المعاينة');
+                       if (liveHistory.some(h => h && h.contractId === contractId && (h.sealed === true || h.type === 'إنهاء عقد' || h.carryOver !== undefined))) throw new Error('تم إغلاق هذا العقد مسبقاً');
+                       const liveDetails = Array.isArray(live.oldDebtDetails) ? live.oldDebtDetails : [];
+                       const detailIds = new Set(liveDetails.map(d => d.id));
+                       const mergedDetails = liveDetails.concat(oldDebtDetails.filter(d => d && d.id && !detailIds.has(d.id)));
+                       let mergedHistory = liveHistory.map(h => h && h.contractId === contractId
+                           ? { ...h, sealed:true, type:'إنهاء عقد', carryOver:calc.carryOver, transferredToOldDebts:calc.carryOver, actualEndDate:calc.actualEndDate }
+                           : h);
+                       if (!mergedHistory.some(h => h && h.contractId === contractId)) {
+                           mergedHistory = mergedHistory.concat(existingHistory.filter(h => h && h.contractId === contractId));
+                       }
+                       tx.update(endRef, { ...endDriverUpdate, oldDebtDetails: mergedDetails, contractHistory: mergedHistory,
+                           debtAllocationRevision: (parseInt(live.debtAllocationRevision || 0) || 0) + 1 });
+                   });
                     
                     // 🔧 FIX #020: تسجيل إنهاء عقد في editHistory
                     try {

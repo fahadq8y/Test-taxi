@@ -471,9 +471,11 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
     const derivedOldDebtDetails = deriveOldDebtObligations(oldDebtDetails, payments);
     let detailedOldDebtTotal = 0;
     let detailedOldDebtPaid = 0;
+    let detailedOldDebtCredit = 0;
+    let legacySettlementPool = 0;
     const legacyPaidById = {};
     if (hasDetailedOldDebt) {
-        let legacySettlementPool = legacyOldDebtPayments.reduce((sum, p) => sum + _ubPaymentAmount(p), 0) + _afterEndRentPaid;
+        legacySettlementPool = legacyOldDebtPayments.reduce((sum, p) => sum + _ubPaymentAmount(p), 0) + _afterEndRentPaid;
         derivedOldDebtDetails.forEach(obligation => {
             const openingRemaining = _ubMoney(obligation.derivedOpeningAmount);
             const explicitPaid = _ubMoney(obligation.derivedPaidAmount);
@@ -483,7 +485,9 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
             legacyPaidById[obligation.id] = legacyPaid;
             detailedOldDebtTotal += openingRemaining;
             detailedOldDebtPaid += Math.min(openingRemaining, paid);
+            detailedOldDebtCredit += Math.max(0, paid - openingRemaining);
         });
+        detailedOldDebtCredit += legacySettlementPool;
     }
     const oldDebtsInitial = hasDetailedOldDebt ? detailedOldDebtTotal : _ubMoney(driver.oldDebts || 0);
     const oldDebtPayments = hasDetailedOldDebt ? explicitOldDebtPayments : legacyOldDebtPayments;
@@ -492,7 +496,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
     const oldDebts = Math.max(0, _oldDebtsRaw);
     // #025: فائض سداد الدين القديم (دُفع أكثر من المستحق) يتحوّل رصيداً فعلياً للسائق بدل ضياعه
     const _oldDebtCredit = Math.max(0, -_oldDebtsRaw);
-    driverBalance += _oldDebtCredit;
+    driverBalance += _oldDebtCredit + detailedOldDebtCredit;
     
     // 5. الإجازة السنوية: حُسبت أعلاه (FIX #028) ضمن "المدفوع الفعّال" فتنعكس على التأخير والدين معاً
     
@@ -521,6 +525,7 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
     else _paidUntil.setDate(_paidUntil.getDate() + _completed);
     let _status = 'منتظم';
     if (_daysLate > 7) _status = 'متأخر جداً'; else if (_daysLate > 3) _status = 'متأخر';
+    if (_contractEnded) _status = 'منتهي — قيد التسوية';
     if (_noContract) _status = 'بلا عقد'; // 🆕 #031
     return {
         totalDebt: Math.max(0, totalDebt),
@@ -550,6 +555,62 @@ function calculateDriverDebtDetailed(driverId, driver, driverPayments) {
         periods: _periods,            // 🆕 #029
         sealedPeriods: _sealedPeriods // 🆕 #029
     };
+}
+
+// Builds the one stable obligation needed when an expired contract is first
+// touched. This is deliberately pure so callers can apply it idempotently in
+// a Firestore transaction (and legacy oldDebts remains untouched).
+function ensureExpiredContractObligations(driverId, driver, payments, asOfDate) {
+    const asOf = asOfDate ? new Date(asOfDate) : new Date();
+    const details = Array.isArray(driver && driver.oldDebtDetails) ? driver.oldDebtDetails.map(d => ({ ...d })) : [];
+    const existing = new Set(details.map(d => d.id || `${d.contractId}-closure`));
+    const history = Array.isArray(driver && driver.contractHistory) ? driver.contractHistory : [];
+    const currentId = driver && driver.currentContractId;
+    let c = currentId ? history.find(row => row && row.contractId === currentId) : null;
+    if (!c && driver && driver.contractStartDate && driver.contractEndDate) {
+        const start = driver.contractStartDate.toDate ? driver.contractStartDate.toDate() : new Date(driver.contractStartDate);
+        c = {
+            contractId: driver.currentContractId || `${driverId}-${start.toISOString().slice(0,10)}`,
+            contractType: driver.contractType || 'daily',
+            dailyRent: driver.dailyRent || driver.dailyWage,
+            monthlyPayment: driver.monthlyPayment,
+            startDate: start, endDate: driver.contractEndDate,
+            expectedRent: driver.expectedRent
+        };
+    }
+    if (!c) return details;
+    const sealed = c.sealed === true || c.type === 'إنهاء عقد' || c.carryOver !== undefined ||
+        c.transferredToOldDebts !== undefined || c.hidden === true || c.note === 'تعديل عقد' || c.type === 'تعديل';
+    if (sealed) return details;
+    [c].forEach(c => {
+        const contractId = c && c.contractId;
+        const end = c && (c.endDate || c.actualEndDate);
+        const endDate = end && (end.toDate ? end.toDate() : new Date(end));
+        if (!contractId || !endDate || isNaN(endDate.getTime()) || asOf <= endDate) return;
+        const obligationId = `${contractId}-closure`;
+        if (existing.has(obligationId) || details.some(d => d.contractId === contractId)) return;
+        const start = c.startDate && (c.startDate.toDate ? c.startDate.toDate() : new Date(c.startDate));
+        let expected = parseFloat(c.expectedRent);
+        if (!Number.isFinite(expected)) {
+            const rate = c.contractType === 'monthly' ? parseFloat(c.monthlyPayment || 0) : parseFloat(c.dailyRent || c.dailyWage || 0);
+            if (c.contractType === 'monthly') expected = _completedMonthsAnchored(start, endDate) * rate;
+            else expected = Math.max(0, Math.floor((endDate - start) / 86400000)) * rate;
+        }
+        const paid = _ubPeriodPaid(payments || [], start, endDate, contractId);
+        const original = _ubMoney(Math.max(0, expected - paid));
+        details.push({
+            id: obligationId, obligationId, contractId,
+            contractLabel: c.contractLabel || `عقد ${contractId}`,
+            contractType: c.contractType || 'daily', contractStart: start || null, contractEnd: endDate,
+            rate: c.contractType === 'monthly' ? parseFloat(c.monthlyPayment || 0) : parseFloat(c.dailyRent || c.dailyWage || 0),
+            expectedRent: _ubMoney(expected), paidDuringContract: _ubMoney(paid),
+            originalAmount: original, remainingAmount: original, adjustmentAmount: 0,
+            createdAt: new Date(), status: original > 0 ? 'open' : 'closed',
+            note: 'دين عقد منتهي — إنشاء تلقائي عند التسوية', sourceNeedsReview: false
+        });
+        existing.add(obligationId);
+    });
+    return details;
 }
 
 // دالة رفيعة للتوافق الخلفي: ترجّع الرقم فقط

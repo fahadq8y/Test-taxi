@@ -2,7 +2,8 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta id="viewModeViewport" name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="view-toggle.js?v=001"></script>
     <title>إدارة الإيرادات - نظام إدارة التاكسي</title>
     <link rel="stylesheet" href="style.css">
     <script src="revenues-permissions.js"></script>
@@ -1018,7 +1019,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="unified-balance.js?v=032"></script>
+    <script src="unified-balance.js?v=033"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -1445,36 +1446,62 @@
                 const userRole = localStorage.getItem('userRole') || 'unknown';
                 const collection = pendingDeleteType === 'driverPayment' ? 'driverPayments' : 'revenues';
 
-                // حفظ سجل الحذف في editHistory
-                await db.collection('editHistory').add({
-                    recordId: pendingDeleteId,
-                    recordType: pendingDeleteType,
-                    action: 'delete',
-                    refNum: pendingDeleteSnapshot.refNum || null,
-                    description: pendingDeleteSnapshot.description || pendingDeleteSnapshot.driverName || pendingDeleteSnapshot.type || null,
-                    driverName: pendingDeleteSnapshot.driverName || null,
-                    deleteReason: reason,
-                    fullSnapshot: pendingDeleteSnapshot,
-                    deletedBy: userName,
-                    deletedByRole: userRole,
-                    editedBy: userName,
-                    editedByRole: userRole,
-                    editReason: reason,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-
                 // الدفعة الموزعة/المجزأة حدث اقتصادي: نعكسها ولا نحذفها.
                 const hasAllocation = pendingDeleteType === 'driverPayment' &&
                     (Array.isArray(pendingDeleteSnapshot.allocations) ||
                      Boolean(pendingDeleteSnapshot.allocationKind || pendingDeleteSnapshot.obligationId || pendingDeleteSnapshot.contractId));
                 if (hasAllocation) {
-                    await db.collection(collection).doc(pendingDeleteId).update({
-                        status: 'voided',
-                        voidedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        voidedBy: userName,
-                        voidReason: reason
+                    await db.runTransaction(async tx => {
+                        const paymentRef = db.collection('driverPayments').doc(pendingDeleteId);
+                        const driverRef = db.collection('drivers').doc(pendingDeleteSnapshot.driverId);
+                        const paymentSnap = await tx.get(paymentRef);
+                        const driverSnap = await tx.get(driverRef);
+                        if (!paymentSnap.exists || paymentSnap.data().status === 'voided') return;
+                        const livePayment = paymentSnap.data();
+                        const liveDriver = driverSnap.exists ? driverSnap.data() : {};
+                        const parts = _ubPaymentParts(livePayment)
+                            .filter(part => part.allocationKind === 'oldDebt' && part.obligationId);
+                        const byId = {};
+                        parts.forEach(part => { byId[part.obligationId] = (byId[part.obligationId] || 0) + part.amount; });
+                        const details = Array.isArray(liveDriver.oldDebtDetails)
+                            ? liveDriver.oldDebtDetails.map(d => ({
+                                ...d,
+                                allocationReservedAmount: Math.max(0,
+                                    (Number(d.allocationReservedAmount) || 0) - (byId[d.id] || 0))
+                            }))
+                            : [];
+                        const auditRef = db.collection('editHistory').doc();
+                        tx.set(auditRef, {
+                            recordId: pendingDeleteId, recordType: 'driverPayment', action: 'delete',
+                            refNum: livePayment.refNum || null, description: livePayment.description || livePayment.type || null,
+                            driverName: livePayment.driverName || null, driverId: livePayment.driverId || null,
+                            deleteReason: reason, fullSnapshot: { id: pendingDeleteId, ...livePayment },
+                            deletedBy: userName, deletedByRole: userRole, editedBy: userName,
+                            editedByRole: userRole, editReason: reason,
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        tx.update(paymentRef, {
+                            status: 'voided', voidedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            voidedBy: userName, voidReason: reason, reversalOf: pendingDeleteId
+                        });
+                        if (parts.length && details.length) {
+                            tx.update(driverRef, {
+                                oldDebtDetails: details,
+                                debtAllocationRevision: (parseInt(liveDriver.debtAllocationRevision || 0, 10) || 0) + 1,
+                                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                        }
                     });
                 } else {
+                    await db.collection('editHistory').add({
+                        recordId: pendingDeleteId, recordType: pendingDeleteType, action: 'delete',
+                        refNum: pendingDeleteSnapshot.refNum || null,
+                        description: pendingDeleteSnapshot.description || pendingDeleteSnapshot.driverName || pendingDeleteSnapshot.type || null,
+                        driverName: pendingDeleteSnapshot.driverName || null, deleteReason: reason,
+                        fullSnapshot: pendingDeleteSnapshot, deletedBy: userName, deletedByRole: userRole,
+                        editedBy: userName, editedByRole: userRole, editReason: reason,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
                     await db.collection(collection).doc(pendingDeleteId).delete();
                 }
 

@@ -2,7 +2,8 @@
   <html lang="ar" dir="rtl">
   <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta id="viewModeViewport" name="viewport" content="width=device-width, initial-scale=1">
+  <script src="view-toggle.js?v=001"></script>
   <title>لوحة المالك — White Horse Taxi</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -302,7 +303,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <!-- Chart.js للجداول البيانية في مودال السائق -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="unified-balance.js?v=032"></script>
+  <script src="unified-balance.js?v=033"></script>
   <script>
   const firebaseConfig = {
       apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -502,6 +503,100 @@
       return parts(p).some(a => a.allocationKind === 'currentRent' && (!a.contractId || !ids.has(a.contractId)));
     }).length;
     return { missingSource, unallocated, backdated, allocated, contractMismatch };
+  }
+
+  /* ===== مراقبة دورة العقد (معلومات وقرارات فقط — لا تغيّر الحسابات) ===== */
+  function auditText(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function auditChangeValue(e, names, side) {
+    const wanted = new Set(names);
+    const change = (e.changes || []).find(c => wanted.has(c.field) || wanted.has(c.key));
+    if (change) return side === 'before' ? (change.oldValue ?? change.before) : (change.newValue ?? change.after);
+    const keys = side === 'before'
+      ? ['oldValue','before','previousValue','oldDate','beforeDate','oldAmount']
+      : ['newValue','after','value','newDate','afterDate','newAmount'];
+    for (const k of keys) if (e[k] != null) return e[k];
+    const containers = side === 'before'
+      ? [e.before, e.previous, e.revision?.before, e.reservation?.before]
+      : [e.after, e.current, e.revision?.after, e.reservation?.after];
+    for (const box of containers) {
+      if (!box || typeof box !== 'object') continue;
+      for (const name of names) if (box[name] != null) return box[name];
+    }
+    return undefined;
+  }
+  function auditChangeFields(e) {
+    return (e.changes || []).map(c => c.field || c.key || '').filter(Boolean);
+  }
+  function auditIsDateField(field) {
+    return /(^|_)(contract)?(start|end)(date|_date)$/i.test(String(field || '')) ||
+      ['contractStartDate','contractEndDate','startDate','endDate','contractStart','contractEnd'].includes(field);
+  }
+  function lifecycleContractDateEvents() {
+    return gEditHistory.filter(e => String(e.status || '').toLowerCase() !== 'voided').filter(e => {
+      const fields = auditChangeFields(e);
+      const hasDates = fields.some(auditIsDateField) ||
+        ['contractStartDate','contractEndDate','startDate','endDate','reservationStartDate','reservationEndDate','revisionStartDate','revisionEndDate'].some(k => e[k] != null) ||
+        ['reservation','revision','before','after'].some(k => e[k] && typeof e[k] === 'object' && Object.keys(e[k]).some(auditIsDateField));
+      return hasDates && (e.recordType === 'driver' || e.recordType === 'contract' || e.contractId || e.driverId) &&
+        ['edit','update','updateContract','newContract','endContract'].includes(e.action || 'edit');
+    }).map(e => {
+      const fields = auditChangeFields(e);
+      const startField = fields.find(f => /start/i.test(f)) || 'contractStartDate';
+      const endField = fields.find(f => /end/i.test(f)) || 'contractEndDate';
+      const dateStartFields=[startField,'contractStartDate','startDate','reservationStartDate','revisionStartDate'];
+      const dateEndFields=[endField,'contractEndDate','endDate','reservationEndDate','revisionEndDate'];
+      const beforeStart = auditChangeValue(e,dateStartFields,'before');
+      const afterStart = auditChangeValue(e,dateStartFields,'after');
+      const beforeEnd = auditChangeValue(e,dateEndFields,'before');
+      const afterEnd = auditChangeValue(e,dateEndFields,'after');
+      const beforeDebt = auditChangeValue(e,['debtBefore','oldDebtBefore','totalDebtBefore','beforeDebt'],'before');
+      const afterDebt = auditChangeValue(e,['debtAfter','oldDebtAfter','totalDebtAfter','afterDebt'],'after');
+      const beforeDebtN = beforeDebt == null ? null : Number(beforeDebt);
+      const afterDebtN = afterDebt == null ? null : Number(afterDebt);
+      return {
+        e, driver: e.driverId ? gDriverMap[e.driverId] : null,
+        beforeStart, afterStart, beforeEnd, afterEnd,
+        beforeDebt: Number.isFinite(beforeDebtN) ? beforeDebtN : null,
+        afterDebt: Number.isFinite(afterDebtN) ? afterDebtN : null,
+        delta: Number.isFinite(beforeDebtN) && Number.isFinite(afterDebtN) ? afterDebtN - beforeDebtN : null
+      };
+    });
+  }
+  function lifecyclePostEndPayments() {
+    return gPayments.filter(p => String(p.status || '').toLowerCase() !== 'voided').map(p => {
+      const d = gDriverMap[p.driverId];
+      const end = d && toDate(d.contractEndDate);
+      const paid = toDate(p.date || p.paymentDate);
+      if (!d || !end || !paid || paid <= end) return null;
+      const eligible = ownerEligibleSettlementParts(p);
+      if (!eligible.length) return null;
+      const unallocated = eligible.some(a => !(a.allocationKind || a.obligationId || a.contractId));
+      const amount = eligible.reduce((s,a) => s + Number(a.amount ?? a.allocationAmount ?? p.amount ?? 0), 0);
+      return { p, d, paid, end, unallocated, amount, parts: eligible };
+    }).filter(Boolean);
+  }
+  function lifecycleDuplicateClosures() {
+    return gEditHistory.filter(e => String(e.status || '').toLowerCase() !== 'voided').filter(e => {
+      const a = String(e.action || '').toLowerCase(), t = JSON.stringify(e).toLowerCase();
+      return ['duplicateclosure','duplicateendcontract','duplicate_closure','duplicate_end_contract'].includes(a) ||
+        (/(contract|closure|endcontract)/.test(a) && /(duplicate|مكرر|مكرّر|مكرر)/.test(t));
+    });
+  }
+  function lifecycleOperationalMismatches() {
+    return gDrivers.filter(d => {
+      if (d.isArchived) return false;
+      const end = toDate(d.contractEndDate);
+      if (!end || end >= new Date()) return false;
+      const active = d.isActive === true ||
+        ['active','نشط','فعال'].includes(String(d.status || '').toLowerCase()) ||
+        ['active','نشط','فعال'].includes(String(d.operationalStatus || d.contractStatus || '').toLowerCase());
+      return active;
+    });
+  }
+  function lifecycleAlertHtml(title, body, level='yellow') {
+    return `<div class="alert ${level}"><div class="icon">${level === 'red' ? '⛔' : level === 'orange' ? '⚠️' : '🔎'}</div><div class="body"><div class="title">${title}</div><div class="desc">${body}</div></div></div>`;
   }
 
   /* ================= HELPERS ================= */
@@ -1128,6 +1223,12 @@
     const driverEdits = accountantOps.filter(e => e.recordType==='driver');
     const contractOps = accountantOps.filter(e => e.action==='newContract' || e.action==='endContract');
     const debtAudit = debtAuditSummary();
+    const dateChanges = lifecycleContractDateEvents();
+    const postEndPayments = lifecyclePostEndPayments();
+    const duplicateClosures = lifecycleDuplicateClosures();
+    const operationalMismatches = lifecycleOperationalMismatches();
+    const legacyDebtDrivers = gDrivers.filter(d => !d.isArchived && Number(d.oldDebts || 0) > 0 &&
+      (!Array.isArray(d.oldDebtDetails) || !d.oldDebtDetails.length));
 
     // المبلغ المختفي
     const deletedAmount = deletes.reduce((s,e) => {
@@ -1199,6 +1300,34 @@
           <div>تخصيص عقد غير مطابق<b style="color:${debtAudit.contractMismatch?'#9b3030':'#16815a'}">${debtAudit.contractMismatch}</b></div>
         </div>
         <div class="small-muted" style="margin-top:8px;">الأرقام للتنبيه والمراجعة فقط؛ لا يتم نقل دفعة مخصصة صراحة إلى عقد آخر.</div>
+      </div>
+
+      <div class="card">
+        <h3>🛡️ قرارات دورة العقد — لا يتم تغيير الحساب تلقائياً</h3>
+        <p class="small-muted" style="margin:-4px 0 10px;">هذه تنبيهات مراجعة للمالك فقط. افتح التفاصيل قبل اعتماد أي تصحيح.</p>
+        ${dateChanges.length ? dateChanges.slice(0,20).map(x => {
+          const e=x.e, name=x.driver?.name || e.driverId || 'سائق غير معروف';
+          const debt = x.delta == null ? 'الدين قبل/بعد غير مسجل في الحدث' : `الدين ${fmtKD(x.beforeDebt)} ← ${fmtKD(x.afterDebt)} · الفرق ${x.delta >= 0 ? '+' : ''}${fmtKD(x.delta)}`;
+          const dates = `${x.beforeStart != null || x.afterStart != null ? `البداية: ${x.beforeStart || '—'} ← ${x.afterStart || '—'}` : ''}${x.beforeEnd != null || x.afterEnd != null ? ` · النهاية: ${x.beforeEnd || '—'} ← ${x.afterEnd || '—'}` : ''}`;
+          return lifecycleAlertHtml(`تغيير تواريخ عقد · ${auditText(name)}`, `${auditText(dates)} · ${auditText(debt)} · المحرر: ${auditText(e.editedBy || e.createdBy || 'غير مسجل')} · الوقت: ${toDate(e.timestamp || e.createdAt)?.toLocaleString('ar-KW') || 'غير مسجل'} · السبب: ${auditText(e.reason || e.note || 'غير مسجل')}`, x.delta != null && Math.abs(x.delta) > 0 ? 'orange' : 'yellow');
+        }).join('') : '<div class="small-muted">لا توجد تغييرات مؤرخة مسجلة.</div>'}
+        ${postEndPayments.length ? postEndPayments.slice(0,20).map(x => lifecycleAlertHtml(
+          `دفعة بعد انتهاء العقد · ${auditText(x.d.name || x.p.driverId)}`,
+          `تاريخ الدفعة: ${fmtDate(x.paid)} · نهاية العقد: ${fmtDate(x.end)} · المبلغ: ${fmtKD(x.p.amount)} · ${x.unallocated ? 'غير موزعة وتحتاج قراراً' : 'موزعة صراحة — راجع العقد المستهدف'}`,
+          x.unallocated ? 'red' : 'yellow')).join('') : ''}
+        ${duplicateClosures.length ? duplicateClosures.slice(0,20).map(e => lifecycleAlertHtml(
+          `محاولة إنهاء عقد مكررة · ${auditText(e.driverId ? (gDriverMap[e.driverId]?.name || e.driverId) : 'غير معروف')}`,
+          `العملية: ${auditText(e.action || 'غير مسجل')} · المحرر: ${auditText(e.editedBy || e.createdBy || 'غير مسجل')} · الوقت: ${toDate(e.timestamp || e.createdAt)?.toLocaleString('ar-KW') || 'غير مسجل'} · السبب: ${auditText(e.reason || e.note || 'راجع السجل')}`,
+          'red')).join('') : ''}
+        ${operationalMismatches.length ? operationalMismatches.slice(0,20).map(d => lifecycleAlertHtml(
+          `حالة تشغيلية تحتاج قراراً · ${auditText(d.name || d.id)}`,
+          `العقد منتهي بتاريخ ${fmtDate(d.contractEndDate)} لكن السائق ظاهر نشط. هذا تنبيه تشغيلي فقط ولا يغيّر الدين أو أي حساب مالي.`,
+          'orange')).join('') : ''}
+        ${legacyDebtDrivers.length ? legacyDebtDrivers.slice(0,20).map(d => lifecycleAlertHtml(
+          `دين قديم بلا مصدر · ${auditText(d.name || d.id)}`,
+          `الرصيد المسجل في الحقل القديم: ${fmtKD(d.oldDebts)}. اربطه بعقد أو مستند مصدر قبل أي تعديل. لن يتم نقله أو إعادة توزيعه تلقائياً.`,
+          'red')).join('') : ''}
+        ${!dateChanges.length && !postEndPayments.length && !duplicateClosures.length && !operationalMismatches.length && !legacyDebtDrivers.length ? '<div class="small-muted">✅ لا توجد تنبيهات دورة عقد تحتاج قراراً حالياً.</div>' : ''}
       </div>
 
       ${suspicious.length > 0 ? `<div class="card"><h3>🕵️ أنماط مشبوهة (${suspicious.length})</h3>
@@ -2077,6 +2206,39 @@
   const TRANSFER_TYPES = ['تحويل من حساب رامي إلى بنك وربه','تحويل من بنك وربه إلى حساب رامي'];
   const money = n => fmtKD(Number(n)||0);
   const safe = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  function ownerPaymentParts(p){
+    if(String(p.status||'').toLowerCase()==='voided') return [];
+    if(Array.isArray(p.allocations)&&p.allocations.length) return p.allocations.map(a=>({...a,amount:Number(a.amount??a.allocationAmount??0)}));
+    if(p.allocationKind||p.obligationId||p.contractId) return [{...p,amount:Number(p.allocationAmount??p.amount??0)}];
+    return [{...p,amount:Number(p.amount||0),legacy:true}];
+  }
+  function ownerPartClass(p,a){
+    const k=String(a.allocationKind||'');
+    if(k==='currentRent'||k==='rent') return 'rent';
+    if(k==='oldDebt') return 'old';
+    if(k==='violation') return p.type==='سداد مخالفة'?'violationOut':'violationIn';
+    if(k==='residency') return p.type==='سداد رسوم إقامة'?'residencyOut':'residencyIn';
+    if(k==='advance') return p.type==='سلفة إلى السائق'?'advanceOut':'advanceIn';
+    if(['noncash','annualLeave','salaryFee','salary','transfer','companyOut'].includes(k)) return k;
+    if(TRANSFER_TYPES.includes(p.type)||/تحويل|transfer/i.test(String(p.type||''))) return 'transfer';
+    if(RENT_TYPES.includes(p.type)) return 'rent';
+    if(p.type==='دين قديم') return 'old';
+    if(p.type==='تحصيل مخالفة') return 'violationIn';
+    if(p.type==='سداد مخالفة') return 'violationOut';
+    if(p.type==='تحصيل رسوم إقامة') return 'residencyIn';
+    if(p.type==='سداد رسوم إقامة') return 'residencyOut';
+    if(p.type==='تحصيل سلفة من السائق') return 'advanceIn';
+    if(p.type==='سلفة إلى السائق') return 'advanceOut';
+    if(p.type==='إجازة سنوية') return 'noncash';
+    if(/راتب|salary|رسوم راتب/i.test(String(p.type||''))) return 'salaryFee';
+    return 'other';
+  }
+  function ownerEligibleSettlementParts(p){
+    return ownerPaymentParts(p).filter(a=>['rent','old'].includes(ownerPartClass(p,a)));
+  }
+  function ownerClassifiedPaymentRows(rows){
+    const out=[]; rows.forEach(p=>ownerPaymentParts(p).forEach(a=>out.push({...p,...a,type:ownerPartClass(p,a)}))); return out;
+  }
   function detailed(d){ return calculateDriverDebtDetailed(d.id,d,gPayments.filter(p => String(p.status || '').toLowerCase() !== 'voided')); }
   function trackingHealth(d){
     const last=toDate(d.lastUpdate), age=last?Math.max(0,(Date.now()-last.getTime())/60000):Infinity;
@@ -2091,7 +2253,7 @@
   }
   function getDetailedSplit(d){ const x=detailed(d); return {current:x.lateAmount,old:x.oldDebts,total:x.totalDebt,detail:x}; }
   calcDebtSplit = function(id,d){ return getDetailedSplit(d); };
-  function isIncomingPayment(p){ return !['سداد مخالفة','سداد رسوم إقامة','سلفة إلى السائق'].includes(p.type); }
+  function isIncomingPayment(p){ return ownerPaymentParts(p).some(a=>!['violationOut','residencyOut','advanceOut','transfer','noncash','salaryFee','companyOut'].includes(ownerPartClass(p,a))); }
   function dateOf(x){ return toDate(x.date||x.paymentDate||x.expenseDate||x.createdAt); }
   function sumRows(rows,types){ return rows.filter(x=>types.includes(x.type)).reduce((s,x)=>s+Number(x.amount||0),0); }
   function cashSummary(){
@@ -2151,10 +2313,19 @@
     const rows=gDrivers.filter(d=>!d.isArchived);
     document.getElementById('tab-drivers').innerHTML=`<div class="card"><div class="section-kicker">الملفات المالية والتشغيلية</div><h3>السائقين</h3><input id="driverTableSearch" placeholder="بحث بالاسم أو الرقم" oninput="renderDriverRows(this.value)"><div class="table-wrap"><table><thead><tr><th>السائق</th><th>الحالة المالية</th><th>الدين الموحد</th><th>آخر سداد</th><th>العقد</th><th>التتبع</th><th></th></tr></thead><tbody id="driverRows"></tbody></table></div></div>`;
     window.renderDriverRows=function(value){const v=(value||'').toLowerCase(),body=document.getElementById('driverRows');if(!body)return;body.innerHTML=rows.filter(d=>(d.name||'').toLowerCase().includes(v)||d.id.toLowerCase().includes(v)||(d.employeeNumber||'').toLowerCase().includes(v)).map(d=>{const x=detailed(d);return `<tr><td class="name" onclick="openDriverModal('${safe(d.id)}')">${safe(d.name||d.id)}<div class="small-muted">${safe(d.employeeNumber||d.id)}</div></td><td><span class="badge ${x.status==='منتظم'?'cat-excellent':x.status==='بلا عقد'?'cat-critical':'cat-watch'}">${x.status}</span></td><td>${money(x.totalDebt)}<div class="small-muted">تأخير ${money(x.lateAmount)}</div></td><td>${fmtDate(x.lastPayment)}</td><td>${x.contractEnded?'منتهي':x.contractStart?fmtDate(x.contractStart):'بلا عقد'}</td><td>${trackingLabel(d)}</td><td><button class="btn outline" onclick="openDriverModal('${safe(d.id)}')">فتح الملف</button></td></tr>`}).join('')||'<tr><td colspan="7">ما في نتائج</td></tr>';};renderDriverRows('');}
-  function buildMonitorSection(){
-    const flagged=gEditHistory.filter(e=>monitorReason(e)),decisions=JSON.parse(localStorage.getItem('ownerMonitorDecisions')||'{}'),ignored=Object.keys(decisions).filter(k=>decisions[k]==='ignore');
-    document.getElementById('tab-monitor').innerHTML=`<div class="card"><div class="section-kicker">متابعة محايدة</div><h3>عمليات المحاسب · مراجعة مطلوبة</h3><p class="small-muted">هذه إشارات للمراجعة وليست اتهاماً. نشاط الليل وحده لا يرفع الإشارة.</p><div class="table-wrap"><table><thead><tr><th>العملية</th><th>قبل / بعد</th><th>الفرق المالي</th><th>الفاعل والوقت</th><th>السائق والسبب</th><th>الإجراء</th></tr></thead><tbody>${flagged.length?flagged.map(e=>{const id=e.id;return `<tr style="${ignored.includes(id)?'opacity:.45':''}"><td>${safe(e.action||'تعديل')} · ${safe(e.recordType||'سجل')}</td><td>${safe(changeText(e))}</td><td>${money(changeDiff(e))}</td><td>${safe(e.editedBy||'غير معروف')}<div class="small-muted">${fmtDate(toDate(e.timestamp))}</div></td><td>${safe(gDriverMap[e.driverId]?.name||e.driverId||'عام')}<div class="small-muted">${safe(monitorReason(e))}</div></td><td><button class="btn outline" onclick="monitorDecision('${safe(id)}','review')">مراجعة</button> <button class="btn outline" onclick="monitorDecision('${safe(id)}','defer')">تأجيل</button> <button class="btn outline" onclick="monitorDecision('${safe(id)}','ignore')">تجاهل</button></td></tr>`}).join(''):'<tr><td colspan="6">لا توجد عمليات تحتاج مراجعة</td></tr>'}</tbody></table></div></div>`;
-  }
+   function buildMonitorSection(){
+     const flagged=gEditHistory.filter(e=>String(e.status||'').toLowerCase()!=='voided'&&monitorReason(e)),decisions=JSON.parse(localStorage.getItem('ownerMonitorDecisions')||'{}'),ignored=Object.keys(decisions).filter(k=>decisions[k]==='ignore');
+     const lifecyclePosts=lifecyclePostEndPayments(), lifecycleDates=lifecycleContractDateEvents(), lifecycleDupes=lifecycleDuplicateClosures(), lifecycleOps=lifecycleOperationalMismatches();
+     const lifecycleLegacy=gDrivers.filter(d=>!d.isArchived&&Number(d.oldDebts||0)>0&&(!Array.isArray(d.oldDebtDetails)||!d.oldDebtDetails.length));
+     const lifecycleHtml=`<div class="card"><div class="section-kicker">دورة العقد · قرار المالك</div><h3>تنبيهات التسوية والعقود</h3><p class="small-muted">تنبيهات مراجعة فقط. لا تعتبر بيانات الحجز أو المراجعة أو الحالة التشغيلية مصدراً محاسبياً، ولا تغيّر أي حساب.</p>
+       ${lifecycleDates.slice(0,20).map(x=>{const e=x.e,n=x.driver?.name||e.driverId||'غير معروف';const debt=x.delta==null?'الدين قبل/بعد غير مسجل':`الدين ${money(x.beforeDebt)} ← ${money(x.afterDebt)} · الفرق ${x.delta>=0?'+':''}${money(x.delta)}`;const dates=`${x.beforeStart!=null||x.afterStart!=null?'البداية: '+(x.beforeStart||'—')+' ← '+(x.afterStart||'—'):''}${x.beforeEnd!=null||x.afterEnd!=null?' · النهاية: '+(x.beforeEnd||'—')+' ← '+(x.afterEnd||'—'):''}`;return lifecycleAlertHtml('تغيير تاريخ عقد · '+safe(n),safe(dates)+' · '+safe(debt)+' · المحرر: '+safe(e.editedBy||e.createdBy||'غير مسجل')+' · الوقت: '+safe(toDate(e.timestamp||e.createdAt)?.toLocaleString('ar-KW')||'غير مسجل')+' · السبب: '+safe(e.reason||e.note||'غير مسجل'),'yellow');}).join('')}
+       ${lifecyclePosts.slice(0,20).map(x=>lifecycleAlertHtml('دفعة إيجار/دين بعد انتهاء العقد · '+safe(x.d.name||x.p.driverId),`التاريخ: ${fmtDate(x.paid)} · نهاية العقد: ${fmtDate(x.end)} · المبلغ المؤهل: ${money(x.amount)} · ${x.unallocated?'غير موزعة وتحتاج قراراً':'مخصصة صراحة — راجع العقد المستهدف'}`,x.unallocated?'red':'yellow')).join('')}
+       ${lifecycleDupes.slice(0,20).map(e=>lifecycleAlertHtml('محاولة إغلاق عقد مكررة · '+safe(e.driverId?(gDriverMap[e.driverId]?.name||e.driverId):'غير معروف'),'العملية: '+safe(e.action||'غير مسجل')+' · المحرر: '+safe(e.editedBy||e.createdBy||'غير مسجل')+' · السبب: '+safe(e.reason||e.note||'راجع السجل'),'red')).join('')}
+       ${lifecycleOps.slice(0,20).map(d=>lifecycleAlertHtml('تنبيه تشغيلي فقط · '+safe(d.name||d.id),`العقد منتهي بتاريخ ${fmtDate(d.contractEndDate)} لكن السائق ظاهر نشط. لا يغيّر هذا التنبيه الدين أو أي حساب مالي.`,'orange')).join('')}
+       ${lifecycleLegacy.slice(0,20).map(d=>lifecycleAlertHtml('دين قديم بلا مصدر · '+safe(d.name||d.id),`الرصيد القديم ${money(d.oldDebts)}. اربطه بعقد أو مستند مصدر قبل أي تعديل.`,'red')).join('')}
+       ${!lifecycleDates.length&&!lifecyclePosts.length&&!lifecycleDupes.length&&!lifecycleOps.length&&!lifecycleLegacy.length?'<div class="small-muted">✅ لا توجد تنبيهات دورة عقد حالياً.</div>':''}</div>`;
+     document.getElementById('tab-monitor').innerHTML=lifecycleHtml+`<div class="card"><div class="section-kicker">متابعة محايدة</div><h3>عمليات المحاسب · مراجعة مطلوبة</h3><p class="small-muted">هذه إشارات للمراجعة وليست اتهاماً. نشاط الليل وحده لا يرفع الإشارة.</p><div class="table-wrap"><table><thead><tr><th>العملية</th><th>قبل / بعد</th><th>الفرق المالي</th><th>الفاعل والوقت</th><th>السائق والسبب</th><th>الإجراء</th></tr></thead><tbody>${flagged.length?flagged.map(e=>{const id=e.id;return `<tr style="${ignored.includes(id)?'opacity:.45':''}"><td>${safe(e.action||'تعديل')} · ${safe(e.recordType||'سجل')}</td><td>${safe(changeText(e))}</td><td>${money(changeDiff(e))}</td><td>${safe(e.editedBy||'غير معروف')}<div class="small-muted">${fmtDate(toDate(e.timestamp))}</div></td><td>${safe(gDriverMap[e.driverId]?.name||e.driverId||'عام')}<div class="small-muted">${safe(monitorReason(e))}</div></td><td><button class="btn outline" onclick="monitorDecision('${safe(id)}','review')">مراجعة</button> <button class="btn outline" onclick="monitorDecision('${safe(id)}','defer')">تأجيل</button> <button class="btn outline" onclick="monitorDecision('${safe(id)}','ignore')">تجاهل</button></td></tr>`}).join(''):'<tr><td colspan="6">لا توجد عمليات تحتاج مراجعة</td></tr>'}</tbody></table></div></div>`;
+   }
   function monitorReason(e){const fields=(e.changes||[]).map(c=>c.field||'').join('|'),a=e.action||'';if(a==='delete'||a==='permanentDelete')return'حذف سجل';if(fields.includes('amount'))return(e.changes||[]).some(c=>+c.newValue<+c.oldValue)?'تخفيض مبلغ':'تغيير مبلغ';if(fields.match(/date|paymentDate/))return'تغيير أو تأخير تاريخ الدفعة';if(fields.includes('type'))return'تغيير نوع الدفعة';if(fields.includes('oldDebts'))return'تغيير الدين القديم';if(fields.match(/contractStart|contractEnd|dailyRent|monthlyPayment/))return'تغيير بيانات العقد';return fields?'تعديل مالي يحتاج مراجعة':'';}
   function changeText(e){return(e.changes||[]).map(c=>`${c.field}: ${c.oldValue??'—'} ← ${c.newValue??'—'}`).join(' · ')||'لا يوجد تفصيل';}
   function changeDiff(e){return(e.changes||[]).filter(c=>c.field==='amount').reduce((s,c)=>s+Number(c.newValue||0)-Number(c.oldValue||0),0);}
@@ -2176,13 +2347,15 @@
     return d>=new Date(n.getFullYear(),n.getMonth(),1)&&d<=n&&!transferRow(x);
   }
   cashSummary=function(){
-    const p=gPayments.filter(x=>monthToDate(x)), exp=gExpenses.filter(monthToDate), rev=gRevenues.filter(monthToDate);
-    const out=p.filter(x=>['سداد مخالفة','سداد رسوم إقامة','سلفة إلى السائق'].includes(x.type));
-    const inRows=p.filter(x=>!['سداد مخالفة','سداد رسوم إقامة','سلفة إلى السائق'].includes(x.type));
-    const v=(a,t)=>sumRows(a,t), external=rev.reduce((s,x)=>s+Number(x.amount||x.revenueAmount||0),0);
+    const notVoided=x=>String(x.status||'').toLowerCase()!=='voided';
+    const p=gPayments.filter(x=>notVoided(x)&&monthToDate(x)), exp=gExpenses.filter(x=>notVoided(x)&&monthToDate(x)), rev=gRevenues.filter(x=>notVoided(x)&&monthToDate(x));
+    const rows=ownerClassifiedPaymentRows(p);
+    const out=rows.filter(x=>['violationOut','residencyOut','advanceOut','companyOut'].includes(x.type));
+    const inRows=rows.filter(x=>!['violationOut','residencyOut','advanceOut','transfer','noncash','salaryFee','companyOut'].includes(x.type));
+    const v=(a,t)=>a.filter(x=>t.includes(x.type)).reduce((s,x)=>s+Number(x.amount||0),0), external=rev.reduce((s,x)=>s+Number(x.amount||x.revenueAmount||0),0);
     const expenses=exp.reduce((s,x)=>s+Number(x.amount||x.expenseAmount||0),0);
-    const rent=v(inRows,UPGRADE_TYPES.rent),old=v(inRows,UPGRADE_TYPES.old),vio=v(inRows,UPGRADE_TYPES.violationIn),res=v(inRows,UPGRADE_TYPES.residencyIn),adv=v(inRows,UPGRADE_TYPES.advanceIn);
-    const companyV=v(out,UPGRADE_TYPES.violationOut),companyR=v(out,UPGRADE_TYPES.residencyOut),companyA=v(out,UPGRADE_TYPES.advanceOut);
+    const rent=v(inRows,['rent']),old=v(inRows,['old']),vio=v(inRows,['violationIn']),res=v(inRows,['residencyIn']),adv=v(inRows,['advanceIn']);
+    const companyV=v(out,['violationOut']),companyR=v(out,['residencyOut']),companyA=v(out,['advanceOut']);
     return {rent,old,vio,res,adv,companyV,companyR,companyA,external,expenses,net:rent+old+vio+res+adv+external-companyV-companyR-companyA-expenses};
   };
   trackingHealth=function(d){
@@ -2211,7 +2384,7 @@
       bounds[k].end=new Date(dt);bounds[k].end.setHours(23,59,59,999);
     }
     Object.keys(bounds).forEach(k=>map[k]={label:k,rentDue:engineRentDue(detail.periods,bounds[k].start,bounds[k].end),rentPaid:0,violationsCharged:0,violationsCollected:0,oldDebtOpening:0,oldPayment:0,residencyCharged:0,residencyCollected:0,advancesGiven:0,advancesCollected:0,totalDebt:0});
-    gPayments.filter(p=>p.driverId===d.id).forEach(p=>{const dt=toDate(p.date);if(!dt||dt<start||dt>end)return;const b=map[bucketKey(dt)];if(!b)return;const a=Number(p.amount||0);if(UPGRADE_TYPES.rent.includes(p.type))b.rentPaid+=a;if(p.type==='تحصيل مخالفة')b.violationsCollected+=a;if(p.type==='سداد مخالفة')b.violationsCharged+=a;if(p.type==='دين قديم')b.oldPayment+=a;if(p.type==='سداد رسوم إقامة')b.residencyCharged+=a;if(p.type==='تحصيل رسوم إقامة')b.residencyCollected+=a;if(p.type==='سلفة إلى السائق')b.advancesGiven+=a;if(p.type==='تحصيل سلفة من السائق')b.advancesCollected+=a;});
+     gPayments.filter(p=>p.driverId===d.id&&String(p.status||'').toLowerCase()!=='voided').forEach(p=>{const dt=toDate(p.date);if(!dt||dt<start||dt>end)return;const b=map[bucketKey(dt)];if(!b)return;ownerPaymentParts(p).forEach(a=>{const v=Number(a.amount||0),c=ownerPartClass(p,a);if(c==='rent')b.rentPaid+=v;if(c==='violationIn')b.violationsCollected+=v;if(c==='violationOut')b.violationsCharged+=v;if(c==='old')b.oldPayment+=v;if(c==='residencyOut')b.residencyCharged+=v;if(c==='residencyIn')b.residencyCollected+=v;if(c==='advanceOut')b.advancesGiven+=v;if(c==='advanceIn')b.advancesCollected+=v;});});
     const arr=Object.values(map).sort((a,b)=>a.start-b.start);
     if(arr[0])arr[0].oldDebtOpening=Number(detailed(d).oldDebts||0)+arr.reduce((s,b)=>s+b.oldPayment,0);
     const delta=b=>b.rentDue-b.rentPaid+b.violationsCharged-b.violationsCollected+b.residencyCharged-b.residencyCollected+b.advancesGiven-b.advancesCollected-b.oldPayment;
@@ -2230,7 +2403,7 @@
     gDrivers.filter(d=>!d.isArchived).forEach(d=>{
       const x=detailed(d),h=trackingHealth(d),series=chartBuckets(d,30);
       const old7=chartBuckets(d,7),past=old7.length?old7[0].totalDebt:x.totalDebt, rise=x.totalDebt-past;
-      const end=toDate(x.contractEnd), pays=gPayments.filter(p=>p.driverId===d.id&&isIncomingPayment(p)).map(p=>toDate(p.date)).filter(Boolean).sort((a,b)=>b-a);
+       const end=toDate(x.contractEnd), pays=gPayments.filter(p=>p.driverId===d.id&&String(p.status||'').toLowerCase()!=='voided'&&ownerEligibleSettlementParts(p).length).map(p=>toDate(p.date)).filter(Boolean).sort((a,b)=>b-a);
       if(x.status==='بلا عقد')out.push({d,kind:'critical',title:'بلا عقد',reason:'ما في عقد صالح يحكم الاستحقاق الحالي'});
       if(end&&!x.contractEnded&&((end-now)/86400000)<=30&&end>=now)out.push({d,kind:'watch',title:'العقد ينتهي قريب',reason:`ينتهي خلال ${Math.ceil((end-now)/86400000)} يوم`});
       if(x.contractEnded&&pays.some(p=>p>end))out.push({d,kind:'critical',title:'دفعات بعد انتهاء العقد',reason:'وصلت دفعة بعد تاريخ نهاية العقد'});

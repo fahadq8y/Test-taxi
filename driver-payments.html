@@ -2,7 +2,8 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta id="viewModeViewport" name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="view-toggle.js?v=001"></script>
     <title>دفعات السائق - نظام إدارة التاكسي</title>
     <link rel="stylesheet" href="style.css">
     <style>
@@ -25,7 +26,7 @@
         }
     </style>
     <script src="driver-payments-permissions-simple.js"></script>
-      <script src="unified-balance.js?v=032"></script>
+      <script src="unified-balance.js?v=033"></script>
       <style>
           .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
           .modal-content { background: white; margin: 5% auto; padding: 0; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
@@ -961,8 +962,13 @@
         }
         function _dpContractId() {
             if (!currentDriver) return null;
-            if (currentDriver.currentContractId) return currentDriver.currentContractId;
             const start = currentDriver.contractStartDate ? (currentDriver.contractStartDate.toDate ? currentDriver.contractStartDate.toDate() : new Date(currentDriver.contractStartDate)) : null;
+            const end = currentDriver.contractEndDate ? (currentDriver.contractEndDate.toDate ? currentDriver.contractEndDate.toDate() : new Date(currentDriver.contractEndDate)) : null;
+            const asOfRaw = document.getElementById('paymentDate')?.value;
+            const asOf = asOfRaw ? new Date(asOfRaw) : new Date();
+            // Exclusive end date: the end day is not an active accrual/allocation day.
+            if (end && !isNaN(end.getTime()) && asOf >= end) return null;
+            if (currentDriver.currentContractId) return currentDriver.currentContractId;
             return start && !isNaN(start.getTime()) ? `${currentDriverId}-${start.toISOString().split('T')[0]}` : `${currentDriverId}-current`;
         }
         function _dpObligationSortValue(o) {
@@ -984,7 +990,7 @@
             open.sort((a,b) => _dpObligationSortValue(a) - _dpObligationSortValue(b));
             let html = open.length ? '<option value="fifo">اقتراح النظام: الأقدم أولاً (توزيع تلقائي)</option>' : '';
             open.forEach(o => { html += `<option value="oldDebt:${o.id}">تخصيص يدوي: ${o.contractLabel || o.contractId || o.id} (المتبقي ${_dpAmount(o.derivedOpeningAmount !== undefined ? o.derivedOpeningAmount - (o.derivedPaidAmount || 0) : o.originalAmount).toFixed(3)})</option>`; });
-            if (_dpContractId() && currentDriver.isActive !== false) html += `<option value="currentRent:${_dpContractId()}">تخصيص يدوي: أجرة العقد الحالي</option>`;
+            if (_dpContractId()) html += `<option value="currentRent:${_dpContractId()}">تخصيص يدوي: أجرة العقد الحالي</option>`;
             if (!html) html = '<option value="legacy">دين قديم — الرصيد القديم (توافق)</option>';
             select.innerHTML = html;
             suggestedAllocationValue = select.options.length ? select.options[0].value : '';
@@ -997,12 +1003,12 @@
             const details = typeof deriveOldDebtObligations === 'function' ? deriveOldDebtObligations(rawDetails, driverPayments || []) : rawDetails;
             const open = details.slice().sort((a,b) => _dpObligationSortValue(a) - _dpObligationSortValue(b)).filter(o => _dpAmount(o.derivedOpeningAmount !== undefined ? o.derivedOpeningAmount - (o.derivedPaidAmount || 0) : o.originalAmount) > 0);
             if (choice === 'fifo') return typeof buildPaymentAllocationPlan === 'function'
-                ? buildPaymentAllocationPlan(amount, open, currentDriver && currentDriver.isActive !== false ? _dpContractId() : null)
+                    ? buildPaymentAllocationPlan(amount, open, currentDriver ? _dpContractId() : null)
                 : [];
             if (choice && choice.startsWith('oldDebt:')) {
                 const selected = open.filter(o => `oldDebt:${o.id}` === choice);
                 return typeof buildPaymentAllocationPlan === 'function'
-                    ? buildPaymentAllocationPlan(amount, selected, currentDriver && currentDriver.isActive !== false ? _dpContractId() : null, reason)
+                    ? buildPaymentAllocationPlan(amount, selected, currentDriver ? _dpContractId() : null, reason)
                     : [];
             }
             if (choice && choice.startsWith('currentRent:')) return [{ allocationKind:'currentRent', kind:'currentRent', allocationAmount:amount, amount, contractId:_dpContractId(), reason:reason || 'تخصيص يدوي' }];
@@ -1122,13 +1128,23 @@
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 if (pendingDeletePaymentSnapshot && (pendingDeletePaymentSnapshot.allocationKind || (Array.isArray(pendingDeletePaymentSnapshot.allocations) && pendingDeletePaymentSnapshot.allocations.length))) {
-                    await db.collection('driverPayments').doc(pendingDeletePaymentId).update({
-                        status: 'voided',
-                        voidedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        voidedBy: userName,
-                        voidReason: reason,
-                        reversalOf: pendingDeletePaymentId
-                    });
+                     await db.runTransaction(async tx => {
+                         const paymentRef = db.collection('driverPayments').doc(pendingDeletePaymentId);
+                         const driverRef = db.collection('drivers').doc(pendingDeletePaymentSnapshot.driverId);
+                         const paymentSnap = await tx.get(paymentRef);
+                         const driverSnap = await tx.get(driverRef);
+                         if (!paymentSnap.exists || paymentSnap.data().status === 'voided') return;
+                         const livePayment = paymentSnap.data();
+                         const liveDriver = driverSnap.exists ? driverSnap.data() : {};
+                         const parts = _ubPaymentParts(livePayment).filter(a => a.allocationKind === 'oldDebt' && a.obligationId);
+                         const byId = {};
+                         parts.forEach(a => { byId[a.obligationId] = (byId[a.obligationId] || 0) + a.amount; });
+                         const details = Array.isArray(liveDriver.oldDebtDetails) ? liveDriver.oldDebtDetails.map(d => ({
+                             ...d, allocationReservedAmount: _dpAmount(Math.max(0, parseFloat(d.allocationReservedAmount || 0) - (byId[d.id] || 0)))
+                         })) : [];
+                         tx.update(paymentRef, { status:'voided', voidedAt:firebase.firestore.FieldValue.serverTimestamp(), voidedBy:userName, voidReason:reason, reversalOf:pendingDeletePaymentId });
+                         if (details.length) tx.update(driverRef, { oldDebtDetails:details, debtAllocationRevision:(parseInt(liveDriver.debtAllocationRevision || 0) || 0) + 1, updatedAt:firebase.firestore.FieldValue.serverTimestamp() });
+                     });
                 } else {
                     // Legacy rows retain their historical delete behavior.
                     await db.collection('driverPayments').doc(pendingDeletePaymentId).delete();
@@ -1159,7 +1175,17 @@
             const description = document.getElementById('description').value;
             const allocationSelect = document.getElementById('paymentAllocation');
             const allocationValue = allocationSelect && document.getElementById('allocationGroup').style.display !== 'none' ? allocationSelect.value : '';
-            const allocationReason = document.getElementById('allocationReason')?.value.trim() || '';
+             const allocationReason = document.getElementById('allocationReason')?.value.trim() || '';
+             // انتهاء العقد الطبيعي لا يحتاج زر إنهاء: عند أول تسوية بعد
+             // النهاية نضمن بنداً واحداً ثابتاً قبل بناء اقتراح التخصيص.
+             let expiredObligationAdded = false;
+             const originalDetailsBeforeEnsure = Array.isArray(currentDriver?.oldDebtDetails) ? currentDriver.oldDebtDetails : [];
+             let paymentCandidateDriver = currentDriver;
+             if (typeof ensureExpiredContractObligations === 'function' && currentDriver) {
+                 const ensured = ensureExpiredContractObligations(currentDriverId, currentDriver, driverPayments || [], paymentDate);
+                 expiredObligationAdded = ensured.length !== originalDetailsBeforeEnsure.length;
+                 paymentCandidateDriver = { ...currentDriver, oldDebtDetails: ensured };
+             }
             
             // تحقق من رصيد السلفة عند تحصيل سلفة من السائق
             if (paymentType === 'تحصيل سلفة من السائق') {
@@ -1206,9 +1232,19 @@
                 if (allocationValue && allocationValue !== suggestedAllocationValue && allocationValue !== 'legacy' && allocationReason.length < 5) {
                     throw new Error('تغيير التخصيص يحتاج سبباً واضحاً (5 أحرف على الأقل)');
                 }
-                const allocationPlan = allocationValue && allocationValue !== 'legacy'
-                    ? _dpPlanForChoice(allocationValue, allocationReason || 'اقتراح النظام — الأقدم أولاً')
+                 const candidateDetails = Array.isArray(paymentCandidateDriver?.oldDebtDetails) ? paymentCandidateDriver.oldDebtDetails : [];
+                 const candidateDerived = typeof deriveOldDebtObligations === 'function' ? deriveOldDebtObligations(candidateDetails, driverPayments || []) : candidateDetails;
+                 const candidateOpen = candidateDerived.slice().sort((a,b) => _dpObligationSortValue(a) - _dpObligationSortValue(b)).filter(o => _dpAmount((o.derivedOpeningAmount !== undefined ? o.derivedOpeningAmount : o.originalAmount) - (o.derivedPaidAmount || 0)) > 0);
+                 let allocationPlan = allocationValue && allocationValue !== 'legacy'
+                     ? (allocationValue === 'fifo' && typeof buildPaymentAllocationPlan === 'function'
+                         ? buildPaymentAllocationPlan(amount, candidateOpen, _dpContractId())
+                         : _dpPlanForChoice(allocationValue, allocationReason || 'اقتراح النظام — الأقدم أولاً'))
                     : [];
+                 // The selector existed before natural-expiry obligation creation;
+                 // recompute FIFO locally so the first post-end payment cannot miss it.
+                 if (expiredObligationAdded && typeof buildPaymentAllocationPlan === 'function') {
+                     allocationPlan = buildPaymentAllocationPlan(amount, candidateOpen, _dpContractId());
+                 }
                 if (allocationValue && allocationValue !== 'legacy' && !allocationPlan.length) {
                     throw new Error('تعذر إنشاء توزيع آمن للدفعة؛ يرجى مراجعة بند الدين أو العقد');
                 }
@@ -1217,6 +1253,9 @@
                     if (Math.abs(allocationTotal - _dpAmount(amount)) > 0.001) {
                         throw new Error('مجموع التخصيصات لا يساوي مبلغ الدفعة؛ لم يتم الحفظ');
                     }
+                 if (expiredObligationAdded && !window.confirm('⚠️ العقد السابق منتهٍ طبيعياً. سيُسجّل هذا المبلغ كتسوية للدين المرحّل للعقد السابق وفق التخصيص الظاهر. هل تريد المتابعة؟')) {
+                     throw new Error('تم إلغاء تسوية الدين المرحّل');
+                 }
                 }
                 // توليد الرقم المرجعي للدفعة الجديدة
                 const refNum = await generateNextRefNum('driverPayments', 'PAY', paymentDate);
@@ -1230,6 +1269,7 @@
                     date: paymentDate,
                     description: description,
                     refNum: refNum,
+                     idempotencyKey: `driver-payment:${currentDriverId}:${refNum}`,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
                 if (allocationPlan.length) {
@@ -1256,7 +1296,61 @@
                     paymentData.allocationAmount = _dpAmount(amount);
                 }
                 
-                await db.collection('driverPayments').add(paymentData);
+                  const paymentRef = db.collection('driverPayments').doc(paymentData.idempotencyKey);
+                 const driverRef = db.collection('drivers').doc(currentDriverId);
+                 await db.runTransaction(async tx => {
+                     const driverSnap = await tx.get(driverRef);
+                      const existingPaymentSnap = await tx.get(paymentRef);
+                      if (existingPaymentSnap.exists) return;
+                     const live = driverSnap.exists ? driverSnap.data() : {};
+                      const liveRevision = parseInt(live.debtAllocationRevision || 0) || 0;
+                      const expectedRevision = parseInt(currentDriver.debtAllocationRevision || 0) || 0;
+                      if (liveRevision !== expectedRevision) throw new Error('تغيّر حجز التخصيص أثناء التسجيل؛ أعد المحاولة');
+                      const livePayments = (driverPayments || []).filter(p => p.status !== 'voided');
+                      if (livePayments.some(p => p.idempotencyKey === paymentData.idempotencyKey)) return;
+                      const liveDetails = Array.isArray(live.oldDebtDetails) ? live.oldDebtDetails.map(d => ({ ...d })) : [];
+                      const candidateDetails = ensureExpiredContractObligations(currentDriverId, live, livePayments, paymentDate);
+                      const oldIds = new Set(liveDetails.map(d => d.id));
+                      const missing = candidateDetails.filter(d => d && d.id && !oldIds.has(d.id));
+                      const allPayments = livePayments;
+                       const reservationExists = liveDetails.some(d => d && d.allocationReservedAmount !== undefined);
+                       const reserved = {};
+                       if (reservationExists) liveDetails.forEach(d => { reserved[d.id] = _dpAmount(d.allocationReservedAmount || 0); });
+                       else livePayments.forEach(p => _ubPaymentParts(p).filter(a => a.allocationKind === 'oldDebt' && a.obligationId)
+                           .forEach(a => { reserved[a.obligationId] = _dpAmount((reserved[a.obligationId] || 0) + a.amount); }));
+                       const open = candidateDetails.map(o => ({ ...o, derivedOpeningAmount: _ubObligationOpening(o), derivedPaidAmount: reserved[o.id] || 0 }))
+                           .filter(o => _dpAmount(o.derivedOpeningAmount - o.derivedPaidAmount) > 0)
+                          .sort((a,b) => _dpObligationSortValue(a) - _dpObligationSortValue(b));
+                      const livePlan = (paymentType === 'أجرة يومية' || paymentType === 'أجرة شهرية' || paymentType === 'دين قديم')
+                          ? buildPaymentAllocationPlan(amount, open, _dpContractId()) : [];
+                      const finalPaymentData = { ...paymentData };
+                      if (livePlan.length) {
+                          finalPaymentData.allocations = livePlan.map(a => ({
+                              allocationKind:a.allocationKind, kind:a.kind || a.allocationKind,
+                              allocationAmount:_dpAmount(a.amount), amount:_dpAmount(a.amount),
+                              ...(a.obligationId ? {obligationId:a.obligationId} : {}),
+                              ...(a.contractId ? {contractId:a.contractId} : {}),
+                              reason:a.reason || allocationReason || 'اقتراح النظام — الأقدم أولاً'
+                          }));
+                          if (finalPaymentData.allocations.length === 1) {
+                              const one = finalPaymentData.allocations[0];
+                              finalPaymentData.allocationKind = one.allocationKind;
+                              finalPaymentData.allocationAmount = one.amount;
+                              if (one.obligationId) finalPaymentData.obligationId = one.obligationId;
+                              if (one.contractId) finalPaymentData.contractId = one.contractId;
+                          }
+                      }
+                      finalPaymentData.allocations && finalPaymentData.allocations.filter(a => a.allocationKind === 'oldDebt' && a.obligationId)
+                          .forEach(a => { reserved[a.obligationId] = _dpAmount((reserved[a.obligationId] || 0) + a.amount); });
+                      const revisedDetails = candidateDetails.map(d => ({ ...d, allocationReservedAmount: reserved[d.id] || 0 }));
+                      if (missing.length || livePlan.length) tx.update(driverRef, {
+                          oldDebtDetails: revisedDetails,
+                          debtAllocationRevision: (parseInt(live.debtAllocationRevision || 0) || 0) + 1,
+                          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                          updatedBy: localStorage.getItem('userName') || 'مستخدم'
+                      });
+                      tx.set(paymentRef, finalPaymentData);
+                 });
                 
                 // ملاحظة: الإيرادات تُحسب تلقائياً من driverPayments
                 // لا حاجة لإضافتها إلى جدول revenues لتجنب التسجيل المضاعف
