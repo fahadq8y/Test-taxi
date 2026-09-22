@@ -509,6 +509,9 @@
                     <select id="actionFilter" onchange="applyFilters()">
                           <option value="">جميع العمليات</option>
                           <option value="edit">✏️ تعديل</option>
+                          <option value="create">➕ إضافة</option>
+                          <option value="void">🚫 إلغاء</option>
+                          <option value="reversal">↩️ تراجع موثق</option>
                           <option value="delete">🗑️ حذف</option>
                           <option value="newContract">📝 عقد جديد</option>
                           <option value="endContract">🛑 إنهاء عقد</option>
@@ -585,6 +588,14 @@
         </div>
 
         <!-- History Table -->
+        <p id="historyScope" role="status" style="padding:12px;background:#fff3cd;color:#654d00;">
+            الفلاتر والبحث والإحصائيات تشمل السجلات المحمّلة فقط، وليست كامل السجل. تحميل الأقدم يوسّع نطاق البحث.
+            التحميل حسب معرّف المستند ويشمل السجلات بلا توقيت؛ ترتيب العرض حسب التوقيت داخل المحمّل فقط، وليس أحدث السجل الكامل.
+            استخدم «تحميل الكل» للبحث في كامل السجل (قد يستهلك قراءات كثيرة).
+        </p>
+        <button id="loadMoreHistory" type="button" onclick="loadHistory(true)">تحميل دفعة أخرى</button>
+        <button id="loadAllHistory" type="button" onclick="loadAllHistory()">تحميل الكل للبحث الشامل</button>
+        <span id="historyLoadStatus" role="status"></span>
         <div class="history-table-wrap">
             <div class="history-table-header">
                 <h3>📋 سجل التعديلات</h3>
@@ -657,6 +668,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="audit-history.js?v=202605-audit2"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -675,6 +687,10 @@
         let currentPage = 1;
         let itemsPerPage = 20;
         let totalPages = 1;
+        const historyBatchSize = 100;
+        let historyCursor = null;
+        let historyHasMore = true;
+        let historyLoading = false;
 
         // انتظار جاهزية Firebase Auth (يحل race condition مع IndexedDB restoration)
         function waitForAuth() {
@@ -686,30 +702,65 @@
         }
 
         // ======== تحميل البيانات ========
-        async function loadHistory() {
+        async function loadHistory(append = false) {
+            if (historyLoading || (append && !historyHasMore)) return;
+            historyLoading = true;
+            const loadButton = document.getElementById('loadMoreHistory');
+            const loadStatus = document.getElementById('historyLoadStatus');
+            loadButton.disabled = true;
+            loadStatus.textContent = 'جاري التحميل…';
             try {
                 const _user = await waitForAuth();
                 if (!_user) {
+                    loadStatus.textContent = 'يجب تسجيل الدخول لتحميل السجل';
                     document.body.insertAdjacentHTML('afterbegin', '<div style="padding:20px;background:#fff3cd;color:#856404;text-align:center;border-bottom:2px solid #ffc107;">⚠️ يجب تسجيل الدخول أولاً. <a href="index.html" style="color:#0a84ff;font-weight:bold;">↩ صفحة الدخول</a></div>');
                     return;
                 }
-                const snapshot = await db.collection('editHistory')
-                    .orderBy('timestamp', 'desc')
-                    .get();
-
-                allHistory = [];
+                let query = db.collection('editHistory').orderBy(firebase.firestore.FieldPath.documentId(), 'desc');
+                if (append && historyCursor) query = query.startAfter(historyCursor);
+                const snapshot = await query.limit(historyBatchSize).get();
+                if (!append) allHistory = [];
+                const loadedIds = new Set(allHistory.map(item => item.id));
                 snapshot.forEach(doc => {
-                    allHistory.push({ id: doc.id, ...doc.data() });
+                    if (!loadedIds.has(doc.id)) allHistory.push(AuditHistory.normalize(doc.data(), doc.id));
                 });
+                allHistory.sort((a, b) => {
+                    const aDate = AuditHistory.date(a.timestamp), bDate = AuditHistory.date(b.timestamp);
+                    return (bDate ? bDate.getTime() : -Infinity) - (aDate ? aDate.getTime() : -Infinity) ||
+                        String(b.id).localeCompare(String(a.id));
+                });
+                historyCursor = snapshot.docs[snapshot.docs.length - 1] || historyCursor;
+                historyHasMore = snapshot.size === historyBatchSize;
+                loadStatus.textContent = `تم تحميل ${allHistory.length} سجل` +
+                    (historyHasMore ? ' — توجد دفعات أخرى' : ' — اكتمل مسح السجل، بما فيه السجلات بلا توقيت');
 
                 updateStats();
                 applyFilters();
+                return true;
             } catch (error) {
+                loadStatus.textContent = 'فشل التحميل: ' + error.message + ' — أعد المحاولة';
                 console.error('خطأ في تحميل الهيستوري:', error);
-                document.getElementById('historyTableBody').innerHTML =
+                if (!allHistory.length) document.getElementById('historyTableBody').innerHTML =
                     '<tr><td colspan="11" class="no-data">❌ حدث خطأ في تحميل البيانات</td></tr>';
-                document.getElementById('mobileHistoryCards').innerHTML =
+                if (!allHistory.length) document.getElementById('mobileHistoryCards').innerHTML =
                     '<div class="no-data">❌ حدث خطأ في تحميل البيانات</div>';
+                return false;
+            } finally {
+                historyLoading = false;
+                loadButton.disabled = !historyHasMore;
+            }
+        }
+
+        async function loadAllHistory() {
+            if (historyLoading) return;
+            const button = document.getElementById('loadAllHistory');
+            button.disabled = true;
+            try {
+                while (historyHasMore) {
+                    if (!await loadHistory(true)) break;
+                }
+            } finally {
+                button.disabled = false;
             }
         }
 
@@ -733,24 +784,15 @@
 
             filteredHistory = allHistory.filter(item => {
                 if (searchText) {
-                    const searchFields = [
-                        item.editedBy || '',
-                        item.editReason || '',
-                        item.deleteReason || '',
-                        item.fieldLabel || item.field || '',
-                        String(item.oldValue || ''),
-                        String(item.newValue || ''),
-                        item.description || '',
-                        item.driverName || '',
-                        item.refNum || ''
-                    ].join(' ').toLowerCase();
+                    const searchFields = AuditHistory.searchText(item);
                     if (!searchFields.includes(searchText)) return false;
                 }
                 if (actionFilter && item.action !== actionFilter) return false;
                 if (recordTypeFilter && item.recordType !== recordTypeFilter) return false;
                 if (roleFilter && item.editedByRole !== roleFilter) return false;
                 if (fromDate || toDate) {
-                    const itemDate = item.timestamp?.toDate ? item.timestamp.toDate() : new Date(item.timestamp);
+                    const itemDate = AuditHistory.date(item.timestamp);
+                    if (!itemDate) return false;
                     const itemDateStr = itemDate.toISOString().split('T')[0];
                     if (fromDate && itemDateStr < fromDate) return false;
                     if (toDate && itemDateStr > toDate) return false;
@@ -781,7 +823,8 @@
               return m[rt] || { label: rt || '—', cls: '', color: '#999' };
           }
           function getActionLabel(action) {
-              const m = { edit:'✏️ تعديل', delete:'🗑️ حذف', newContract:'📝 عقد جديد',
+              const m = { create:'➕ إضافة', void:'🚫 إلغاء', reversal:'↩️ تراجع موثق',
+                  edit:'✏️ تعديل', delete:'🗑️ حذف', newContract:'📝 عقد جديد',
                   endContract:'🛑 إنهاء عقد', archive:'🗄️ أرشفة', restore:'♻️ استعادة',
                   permanentDelete:'⚠️ حذف نهائي',
                   addUser:'➕ إضافة مستخدم', updateUser:'✏️ تعديل مستخدم',
@@ -790,11 +833,23 @@
               return m[action] || action;
           }
           function isRestorable(item) {
+              // Allocated payments are voided, not deleted. Copying their snapshot
+              // would bypass obligation reservations and duplicate financial effects.
+              const snap = item.fullSnapshot;
               return item.action === 'delete'
                   && ['revenue','expense','driverPayment'].includes(item.recordType)
-                  && item.fullSnapshot && !item.restoredAt;
+                  && snap && !item.restoredAt
+                  && !(snap.allocationKind || (Array.isArray(snap.allocations) && snap.allocations.length))
+                  && snap.status !== 'voided';
           }
           window.restoreRecord = async function(historyId) {
+              // Rules restrict history updates to the owner. Check before any
+              // financial write so a rejected marker cannot leave a partial restore.
+              const actor = firebase.auth().currentUser;
+              if (!actor || actor.email !== 'f5h5d_q8@hotmail.com') {
+                  alert('الاستعادة متاحة للمالك فقط');
+                  return;
+              }
               const item = allHistory.find(h => h.id === historyId);
               if (!item) { alert('⚠️ لم يتم إيجاد السجل'); return; }
               if (!isRestorable(item)) { alert('⚠️ هذا السجل غير قابل للاستعادة'); return; }
@@ -895,10 +950,12 @@
                 // الحقل والتغيير
                 let fieldCell = '—';
                 let changeCell = '—';
-                if (item.action === 'edit') {
-                    fieldCell = item.fieldLabel || item.field || '—';
-                    const oldVal = item.oldValue !== undefined && item.oldValue !== null ? item.oldValue : '—';
-                    const newVal = item.newValue !== undefined && item.newValue !== null ? item.newValue : '—';
+                if (item.action === 'edit' || Array.isArray(item.changes)) {
+                    const firstChange = Array.isArray(item.changes) && item.changes.length ? item.changes[0] : item;
+                    fieldCell = firstChange.fieldLabel || firstChange.field || '—';
+                    if (item.changes?.length > 1) fieldCell += ` (+${item.changes.length - 1})`;
+                    const oldVal = firstChange.oldValue ?? '—';
+                    const newVal = firstChange.newValue ?? '—';
                     changeCell = `<span class="old-value">${oldVal}</span><span class="value-arrow">←</span><span class="new-value">${newVal}</span>`;
                 } else if (item.action === 'delete') {
                     fieldCell = '<span style="color:#f44336;">حذف كامل</span>';
@@ -911,7 +968,7 @@
                 }
 
                 // المستخدم
-                const roleText = item.editedByRole === 'admin' ? '(مدير)' : '(محاسب)';
+                const roleText = '(' + ({ admin: 'مدير', owner: 'مالك', accountant: 'محاسب', driver: 'سائق' }[item.editedByRole] || item.editedByRole || 'دور غير محدد') + ')';
                 const userCell = `${item.editedBy || 'غير محدد'} <span style="color:#999;font-size:11px;">${roleText}</span>`;
 
                 // الوقت
@@ -974,7 +1031,7 @@
                             <label>الوصف / السائق</label>
                             <span>${item.driverName || item.description || '—'}</span>
                         </div>
-                        ${item.action === 'edit' ? `
+                        ${(item.action === 'edit' || Array.isArray(item.changes)) ? `
                         <div class="mhc-field">
                             <label>الحقل المعدَّل</label>
                             <span>${item.fieldLabel || item.field || '—'}</span>
@@ -1058,7 +1115,7 @@
             title.textContent = `${actionLabel} — ${rtLabel}`;
 
             let changeHtml = '';
-            if (item.action === 'edit' || item.action === 'newContract' || item.action === 'endContract' || item.action === 'archive' || item.action === 'restore' || item.action === 'permanentDelete') {
+            if (Array.isArray(item.changes) || item.action === 'edit' || item.action === 'newContract' || item.action === 'endContract' || item.action === 'archive' || item.action === 'restore' || item.action === 'permanentDelete') {
                   if (Array.isArray(item.changes) && item.changes.length > 0) {
                       const rows = item.changes.map(c => `
                           <div class="details-field" style="border-right:3px solid #fbbf24;padding-right:10px;">
@@ -1161,7 +1218,7 @@
 
             // لقطة قبل التعديل (للتعديلات فقط)
             let snapshotBeforeHtml = '';
-            if (item.action === 'edit' && item.fullSnapshotBefore) {
+            if (item.fullSnapshotBefore) {
                 const sb = item.fullSnapshotBefore;
                 const sbKeys = Object.keys(sb);
                 if (sbKeys.length > 0) {

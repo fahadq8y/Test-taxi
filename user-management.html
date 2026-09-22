@@ -317,15 +317,25 @@
                     recordType: 'user',
                     action: entry.action,
                     recordId: entry.recordId || '',
+                    driverId: entry.driverId || null,
+                    driverName: entry.driverName || null,
+                    source: entry.source || 'user-management.html',
                     description: entry.description || '',
                     changes: entry.changes || null,
                     fullSnapshot: entry.fullSnapshot || null,
+                    fullSnapshotBefore: entry.fullSnapshotBefore || null,
+                    fullSnapshotAfter: entry.fullSnapshotAfter || null,
+                    editReason: entry.editReason || null,
                     editedBy: meEmail,
                     editedById: meId,
                     editorRole: me,
+                    editedByRole: me,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
-            } catch (e) { console.error('⚠️ #025 logUserEditHistory:', e); }
+            } catch (e) {
+                console.error('⚠️ #025 logUserEditHistory:', e);
+                alert('⚠️ لم يُحفظ سجل تدقيق المستخدم. راجع المالك قبل إعادة العملية: ' + e.message);
+            }
         }
 
         document.getElementById('addUserForm').addEventListener('submit', async (e) => {
@@ -354,20 +364,23 @@
                 }
 
                 // حفظ البيانات في Firestore
-                await db.collection('users').doc(userId).set({
+                const createdUserData = {
                     name: name,
                     email: email || null,
                     password: password,
                     role: role,
                     isActive: true,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                };
+                await db.collection('users').doc(userId).set(createdUserData);
+                const { password: omittedPassword, ...safeCreatedUser } = createdUserData;
 
                 // 🔧 #025: لوغ إضافة مستخدم
                 await logUserEditHistory({
                     action: 'addUser', recordId: userId,
                     description: `إضافة مستخدم جديد: ${name} (${role})`,
-                    fullSnapshot: { name, email: email || null, role, userId }
+                    fullSnapshot: { ...safeCreatedUser, id: userId },
+                    fullSnapshotAfter: { ...safeCreatedUser, id: userId }
                 });
 
                 showMessage('تم إضافة المستخدم بنجاح! ✅', 'success');
@@ -430,8 +443,8 @@
                 });
                 // لوغ التعديل
                 const _changes = [];
-                if (_before.name !== name) _changes.push({ field: 'name', oldValue: _before.name, newValue: name });
-                if (_before.role !== role) _changes.push({ field: 'role', oldValue: _before.role, newValue: role });
+                if (_before.name !== name) _changes.push({ field: 'name', oldValue: _before.name ?? null, newValue: name });
+                if (_before.role !== role) _changes.push({ field: 'role', oldValue: _before.role ?? null, newValue: role });
                 await logUserEditHistory({
                     action: 'updateUser', recordId: userId,
                     description: `تعديل المستخدم: ${name}`,
@@ -472,7 +485,7 @@
                 await logUserEditHistory({
                     action: isActive ? 'activateUser' : 'deactivateUser', recordId: userId,
                     description: `${action} المستخدم: ${user.name}`,
-                    changes: [{ field: 'isActive', oldValue: !isActive, newValue: isActive }]
+                    changes: [{ field: 'isActive', oldValue: user.isActive ?? null, newValue: isActive }]
                 });
 
                 showMessage(`تم ${action} المستخدم بنجاح! ✅`, 'success');
@@ -654,7 +667,14 @@
                             syncedFromDrivers: true
                         };
 
-                        await db.collection('users').add(userData);
+                        const syncedRef = await db.collection('users').add(userData);
+                        const { password: omittedPassword, ...safeUserSnapshot } = userData;
+                        await logUserEditHistory({
+                            recordId: syncedRef.id, action: 'addUser',
+                            driverId: driver.id, driverName: driver.name || null,
+                            description: 'إنشاء حساب سائق عبر المزامنة',
+                            fullSnapshotAfter: { ...safeUserSnapshot, id: syncedRef.id }
+                        });
                         createdCount++;
                         console.log(`✅ تم إنشاء حساب لـ ${driver.name}`);
                     } catch (error) {

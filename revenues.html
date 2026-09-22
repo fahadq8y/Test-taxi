@@ -1019,6 +1019,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="audit-history.js?v=202605-audit2"></script>
     <script src="unified-balance.js?v=033"></script>
     <script>
         const firebaseConfig = {
@@ -1293,8 +1294,8 @@
             console.log('💰 الإيرادات المباشرة:', revenues.length);
             revenues.forEach(revenue => {
                 // استثناء التحويلات من إجمالي الإيرادات
-                if (revenue.type !== 'تحويل من حساب رامي إلى بنك وربه') {
-                    totalRevenues += revenue.amount || 0;
+                if (revenue.status !== 'voided' && !['تحويل من حساب رامي إلى بنك وربه', 'تحويل من بنك وربه إلى حساب رامي'].includes(revenue.type)) {
+                    totalRevenues += parseFloat(revenue.amount || 0);
                     console.log('💰 إيراد مباشر:', revenue.amount, 'الإجمالي الحالي:', totalRevenues);
                 }
             });
@@ -1356,7 +1357,8 @@
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
             try {
-                await db.collection('revenues').add(revenueData);
+                const revenueRef = await db.collection('revenues').add(revenueData);
+                await AuditHistory.recordCreation(db, firebase, 'revenue', revenueRef.id, revenueData, 'revenues.html');
                 alert('تم إضافة الإيراد بنجاح!');
                 
                 // Reset form
@@ -1472,10 +1474,15 @@
                             : [];
                         const auditRef = db.collection('editHistory').doc();
                         tx.set(auditRef, {
-                            recordId: pendingDeleteId, recordType: 'driverPayment', action: 'delete',
+                            recordId: pendingDeleteId, recordType: 'driverPayment', action: 'void',
                             refNum: livePayment.refNum || null, description: livePayment.description || livePayment.type || null,
                             driverName: livePayment.driverName || null, driverId: livePayment.driverId || null,
                             deleteReason: reason, fullSnapshot: { id: pendingDeleteId, ...livePayment },
+                            fullSnapshotBefore: { ...livePayment, id: pendingDeleteId },
+                            fullSnapshotAfter: { ...livePayment, id: pendingDeleteId, status: 'voided',
+                                voidedAt: firebase.firestore.FieldValue.serverTimestamp(), voidedBy: userName,
+                                voidReason: reason, reversalOf: pendingDeleteId },
+                            changes: [{ field: 'status', oldValue: livePayment.status ?? null, newValue: 'voided' }],
                             deletedBy: userName, deletedByRole: userRole, editedBy: userName,
                             editedByRole: userRole, editReason: reason,
                             timestamp: firebase.firestore.FieldValue.serverTimestamp()
@@ -1498,6 +1505,7 @@
                         refNum: pendingDeleteSnapshot.refNum || null,
                         description: pendingDeleteSnapshot.description || pendingDeleteSnapshot.driverName || pendingDeleteSnapshot.type || null,
                         driverName: pendingDeleteSnapshot.driverName || null, deleteReason: reason,
+                        driverId: pendingDeleteSnapshot.driverId || null,
                         fullSnapshot: pendingDeleteSnapshot, deletedBy: userName, deletedByRole: userRole,
                         editedBy: userName, editedByRole: userRole, editReason: reason,
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
@@ -1710,20 +1718,6 @@
             displayRevenues();
         }
 
-        // Delete driver payment
-        async function deleteDriverPayment(paymentId) {
-            if (confirm('هل أنت متأكد من حذف هذه الدفعة؟ سيؤثر هذا على حساب السائق والأرصدة.')) {
-                try {
-                    await db.collection('driverPayments').doc(paymentId).delete();
-                    alert('تم حذف الدفعة بنجاح!');
-                    loadAllData();
-                } catch (error) {
-                    console.error('خطأ في حذف الدفعة:', error);
-                    alert('حدث خطأ في حذف الدفعة');
-                }
-            }
-        }
-
         // Filter functions
         function updateActivePeriodBar(fromDate, toDate) {
             const bar = document.getElementById('activePeriodBar');
@@ -1890,7 +1884,7 @@
         // Update filter statistics
         function updateFilterStats(filtered) {
             // التحويل بين الحسابات (رامي ← وربه) حركة نقل وليس إيراد: يظهر بالجدول لكن لا يدخل بالإحصائيات
-            const statItems = filtered.filter(rev => rev.type !== 'تحويل من حساب رامي إلى بنك وربه');
+            const statItems = filtered.filter(rev => !['تحويل من حساب رامي إلى بنك وربه', 'تحويل من بنك وربه إلى حساب رامي'].includes(rev.type));
             const count = statItems.length;
             const total = statItems.reduce((sum, rev) => sum + parseFloat(rev.amount || 0), 0);
             const average = count > 0 ? total / count : 0;
@@ -1938,10 +1932,11 @@
             }
             
             // Calculate statistics
-            const count = dataToExport.length;
-            const total = dataToExport.reduce((sum, rev) => sum + parseFloat(rev.amount || 0), 0);
+            const statItems = dataToExport.filter(rev => !['تحويل من حساب رامي إلى بنك وربه', 'تحويل من بنك وربه إلى حساب رامي'].includes(rev.type));
+            const count = statItems.length;
+            const total = statItems.reduce((sum, rev) => sum + parseFloat(rev.amount || 0), 0);
             const average = count > 0 ? total / count : 0;
-            const amounts = dataToExport.map(rev => parseFloat(rev.amount || 0));
+            const amounts = statItems.map(rev => parseFloat(rev.amount || 0));
             const max = amounts.length > 0 ? Math.max(...amounts) : 0;
             const min = amounts.length > 0 ? Math.min(...amounts) : 0;
             
@@ -2106,6 +2101,7 @@
                 
                 // حفظ البيانات الأصلية
                 originalEditData = {
+                    fullSnapshot: { ...data, id: currentEditingId },
                     date: data.date,
                     type: data.type,
                     amount: data.amount,
@@ -2230,7 +2226,7 @@
                 // جلب البيانات الكاملة للسجل بعد التعديل
                 const updatedDoc = await db.collection(collection).doc(currentEditingId).get();
                 const snapshotAfter = { id: currentEditingId, ...updatedDoc.data() };
-                const snapshotBefore = { id: currentEditingId, ...originalEditData, ...Object.fromEntries(changes.map(c => [c.field, c.oldValue])) };
+                const snapshotBefore = originalEditData.fullSnapshot;
 
                 // حفظ سجل تعديل واحد شامل لجميع التغييرات
                 await db.collection('editHistory').add({
@@ -2240,6 +2236,7 @@
                     refNum: snapshotAfter.refNum || snapshotBefore.refNum || null,
                     description: snapshotAfter.description || snapshotAfter.driverName || snapshotAfter.type || null,
                     driverName: snapshotAfter.driverName || null,
+                    driverId: snapshotAfter.driverId || snapshotBefore.driverId || null,
                     changes: changes,
                     changesCount: changes.length,
                     // للتوافق مع الكود القديم - أول تغيير
@@ -2347,23 +2344,14 @@
         
         // التراجع عن تعديل
         async function undoEdit(historyId, recordId, recordType) {
+            if (firebase.auth().currentUser?.email !== 'f5h5d_q8@hotmail.com') {
+                alert('التراجع متاح للمالك فقط'); return;
+            }
             if (!confirm('هل أنت متأكد من التراجع عن هذا التعديل؟')) return;
             
             try {
-                const historyDoc = await db.collection('editHistory').doc(historyId).get();
-                const historyData = historyDoc.data();
-                
                 const collection = recordType === 'driverPayment' ? 'driverPayments' : 'revenues';
-                const field = historyData.field;
-                const oldValue = historyData.oldValue;
-                
-                // استرجاع القيمة القديمة
-                await db.collection(collection).doc(recordId).update({
-                    [field]: oldValue
-                });
-                
-                // حذف سجل الهيستوري
-                await db.collection('editHistory').doc(historyId).delete();
+                await AuditHistory.reverseEdit(db, firebase, historyId, recordId, recordType, collection);
                 
                 alert('✅ تم التراجع عن التعديل بنجاح!');
                 closeHistoryModal();

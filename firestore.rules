@@ -16,8 +16,9 @@ service cloud.firestore {
     }
 
     // ===== كل شي ثاني مفتوح للكل (موقع داخلي بسيط) =====
-    match /{document=**} {
-      allow read, write: if true;
+    match /{collection}/{document=**} {
+      allow read, write: if collection != 'ownerNotes'
+        && collection != 'editHistory';
     }
   }
 }

@@ -607,9 +607,7 @@
             if (typeof window.calculateDriverDebtDetailed === 'function') {
                 return window.calculateDriverDebtDetailed(driver.id, driver, driverPayments.filter(p => String(p.status || '').toLowerCase() !== 'voided'));
             }
-            console.warn('⚠️ unified-balance.js غير محمّل - الحساب قد يكون غير دقيق');
-            const od = parseFloat(driver.oldDebts || 0);
-            return { totalDebt: od, expectedRentTotal:0, totalRentPaid:0, lateAmount:0, driverBalance:0, violations:0, residencyFees:0, oldDebts:od, netAdvance:0, annualLeaveTotal:0, daysLate:0, paidUntilDate:new Date(), lastPayment:null, status:'منتظم', dailyWage:0, contractStart:new Date(), contractEnd:null, contractEnded:false, daysAfterEnd:0 };
+            throw new Error('محرك الحساب الموحد غير متاح؛ تعذر حساب الرصيد. أعد تحميل الصفحة.');
         }
 
 
@@ -845,7 +843,24 @@
             driverData.id = driverId;
             
             // Calculate financial stats using the new system
-            const stats = calculateDriverStats(driverData);
+            let stats = null;
+            try {
+                stats = calculateDriverStats(driverData);
+                if (!stats || !Number.isFinite(stats.totalDebt)) throw new Error('نتيجة محرك الحساب غير صالحة');
+            } catch (error) {
+                console.error('تعذر حساب البيانات المالية:', error.message);
+                ['dailyRent', 'lastPaymentDate', 'paidUntilDate', 'overdueDays', 'overdueAmount',
+                    'driverBalance', 'violations', 'residenceExpenses', 'oldDebts', 'totalDebts',
+                    'accountStatus'].forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = id === 'accountStatus'
+                            ? 'الحساب غير متاح — أعد تحميل الصفحة' : 'غير متاح';
+                        element.className = id === 'accountStatus' ? 'status-indicator status-warning' : 'value';
+                    }
+                });
+                stats = null;
+            }
 
             // Basic info
             document.getElementById('welcomeMessage').textContent = `مرحباً ${driverData.name}`;
@@ -881,6 +896,7 @@
             })();
 
             // Financial info using new calculations
+            if (stats) {
             document.getElementById('dailyRent').textContent = `${stats.dailyWage} د.ك`;
             document.getElementById('lastPaymentDate').textContent = stats.lastPayment ? formatDate(stats.lastPayment) : 'لا يوجد سداد';
             document.getElementById('paidUntilDate').textContent = stats.paidUntilDate ? formatDate(stats.paidUntilDate) : '—'; // #031
@@ -925,6 +941,7 @@
             }
 
             // Maintenance info - Read from car document
+            }
             let currentKilometers = 0;
             if (assignedCar) {
                 currentKilometers = assignedCar.currentKilometers || 0;

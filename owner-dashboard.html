@@ -352,6 +352,7 @@
   <!-- Chart.js للجداول البيانية في مودال السائق -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="unified-balance.js?v=033"></script>
+  <script src="audit-history.js?v=202605-audit2"></script>
   <script>
   const firebaseConfig = {
       apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -454,14 +455,16 @@
         db.collection('driverPayments').get(),
         db.collection('expenses').get(),
         db.collection('revenues').get(),
-        db.collection('editHistory').orderBy('timestamp','desc').limit(2000).get()
+        db.collection('editHistory').orderBy('timestamp','desc').limit(200).get()
       ]);
       gDrivers = dSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       gDriverMap = {}; gDrivers.forEach(d => gDriverMap[d.id] = d);
       gPayments = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       gExpenses = expensesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       gRevenues = revenuesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      gEditHistory = historySnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const auditCache = new Map(gEditHistory.map(e => [e.id,e]));
+      historySnap.docs.forEach(d => auditCache.set(d.id,{...d.data(),id:d.id}));
+      gEditHistory = [...auditCache.values()];
 
       renderAll();
       document.getElementById('lastUpdateTime').textContent = '🕒 ' + new Date().toLocaleTimeString('ar-KW');
@@ -504,6 +507,10 @@
           }
         });
         // تحديث editHistory cache
+        const cached = new Map(gEditHistory.map(e => [e.id,e]));
+        snap.docs.forEach(doc => cached.set(doc.id,{...doc.data(),id:doc.id}));
+        gEditHistory = [...cached.values()];
+        window.dispatchEvent(new CustomEvent('owner-history-updated'));
         // (ما نعيد تحميل كل شي الا في auto-refresh)
       }, err => console.error('snapshot err', err));
   }
@@ -1627,7 +1634,7 @@
     return html + '</div>';
   }
 
-  function openDriverModal(driverId) {
+  function renderLegacyDriverModal(driverId) {
     const driver = gDriverMap[driverId];
     if (!driver) return;
     gModalDriver = driver;
@@ -1917,6 +1924,7 @@
     if (box) box.innerHTML = '<p class="small-muted">جاري التحميل...</p>';
     try {
       const doc = await firebase.firestore().collection('ownerNotes').doc(driverId).get();
+      if (!gModalDriver || gModalDriver.id !== driverId) return;
       const items = [];
       if (doc.exists) {
         const d = doc.data();
@@ -2499,6 +2507,7 @@
      return `<details class="lifecycle-group ${level}" data-monitor-detail="${safe(key)}"${monitorOpenAttr(key,true)}><summary>${safe(title)} <span class="monitor-count">${count} سجل</span><span class="small-muted">افتح السجل للتفاصيل</span></summary><div class="lifecycle-list">${content}</div></details>`;
    }
    function buildMonitorSection(){
+      if (window.OwnerDriverTabs) return window.OwnerDriverTabs.renderMonitor();
       monitorRememberDetails();
      const decisions=monitorStoredObject('ownerMonitorDecisions'),filters=monitorFilters();
      const accountants=[...new Set(gEditHistory.filter(e=>String(e.status||'').toLowerCase()!=='voided').map(e=>String(e.editedBy||e.createdBy||'غير معروف')))].sort((a,b)=>a.localeCompare(b,'ar'));
@@ -2533,7 +2542,7 @@
     try{localStorage.setItem('ownerMonitorFilters',JSON.stringify(next));}catch(_){}
     buildMonitorSection();
   };
-  window.monitorDecision=function(id,decision){if(!['review','defer','ignore'].includes(decision))return;const state=monitorStoredObject('ownerMonitorDecisions');state[String(id)]=decision;try{localStorage.setItem('ownerMonitorDecisions',JSON.stringify(state));}catch(_){}buildMonitorSection();};
+  window.monitorDecision=async function(id,decision){try{await OwnerReviewStore.save(String(id),decision);buildMonitorSection();}catch(e){showToast('لم يتم حفظ قرار المراجعة',e.message);}};
   window.monitorDecisionFromButton=function(button,decision){window.monitorDecision(button?.dataset?.monitorId??'',decision);};
   window.saveFollowup=async function(id){const d=gDriverMap[id],old=d.ownerNotes||{},payload={...old,followUpStatus:document.getElementById('fuStatus').value,followUpDate:document.getElementById('fuDate').value||null,promisedAmount:Number(document.getElementById('fuAmount').value||0),promisedDate:document.getElementById('fuPromised').value||null};try{await firebase.firestore().collection('drivers').doc(id).set({ownerNotes:payload},{merge:true});d.ownerNotes=payload;showToast('تم حفظ المتابعة','تم تحديث سجل المالك بدون حذف الملاحظات السابقة');}catch(e){showToast('تعذر الحفظ',e.message);}};
   function fulfillment(d){const n=d.ownerNotes||{},amt=Number(n.promisedAmount||0),pd=toDate(n.promisedDate);if(!amt||!pd)return'لا يوجد وعد مالي';const paid=gPayments.filter(p=>p.driverId===d.id&&isIncomingPayment(p)&&toDate(p.date)&&toDate(p.date)>=pd).reduce((s,p)=>s+Number(p.amount||0),0);return paid>=amt?'تم الوفاء بالوعد':`المحصّل بعد الوعد ${money(paid)} من ${money(amt)}`;}
@@ -2644,19 +2653,17 @@
     document.querySelector('#tab-home .section-kicker').textContent='مركز القرار · من بداية الشهر إلى اليوم';
     document.querySelectorAll('#tab-home .kpi .sub').forEach(e=>e.textContent='من بداية الشهر · بدون تحويلات');
   };
-  const oldOpenDriverModal=window.openDriverModal;
-  window.openDriverModal=function(id){
-    oldOpenDriverModal(id);
-    const box=document.getElementById('modalContent');
-    if(box&&!document.getElementById('ownerNotesList')){
-      box.insertAdjacentHTML('beforeend',`<div class="card"><h3>ملاحظات المالك الخاصة</h3><textarea id="ownerNoteText" placeholder="اكتب ملاحظة متابعة" style="width:100%;min-height:70px"></textarea><button class="btn success" id="ownerNoteAddBtn" onclick="addOwnerNote()">إضافة ملاحظة</button><div id="ownerNotesList">جاري التحميل...</div></div>`);
-      loadOwnerNotes(id);
-      firebase.firestore().collection('ownerNotes').doc(id).get().then(s=>{const n=s.exists?s.data():{};['fuStatus','fuDate','fuAmount','fuPromised'].forEach(k=>{const e=document.getElementById(k);if(!e)return;if(k==='fuStatus')e.value=n.followUpStatus||'no follow-up';if(k==='fuDate')e.value=n.followUpDate||'';if(k==='fuAmount')e.value=n.promisedAmount||'';if(k==='fuPromised')e.value=n.promisedDate||'';});});
-    }
-  };
   window.saveFollowup=async function(id){
-    const ref=firebase.firestore().collection('ownerNotes').doc(id),snap=await ref.get(),existing=snap.exists?snap.data():{},payload={...existing,followUpStatus:document.getElementById('fuStatus').value,followUpDate:document.getElementById('fuDate').value||null,promisedAmount:Number(document.getElementById('fuAmount').value||0),promisedDate:document.getElementById('fuPromised').value||null};
-    try{await ref.set(payload,{merge:true});showToast('تم حفظ المتابعة','تم حفظها في سجل ملاحظات المالك');}catch(e){showToast('تعذر الحفظ',e.message);}
+    try{
+      if (!gAuthUser || gAuthUser.email !== OWNER_EMAIL) throw new Error('غير مصرح');
+      const amount=Number(document.getElementById('fuAmount').value||0);
+      if(!Number.isFinite(amount)||amount<0)throw new Error('المبلغ الموعود غير صالح');
+      const payload={followUpStatus:document.getElementById('fuStatus').value,followUpDate:document.getElementById('fuDate').value||null,promisedAmount:amount,promisedDate:document.getElementById('fuPromised').value||null,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:gAuthUser.email};
+      await firebase.firestore().collection('ownerNotes').doc(id).set(payload,{merge:true});
+      if(gDriverMap[id])gDriverMap[id].ownerNotes={...(gDriverMap[id].ownerNotes||{}),...payload};
+      if(gModalDriver?.id===id)document.getElementById('followupFulfillment').textContent=fulfillment(gDriverMap[id]);
+      showToast('تم حفظ المتابعة','تم حفظها في سجل ملاحظات المالك بدون استبدال الملاحظات');
+    }catch(e){showToast('تعذر الحفظ',e.message);}
   };
   window.openDriverModal=function(id){
     const d=gDriverMap[id];if(!d)return;gNavIds=gDrivers.filter(x=>!x.isArchived).map(x=>x.id);gNavIndex=gNavIds.indexOf(id);const x=detailed(d),n=d.ownerNotes||{};
@@ -2665,13 +2672,15 @@
       ${gNavIds.length>1?`<div class="modal-nav"><button class="mnav-btn" onclick="navDriver(-1)" ${gNavIndex<=0?'disabled':''}>▲ السابق</button><span class="mnav-counter">${gNavIndex+1} من ${gNavIds.length}</span><button class="mnav-btn" onclick="navDriver(1)" ${gNavIndex>=gNavIds.length-1?'disabled':''}>التالي ▼</button></div>`:''}
       <div class="mini-grid"><div class="kpi red"><div class="lbl">إجمالي الدين</div><div class="val">${money(x.totalDebt)}</div></div><div class="kpi orange"><div class="lbl">متأخر إيجار</div><div class="val">${money(x.lateAmount)}</div></div><div class="kpi"><div class="lbl">دين قديم</div><div class="val">${money(x.oldDebts)}</div></div><div class="kpi"><div class="lbl">آخر سداد</div><div class="val" style="font-size:16px">${fmtDate(x.lastPayment)}</div></div><div class="kpi blue"><div class="lbl">بداية العقد</div><div class="val" style="font-size:16px">${x.contractStart?fmtDate(x.contractStart):'بلا عقد'}</div></div><div class="kpi ${x.contractEnded?'red':'green'}"><div class="lbl">نهاية العقد</div><div class="val" style="font-size:16px">${x.contractEnd?fmtDate(x.contractEnd):'غير محدد'}</div><div class="sub">${x.contractEnded?'العقد منتهي':x.contractStart?'العقد مستمر':'لا يوجد عقد'}</div></div></div>
       <div class="card"><h3>شرح تغيّر الدين</h3><div class="explain-list">${[['إيجار متراكم',x.lateAmount],['مخالفات',x.violations],['إقامات',x.residencyFees],['دين قديم',x.oldDebts],['سلف صافية',x.netAdvance],['رصيد للسائق',-x.driverBalance],['الصافي',x.totalDebt]].map(q=>`<div class="explain-item">${q[0]}<strong>${money(q[1])}</strong></div>`).join('')}</div><p class="small-muted" style="margin-top:8px">الصافي = الإيجار المتراكم + كل الرسوم والسلف + الدين القديم − رصيد السائق. الأرقام محسوبة من محرك الرصيد الموحد.</p></div>
-      <div class="card"><h3>حركة الدين التاريخية <span class="small-muted">التاريخ تقديري عند عدم توفر لقطات محفوظة</span></h3><div class="range-pills"><button class="range-pill ${ownerChartRange===30?'active':''}" onclick="setOwnerChartRange(30)">30 يوم</button><button class="range-pill ${ownerChartRange===90?'active':''}" onclick="setOwnerChartRange(90)">90 يوم</button><button class="range-pill ${ownerChartRange===365?'active':''}" onclick="setOwnerChartRange(365)">سنة</button></div><div class="mtabs"><button class="mtab-btn ${ownerChartMode==='detail'?'active':''}" onclick="setOwnerChartMode('detail')">تفصيل البنود</button><button class="mtab-btn ${ownerChartMode==='total'?'active':''}" onclick="setOwnerChartMode('total')">حركة إجمالي الدين</button></div><div class="chart-box tall"><canvas id="ownerDebtChart"></canvas></div></div>
+      <div class="card"><h3>حركة الدين التاريخية · إعادة بناء تقريبية</h3><p class="small-muted">الرسم يعيد بناء التاريخ تقديرياً من البيانات الحالية؛ ليس لقطات أرصدة تاريخية مؤكدة، والقيم التاريخية غير المحفوظة تظل غير معروفة. الرصيد الحالي في الملخص مطابق لحساب محرك الرصيد الموحد، وليس تقديراً تاريخياً. راجع تبويب التدقيق للقيم السابقة واللاحقة المسجلة فعلياً.</p><div class="range-pills"><button class="range-pill ${ownerChartRange===30?'active':''}" onclick="setOwnerChartRange(30)">30 يوم</button><button class="range-pill ${ownerChartRange===90?'active':''}" onclick="setOwnerChartRange(90)">90 يوم</button><button class="range-pill ${ownerChartRange===365?'active':''}" onclick="setOwnerChartRange(365)">سنة</button></div><div class="mtabs"><button class="mtab-btn ${ownerChartMode==='detail'?'active':''}" onclick="setOwnerChartMode('detail')">تفصيل البنود التقديري</button><button class="mtab-btn ${ownerChartMode==='total'?'active':''}" onclick="setOwnerChartMode('total')">حركة إجمالي الدين التقديرية</button></div><div class="chart-box tall"><canvas id="ownerDebtChart"></canvas></div></div>
       <div class="card"><h3>متابعة المالك</h3><div class="mini-grid"><select id="fuStatus"><option value="daily follow-up">متابعة يومية</option><option value="weekly follow-up">متابعة أسبوعية</option><option value="promised payment">دفعة موعودة</option><option value="contract review">مراجعة عقد</option><option value="operational issue">مشكلة تشغيلية</option><option value="no follow-up">لا توجد متابعة</option></select><input id="fuDate" type="date"><input id="fuAmount" type="number" step=".001" placeholder="المبلغ الموعود"><input id="fuPromised" type="date"></div><div id="followupFulfillment" class="small-muted" style="margin:8px 0">جاري تحميل المتابعة...</div><button class="btn success" onclick="saveFollowup('${safe(id)}')">حفظ المتابعة</button></div>
       <div class="card"><h3>ملاحظات المالك الخاصة</h3><textarea id="ownerNoteText" placeholder="اكتب ملاحظة متابعة" style="min-height:85px"></textarea><button class="btn success" id="ownerNoteAddBtn" onclick="addOwnerNote()">إضافة ملاحظة</button><span id="ownerNoteStatus" role="status" aria-live="polite" style="font-size:12px;margin-inline-start:8px"></span><div id="ownerNotesList" style="margin-top:14px">جاري التحميل...</div></div>`;
     document.getElementById('driverModal').classList.add('active');
+    OwnerDriverTabs.mount(id);
     renderOwnerChart(id);
     loadOwnerNotes(id);
     firebase.firestore().collection('ownerNotes').doc(id).get().then(s=>{
+      if(gModalDriver?.id!==id)return;
       const note=s.exists?s.data():{};
       d.ownerNotes=note;
       document.getElementById('fuStatus').value=note.followUpStatus||'no follow-up';
@@ -2680,11 +2689,13 @@
       document.getElementById('fuPromised').value=note.promisedDate||'';
       document.getElementById('followupFulfillment').textContent=fulfillment(d);
     }).catch(e=>{
+      if(gModalDriver?.id!==id)return;
       const status=document.getElementById('followupFulfillment');
       if(status)status.textContent='تعذر تحميل المتابعة: '+e.message;
     });
   };
   </script>
+  <script src="owner-driver-tabs.js?v=1"></script>
   </body>
   </html>
   
