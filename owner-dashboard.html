@@ -606,7 +606,10 @@
     if (v instanceof Date) return v;
     const d = new Date(v); return isNaN(d) ? null : d;
   }
-  function fmtDate(d) { return d ? d.toLocaleDateString('ar-KW') : '—'; }
+  function fmtDate(value) {
+    const d = toDate(value);
+    return d instanceof Date && !isNaN(d.getTime()) ? d.toLocaleDateString('ar-KW') : '—';
+  }
   function fmtKD(n) { return (n||0).toFixed(3) + ' د.ك'; }
   function getMondayOfWeek(d) {
     const x = new Date(d); const day = x.getDay();
