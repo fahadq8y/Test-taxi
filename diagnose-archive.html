@@ -115,6 +115,15 @@
             background: #d1fae5;
             color: #059669;
         }
+
+        .mutation-disabled {
+            background: #fff7ed;
+            border: 1px solid #f59e0b;
+            color: #9a3412;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
     </style>
 </head>
 <body>
@@ -126,6 +135,12 @@
                 <a href="archived-drivers.html" class="nav-btn">📦 الأرشيف</a>
                 <a href="drivers.html" class="nav-btn">👥 السائقين</a>
             </div>
+        </div>
+
+        <div class="mutation-disabled">
+            عمليات الحذف والاستعادة التجريبية معطلة في صفحة التشخيص القديمة. استخدم
+            <a href="archived-drivers.html">صفحة الأرشيف المعتمدة</a>
+            لتنفيذ العمليات المسجلة في سجل التدقيق.
         </div>
 
         <div class="diagnostic-section">
@@ -143,13 +158,13 @@
 
         <div class="diagnostic-section">
             <h3>🗑️ اختبار عملية الحذف</h3>
-            <button class="test-btn danger" onclick="testDelete()">اختبار الحذف</button>
+            <button class="test-btn danger" disabled title="معطل: استخدم صفحة الأرشيف المعتمدة">اختبار الحذف (معطل)</button>
             <div id="deleteTestContainer"></div>
         </div>
 
         <div class="diagnostic-section">
             <h3>♻️ اختبار عملية الاستعادة</h3>
-            <button class="test-btn success" onclick="testRestore()">اختبار الاستعادة</button>
+            <button class="test-btn success" disabled title="معطل: استخدم صفحة الأرشيف المعتمدة">اختبار الاستعادة (معطل)</button>
             <div id="restoreTestContainer"></div>
         </div>
 
@@ -164,7 +179,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, getDocs, doc, getDoc, deleteDoc, addDoc, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -382,7 +397,7 @@
                                                     'غير محدد'}</td>
                                                 <td>
                                                     ${index > 0 ? 
-                                                        `<button class="test-btn danger" onclick="deleteDuplicate('${driver.id}')">حذف</button>` : 
+                                                        '<button class="test-btn danger" disabled title="معطل: استخدم صفحة الأرشيف المعتمدة">حذف (معطل)</button>' :
                                                         '<span class="badge unique">الأصلي</span>'}
                                                 </td>
                                             </tr>
@@ -401,197 +416,18 @@
         };
 
         // Delete duplicate
-        window.deleteDuplicate = async (docId) => {
-            if (!confirm('هل أنت متأكد من حذف هذا السجل المكرر؟')) {
-                return;
-            }
-            
-            try {
-                addLog(`🗑️ محاولة حذف السجل: ${docId}`, 'info');
-                await deleteDoc(doc(db, 'archivedDrivers', docId));
-                addLog(`✅ تم حذف السجل بنجاح: ${docId}`, 'success');
-                
-                // Reload stats and check duplicates again
-                await loadStats();
-                await checkDuplicates();
-            } catch (error) {
-                addLog(`❌ فشل حذف السجل: ${error.message}`, 'error');
-                console.error('Error deleting duplicate:', error);
-            }
+        window.deleteDuplicate = async () => {
+            addLog('⛔ الحذف معطل هنا. استخدم صفحة الأرشيف المعتمدة لتسجيل العملية في سجل التدقيق.', 'warning');
         };
 
         // Test delete operation
         window.testDelete = async () => {
-            try {
-                addLog('🧪 بدء اختبار عملية الحذف...', 'info');
-                
-                const archivedSnapshot = await getDocs(collection(db, 'archivedDrivers'));
-                
-                if (archivedSnapshot.empty) {
-                    addLog('⚠️ لا توجد سجلات للاختبار', 'warning');
-                    document.getElementById('deleteTestContainer').innerHTML = `
-                        <div class="log-entry warning" style="margin-top: 15px;">
-                            ⚠️ لا توجد سجلات مؤرشفة للاختبار
-                        </div>
-                    `;
-                    return;
-                }
-                
-                const firstDoc = archivedSnapshot.docs[0];
-                const testId = firstDoc.id;
-                const testData = firstDoc.data();
-                
-                addLog(`📋 سيتم اختبار الحذف على: ${testData.name} (${testId})`, 'info');
-                
-                // Try to delete
-                addLog('🗑️ محاولة الحذف...', 'info');
-                await deleteDoc(doc(db, 'archivedDrivers', testId));
-                addLog('✅ تم الحذف بنجاح من الكود', 'success');
-                
-                // Verify deletion
-                addLog('🔍 التحقق من الحذف...', 'info');
-                const verifyDoc = await getDoc(doc(db, 'archivedDrivers', testId));
-                
-                if (verifyDoc.exists()) {
-                    addLog('❌ فشل الحذف: السجل ما زال موجوداً!', 'error');
-                    document.getElementById('deleteTestContainer').innerHTML = `
-                        <div class="log-entry error" style="margin-top: 15px;">
-                            ❌ فشل الحذف: السجل ما زال موجوداً في قاعدة البيانات!<br>
-                            <strong>المشكلة:</strong> قد تكون هناك مشكلة في صلاحيات Firebase Rules
-                        </div>
-                    `;
-                } else {
-                    addLog('✅ تم التحقق: السجل تم حذفه بنجاح', 'success');
-                    
-                    // Re-add the document for future tests
-                    await addDoc(collection(db, 'archivedDrivers'), testData);
-                    addLog('♻️ تمت إعادة السجل للأرشيف', 'info');
-                    
-                    document.getElementById('deleteTestContainer').innerHTML = `
-                        <div class="log-entry success" style="margin-top: 15px;">
-                            ✅ عملية الحذف تعمل بشكل صحيح!<br>
-                            تم حذف السجل وإعادته بنجاح
-                        </div>
-                    `;
-                }
-                
-                await loadStats();
-                
-            } catch (error) {
-                addLog(`❌ خطأ في اختبار الحذف: ${error.message}`, 'error');
-                console.error('Error testing delete:', error);
-                
-                document.getElementById('deleteTestContainer').innerHTML = `
-                    <div class="log-entry error" style="margin-top: 15px;">
-                        ❌ خطأ في اختبار الحذف:<br>
-                        <strong>الخطأ:</strong> ${error.message}<br>
-                        <strong>الكود:</strong> ${error.code || 'N/A'}
-                    </div>
-                `;
-            }
+            addLog('⛔ اختبار الحذف معطل. استخدم صفحة الأرشيف المعتمدة.', 'warning');
         };
 
         // Test restore operation
         window.testRestore = async () => {
-            try {
-                addLog('🧪 بدء اختبار عملية الاستعادة...', 'info');
-                
-                const archivedSnapshot = await getDocs(collection(db, 'archivedDrivers'));
-                
-                if (archivedSnapshot.empty) {
-                    addLog('⚠️ لا توجد سجلات للاختبار', 'warning');
-                    document.getElementById('restoreTestContainer').innerHTML = `
-                        <div class="log-entry warning" style="margin-top: 15px;">
-                            ⚠️ لا توجد سجلات مؤرشفة للاختبار
-                        </div>
-                    `;
-                    return;
-                }
-                
-                const firstDoc = archivedSnapshot.docs[0];
-                const testId = firstDoc.id;
-                const testData = firstDoc.data();
-                
-                addLog(`📋 سيتم اختبار الاستعادة على: ${testData.name} (${testId})`, 'info');
-                
-                // Check if already exists in drivers
-                const existingQuery = query(collection(db, 'drivers'), where('phone', '==', testData.phone));
-                const existingSnapshot = await getDocs(existingQuery);
-                
-                if (!existingSnapshot.empty) {
-                    addLog('⚠️ السائق موجود بالفعل في القائمة النشطة', 'warning');
-                    document.getElementById('restoreTestContainer').innerHTML = `
-                        <div class="log-entry warning" style="margin-top: 15px;">
-                            ⚠️ لا يمكن اختبار الاستعادة: السائق موجود بالفعل في القائمة النشطة
-                        </div>
-                    `;
-                    return;
-                }
-                
-                // Prepare restore data
-                const restoreData = { ...testData };
-                delete restoreData.id;
-                delete restoreData.isArchived;
-                delete restoreData.archivedAt;
-                delete restoreData.archivedBy;
-                delete restoreData.archiveReason;
-                restoreData.restoredAt = new Date();
-                restoreData.restoredBy = currentUser.name || currentUser.email;
-                
-                // Step 1: Add to drivers
-                addLog('📝 الخطوة 1: إضافة إلى drivers...', 'info');
-                const newDriverRef = await addDoc(collection(db, 'drivers'), restoreData);
-                addLog(`✅ تمت الإضافة بنجاح: ${newDriverRef.id}`, 'success');
-                
-                // Step 2: Delete from archive
-                addLog('🗑️ الخطوة 2: حذف من الأرشيف...', 'info');
-                await deleteDoc(doc(db, 'archivedDrivers', testId));
-                addLog('✅ تم الحذف من الأرشيف بنجاح', 'success');
-                
-                // Step 3: Verify
-                addLog('🔍 الخطوة 3: التحقق...', 'info');
-                const verifyArchive = await getDoc(doc(db, 'archivedDrivers', testId));
-                const verifyDriver = await getDoc(doc(db, 'drivers', newDriverRef.id));
-                
-                if (verifyArchive.exists()) {
-                    addLog('❌ فشل: السجل ما زال في الأرشيف!', 'error');
-                } else {
-                    addLog('✅ تم التحقق: السجل تم حذفه من الأرشيف', 'success');
-                }
-                
-                if (verifyDriver.exists()) {
-                    addLog('✅ تم التحقق: السجل موجود في drivers', 'success');
-                } else {
-                    addLog('❌ فشل: السجل غير موجود في drivers!', 'error');
-                }
-                
-                // Restore back to archive for future tests
-                addLog('♻️ إعادة السائق للأرشيف...', 'info');
-                await deleteDoc(doc(db, 'drivers', newDriverRef.id));
-                await addDoc(collection(db, 'archivedDrivers'), testData);
-                addLog('✅ تمت الإعادة بنجاح', 'success');
-                
-                document.getElementById('restoreTestContainer').innerHTML = `
-                    <div class="log-entry success" style="margin-top: 15px;">
-                        ✅ عملية الاستعادة تعمل بشكل صحيح!<br>
-                        تم نقل السائق من الأرشيف إلى القائمة النشطة وإعادته
-                    </div>
-                `;
-                
-                await loadStats();
-                
-            } catch (error) {
-                addLog(`❌ خطأ في اختبار الاستعادة: ${error.message}`, 'error');
-                console.error('Error testing restore:', error);
-                
-                document.getElementById('restoreTestContainer').innerHTML = `
-                    <div class="log-entry error" style="margin-top: 15px;">
-                        ❌ خطأ في اختبار الاستعادة:<br>
-                        <strong>الخطأ:</strong> ${error.message}<br>
-                        <strong>الكود:</strong> ${error.code || 'N/A'}
-                    </div>
-                `;
-            }
+            addLog('⛔ اختبار الاستعادة معطل. استخدم صفحة الأرشيف المعتمدة.', 'warning');
         };
     </script>
 </body>

@@ -410,7 +410,7 @@ body {
         <option value="ERROR">ERROR</option>
       </select>
       <button class="hdr-btn" onclick="copyLogs()">📋 نسخ</button>
-      <button class="hdr-btn" onclick="sendCmd('dump_logs','جلب سجلات حية')">🔄 تحديث من الجهاز</button>
+      <button class="hdr-btn" disabled title="إرسال الأوامر معطل في صفحة التشخيص القديمة">🔄 تحديث من الجهاز (معطل)</button>
     </div>
     <div class="logs-list" id="logsList"></div>
     <div style="margin-top:8px; font-size:11px; color:var(--muted);">
@@ -554,41 +554,45 @@ body {
 <div class="tab-content" data-tab="cmds">
   <div class="card">
     <h2>🎛️ أوامر بعيدة (Remote Commands)</h2>
+    <div class="alert-banner warn show" style="margin-bottom:14px;">
+      ⛔ إرسال الأوامر معطل في صفحة التشخيص القديمة. العرض والسجلات للقراءة فقط.
+      استخدم <a href="tracking-management.html" style="color:inherit;font-weight:bold;">صفحة إدارة التتبع المعتمدة</a>.
+    </div>
     <div class="cmd-grid">
-      <button class="cmd-btn" onclick="sendCmd('snapshot','snapshot فوري')">
+      <button class="cmd-btn" disabled title="إرسال الأوامر معطل">
         <span class="cmd-icon">📸</span><span class="cmd-lbl">Snapshot فوري</span>
         <span class="cmd-desc">تحديث البيانات الآن</span></button>
-      <button class="cmd-btn" onclick="sendCmd('run_full_diagnostic','تشخيص شامل')">
+      <button class="cmd-btn" disabled title="إرسال الأوامر معطل">
         <span class="cmd-icon">🔬</span><span class="cmd-lbl">تشخيص شامل</span>
         <span class="cmd-desc">تقرير كامل في diagnosticReports</span></button>
-      <button class="cmd-btn" onclick="sendCmd('dump_logs','جلب السجلات')">
+      <button class="cmd-btn" disabled title="إرسال الأوامر معطل">
         <span class="cmd-icon">📜</span><span class="cmd-lbl">جلب السجلات</span>
         <span class="cmd-desc">آخر 200 console.log</span></button>
-      <button class="cmd-btn" onclick="sendCmd('get_current_position','موقع فوري')">
+      <button class="cmd-btn" disabled title="إرسال الأوامر معطل">
         <span class="cmd-icon">📍</span><span class="cmd-lbl">موقع فوري</span>
         <span class="cmd-desc">getCurrentPosition</span></button>
-      <button class="cmd-btn warn" onclick="sendCmd('flush_queue','رفع الطابور')">
+      <button class="cmd-btn warn" disabled title="إرسال الأوامر معطل">
         <span class="cmd-icon">🚀</span><span class="cmd-lbl">رفع الطابور</span>
         <span class="cmd-desc">sync() للنقاط المتراكمة</span></button>
-      <button class="cmd-btn warn" onclick="sendCmd('cycle_wakelock','دورة Wakelock')">
+      <button class="cmd-btn warn" disabled title="إرسال الأوامر معطل">
         <span class="cmd-icon">🔋</span><span class="cmd-lbl">دورة Wakelock</span>
         <span class="cmd-desc">يكسر دورة HwPFWService</span></button>
-      <button class="cmd-btn warn" onclick="sendCmd('cycle_honor_wakelock','دورة HONOR')">
+      <button class="cmd-btn warn" disabled title="إرسال الأوامر معطل">
         <span class="cmd-icon">🦁</span><span class="cmd-lbl">HONOR Wakelock</span>
         <span class="cmd-desc">إعادة بناء wakelock HONOR</span></button>
-      <button class="cmd-btn danger" onclick="sendCmd('restart_rnbg','إعادة تشغيل RNBG')">
+      <button class="cmd-btn danger" disabled title="إرسال الأوامر معطل">
         <span class="cmd-icon">🔄</span><span class="cmd-lbl">إعادة RNBG</span>
         <span class="cmd-desc">Hard restart للتتبع</span></button>
-      <button class="cmd-btn danger" onclick="sendCmd('open_power_manager','فتح إعدادات HONOR')">
+      <button class="cmd-btn danger" disabled title="إرسال الأوامر معطل">
         <span class="cmd-icon">⚙️</span><span class="cmd-lbl">إعدادات OEM</span>
         <span class="cmd-desc">يفتح Protected Apps</span></button>
-      <button class="cmd-btn danger" onclick="sendCmd('invalidate_honor_perms','إلغاء صلاحيات HONOR')">
+      <button class="cmd-btn danger" disabled title="إرسال الأوامر معطل">
         <span class="cmd-icon">❌</span><span class="cmd-lbl">إلغاء HONOR</span>
         <span class="cmd-desc">يفرض إعادة طلبها</span></button>
-      <button class="cmd-btn warn" onclick="sendCmd('reset_counters','تصفير العدادات')">
+      <button class="cmd-btn warn" disabled title="إرسال الأوامر معطل">
         <span class="cmd-icon">🔢</span><span class="cmd-lbl">تصفير العدادات</span>
         <span class="cmd-desc">restart/silent_death counts</span></button>
-      <button class="cmd-btn danger" onclick="sendCmd('reload_app','إعادة تحميل التطبيق')">
+      <button class="cmd-btn danger" disabled title="إرسال الأوامر معطل">
         <span class="cmd-icon">♻️</span><span class="cmd-lbl">إعادة التطبيق</span>
         <span class="cmd-desc">reload JS bundle</span></button>
     </div>
@@ -1373,17 +1377,7 @@ function setupFcmListener() {
 
 // ===== COMMANDS =====
 window.sendCmd = async function(cmdType, label) {
-  if (!confirm(`إرسال أمر "${label}" للسائق ${driverId}؟`)) return;
-  try {
-    const cmdId = 'cmd_' + Date.now();
-    await db.collection('driverDiagnostics').doc(driverId)
-      .collection('commands').doc(cmdId).set({
-        type: cmdType, status: 'pending',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        triggeredBy: 'admin_diagnostics',
-      });
-    showToast(`✅ أُرسل: ${label}`, 'success');
-  } catch (e) { showToast('❌ ' + e.message, 'error'); }
+  showToast('⛔ إرسال الأوامر معطل في صفحة التشخيص القديمة. استخدم tracking-management.html.', 'error');
 };
 
 function setupCmdHistoryListener() {

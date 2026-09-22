@@ -29,8 +29,11 @@
     <h1>🔢 ترقيم السجلات القديمة بأثر رجعي</h1>
     
     <div class="warning-box">
-        ⚠️ <strong>تحذير:</strong> هذه الصفحة ستضيف حقل <code>refNum</code> لجميع السجلات الموجودة في قاعدة البيانات.
-        يُنصح بعدم تشغيل هذه العملية أكثر من مرة واحدة.
+        ⛔ <strong>عملية الترقيم معطلة في أداة الصيانة القديمة.</strong>
+        الفحص أدناه للقراءة فقط. نفّذ التعديلات من الصفحات المعتمدة:
+        <a href="revenues.html" style="color:inherit">الإيرادات</a>،
+        <a href="expenses.html" style="color:inherit">المصروفات</a>،
+        <a href="driver-payments.html" style="color:inherit">دفعات السائقين</a>.
     </div>
     
     <div class="stats">
@@ -50,7 +53,7 @@
     
     <div class="card">
         <button class="btn" id="scanBtn" onclick="scanData()">🔍 فحص البيانات أولاً</button>
-        <button class="btn btn-danger" id="migrateBtn" onclick="startMigration()" disabled>🚀 بدء الترقيم بأثر رجعي</button>
+        <button class="btn btn-danger" id="migrateBtn" disabled title="معطل: استخدم الصفحات المعتمدة">🚫 بدء الترقيم بأثر رجعي (معطل)</button>
     </div>
     
     <div class="card">
@@ -133,9 +136,7 @@
                              (scannedData.expenses.length - expWithRef) + 
                              (scannedData.payments.length - payWithRef);
             log(`📊 إجمالي السجلات التي ستُرقَّم: ${totalNew} سجل`, 'warn');
-            log('الفحص اكتمل. اضغط "بدء الترقيم" للمتابعة.', 'success');
-            
-            document.getElementById('migrateBtn').disabled = false;
+            log('الفحص اكتمل (قراءة فقط). الترقيم معطل في هذه الأداة القديمة.', 'success');
         } catch (err) {
             log(`❌ خطأ: ${err.message}`, 'error');
             document.getElementById('scanBtn').disabled = false;
@@ -143,89 +144,7 @@
     }
 
     async function startMigration() {
-        document.getElementById('migrateBtn').disabled = true;
-        document.getElementById('scanBtn').disabled = true;
-        log('═══════════════════════════════════', 'info');
-        log('🚀 بدء عملية الترقيم...', 'warn');
-
-        try {
-            // ترقيم الإيرادات
-            log('--- ترقيم الإيرادات ---', 'info');
-            // تجميع السجلات حسب اليوم
-            const revByDay = {};
-            scannedData.revenues.forEach(r => {
-                const day = r.date || '1970-01-01';
-                if (!revByDay[day]) revByDay[day] = [];
-                revByDay[day].push(r);
-            });
-            let revUpdated = 0;
-            for (const day of Object.keys(revByDay).sort()) {
-                let seq = 1;
-                for (const rev of revByDay[day]) {
-                    if (!rev.refNum) {
-                        const refNum = generateRefNum('REV', day, seq);
-                        await db.collection('revenues').doc(rev.id).update({ refNum });
-                        log(`  REV: ${rev.id} → ${refNum}`, 'success');
-                        revUpdated++;
-                    }
-                    seq++;
-                }
-            }
-            log(`✅ تم ترقيم ${revUpdated} إيراد`, 'success');
-
-            // ترقيم المصروفات
-            log('--- ترقيم المصروفات ---', 'info');
-            const expByDay = {};
-            scannedData.expenses.forEach(e => {
-                const day = e.date || '1970-01-01';
-                if (!expByDay[day]) expByDay[day] = [];
-                expByDay[day].push(e);
-            });
-            let expUpdated = 0;
-            for (const day of Object.keys(expByDay).sort()) {
-                let seq = 1;
-                for (const exp of expByDay[day]) {
-                    if (!exp.refNum) {
-                        const refNum = generateRefNum('EXP', day, seq);
-                        await db.collection('expenses').doc(exp.id).update({ refNum });
-                        log(`  EXP: ${exp.id} → ${refNum}`, 'success');
-                        expUpdated++;
-                    }
-                    seq++;
-                }
-            }
-            log(`✅ تم ترقيم ${expUpdated} مصروف`, 'success');
-
-            // ترقيم دفعات السائقين
-            log('--- ترقيم دفعات السائقين ---', 'info');
-            const payByDay = {};
-            scannedData.payments.forEach(p => {
-                const day = p.date || '1970-01-01';
-                if (!payByDay[day]) payByDay[day] = [];
-                payByDay[day].push(p);
-            });
-            let payUpdated = 0;
-            for (const day of Object.keys(payByDay).sort()) {
-                let seq = 1;
-                for (const pay of payByDay[day]) {
-                    if (!pay.refNum) {
-                        const refNum = generateRefNum('PAY', day, seq);
-                        await db.collection('driverPayments').doc(pay.id).update({ refNum });
-                        log(`  PAY: ${pay.id} → ${refNum}`, 'success');
-                        payUpdated++;
-                    }
-                    seq++;
-                }
-            }
-            log(`✅ تم ترقيم ${payUpdated} دفعة سائق`, 'success');
-
-            log('═══════════════════════════════════', 'info');
-            log(`🎉 اكتملت العملية! تم ترقيم ${revUpdated + expUpdated + payUpdated} سجل بنجاح`, 'success');
-            log('يمكنك الآن إغلاق هذه الصفحة والعودة للنظام.', 'success');
-        } catch (err) {
-            log(`❌ خطأ أثناء الترقيم: ${err.message}`, 'error');
-            document.getElementById('migrateBtn').disabled = false;
-        }
+        log('⛔ الترقيم معطل في هذه الأداة. استخدم الصفحات المعتمدة لضمان تسجيل التدقيق.', 'warn');
     }
 </script>
 </body>

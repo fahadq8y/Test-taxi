@@ -1,96 +1,11 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ربط السائقين - نظام التاكسي</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-        }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-        }
-        .btn {
-            padding: 15px 30px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 18px;
-            cursor: pointer;
-            width: 100%;
-        }
-        .log {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            max-height: 400px;
-            overflow-y: auto;
-            margin-top: 20px;
-        }
-    </style>
-</head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>إدارة حسابات السائقين</title></head>
 <body>
-    <div class="container">
-        <h1>🔗 ربط السائقين بـ Firebase</h1>
-        <button class="btn" onclick="startLinking()">🚀 بدء الربط</button>
-        <div class="log" id="log"></div>
-    </div>
-
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
-            authDomain: "taxi-management-system-d8210.firebaseapp.com",
-            projectId: "taxi-management-system-d8210",
-            storageBucket: "taxi-management-system-d8210.firebasestorage.app",
-            messagingSenderId: "720874424166",
-            appId: "1:720874424166:web:25f9c6d126e792b2e5eaa7"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-
-        function addLog(msg) {
-            document.getElementById('log').innerHTML += msg + '<br>';
-        }
-
-        async function startLinking() {
-            addLog('🚀 بدء العملية...');
-            
-            const driversSnapshot = await db.collection('drivers').get();
-            addLog(`✅ تم جلب ${driversSnapshot.size} سائق`);
-
-            for (const doc of driversSnapshot.docs) {
-                const driver = doc.data();
-                const name = driver.name || driver.driverName;
-                
-                if (!name) continue;
-
-                const userId = `driver_${name.replace(/\s/g, '_')}_${Date.now()}`;
-                
-                await db.collection('users').doc(userId).set({
-                    name: name,
-                    password: '123456',
-                    role: 'driver',
-                    isActive: true,
-                    driverId: doc.id
-                });
-
-                addLog(`✅ ${name}`);
-            }
-
-            addLog('🎉 اكتملت العملية!');
-        }
-    </script>
+<main>
+<h1>تم إيقاف أداة الربط القديمة</h1>
+<p>لحماية الحسابات، لا يمكن إنشاء حسابات أو كلمات مرور من هذه الصفحة. استخدم إدارة المستخدمين المصرح بها.</p>
+<a href="user-management.html">الانتقال إلى إدارة المستخدمين</a>
+</main>
 </body>
 </html>

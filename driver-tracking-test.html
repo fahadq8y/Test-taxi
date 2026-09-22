@@ -144,6 +144,11 @@
 <body>
     <div class="container">
         <h1>🚕 مرحباً بك</h1>
+
+        <div class="info" style="background:#fff3cd;color:#856404;">
+            ⛔ إرسال الموقع معطل في صفحة الاختبار القديمة.
+            استخدم <a href="tracking.html" style="color:inherit;font-weight:bold;">صفحة التتبع المعتمدة</a>.
+        </div>
         
         <div class="info">
             <p><strong>الحالة:</strong> <span class="status active" id="status">نشط</span></p>
@@ -180,7 +185,7 @@
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-        import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        import { getFirestore, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -225,12 +230,9 @@
             };
 
             try {
-                // Save to Firestore
-                await setDoc(doc(db, 'driverLocations', driverId), locationData);
-                
-                // Debug info (hidden)
+                // Legacy test routes must never publish live driver locations.
                 const debugInfo = `
-                    ✅ تم إرسال الموقع<br>
+                    ⛔ الإرسال معطل في صفحة الاختبار القديمة. استخدم <a href="tracking.html">صفحة التتبع المعتمدة</a>.<br>
                     📍 Lat: ${position.coords.latitude.toFixed(6)}<br>
                     📍 Lng: ${position.coords.longitude.toFixed(6)}<br>
                     🎯 Accuracy: ${position.coords.accuracy.toFixed(0)}m<br>
@@ -238,7 +240,7 @@
                 `;
                 document.getElementById('debugInfo').innerHTML = debugInfo;
                 
-                console.log('Location sent:', locationData);
+                console.log('Location write blocked on legacy test route:', locationData);
             } catch (error) {
                 console.error('Error sending location:', error);
                 document.getElementById('debugInfo').innerHTML = `❌ خطأ: ${error.message}`;

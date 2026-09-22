@@ -17,6 +17,7 @@
     violations:'المخالفات',residencyFees:'رسوم الإقامة',driverBalance:'رصيد السائق',isArchived:'الأرشفة',isActive:'حالة النشاط'
   };
   const label = (v,kind='enum') => {
+    if(root.AuditHistory) return root.AuditHistory.label(v);
     if(v==null||v==='')return 'غير مسجل';
     const key=String(v), mapped=(kind==='field'?fieldLabels:enumLabels)[key];
     if(mapped)return mapped;
@@ -51,6 +52,7 @@
     return [...ids];
   }
   function deltas(e) {
+    if(root.AuditHistory)return root.AuditHistory.deltas(e);
     const result = [];
     const changes = Array.isArray(e.changes) ? e.changes : [];
     for (const c of changes) {
@@ -74,6 +76,8 @@
     if ((f.from || f.to) && !d) return false;
     if (f.from && d < new Date(f.from + 'T00:00:00')) return false;
     if (f.to && d >= new Date(new Date(f.to + 'T00:00:00').setDate(new Date(f.to + 'T00:00:00').getDate() + 1))) return false;
+    if(f.actor && String(e.editedById||e.editedBy||'')!==f.actor)return false;
+    if(f.source && String(e.source||'')!==f.source)return false;
     return !f.action || String(e.action || '') === f.action;
   }
   const core = {driverIds, deltas, matches, date};
@@ -117,7 +121,7 @@
   };
 
   const state = {id:null, tab:'summary', filters:{}, cursor:null, complete:false, busy:false, error:'', events:new Map(), open:new Set()};
-  const monitor = {q:'',from:'',to:'',action:'',type:'',role:'',decision:''};
+  const monitor = {q:'',from:'',to:'',action:'',type:'',role:'',actor:'',source:'',decision:''};
   const reviews = new Map();
   let historyUnsubscribe=null, historyGeneration=0;
   const sources = () => ({payments:gPayments,expenses:gExpenses,revenues:gRevenues});
@@ -131,18 +135,7 @@
   const filters = tab => state.filters[tab] || (state.filters[tab] = {q:'',from:'',to:'',action:''});
   const raw = (label, value) => `<details><summary>${esc(label)}</summary><pre class="od-json">${esc(text(value))}</pre></details>`;
   function eventHtml(e) {
-    const delta = deltas(e);
-    const change = Array.isArray(e.changes) ? e.changes : [];
-    return `<details class="card od-event" data-event="${esc(e.id)}"${state.open.has(e.id)?' open':''}>
-      <summary>${esc(label(e.action || 'عملية'))} · ${esc(label(e.recordType || 'نوع غير مسجل'))} · ${esc(date(e.timestamp)?.toLocaleString('ar-KW') || 'وقت غير مسجل')}
-      <span class="badge">${esc(reviewLabels[reviews.get(e.id)?.decision] || 'لم تتم المراجعة')}</span>
-      ${String(e.status).toLowerCase()==='voided'?'<strong class="badge">ملغاة · محفوظة للتدقيق</strong>':''}</summary>
-      <p>${esc(e.editedBy || e.createdBy || e.actor?.email || 'محرر غير مسجل')} · ${esc(label(e.editedByRole || e.actorRole || e.actor?.role || 'دور غير مسجل'))} · ${esc(e.recordId || e.id)}</p>
-      <p>${delta.length ? delta.map(d => esc((d.kind==='amount'?'فرق مبلغ (ليس فرق الدين)':'فرق دين مسجل')+' · '+label(d.field,'field')+': '+d.value)).join('<br>') : 'فرق مالي غير معروف — لا توجد قيمتان تاريخيتان مكتملتان'}</p>
-      ${change.length ? change.map(c=>`<div class="od-change"><b>${esc(label(c.field || c.key,'field'))}</b><div>قبل: ${esc(text(c.oldValue ?? c.before))}</div><div>بعد: ${esc(text(c.newValue ?? c.after))}</div></div>`).join('') : '<p>لا توجد قائمة تغييرات محفوظة؛ لا يتم استنتاج قيم سابقة من الوضع الحالي.</p>'}
-      ${['fullSnapshotBefore','fullSnapshotAfter','fullSnapshot'].filter(k=>e[k]!=null).map(k=>raw(k,e[k])).join('')}
-      ${raw('جميع الحقول المسجلة',e)}
-      <button class="btn outline od-review" data-id="${esc(e.id)}">قرار المراجعة وسجل القرارات</button><div class="od-review-box" aria-live="polite"></div></details>`;
+    return `<details class="card od-event" data-event="${esc(e.id)}"${state.open.has(e.id)?' open':''}><summary>${esc(label(e.action))} · ${esc(label(e.recordType))} · ${esc(date(e.timestamp)?.toLocaleString('ar-KW')||'وقت غير مسجل')} · ${esc(reviewLabels[reviews.get(e.id)?.decision]||reviewLabels.pending)}</summary>${root.AuditHistory.renderEvent(e,events())}<button class="btn outline od-review" data-id="${esc(e.id)}">قرار المراجعة وسجل القرارات</button><div class="od-review-box" aria-live="polite"></div></details>`;
   }
   function tools(tab) {
     const f=filters(tab);
@@ -226,7 +219,11 @@
       host.addEventListener('toggle',e=>{if(e.target.matches('.od-event')){if(e.target.open)state.open.add(e.target.dataset.event);else state.open.delete(e.target.dataset.event);}},true);
     }
     const all=events(), role=e=>String(e.editedByRole||e.actorRole||e.actor?.role||'غير مسجل');
-    for(const [k,get] of [['action',e=>String(e.action||'')],['type',e=>String(e.recordType||'')],['role',role]]) {
+    for(const k of ['actor','source']) if(!host.querySelector(`[data-monitor-filter="${k}"]`)) {
+      const node=document.createElement('label');node.textContent=k==='actor'?'هوية المحرر':'صفحة المصدر';
+      const select=document.createElement('select');select.dataset.monitorFilter=k;node.appendChild(select);host.querySelector('.od-filters').appendChild(node);
+    }
+    for(const [k,get] of [['action',e=>String(e.action||'')],['type',e=>String(e.recordType||'')],['role',role],['actor',e=>String(e.editedById||e.editedBy||'')],['source',e=>String(e.source||'')]]) {
       const select=host.querySelector(`[data-monitor-filter="${k}"]`);
       const values=[...new Set([...all.map(get),monitor[k]])].filter(Boolean).sort();
       select.innerHTML='<option value="">الكل</option>'+values.map(v=>`<option value="${esc(v)}"${v===monitor[k]?' selected':''}>${esc(label(v))}</option>`).join('');

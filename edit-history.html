@@ -668,7 +668,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="audit-history.js?v=202605-audit2"></script>
+    <script src="audit-history.js?v=202609-audit3"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -775,6 +775,13 @@
 
         // ======== تطبيق الفلاتر ========
         function applyFilters() {
+            for (const [id,title,get] of [['actorFilter','هوية المحرر',e=>AuditHistory.normalize(e).editedById||e.editedBy||''],['sourceFilter','صفحة المصدر',e=>AuditHistory.normalize(e).source],['actionFilter','',e=>AuditHistory.normalize(e).action],['recordTypeFilter','',e=>e.recordType]]) {
+                let select=document.getElementById(id);
+                if(!select){const box=document.createElement('label');box.textContent=title;select=document.createElement('select');select.id=id;select.onchange=applyFilters;box.appendChild(select);document.querySelector('.filter-grid').appendChild(box);}
+                const current=select.value;
+                select.replaceChildren(new Option('الجميع',''),...[...new Set(allHistory.map(get).filter(Boolean))].sort().map(v=>new Option(AuditHistory.label(v),v)));
+                select.value=current;
+            }
             const searchText = document.getElementById('searchText').value.toLowerCase().trim();
             const actionFilter = document.getElementById('actionFilter').value;
             const recordTypeFilter = document.getElementById('recordTypeFilter').value;
@@ -783,6 +790,9 @@
             const toDate = document.getElementById('toDate').value;
 
             filteredHistory = allHistory.filter(item => {
+                item=AuditHistory.normalize(item);
+                if(document.getElementById('actorFilter').value && document.getElementById('actorFilter').value!==(item.editedById||item.editedBy||''))return false;
+                if(document.getElementById('sourceFilter').value && document.getElementById('sourceFilter').value!==item.source)return false;
                 if (searchText) {
                     const searchFields = AuditHistory.searchText(item);
                     if (!searchFields.includes(searchText)) return false;
@@ -943,6 +953,25 @@
           };
 
           function displayHistory() {
+            const tbody=document.getElementById('historyTableBody'), mobile=document.getElementById('mobileHistoryCards');
+            tbody.replaceChildren();mobile.replaceChildren();
+            totalPages=Math.ceil(filteredHistory.length/itemsPerPage);
+            const start=(currentPage-1)*itemsPerPage, end=Math.min(start+itemsPerPage,filteredHistory.length);
+            for(const item of filteredHistory.slice(start,end)){
+                for(const target of [tbody,mobile]){
+                    const wrapper=document.createElement(target===tbody?'tr':'div');
+                    const cell=target===tbody?document.createElement('td'):wrapper;
+                    if(target===tbody){cell.colSpan=11;wrapper.appendChild(cell);}
+                    cell.innerHTML=AuditHistory.renderEvent(item,allHistory);
+                    if(isRestorable(item)){const button=document.createElement('button');button.textContent='♻️ استعادة';button.onclick=()=>restoreRecord(item.id);cell.appendChild(button);}
+                    target.appendChild(wrapper);
+                }
+            }
+            if(!filteredHistory.length){tbody.innerHTML='<tr><td colspan="11">لا توجد سجلات تطابق البحث</td></tr>';mobile.textContent='لا توجد سجلات تطابق البحث';}
+            updatePagination(filteredHistory.length?start+1:0,end,filteredHistory.length);
+        }
+          function legacyDisplayHistory() {
+            return displayHistory();
             const tbody = document.getElementById('historyTableBody');
             const mobileContainer = document.getElementById('mobileHistoryCards');
 
@@ -1124,6 +1153,7 @@
 
         // ======== مسح الفلاتر ========
         function clearFilters() {
+            for(const id of ['actorFilter','sourceFilter'])if(document.getElementById(id))document.getElementById(id).value='';
             document.getElementById('searchText').value = '';
             document.getElementById('actionFilter').value = '';
             document.getElementById('recordTypeFilter').value = '';
@@ -1135,6 +1165,14 @@
 
         // ======== عرض التفاصيل ========
         function showDetails(historyId) {
+            const event=allHistory.find(h=>h.id===historyId);
+            if(!event)return;
+            document.getElementById('detailsModalTitle').textContent=AuditHistory.label(event.action);
+            document.getElementById('detailsModalBody').innerHTML=AuditHistory.renderEvent(event,allHistory);
+            document.getElementById('detailsModal').style.display='block';
+        }
+        function legacyShowDetails(historyId) {
+            return showDetails(historyId);
             const item = allHistory.find(h => h.id === historyId);
             if (!item) return;
 

@@ -196,7 +196,9 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, doc, getDoc, getDocs, query, orderBy, limit, onSnapshot, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { setDoc, deleteDoc, auditedMutations } from './module-audit.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -980,19 +982,10 @@ async function doSave() {
       else sets[k] = v;
     });
     sets.lastModified = serverTimestamp();
-    sets.lastModifiedBy = 'admin'; // TODO: hook up to auth user
+    sets.lastModifiedBy = getAuth(app).currentUser?.uid || null;
 
     const updatePayload = { ...sets, ...deletes };
     await setDoc(path, updatePayload, { merge: true });
-
-    // Add to history collection
-    await addDoc(collection(db,'appConfig','configHistory','entries'), {
-      timestamp: serverTimestamp(),
-      scope: isGlobal ? 'global' : 'driver',
-      driverId: isGlobal ? null : currentSelection.id,
-      changes: Object.fromEntries(Object.entries(pendingChanges).map(([k,v]) => [k, v==='__DELETE__'?'__DELETED__':v])),
-      modifiedBy: 'admin'
-    }).catch(()=>{});
 
     toast(`تم حفظ ${Object.keys(pendingChanges).length} تغيير ✓`,'success');
     pendingChanges = {};
@@ -1031,16 +1024,12 @@ async function applyToMultiple() {
   if (!confirm(`تطبيق ${Object.keys(sourceConfig).length} إعداد على ${selectedMultiDrivers.size} سائق؟`)) return;
 
   try {
-    const promises = [];
+    const operations = [];
     selectedMultiDrivers.forEach(driverId => {
       const path = doc(db,'appConfig','driverConfigs','drivers',driverId);
-      promises.push(setDoc(path, { ...sourceConfig, lastModified: serverTimestamp(), lastModifiedBy: 'admin (multi-apply from '+currentSelection.id+')' }, { merge: true }));
+      operations.push({ ref: path, data: { ...sourceConfig, lastModified: serverTimestamp(), lastModifiedBy: getAuth(app).currentUser?.uid || null }, merge: true, action: 'upsert', sourceRecordPath: 'appConfig/driverConfigs/drivers/' + currentSelection.id });
     });
-    await Promise.all(promises);
-    await addDoc(collection(db,'appConfig','configHistory','entries'), {
-      timestamp: serverTimestamp(), scope:'multi', sourceDriver: currentSelection.id,
-      targetDrivers: Array.from(selectedMultiDrivers), changes: sourceConfig, modifiedBy:'admin'
-    }).catch(()=>{});
+    await auditedMutations(db, operations);
     toast(`تم تطبيق الإعدادات على ${selectedMultiDrivers.size} سائق ✓`,'success');
     closeMulti();
     selectedMultiDrivers.clear();

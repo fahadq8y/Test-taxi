@@ -108,7 +108,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, getDocs, doc, getDoc, deleteDoc, updateDoc, addDoc, setDoc, query, where, writeBatch } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, doc, getDoc, query, where, runTransaction, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -281,6 +281,7 @@
 
         // Restore driver using employeeNumber
         
+          /* Disabled legacy non-atomic archive mutations. Never expose these handlers.
           // 🔧 FIX #020 (2026-05-06): Helper موحد لتسجيل في editHistory
           async function logEditHistory(payload) {
               try {
@@ -485,6 +486,62 @@
                 console.error('❌ رسالة الخطأ:', error.message);
                 alert('حدث خطأ في الحذف: ' + error.message);
             }
+        };
+
+        */
+
+        async function restoreArchivedDriver(archiveId, expected) {
+            const user = auth.currentUser;
+            if (!user) throw new Error('يلزم تسجيل الدخول');
+            const auditRef = doc(collection(db, 'editHistory'));
+            await runTransaction(db, async tx => {
+                const profile = await tx.get(doc(db, 'users', user.uid));
+                const archived = await tx.get(doc(db, 'archivedDrivers', archiveId));
+                const active = await tx.get(doc(db, 'drivers', archiveId));
+                if (!profile.exists() || !['admin', 'accountant'].includes(profile.data().role)) throw new Error('لا توجد صلاحية');
+                if (!archived.exists() || active.exists()) throw new Error('السجل تغير أو تمت استعادته؛ أعد تحميل الصفحة');
+                const before = archived.data();
+                const shown = { ...expected };
+                delete shown.id;
+                if (JSON.stringify(before) !== JSON.stringify(shown)) throw new Error('بيانات الأرشيف تغيرت؛ أعد تحميل الصفحة');
+                const after = { ...before };
+                ['isArchived', 'archivedAt', 'archivedBy', 'archiveReason'].forEach(key => delete after[key]);
+                after.restoredAt = serverTimestamp();
+                after.restoredBy = user.uid;
+                after.updatedAt = serverTimestamp();
+                after.updatedBy = user.uid;
+                const event = {
+                    action: 'restore', recordType: 'archive', recordId: archiveId, driverId: archiveId,
+                    driverName: before.name || '', source: 'archived-drivers.html',
+                    actorUid: user.uid, editedByUid: user.uid, editedById: user.uid, editedBy: user.email || user.uid, editedByRole: profile.data().role,
+                    timestamp: serverTimestamp(), fullSnapshotBefore: before, fullSnapshotAfter: after,
+                    changes: [{ field: 'collection', oldValue: 'archivedDrivers', newValue: 'drivers' }]
+                };
+                // Fail closed rather than truncate evidence or split a transaction.
+                if (new TextEncoder().encode(JSON.stringify(event)).length > 700000) throw new Error('حجم سجل التدقيق كبير؛ يلزم تنفيذ آمن من الخادم');
+                tx.set(active.ref, after);
+                tx.delete(archived.ref);
+                tx.set(auditRef, event);
+            });
+        }
+
+        window.restoreDriver = async id => {
+            const expected = archivedDrivers.find(d => d.id === id || d.employeeNumber === id);
+            if (!expected) return alert('السائق غير موجود');
+            if (!confirm('استعادة السائق مع تسجيل تدقيق ذري؟')) return;
+            try {
+                await restoreArchivedDriver(expected.id, expected);
+                await loadArchivedDrivers();
+                displayArchivedDrivers(archivedDrivers);
+                alert('تمت الاستعادة وتسجيل التدقيق بنجاح');
+            } catch (error) { alert('لم تتم الاستعادة: ' + error.message); }
+        };
+
+        window.deletePermanently = async () => {
+            // Web transactions cannot lock a query against new financial children.
+            // Until all child writers share a server-enforced archive lock, even an
+            // empty preflight query cannot prove a complete safe cascading deletion.
+            alert('الحذف النهائي معطل لحماية السجلات المالية. يلزم إجراء خادم ذري بقفل يمنع إضافة سجلات مالية أثناء الحذف، ويحفظ نسخة تدقيق كاملة. لم يتم حذف أي بيانات.');
         };
 
         // Filter archived drivers

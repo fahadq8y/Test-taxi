@@ -536,7 +536,7 @@
     <script src="unified-balance.js?v=033"></script>
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
-        import { getFirestore, doc, getDoc, updateDoc, getDocs, collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+        import { getFirestore, doc, getDoc, updateDoc, getDocs, collection, query, where, onSnapshot, addDoc, serverTimestamp, runTransaction } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
         import { getAuth, signOut, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
         const firebaseConfig = {
@@ -569,6 +569,17 @@
         let driverPayments = [];
         let revenues = [];
         let cars = [];
+
+        function driverAuditActor(role = null) {
+            const user = auth.currentUser;
+            if (!user) throw new Error('يلزم تسجيل الدخول');
+            return {
+                actorUid: user.uid, editedByUid: user.uid, editedById: user.uid,
+                editedBy: user.email || user.uid,
+                editedByRole: user.isAnonymous ? 'anonymous' : (role || 'unverified-driver'),
+                identityVerification: 'unverified', driverOwnershipVerified: false
+            };
+        }
 
         // Parse date from various formats
         function parseDate(dateValue) {
@@ -1134,28 +1145,41 @@
                         shouldRecordOilChange = true;
                     }
                         
-                    await updateDoc(doc(db, 'cars', driverData.assignedCar), carUpdateData);
-                    console.log('✅ تم تحديث بيانات السيارة');
-                    
-                    // Record oil change in history if oil was changed
-                    if (shouldRecordOilChange) {
-                            const { addDoc, collection } = await import('https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js');
-                        const assignedCar = cars.find(car => car.id === driverData.assignedCar);
-                        await addDoc(collection(db, 'oilChangeHistory'), {
-                            carId: driverData.assignedCar,
-                            driverId: driverId,
-                            driverName: driverData.name,
-                            changeDate: oilChangeDate,
-                            kilometers: newKm || (assignedCar ? assignedCar.currentKilometers : 0) || 0,
-                            notes: 'تم التحديث من قبل السائق',
-                            createdAt: new Date(),
-                            createdBy: driverData.name
+                    const carId = driverData.assignedCar;
+                    const expectedCar = cars.find(car => car.id === carId);
+                    const historyRef = doc(collection(db, 'oilChangeHistory'));
+                    const auditRef = doc(collection(db, 'editHistory'));
+                    await runTransaction(db, async tx => {
+                        const driverSnap = await tx.get(doc(db, 'drivers', driverId));
+                        const carSnap = await tx.get(doc(db, 'cars', carId));
+                        if (!auth.currentUser) throw new Error('يلزم تسجيل الدخول');
+                        const profile = auth.currentUser.isAnonymous ? null : await tx.get(doc(db, 'users', auth.currentUser.uid));
+                        const actor = driverAuditActor(profile?.exists() ? profile.data().role : null);
+                        if (!driverSnap.exists() || driverSnap.data().assignedCar !== carId || !carSnap.exists()) throw new Error('تغير تخصيص السيارة');
+                        const before = carSnap.data();
+                        if (!expectedCar || ['currentKilometers', 'lastOilChangeDate', 'lastOilChangeKm'].some(k => JSON.stringify(before[k]) !== JSON.stringify(expectedCar[k]))) throw new Error('تغيرت بيانات السيارة، أعد تحميل الصفحة');
+                        if (oilChangeDate) carUpdateData.lastOilChangeKm = newKm || before.currentKilometers || 0;
+                        if ((!newKm || newKm === before.currentKilometers) &&
+                            (!oilChangeDate || (oilChangeDate === before.lastOilChangeDate && carUpdateData.lastOilChangeKm === before.lastOilChangeKm))) throw new Error('لا يوجد تغيير جديد للحفظ');
+                        const after = { ...before, ...carUpdateData };
+                        tx.update(carSnap.ref, carUpdateData);
+                        if (shouldRecordOilChange) tx.set(historyRef, {
+                            carId, driverId, driverName: driverSnap.data().name || '',
+                            changeDate: oilChangeDate, kilometers: carUpdateData.lastOilChangeKm,
+                            notes: 'تم التحديث من قبل السائق', createdAt: serverTimestamp(),
+                            createdBy: auth.currentUser.uid
                         });
-                        console.log('✅ تم تسجيل تغيير الزيت في السجل');
-                    }
+                        tx.set(auditRef, {
+                            action: 'edit', recordType: 'car', recordId: carId, driverId,
+                            source: 'driver-view.html', ...actor,
+                            timestamp: serverTimestamp(), fullSnapshotBefore: before, fullSnapshotAfter: after,
+                            oilChangeHistoryId: shouldRecordOilChange ? historyRef.id : null,
+                            changes: Object.keys(carUpdateData).map(field => ({ field, oldValue: before[field] ?? null, newValue: after[field] }))
+                        });
+                    });
                 } catch (carError) {
                     console.error('خطأ في تحديث السيارة:', carError);
-                    showMessage('حدث خطأ أثناء تحديث بيانات السيارة', true);
+                    showMessage('لم يتم حفظ بيانات السيارة أو سجل التدقيق: ' + carError.message, true);
                     return;
                 }
 
@@ -1227,8 +1251,20 @@
                   const upd = {};
                   upd[docEditField] = newDate;
                   upd['pendingVerification.' + docEditField] = true;
-                  await updateDoc(doc(db, 'drivers', driverId), upd);
-                  await addDoc(collection(db, 'documentChangeRequests'), {
+                  const field = docEditField;
+                  const requestRef = doc(collection(db, 'documentChangeRequests'));
+                  const auditRef = doc(collection(db, 'editHistory'));
+                  await runTransaction(db, async tx => {
+                  const snap = await tx.get(doc(db, 'drivers', driverId));
+                  if (!auth.currentUser || !snap.exists()) throw new Error('يلزم تسجيل الدخول وسجل سائق صالح');
+                  const profile = auth.currentUser.isAnonymous ? null : await tx.get(doc(db, 'users', auth.currentUser.uid));
+                  const actor = driverAuditActor(profile?.exists() ? profile.data().role : null);
+                  const before = snap.data();
+                  if (JSON.stringify(before[field]) !== JSON.stringify(oldVal)) throw new Error('تغير التاريخ، أعد تحميل الصفحة');
+                  if (oldDate && oldDate.getTime() === newDate.getTime()) throw new Error('لا يوجد تغيير جديد للحفظ');
+                  if (before.pendingVerification?.[field]) throw new Error('يوجد طلب معلق لهذا الحقل؛ انتظر مراجعته');
+                  tx.update(snap.ref, upd);
+                  tx.set(requestRef, {
                       driverId: driverId,
                       driverName: driverData.name || '',
                       employeeNumber: driverData.employeeNumber || driverId,
@@ -1238,9 +1274,19 @@
                       newDate: newDate,
                       status: 'pending',
                       requestedAt: serverTimestamp(),
-                      requestedBy: 'driver',
+                      requestedBy: auth.currentUser.uid,
                       verifiedBy: null,
                       verifiedAt: null
+                  });
+                  tx.set(auditRef, {
+                      action: 'edit', recordType: 'driver', recordId: driverId, driverId,
+                      requestId: requestRef.id, source: 'driver-view.html',
+                      ...actor, timestamp: serverTimestamp(),
+                      fullSnapshotBefore: before,
+                      fullSnapshotAfter: { ...before, [field]: newDate, pendingVerification: { ...before.pendingVerification, [field]: true } },
+                      changes: [{ field, oldValue: before[field] ?? null, newValue: newDate },
+                          { field: 'pendingVerification.' + field, oldValue: before.pendingVerification?.[field] ?? null, newValue: true }]
+                  });
                   });
                   closeDocEdit();
                   showMessage('✅ تم تحديث ' + docEditLabel + ' — بانتظار توثيق المحاسب');

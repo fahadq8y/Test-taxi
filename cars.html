@@ -92,7 +92,8 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, getDocs, addDoc, doc, getDoc, updateDoc, deleteDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, doc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { addDoc, updateDoc, deleteDoc } from './module-audit.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -135,7 +136,7 @@
                     return;
                 }
                 
-                currentUser = { uid: user.uid, ...userData };
+                currentUser = { ...userData, uid: user.uid };
                 
                 await loadCars();
                 await loadDrivers();
@@ -407,7 +408,7 @@
                 displayCars(allCars);
             } catch (error) {
                 console.error('Error deleting car:', error);
-                alert('حدث خطأ في حذف السيارة');
+                alert('لم يتم الحذف: ' + error.message);
             }
         };
 
@@ -424,12 +425,12 @@
                     new Date(document.getElementById('registrationExpiry').value) : null,
                 notes: document.getElementById('carNotes').value,
                 updatedAt: new Date(),
-                updatedBy: currentUser.name || currentUser.email
+                updatedBy: auth.currentUser?.uid || null
             };
 
             if (!editingCarId) {
                 carData.createdAt = new Date();
-                carData.createdBy = currentUser.name || currentUser.email;
+                carData.createdBy = auth.currentUser?.uid || null;
             }
 
             try {
@@ -447,7 +448,7 @@
                 displayCars(allCars);
             } catch (error) {
                 console.error('Error saving car:', error);
-                alert('حدث خطأ في حفظ البيانات');
+                alert('لم يتم الحفظ: ' + error.message);
             }
         });
 

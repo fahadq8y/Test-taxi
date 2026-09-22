@@ -368,7 +368,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, getDocs, doc, getDoc, query, where, onSnapshot, serverTimestamp, runTransaction } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, doc, getDoc, query, where, onSnapshot, serverTimestamp, runTransaction as firestoreRunTransaction } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -483,16 +483,53 @@
         
           // Audit payloads are written by the same transaction/batch as the
           // business mutation.  This helper deliberately does not write.
+          function requireFinancialActor(expectedUid) {
+              const user = auth.currentUser;
+              if (!user || !user.uid || (expectedUid && expectedUid !== user.uid)) {
+                  throw new Error('يلزم تسجيل دخول موثّق قبل تغيير البيانات المالية. أعد تسجيل الدخول.');
+              }
+              return user;
+          }
+
+          // Only audit values are sanitized: never change business values or SDK sentinels.
+          function cleanAuditValue(value) {
+              if (value === undefined) return null;
+              if (Array.isArray(value)) return value.map(cleanAuditValue);
+              if (value && Object.getPrototypeOf(value) === Object.prototype) {
+                  const result = {};
+                  const secretField = /password|passwd|pwd/i.test(String(value.field || ''));
+                  for (const [key, item] of Object.entries(value)) {
+                      if (/password|passwd|pwd/i.test(key)) continue;
+                      result[key] = secretField && /^(oldValue|newValue)$/.test(key) ? null : cleanAuditValue(item);
+                  }
+                  return result;
+              }
+              return value;
+          }
+
+          function runTransaction(database, callback, options) {
+              const actor = requireFinancialActor();
+              return firestoreRunTransaction(database, async tx => {
+                  requireFinancialActor(actor.uid);
+                  const result = await callback(tx);
+                  requireFinancialActor(actor.uid);
+                  return result;
+              }, options);
+          }
+
           function editHistoryData(payload) {
-              const userName = (currentUser && (currentUser.name || currentUser.email))
-                  || localStorage.getItem('userName') || 'غير محدد';
-              return {
-                  editedBy: userName,
-                  editedByRole: (currentUser && currentUser.role) || localStorage.getItem('userRole') || 'unknown',
-                  editedById: auth.currentUser ? auth.currentUser.uid : null,
+              const user = requireFinancialActor();
+              return cleanAuditValue({
                   timestamp: serverTimestamp(),
-                  ...payload
-              };
+                  ...payload,
+                  editedBy: user.displayName || user.email || user.uid,
+                  editedByRole: currentUser && currentUser.uid === user.uid ? (currentUser.role || 'unknown') : 'unknown',
+                  actorUid: user.uid,
+                  actorIdentity: user.isAnonymous ? 'anonymous/unverified' : 'firebase-authenticated',
+                  editedByUid: user.uid,
+                  editedById: user.uid,
+                  source: 'drivers.html'
+              });
           }
 
           function assertAtomicWriteLimit(writeCount, operationName) {
@@ -1470,8 +1507,8 @@
                               ['contractDurationDays', 'مدة العقد (أيام)']
                           ];
                           for (const [k, label] of __fmap) {
-                              const ov = __old[k] ?? '';
-                              const nv = driverData[k] ?? '';
+                              const ov = __old[k] ?? null;
+                              const nv = driverData[k] ?? null;
                               if (String(ov) !== String(nv)) {
                                   __changes.push({ field: k, fieldLabel: label, oldValue: ov, newValue: nv });
                               }
@@ -2138,6 +2175,10 @@
                       tx.set(doc(collection(db, 'editHistory')), editHistoryData({
                           recordType: 'contract', recordId: newContractDriverId, action: 'newContract',
                           contractId,
+                          correlationId: 'contract-renewal:' + newContractDriverId + ':' + contractId,
+                          relatedDriverId: newContractDriverId,
+                          relatedPaymentIds: legacyPostEndPlans.map(p => p.id),
+                          relatedContractIds: [priorContractId, contractId].filter(Boolean),
                           sourceContractId: priorContractId || null,
                           driverId: newContractDriverId, driverName: driver.name || '',
                           description: 'عقد جديد - ' + (newType === 'daily' ? 'يومي' : 'شهري') + ' ' + newRate.toFixed(3) + ' د.ك',
@@ -2146,8 +2187,8 @@
                               type: newType, rate: newRate,
                               startDate: newStart, endDate: newEnd,
                               carryOver: finalCarryOver, carryOverLabel,
-                              oldDebtsBefore: parseFloat(driver.oldDebts || 0),
-                              oldDebtsAfter: newOldDebts
+                              oldDebtsBefore: live.oldDebts ?? null,
+                              oldDebtsAfter: Math.round(parseFloat(live.oldDebts || 0) * 1000) / 1000
                           }
                       }));
                  });
@@ -2635,7 +2676,7 @@
                                 actualEndDate: calc.actualEndDate.toISOString().split('T')[0],
                                 expectedRent: calc.expectedRent, paidRent: calc.paidRent,
                                 carryOver: calc.carryOver,
-                                oldDebtsBefore: parseFloat(driver.oldDebts || 0),
+                                oldDebtsBefore: live.oldDebts ?? null,
                                 oldDebtsAfter: calc.oldDebtsNew,
                                 reason
                             }
@@ -2734,7 +2775,7 @@
                         recordType: 'oldDebts', recordId: editOldDebtsDriverId, action: 'edit',
                         driverId: editOldDebtsDriverId, driverName: driver.name || '',
                         field: 'oldDebts', fieldLabel: 'الديون القديمة',
-                        oldValue, newValue,
+                        oldValue: live.oldDebts ?? null, newValue,
                         fullSnapshotBefore: { ...live, id: editOldDebtsDriverId },
                         fullSnapshotAfter: { ...live, ...businessUpdate, id: editOldDebtsDriverId },
                         description: 'تعديل ديون قديمة من ' + oldValue.toFixed(3) + ' إلى ' + newValue.toFixed(3) + ' د.ك',

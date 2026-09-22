@@ -1235,15 +1235,8 @@
 
         // Open Add Driver Modal
         async function openAddDriverModal() {
-            document.getElementById('driverModal').style.display = 'flex';
-            document.getElementById('driverForm').reset();
-            
-            // Generate employee number for new driver
-            const empNum = await generateEmployeeNumber();
-            document.getElementById('employeeNumber').value = empNum;
-            
-            loadCarsForModal();
-            populateContractDurationOptions();
+            alert('لإضافة سائق بأمان، اضغط «إضافة سائق جديد» في صفحة إدارة السائقين التالية.');
+            window.location.href = 'drivers.html';
         }
 
         // Close Modal
@@ -1420,81 +1413,7 @@
 
         async function saveDriver(event) {
             event.preventDefault();
-            
-            const saveBtn = event.target.querySelector('.save-btn');
-            saveBtn.disabled = true;
-            saveBtn.textContent = 'جاري الحفظ...';
-            
-            try {
-                // Generate employee number for new drivers
-                const employeeNumber = document.getElementById('employeeNumber').value || await generateEmployeeNumber();
-                
-                const contractType = document.getElementById('contractType').value;
-                const driverData = {
-                    name: document.getElementById('driverName').value.trim(),
-                    phone: document.getElementById('driverPhone').value.trim(),
-                    employeeNumber: employeeNumber,
-                    driverId: employeeNumber, // Use employeeNumber as driverId
-                    nationality: document.getElementById('driverNationality').value.trim() || '',
-                    address: document.getElementById('driverAddress').value.trim() || '',
-                    assignedCar: document.getElementById('assignedCar').value || '',
-                    contractType: contractType,
-                    dailyRent: contractType === 'daily' ? (parseFloat(document.getElementById('dailyRent').value) || 0) : 0,
-                    monthlyPayment: contractType === 'monthly' ? (parseFloat(document.getElementById('monthlyPayment').value) || 0) : 0,
-                    // #002: حفظ الأشهر والأيام بشكل منفصل
-                    contractDurationMonths: parseInt(document.getElementById('contractDurationMonths').value) || 0,
-                    contractDurationDays: parseInt(document.getElementById('contractDurationDays').value) || 0,
-                    contractDuration: (parseInt(document.getElementById('contractDurationMonths').value) || 0), // للتوافق مع البيانات القديمة
-                    contractStartDate: document.getElementById('contractStartDate').value ? 
-                        firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('contractStartDate').value)) : null,
-                    contractEndDate: document.getElementById('contractEndDate').value ? 
-                        firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('contractEndDate').value)) : null,
-                    carRegistrationExpiry: document.getElementById('carRegistrationExpiry').value ? 
-                        firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('carRegistrationExpiry').value)) : null,
-                    residencyExpiry: document.getElementById('residencyExpiry').value ? 
-                        firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('residencyExpiry').value)) : null,
-                    licenseExpiry: document.getElementById('licenseExpiry').value ? 
-                        firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('licenseExpiry').value)) : null,
-                    permitExpiry: document.getElementById('permitExpiry').value ? 
-                        firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('permitExpiry').value)) : null,
-                    passportExpiry: document.getElementById('passportExpiry').value ? 
-                        firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('passportExpiry').value)) : null,
-                    oldDebts: parseFloat(document.getElementById('oldDebts').value) || 0,
-                    notes: document.getElementById('driverNotes').value.trim() || '',
-                    isActive: false, // Will be activated when driver starts tracking
-                    isArchived: false,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-                
-                // #003: إنشاء contractHistory عند إضافة سائق جديد
-                driverData.contractHistory = [{
-                    contractType: driverData.contractType,
-                    dailyRent: driverData.dailyRent || 0,
-                    monthlyPayment: driverData.monthlyPayment || 0,
-                    contractDurationMonths: driverData.contractDurationMonths || 0,
-                    contractDurationDays: driverData.contractDurationDays || 0,
-                    startDate: driverData.contractStartDate || firebase.firestore.Timestamp.fromDate(new Date()),
-                    endDate: driverData.contractEndDate || null,
-                    createdAt: firebase.firestore.Timestamp.fromDate(new Date()),
-                    createdBy: driverData.createdBy || '',
-                    note: 'عقد أولي'
-                }];
-                
-                // استخدام employeeNumber كـ Document ID بدلاً من ID عشوائي
-                await db.collection('drivers').doc(employeeNumber).set(driverData);
-                
-                alert('✅ تم إضافة السائق بنجاح!');
-                closeModal();
-                loadData();
-                
-            } catch (error) {
-                console.error('Error saving driver:', error);
-                alert('❌ حدث خطأ في حفظ البيانات: ' + error.message);
-            } finally {
-                saveBtn.disabled = false;
-                saveBtn.textContent = 'حفظ السائق';
-            }
+            return openAddDriverModal();
         }
 
          // Search and filter functionality

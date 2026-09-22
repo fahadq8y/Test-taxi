@@ -40,7 +40,8 @@
   <p class="subtitle">صفحة آمنة لمراجعة وإصلاح 4 سواقين عقودهم تأثرت بمشكلة active=true بعد النهاية</p>
 
   <div class="warning">
-  <strong>⚠️ مهم:</strong> هذه الصفحة <strong>لا تعدّل أي بيانات تلقائياً</strong>. تشوف المعاينة أولاً، وبعدها تختار التطبيق بنفسك.
+  <strong>⛔ مهم:</strong> التطبيق معطل في أداة الصيانة القديمة. القراءة والمعاينة متاحتان فقط.
+  استخدم <a href="drivers.html">صفحة السائقين المعتمدة</a> لأي تعديل مسجل في سجل التدقيق.
   </div>
 
   <div class="danger">
@@ -96,7 +97,7 @@
   <div class="action-row">
   <button class="btn-secondary" onclick="loadCurrent()">🔄 تحديث البيانات الحالية</button>
   <button class="btn-primary" id="btnPreview" onclick="previewChanges()">👁️ معاينة التعديلات</button>
-  <button class="btn-danger" id="btnApply" onclick="applyFixes()" disabled>✅ تطبيق التعديلات (يكتب على Firestore)</button>
+  <button class="btn-danger" id="btnApply" disabled title="معطل: استخدم صفحة السائقين المعتمدة">🚫 تطبيق التعديلات (معطل)</button>
   </div>
 
   <div id="preview" style="margin-top: 20px;"></div>
@@ -188,47 +189,15 @@
     document.getElementById('preview').innerHTML = html;
     
     if (Object.keys(plannedChanges).length) {
-      document.getElementById('btnApply').disabled = false;
-      showStatus(`جاهز لتطبيق التعديلات على ${Object.keys(plannedChanges).length} سائق. راجع الجدول أعلاه ثم اضغط "تطبيق".`, 'success');
+      showStatus(`تمت معاينة التعديلات على ${Object.keys(plannedChanges).length} سائق. التطبيق معطل هنا؛ استخدم صفحة السائقين المعتمدة.`, 'success');
     } else {
       showStatus('✓ كل السواقين متوافقين — لا حاجة لأي تعديل', 'success');
     }
   }
 
   async function applyFixes() {
-    if (!Object.keys(plannedChanges).length) {
-      showStatus('لا توجد تعديلات للتطبيق', 'error');
-      return;
-    }
-    if (!confirm('هل أنت متأكد من تطبيق التعديلات على Firestore؟ هذه العملية لا يمكن التراجع عنها بسهولة.')) return;
-    
-    document.getElementById('btnApply').disabled = true;
-    log('🚀 بدء التطبيق...');
-    let ok = 0, fail = 0;
-    
-    for (const [id, changes] of Object.entries(plannedChanges)) {
-      try {
-        const updates = { ...changes };
-        // إضافة سجل في contractHistory
-        const historyEntry = {
-          action: 'FIX #010 — Phase 2 cleanup',
-          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-          changes: changes,
-          note: 'تم تعيين active=false لأن العقد منتهي (تطبيق آلي بإذن المالك)',
-        };
-        updates.contractHistory = firebase.firestore.FieldValue.arrayUnion(historyEntry);
-        
-        await db.collection('drivers').doc(id).update(updates);
-        log(`  ✓ ${id}: تم التحديث`);
-        ok++;
-      } catch (e) {
-        log(`  ✗ ${id}: فشل — ${e.message}`);
-        fail++;
-      }
-    }
-    
-    showStatus(`اكتمل: ${ok} نجح، ${fail} فشل`, fail === 0 ? 'success' : 'error');
-    log('🏁 انتهى');
+    showStatus('⛔ التطبيق معطل في أداة الصيانة القديمة. استخدم صفحة السائقين المعتمدة.', 'error');
+    log('⛔ تم منع محاولة تعديل من صفحة الصيانة القديمة.');
   }
 
   window.addEventListener('load', () => {

@@ -500,7 +500,8 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, getDocs, addDoc, doc, deleteDoc, getDoc, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, doc, getDoc, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { addDoc, deleteDoc } from './module-audit.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -716,7 +717,7 @@
                 alert('تم حذف الإشعار بنجاح');
             } catch (error) {
                 console.error('Error deleting notification:', error);
-                alert('حدث خطأ في حذف الإشعار');
+                alert('لم يتم الحذف: ' + error.message);
             }
         };
 
@@ -747,9 +748,9 @@
                 message: document.getElementById('notificationMessage').value,
                 recipientType: recipientType,
                 recipients: recipients,
-                createdBy: currentUser.name || currentUser.email,
+                createdBy: auth.currentUser?.email || auth.currentUser?.uid || null,
                 createdAt: new Date(),
-                createdByUid: currentUser.uid
+                createdByUid: auth.currentUser?.uid || null
             };
 
             try {
@@ -759,7 +760,7 @@
                 await loadNotifications();
             } catch (error) {
                 console.error('Error sending notification:', error);
-                alert('حدث خطأ في إرسال الإشعار');
+                alert('لم يتم إرسال الإشعار: ' + error.message);
             }
         });
 

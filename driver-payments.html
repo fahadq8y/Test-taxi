@@ -626,7 +626,69 @@
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        const db = guardedFinanceDb(firebase.firestore());
+
+        function requireFinancialActor(expectedUid) {
+            const user = firebase.auth().currentUser;
+            if (!user || !user.uid || (expectedUid && user.uid !== expectedUid)) {
+                throw new Error('يلزم تسجيل دخول موثّق قبل تغيير البيانات المالية. أعد تسجيل الدخول.');
+            }
+            return user;
+        }
+        function cleanAuditValue(value) {
+            if (value === undefined) return null;
+            if (Array.isArray(value)) return value.map(cleanAuditValue);
+            if (value && Object.getPrototypeOf(value) === Object.prototype) {
+                const result = {};
+                const secretField = /password|passwd|pwd/i.test(String(value.field || ''));
+                for (const [key, item] of Object.entries(value)) {
+                    if (/password|passwd|pwd/i.test(key)) continue;
+                    result[key] = secretField && /^(oldValue|newValue)$/.test(key) ? null : cleanAuditValue(item);
+                }
+                return result;
+            }
+            return value;
+        }
+        function financialAuditData(payload, uid) {
+            const user = requireFinancialActor(uid);
+            return cleanAuditValue({
+                ...payload, actorUid: user.uid, editedByUid: user.uid, editedById: user.uid,
+                editedBy: user.displayName || user.email || user.uid,
+                editedByRole: 'unknown', source: 'driver-payments.html',
+                actorIdentity: user.isAnonymous ? 'anonymous/unverified' : 'firebase-authenticated'
+            });
+        }
+        // Preserve transaction reads/writes and atomicity; normalize only audit documents.
+        function guardedFinanceDb(database) {
+            function guardWriter(writer, uid) {
+                return new Proxy(writer, { get(target, key) {
+                    if (['set', 'update', 'delete', 'commit'].includes(key)) return (...args) => {
+                        requireFinancialActor(uid);
+                        if (key === 'set' && args[0]?.parent?.id === 'editHistory') {
+                            args[1] = financialAuditData(args[1], uid);
+                        }
+                        const result = target[key](...args);
+                        return result === target ? guardWriter(target, uid) : result;
+                    };
+                    const value = target[key];
+                    return typeof value === 'function' ? value.bind(target) : value;
+                } });
+            }
+            return new Proxy(database, { get(target, key) {
+                if (key === 'batch') return () => guardWriter(target.batch(), requireFinancialActor().uid);
+                if (key === 'runTransaction') return (callback, ...options) => {
+                    const uid = requireFinancialActor().uid;
+                    return target.runTransaction(async tx => {
+                        requireFinancialActor(uid);
+                        const result = await callback(guardWriter(tx, uid));
+                        requireFinancialActor(uid);
+                        return result;
+                    }, ...options);
+                };
+                const value = target[key];
+                return typeof value === 'function' ? value.bind(target) : value;
+            } });
+        }
 
         // Global variables
         let currentDriverId = null;
@@ -1069,6 +1131,9 @@
                     tx.update(driverRef, { residenceExpiryDate: newExpiryValue });
                     tx.set(db.collection('editHistory').doc(), {
                         recordType: 'driverPayment', recordId: renewalRef.id, action: 'create',
+                        correlationId: 'residence-renewal:' + renewalRef.id,
+                        relatedDriverId: currentDriverId, relatedPaymentId: renewalRef.id,
+                        relatedContractId: liveDriver.currentContractId || liveDriver.contractId || null,
                         driverId: currentDriverId, driverName: liveDriver.name || null,
                         description: renewalData.description, source: 'driver-payments.html',
                         fullSnapshotAfter: { ...renewalData, id: renewalRef.id },
@@ -1080,6 +1145,9 @@
                         recordType: 'driver', recordId: currentDriverId, action: 'edit',
                         driverId: currentDriverId, driverName: liveDriver.name || null,
                         description: 'تحديث انتهاء الإقامة بعد التجديد التلقائي',
+                        correlationId: 'residence-renewal:' + renewalRef.id,
+                        relatedDriverId: currentDriverId,
+                        relatedContractId: liveDriver.currentContractId || liveDriver.contractId || null,
                         relatedPaymentId: renewalRef.id,
                         changes: [{ field: 'residenceExpiryDate', oldValue: liveDriver.residenceExpiryDate,
                             newValue: newExpiryValue }],
@@ -1669,7 +1737,7 @@
                           recordType: 'oldDebts', recordId: editOldDebtsDriverIdLocal, action: 'edit',
                           driverId: editOldDebtsDriverIdLocal, driverName: liveDriver.name || '',
                           field: 'oldDebts', fieldLabel: 'الديون القديمة',
-                          oldValue, newValue,
+                          oldValue: liveDriver.oldDebts ?? null, newValue,
                           fullSnapshotBefore: { ...liveDriver, id: editOldDebtsDriverIdLocal },
                           fullSnapshotAfter: { ...liveDriver, ...updateData, id: editOldDebtsDriverIdLocal },
                           description: 'تعديل ديون قديمة من صفحة الدفعات - من ' + oldValue.toFixed(3) + ' إلى ' + newValue.toFixed(3) + ' د.ك',
@@ -1818,7 +1886,7 @@
                       const changes = [];
                       if (livePayment.date !== newDate) changes.push({ field:'date', fieldLabel:'التاريخ', oldValue: livePayment.date, newValue: newDate });
                       if (livePayment.type !== newType) changes.push({ field:'type', fieldLabel:'النوع', oldValue: livePayment.type, newValue: newType });
-                      if (Number(livePayment.amount) !== newAmount) changes.push({ field:'amount', fieldLabel:'المبلغ', oldValue: livePayment.amount, newValue: newAmount });
+                      if (livePayment.amount == null || Number(livePayment.amount) !== newAmount) changes.push({ field:'amount', fieldLabel:'المبلغ', oldValue: livePayment.amount ?? null, newValue: newAmount });
                       if ((livePayment.description || '') !== newDescription) changes.push({ field:'description', fieldLabel:'الوصف', oldValue: livePayment.description || '', newValue: newDescription });
                       if (!changes.length) throw new Error('لم يتم إجراء أي تغييرات');
                       const snapshotBefore = { id: dpEditingId, ...livePayment };

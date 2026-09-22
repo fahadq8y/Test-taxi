@@ -361,7 +361,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="action-btn btn-refresh" onclick="loadDrivers()">🔄 تحديث</button>
             <button class="action-btn btn-export" onclick="exportCSV()">📥 تصدير CSV</button>
-            <button class="action-btn btn-delete-all" onclick="deleteAllDrivers()">🗑️ مسح الكل</button>
+            <a class="action-btn" href="drivers.html">إدارة وأرشفة السائقين (للمصرح لهم فقط)</a>
         </div>
     </div>
 
@@ -416,7 +416,7 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-import { getFirestore, collection, onSnapshot, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import { getFirestore, collection, onSnapshot, doc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 
 const firebaseConfig = {
@@ -535,7 +535,7 @@ function renderTable(data) {
             <td>
                 <div style="display:flex;gap:6px;">
                     <button class="btn-view" onclick="viewDriver('${driver.driverId}')">👁 عرض</button>
-                    <button class="btn-delete" onclick="deleteDriver('${driver.driverId}')">🗑</button>
+                    <a href="drivers.html">إدارة / أرشفة</a>
                 </div>
             </td>
         `;
@@ -573,7 +573,7 @@ function renderTable(data) {
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">⏱ آخر تحديث: ${formatTime(driver.lastUpdate)}</div>
             <div class="mobile-card-actions">
                 <button class="btn-view" onclick="viewDriver('${driver.driverId}')">👁 عرض التفاصيل</button>
-                <button class="btn-delete" onclick="deleteDriver('${driver.driverId}')">🗑 حذف</button>
+                <a href="drivers.html">إدارة / أرشفة السائق (للمصرح لهم)</a>
             </div>
         `;
         mobileCards.appendChild(card);
@@ -646,33 +646,6 @@ window.filterTable = applyFilters;
 
 window.viewDriver = function(driverId) {
     window.location.href = `driver-details.html?id=${driverId}`;
-};
-
-window.deleteDriver = async function(driverId) {
-    if (!confirm(`هل أنت متأكد من حذف بيانات السائق ${driverId}؟`)) return;
-    try {
-        await deleteDoc(doc(db, 'drivers', driverId));
-        allDriversData = allDriversData.filter(d => d.driverId !== driverId);
-        updateStats();
-        applyFilters();
-    } catch (e) {
-        alert('خطأ في الحذف: ' + e.message);
-    }
-};
-
-window.deleteAllDrivers = async function() {
-    if (!confirm('⚠️ هل أنت متأكد من حذف جميع بيانات التتبع؟\nهذا الإجراء لا يمكن التراجع عنه!')) return;
-    if (!confirm('تأكيد نهائي: سيتم حذف جميع بيانات السائقين من نظام التتبع.')) return;
-    try {
-        const promises = allDriversData.map(d => deleteDoc(doc(db, 'drivers', d.driverId)));
-        await Promise.all(promises);
-        allDriversData = [];
-        updateStats();
-        applyFilters();
-        alert('✅ تم حذف جميع البيانات بنجاح');
-    } catch (e) {
-        alert('خطأ في الحذف: ' + e.message);
-    }
 };
 
 window.exportCSV = function() {

@@ -313,29 +313,48 @@
         // Add user form
         // Build the audit document inside the same Firestore transaction as its
         // business mutation. Callers must never commit one without the other.
+        function cleanAuditValue(value) {
+            if (value === undefined) return null;
+            if (Array.isArray(value)) return value.map(cleanAuditValue);
+            if (value && Object.getPrototypeOf(value) === Object.prototype) {
+                const result = {};
+                const secretField = /password|passwd|pwd/i.test(String(value.field || ''));
+                for (const [key, item] of Object.entries(value)) {
+                    if (/password|passwd|pwd/i.test(key)) continue;
+                    result[key] = secretField && /^(oldValue|newValue)$/.test(key) ? null : cleanAuditValue(item);
+                }
+                return result;
+            }
+            return value;
+        }
+
         function userAuditData(entry) {
-            const me = currentUserRole || localStorage.getItem('userRole') || 'unknown';
-            const meId = currentUserId || (auth.currentUser ? auth.currentUser.uid : 'unknown');
-            const meEmail = auth.currentUser ? auth.currentUser.email : (localStorage.getItem('userName') || 'unknown');
-            return {
+            const actor = auth.currentUser;
+            if (!actor || !actor.uid) {
+                throw new Error('يلزم تسجيل دخول موثّق قبل تغيير بيانات المستخدمين. أعد تسجيل الدخول.');
+            }
+            return cleanAuditValue({
                 recordType: 'user',
                 action: entry.action,
                 recordId: entry.recordId || '',
                 driverId: entry.driverId || null,
                 driverName: entry.driverName || null,
-                source: entry.source || 'user-management.html',
+                source: 'user-management.html',
                 description: entry.description || '',
                 changes: entry.changes || null,
                 fullSnapshot: entry.fullSnapshot || null,
                 fullSnapshotBefore: entry.fullSnapshotBefore || null,
                 fullSnapshotAfter: entry.fullSnapshotAfter || null,
                 editReason: entry.editReason || null,
-                editedBy: meEmail,
-                editedById: meId,
-                editorRole: me,
-                editedByRole: me,
+                editedBy: actor.displayName || actor.email || actor.uid,
+                actorUid: actor.uid,
+                editedByUid: actor.uid,
+                editedById: actor.uid,
+                actorIdentity: actor.isAnonymous ? 'anonymous/unverified' : 'firebase-authenticated',
+                editorRole: 'unknown',
+                editedByRole: 'unknown',
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            };
+            });
         }
 
         function writeAudit(transaction, entry) {

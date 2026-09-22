@@ -75,7 +75,8 @@
 
   <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
-  import { getFirestore, doc, updateDoc, collection, onSnapshot, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+  import { getFirestore, doc, getDocs, where, runTransaction, collection, onSnapshot, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+  import { getAuth } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
   const firebaseConfig = {
     apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -131,7 +132,7 @@
     for(const r of filtered){
       const statusPill = r.status==='pending' ? '<span class="pill pill-pending">بانتظار</span>'
                        : r.status==='verified' ? '<span class="pill pill-verified">✓ موثّق</span>'
-                       : '<span class="pill pill-rejected">مرفوض</span>';
+                       : '<span class="pill pill-rejected">مرفوض — الرفض لا يعيد التاريخ السابق</span>';
       let action = '-';
       if(r.status === 'pending'){
         action = '<button class="btn btn-verify" onclick="verifyReq(\''+r.id+'\')">✓ توثيق</button>'
@@ -190,24 +191,49 @@
   document.getElementById('searchInput').oninput = render;
   document.getElementById('fieldFilter').onchange = render;
 
+  async function resolveRequest(id, status) {
+    const user = getAuth(app).currentUser;
+    if (!user) throw new Error('يلزم تسجيل الدخول');
+    const expected = allRequests.find(r => r.id === id);
+    if (!expected) throw new Error('الطلب غير موجود');
+    const candidates = await getDocs(query(collection(db, 'documentChangeRequests'), where('driverId', '==', expected.driverId)));
+    const auditRef = doc(collection(db, 'editHistory'));
+    await runTransaction(db, async tx => {
+      const profile = await tx.get(doc(db, 'users', user.uid));
+      const request = await tx.get(doc(db, 'documentChangeRequests', id));
+      const driver = await tx.get(doc(db, 'drivers', expected.driverId));
+      const others = [];
+      for (const candidate of candidates.docs) others.push(await tx.get(candidate.ref));
+      const role = profile.exists() && profile.data().role;
+      if (!['admin', 'accountant', 'owner'].includes(role)) throw new Error('لا توجد صلاحية');
+      if (!request.exists() || !driver.exists()) throw new Error('السجل غير موجود');
+      const before = request.data(), driverBefore = driver.data();
+      if (before.status !== 'pending' || before.driverId !== expected.driverId || before.fieldKey !== expected.fieldKey ||
+          JSON.stringify(before.newDate) !== JSON.stringify(expected.newDate)) throw new Error('الطلب تغير أو تمت مراجعته');
+      const pending = others.some(s => s.exists() && s.id !== id && s.data().fieldKey === before.fieldKey && s.data().status === 'pending');
+      const update = { status, verifiedBy: user.email || user.uid, verifiedById: user.uid, verifiedAt: serverTimestamp() };
+      const driverAfter = { ...driverBefore, pendingVerification: { ...driverBefore.pendingVerification, [before.fieldKey]: pending } };
+      tx.update(request.ref, update);
+      tx.update(driver.ref, { ['pendingVerification.' + before.fieldKey]: pending });
+      tx.set(auditRef, {
+        action: status === 'verified' ? 'approve' : 'reject', recordType: 'documentChangeRequest',
+        recordId: id, driverId: before.driverId, source: 'driver-documents-history.html',
+        actorUid: user.uid, editedByUid: user.uid, editedById: user.uid, editedBy: user.email || user.uid, editedByRole: role,
+        timestamp: serverTimestamp(), fullSnapshotBefore: before, fullSnapshotAfter: { ...before, ...update },
+        driverSnapshotBefore: driverBefore, driverSnapshotAfter: driverAfter,
+        description: status === 'rejected' ? 'رفض الطلب لا يعيد التاريخ السابق' : 'توثيق الطلب',
+        changes: [{ field: 'status', oldValue: before.status, newValue: status },
+          { field: 'pendingVerification.' + before.fieldKey, oldValue: driverBefore.pendingVerification?.[before.fieldKey] ?? null, newValue: pending }]
+      });
+    });
+  }
   // التوثيق
   window.verifyReq = async function(id){
     const r = allRequests.find(x => x.id === id);
     if(!r) return;
-    const verifier = prompt('اسم المحاسب الذي يوثّق:', localStorage.getItem('userName')||'') || 'المحاسب';
-    if(!verifier) return;
+    if(!confirm('توثيق الطلب باسم حسابك المسجل؟')) return;
     try {
-      // 1) تحديث الطلب
-      await updateDoc(doc(db, 'documentChangeRequests', id), {
-        status: 'verified',
-        verifiedBy: verifier,
-        verifiedAt: serverTimestamp()
-      });
-      // 2) إزالة علامة "بانتظار التوثيق" من السائق
-      const upd = {};
-      upd['pendingVerification.' + r.fieldKey] = false;
-      await updateDoc(doc(db, 'drivers', r.driverId), upd);
-      localStorage.setItem('userName', verifier);
+      await resolveRequest(id, 'verified');
     } catch(e) { alert('خطأ: '+e.message); }
   };
 
@@ -215,17 +241,8 @@
     const r = allRequests.find(x => x.id === id);
     if(!r) return;
     if(!confirm('رفض الطلب؟ لن يتغيّر التاريخ في بيانات السائق (يبقى التاريخ الجديد كما عدّله السائق)، فقط يُسجَّل أنه مرفوض.')) return;
-    const verifier = prompt('اسم المحاسب:', localStorage.getItem('userName')||'') || 'المحاسب';
     try {
-      await updateDoc(doc(db, 'documentChangeRequests', id), {
-        status: 'rejected',
-        verifiedBy: verifier,
-        verifiedAt: serverTimestamp()
-      });
-      const upd = {};
-      upd['pendingVerification.' + r.fieldKey] = false;
-      await updateDoc(doc(db, 'drivers', r.driverId), upd);
-      localStorage.setItem('userName', verifier);
+      await resolveRequest(id, 'rejected');
     } catch(e) { alert('خطأ: '+e.message); }
   };
   </script>

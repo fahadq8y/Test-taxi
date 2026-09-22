@@ -1234,7 +1234,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="audit-history.js?v=202605-audit2"></script>
+    <script src="audit-history.js?v=202609-audit3"></script>
     <script src="unified-balance.js?v=033"></script>
     <script src="user-permissions.js"></script>
     <script src="expenses-permissions.js"></script>
@@ -1250,7 +1250,69 @@
         };
 
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        const db = guardedFinanceDb(firebase.firestore());
+
+        function requireFinancialActor(expectedUid) {
+            const user = firebase.auth().currentUser;
+            if (!user || !user.uid || (expectedUid && user.uid !== expectedUid)) {
+                throw new Error('يلزم تسجيل دخول موثّق قبل تغيير البيانات المالية. أعد تسجيل الدخول.');
+            }
+            return user;
+        }
+        function cleanAuditValue(value) {
+            if (value === undefined) return null;
+            if (Array.isArray(value)) return value.map(cleanAuditValue);
+            if (value && Object.getPrototypeOf(value) === Object.prototype) {
+                const result = {};
+                const secretField = /password|passwd|pwd/i.test(String(value.field || ''));
+                for (const [key, item] of Object.entries(value)) {
+                    if (/password|passwd|pwd/i.test(key)) continue;
+                    result[key] = secretField && /^(oldValue|newValue)$/.test(key) ? null : cleanAuditValue(item);
+                }
+                return result;
+            }
+            return value;
+        }
+        function financialAuditData(payload, uid) {
+            const user = requireFinancialActor(uid);
+            return cleanAuditValue({
+                ...payload, actorUid: user.uid, editedByUid: user.uid, editedById: user.uid,
+                editedBy: user.displayName || user.email || user.uid,
+                editedByRole: 'unknown', source: 'expenses.html',
+                actorIdentity: user.isAnonymous ? 'anonymous/unverified' : 'firebase-authenticated'
+            });
+        }
+        // Preserve transaction reads/writes and atomicity; normalize only audit documents.
+        function guardedFinanceDb(database) {
+            function guardWriter(writer, uid) {
+                return new Proxy(writer, { get(target, key) {
+                    if (['set', 'update', 'delete', 'commit'].includes(key)) return (...args) => {
+                        requireFinancialActor(uid);
+                        if (key === 'set' && args[0]?.parent?.id === 'editHistory') {
+                            args[1] = financialAuditData(args[1], uid);
+                        }
+                        const result = target[key](...args);
+                        return result === target ? guardWriter(target, uid) : result;
+                    };
+                    const value = target[key];
+                    return typeof value === 'function' ? value.bind(target) : value;
+                } });
+            }
+            return new Proxy(database, { get(target, key) {
+                if (key === 'batch') return () => guardWriter(target.batch(), requireFinancialActor().uid);
+                if (key === 'runTransaction') return (callback, ...options) => {
+                    const uid = requireFinancialActor().uid;
+                    return target.runTransaction(async tx => {
+                        requireFinancialActor(uid);
+                        const result = await callback(guardWriter(tx, uid));
+                        requireFinancialActor(uid);
+                        return result;
+                    }, ...options);
+                };
+                const value = target[key];
+                return typeof value === 'function' ? value.bind(target) : value;
+            } });
+        }
 
         let expenses = [];
         let revenues = [];
@@ -2281,7 +2343,7 @@
                     const changes = [];
                     if (live.date !== newDate) changes.push({ field: 'date', fieldLabel: 'التاريخ', oldValue: live.date, newValue: newDate });
                     if (live.type !== newType) changes.push({ field: 'type', fieldLabel: 'النوع', oldValue: live.type, newValue: newType });
-                    if (Number(live.amount) !== newAmount) changes.push({ field: 'amount', fieldLabel: 'المبلغ', oldValue: live.amount, newValue: newAmount });
+                    if (live.amount == null || Number(live.amount) !== newAmount) changes.push({ field: 'amount', fieldLabel: 'المبلغ', oldValue: live.amount ?? null, newValue: newAmount });
                     if ((live.description || '') !== newDescription) changes.push({ field: 'description', fieldLabel: 'الوصف', oldValue: live.description || '', newValue: newDescription });
                     if ((live.note || '') !== newNote) changes.push({ field: 'note', fieldLabel: 'الملاحظة', oldValue: live.note || '', newValue: newNote });
                     if (!changes.length) throw new Error('لم يتم إجراء أي تغييرات');
