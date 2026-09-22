@@ -1755,8 +1755,24 @@
             };
 
             try {
-                const expenseRef = await db.collection('expenses').add(expenseData);
-                await AuditHistory.recordCreation(db, firebase, 'expense', expenseRef.id, expenseData, 'expenses.html');
+                const expenseRef = db.collection('expenses').doc();
+                const auditRef = db.collection('editHistory').doc();
+                const batch = db.batch();
+                batch.set(expenseRef, expenseData);
+                batch.set(auditRef, {
+                    recordType: 'expense',
+                    recordId: expenseRef.id,
+                    action: 'create',
+                    refNum: expenseData.refNum || null,
+                    description: expenseData.description || expenseData.type || null,
+                    fullSnapshotAfter: { ...expenseData, id: expenseRef.id },
+                    source: 'expenses.html',
+                    editedBy: localStorage.getItem('userName') || 'غير محدد',
+                    editedById: firebase.auth().currentUser ? firebase.auth().currentUser.uid : null,
+                    editedByRole: localStorage.getItem('userRole') || 'unknown',
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                await batch.commit();
                 alert('تم إضافة المصروف بنجاح!');
                 
                 // Reset form
@@ -1851,11 +1867,11 @@
                 if (hasAllocation) {
                     await db.runTransaction(async tx => {
                         const paymentRef = db.collection('driverPayments').doc(pendingDeleteId);
-                        const driverRef = db.collection('drivers').doc(pendingDeleteSnapshot.driverId);
                         const paymentSnap = await tx.get(paymentRef);
-                        const driverSnap = await tx.get(driverRef);
                         if (!paymentSnap.exists || paymentSnap.data().status === 'voided') return;
                         const livePayment = paymentSnap.data();
+                        const driverRef = db.collection('drivers').doc(livePayment.driverId);
+                        const driverSnap = await tx.get(driverRef);
                         const liveDriver = driverSnap.exists ? driverSnap.data() : {};
                         const parts = _ubPaymentParts(livePayment)
                             .filter(part => part.allocationKind === 'oldDebt' && part.obligationId);
@@ -1896,17 +1912,30 @@
                         }
                     });
                 } else {
-                    await db.collection('editHistory').add({
-                        recordId: pendingDeleteId, recordType: pendingDeleteType, action: 'delete',
-                        refNum: pendingDeleteSnapshot.refNum || null,
-                        description: pendingDeleteSnapshot.description || pendingDeleteSnapshot.driverName || pendingDeleteSnapshot.type || null,
-                        driverName: pendingDeleteSnapshot.driverName || null, deleteReason: reason,
-                        driverId: pendingDeleteSnapshot.driverId || null,
-                        fullSnapshot: pendingDeleteSnapshot, deletedBy: userName, deletedByRole: userRole,
-                        editedBy: userName, editedByRole: userRole, editReason: reason,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    await db.runTransaction(async tx => {
+                        const recordRef = db.collection(collection).doc(pendingDeleteId);
+                        const recordSnap = await tx.get(recordRef);
+                        if (!recordSnap.exists) throw new Error('السجل غير موجود أو تم حذفه');
+                        const liveRecord = recordSnap.data();
+                        if (pendingDeleteType === 'driverPayment' &&
+                            (Array.isArray(liveRecord.allocations) || liveRecord.allocationKind ||
+                             liveRecord.obligationId || liveRecord.contractId)) {
+                            throw new Error('تغيّر توزيع الدفعة؛ أعد تحميل الصفحة ثم ألغِها بأمان');
+                        }
+                        tx.set(db.collection('editHistory').doc(), {
+                            recordId: pendingDeleteId, recordType: pendingDeleteType, action: 'delete',
+                            refNum: liveRecord.refNum || null,
+                            description: liveRecord.description || liveRecord.driverName || liveRecord.type || null,
+                            driverName: liveRecord.driverName || null, deleteReason: reason,
+                            driverId: liveRecord.driverId || null,
+                            fullSnapshot: { id: pendingDeleteId, ...liveRecord },
+                            fullSnapshotBefore: { id: pendingDeleteId, ...liveRecord },
+                            deletedBy: userName, deletedByRole: userRole,
+                            editedBy: userName, editedByRole: userRole, editReason: reason,
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        tx.delete(recordRef);
                     });
-                    await db.collection(collection).doc(pendingDeleteId).delete();
                 }
                 closeDeleteConfirmModal();
                 loadAllData();
@@ -2232,21 +2261,6 @@
                 const userName = localStorage.getItem('userName') || 'غير محدد';
                 const userRole = localStorage.getItem('userRole') || 'unknown';
                 const timestamp = firebase.firestore.FieldValue.serverTimestamp();
-                const changes = [];
-                
-                if (originalEditData.date !== newDate)
-                    changes.push({ field: 'date', fieldLabel: 'التاريخ', oldValue: originalEditData.date, newValue: newDate });
-                if (originalEditData.type !== newType)
-                    changes.push({ field: 'type', fieldLabel: 'النوع', oldValue: originalEditData.type, newValue: newType });
-                if (originalEditData.amount !== newAmount)
-                    changes.push({ field: 'amount', fieldLabel: 'المبلغ', oldValue: originalEditData.amount, newValue: newAmount });
-                if (originalEditData.description !== newDescription)
-                    changes.push({ field: 'description', fieldLabel: 'الوصف', oldValue: originalEditData.description, newValue: newDescription });
-                if (originalEditData.note !== newNote)
-                    changes.push({ field: 'note', fieldLabel: 'الملاحظة', oldValue: originalEditData.note, newValue: newNote });
-                
-                if (changes.length === 0) { alert('لم يتم إجراء أي تغييرات'); return; }
-                
                 const collection = currentEditingType === 'driverPayment' ? 'driverPayments' : 'expenses';
                 const updateData = {
                     date: newDate, amount: newAmount,
@@ -2255,36 +2269,40 @@
                     lastEditedAt: timestamp, lastEditedBy: userName
                 };
                 updateData.type = newType;
-                
-                await db.collection(collection).doc(currentEditingId).update(updateData);
-                
-                // جلب البيانات الكاملة للسجل بعد التعديل
-                const updatedDoc = await db.collection(collection).doc(currentEditingId).get();
-                const snapshotAfter = { id: currentEditingId, ...updatedDoc.data() };
-                const snapshotBefore = originalEditData.fullSnapshot;
-
-                // حفظ سجل تعديل واحد شامل لجميع التغييرات
-                await db.collection('editHistory').add({
-                    recordId: currentEditingId,
-                    recordType: currentEditingType === 'driverPayment' ? 'driverPayment' : 'expense',
-                    action: 'edit',
-                    refNum: snapshotAfter.refNum || snapshotBefore.refNum || null,
-                    description: snapshotAfter.description || snapshotAfter.type || null,
-                    driverName: snapshotAfter.driverName || null,
-                    driverId: snapshotAfter.driverId || snapshotBefore.driverId || null,
-                    changes: changes,
-                    changesCount: changes.length,
-                    // للتوافق مع الكود القديم - أول تغيير
-                    field: changes[0].field,
-                    fieldLabel: changes[0].fieldLabel,
-                    oldValue: changes[0].oldValue,
-                    newValue: changes[0].newValue,
-                    fullSnapshotBefore: snapshotBefore,
-                    fullSnapshotAfter: snapshotAfter,
-                    editedBy: userName,
-                    editedByRole: userRole,
-                    editReason: editReason,
-                    timestamp: timestamp
+                await db.runTransaction(async tx => {
+                    const recordRef = db.collection(collection).doc(currentEditingId);
+                    const recordSnap = await tx.get(recordRef);
+                    if (!recordSnap.exists) throw new Error('السجل غير موجود');
+                    const live = recordSnap.data();
+                    if (currentEditingType === 'driverPayment' &&
+                        (Array.isArray(live.allocations) || live.allocationKind || live.obligationId || live.contractId)) {
+                        throw new Error('لا يمكن تعديل دفعة موزعة مباشرة. استخدم إلغاء الدفعة ثم سجّل دفعة جديدة.');
+                    }
+                    const changes = [];
+                    if (live.date !== newDate) changes.push({ field: 'date', fieldLabel: 'التاريخ', oldValue: live.date, newValue: newDate });
+                    if (live.type !== newType) changes.push({ field: 'type', fieldLabel: 'النوع', oldValue: live.type, newValue: newType });
+                    if (Number(live.amount) !== newAmount) changes.push({ field: 'amount', fieldLabel: 'المبلغ', oldValue: live.amount, newValue: newAmount });
+                    if ((live.description || '') !== newDescription) changes.push({ field: 'description', fieldLabel: 'الوصف', oldValue: live.description || '', newValue: newDescription });
+                    if ((live.note || '') !== newNote) changes.push({ field: 'note', fieldLabel: 'الملاحظة', oldValue: live.note || '', newValue: newNote });
+                    if (!changes.length) throw new Error('لم يتم إجراء أي تغييرات');
+                    const snapshotBefore = { id: currentEditingId, ...live };
+                    const snapshotAfter = { ...snapshotBefore, ...updateData };
+                    tx.update(recordRef, updateData);
+                    tx.set(db.collection('editHistory').doc(), {
+                        recordId: currentEditingId,
+                        recordType: currentEditingType === 'driverPayment' ? 'driverPayment' : 'expense',
+                        action: 'edit',
+                        refNum: snapshotAfter.refNum || null,
+                        description: snapshotAfter.description || snapshotAfter.type || null,
+                        driverName: snapshotAfter.driverName || null,
+                        driverId: snapshotAfter.driverId || null,
+                        changes, changesCount: changes.length,
+                        field: changes[0].field, fieldLabel: changes[0].fieldLabel,
+                        oldValue: changes[0].oldValue, newValue: changes[0].newValue,
+                        fullSnapshotBefore: snapshotBefore, fullSnapshotAfter: snapshotAfter,
+                        editedBy: userName, editedByRole: userRole,
+                        editReason, timestamp
+                    });
                 });
                 alert('✅ تم حفظ التعديل بنجاح!');
                 closeEditModal();

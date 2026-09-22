@@ -842,58 +842,97 @@
                   && !(snap.allocationKind || (Array.isArray(snap.allocations) && snap.allocations.length))
                   && snap.status !== 'voided';
           }
+          const restoreCollectionMap = {
+              revenue: 'revenues',
+              expense: 'expenses',
+              driverPayment: 'driverPayments'
+          };
+
+          async function commitDeletedRecordRestore(historyId, collName, actor, userName, userRole) {
+              const historyRef = db.collection('editHistory').doc(historyId);
+              const newRef = db.collection(collName).doc();
+              const restoreAuditRef = db.collection('editHistory').doc();
+              await db.runTransaction(async transaction => {
+                  const historyDoc = await transaction.get(historyRef);
+                  if (!historyDoc.exists) throw new Error('سجل الحذف غير موجود');
+                  const currentItem = { id: historyDoc.id, ...historyDoc.data() };
+                  if (!isRestorable(currentItem)) {
+                      throw new Error(currentItem.restoredAt ? 'تمت استعادة هذا السجل مسبقاً' : 'هذا السجل غير قابل للاستعادة');
+                  }
+                  const currentCollection = restoreCollectionMap[currentItem.recordType];
+                  if (currentCollection !== collName) throw new Error('تغيّر نوع السجل؛ أعد تحميل الصفحة');
+                  const currentSnap = currentItem.fullSnapshot;
+                  const originalTargetId = currentItem.recordId || currentSnap.id;
+                  if (!originalTargetId) throw new Error('معرّف السجل الأصلي مفقود؛ لا يمكن التحقق من الاستعادة بأمان');
+
+                  const originalTargetRef = db.collection(collName).doc(originalTargetId);
+                  const originalTargetDoc = await transaction.get(originalTargetRef);
+                  if (originalTargetDoc.exists) {
+                      throw new Error('السجل الأصلي موجود بالفعل؛ لم تتم الاستعادة');
+                  }
+
+                  const restoreData = { ...currentSnap };
+                  delete restoreData.id;
+                  restoreData.restoredAt = firebase.firestore.FieldValue.serverTimestamp();
+                  restoreData.restoredBy = userName;
+                  restoreData.restoredFromHistoryId = historyId;
+                  transaction.set(newRef, restoreData);
+                  transaction.update(historyRef, {
+                      restoredAt: firebase.firestore.FieldValue.serverTimestamp(),
+                      restoredBy: userName,
+                      restoredById: actor.uid,
+                      restoredToId: newRef.id,
+                      restoreAuditId: restoreAuditRef.id
+                  });
+                  transaction.set(restoreAuditRef, {
+                      recordType: currentItem.recordType, recordId: newRef.id, action: 'restore',
+                      refNum: currentSnap.refNum || currentItem.refNum || null,
+                      description: 'استعادة سجل محذوف - ' + (currentSnap.description || currentSnap.type || currentItem.description || ''),
+                      driverName: currentSnap.driverName || currentItem.driverName || null,
+                      driverId: currentSnap.driverId || currentItem.driverId || null,
+                      editReason: 'استعادة من شاشة سجل التعديلات',
+                      restoredFromHistoryId: historyId,
+                      fullSnapshotAfter: { id: newRef.id, ...restoreData },
+                      editedBy: userName,
+                      editedById: actor.uid,
+                      editorRole: userRole,
+                      editedByRole: userRole,
+                      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                  });
+              });
+              return newRef.id;
+          }
+
           window.restoreRecord = async function(historyId) {
-              // Rules restrict history updates to the owner. Check before any
-              // financial write so a rejected marker cannot leave a partial restore.
+              // Rules restrict history updates to the owner. The transaction below
+              // re-reads both the event and its target before making any write.
               const actor = firebase.auth().currentUser;
               if (!actor || actor.email !== 'f5h5d_q8@hotmail.com') {
                   alert('الاستعادة متاحة للمالك فقط');
                   return;
               }
-              const item = allHistory.find(h => h.id === historyId);
-              if (!item) { alert('⚠️ لم يتم إيجاد السجل'); return; }
-              if (!isRestorable(item)) { alert('⚠️ هذا السجل غير قابل للاستعادة'); return; }
-              const snap = item.fullSnapshot;
+              const previewItem = allHistory.find(h => h.id === historyId);
+              if (!previewItem) { alert('⚠️ لم يتم إيجاد السجل'); return; }
+              if (!isRestorable(previewItem)) { alert('⚠️ هذا السجل غير قابل للاستعادة'); return; }
+              const snap = previewItem.fullSnapshot;
               const amountTxt = snap.amount !== undefined ? parseFloat(snap.amount).toFixed(3) + ' د.ك' : '';
-              const desc = snap.description || snap.type || item.description || '';
-              const refNum = snap.refNum || item.refNum || '';
-              const collMap = { revenue:'revenues', expense:'expenses', driverPayment:'driverPayments' };
-              const collName = collMap[item.recordType];
+              const desc = snap.description || snap.type || previewItem.description || '';
+              const refNum = snap.refNum || previewItem.refNum || '';
+              const collName = restoreCollectionMap[previewItem.recordType];
               if (!collName) { alert('⚠️ نوع غير مدعوم'); return; }
-              const msg = '♻️ استعادة سجل محذوف:\n\nالنوع: ' + getRecordTypeMeta(item.recordType).label + '\n' +
+              const msg = '♻️ استعادة سجل محذوف:\n\nالنوع: ' + getRecordTypeMeta(previewItem.recordType).label + '\n' +
                   (refNum ? 'المرجع: ' + refNum + '\n' : '') +
                   (amountTxt ? 'المبلغ: ' + amountTxt + '\n' : '') +
                   (desc ? 'الوصف: ' + desc + '\n' : '') +
-                  'تاريخ الحذف: ' + (item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString('ar-EG') : '') +
+                  'تاريخ الحذف: ' + (previewItem.timestamp?.toDate ? previewItem.timestamp.toDate().toLocaleString('ar-EG') : '') +
                   '\n\nهل تريد استعادة هذا السجل إلى ' + collName + '؟';
               if (!confirm(msg)) return;
               try {
                   const userName = localStorage.getItem('userName') || 'غير محدد';
                   const userRole = localStorage.getItem('userRole') || 'admin';
-                  const restoreData = { ...snap };
-                  delete restoreData.id;
-                  restoreData.restoredAt = firebase.firestore.FieldValue.serverTimestamp();
-                  restoreData.restoredBy = userName;
-                  restoreData.restoredFromHistoryId = historyId;
-                  const newRef = await db.collection(collName).add(restoreData);
-                  await db.collection('editHistory').doc(historyId).update({
-                      restoredAt: firebase.firestore.FieldValue.serverTimestamp(),
-                      restoredBy: userName,
-                      restoredToId: newRef.id
-                  });
-                  await db.collection('editHistory').add({
-                      recordType: item.recordType, recordId: newRef.id, action: 'restore',
-                      refNum: refNum || null,
-                      description: 'استعادة سجل محذوف - ' + (desc || ''),
-                      driverName: snap.driverName || item.driverName || null,
-                      driverId: snap.driverId || item.driverId || null,
-                      editReason: 'استعادة من شاشة سجل التعديلات',
-                      restoredFromHistoryId: historyId,
-                      fullSnapshotAfter: { id: newRef.id, ...restoreData },
-                      editedBy: userName, editedByRole: userRole,
-                      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                  });
-                  alert('✅ تم استعادة السجل بنجاح\nالـ ID الجديد: ' + newRef.id);
+                  const newRecordId = await commitDeletedRecordRestore(
+                      historyId, collName, actor, userName, userRole);
+                  alert('✅ تم استعادة السجل بنجاح\nالـ ID الجديد: ' + newRecordId);
                   await loadHistory();
               } catch (e) {
                   console.error('❌ خطأ في الاستعادة:', e);

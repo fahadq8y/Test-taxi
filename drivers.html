@@ -368,7 +368,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, getDocs, addDoc, doc, getDoc, updateDoc, deleteDoc, setDoc, query, where, onSnapshot, serverTimestamp, runTransaction, writeBatch } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, doc, getDoc, query, where, onSnapshot, serverTimestamp, runTransaction } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -481,24 +481,53 @@
 
         // Update car registration expiry when car is selected
         
-          // 🔧 FIX #020 (2026-05-06): Helper موحد لتسجيل تعديلات السائق في editHistory
-          async function logEditHistory(payload) {
-              try {
-                  const userName = (typeof currentUser !== 'undefined' && currentUser && (currentUser.name || currentUser.email)) 
-                      || localStorage.getItem('userName') || 'غير محدد';
-                  const userRole = localStorage.getItem('userRole') || 'admin';
-                  await addDoc(collection(db, 'editHistory'), {
-                      editedBy: userName, editedByRole: userRole,
-                      editedById: auth.currentUser ? auth.currentUser.uid : null,
-                      timestamp: serverTimestamp(), ...payload
-                  });
-                  console.log('📝 logEditHistory:', payload.recordType, payload.action);
-              } catch (e) {
-                  console.error('❌ logEditHistory:', e);
-                  alert('⚠️ لم يُحفظ سجل التدقيق لهذه العملية. لا تكرر العملية المالية؛ أبلغ المالك: ' + e.message);
+          // Audit payloads are written by the same transaction/batch as the
+          // business mutation.  This helper deliberately does not write.
+          function editHistoryData(payload) {
+              const userName = (currentUser && (currentUser.name || currentUser.email))
+                  || localStorage.getItem('userName') || 'غير محدد';
+              return {
+                  editedBy: userName,
+                  editedByRole: (currentUser && currentUser.role) || localStorage.getItem('userRole') || 'unknown',
+                  editedById: auth.currentUser ? auth.currentUser.uid : null,
+                  timestamp: serverTimestamp(),
+                  ...payload
+              };
+          }
+
+          function assertAtomicWriteLimit(writeCount, operationName) {
+              if (writeCount > 500) {
+                  throw new Error(`${operationName}: تتطلب العملية ${writeCount} كتابة، وتتجاوز حد Firestore (500). لم يتم تغيير أي بيانات.`);
               }
           }
-          window.logEditHistory = logEditHistory;
+
+          function assertAtomicPayloadSize(value, operationName) {
+              let bytes;
+              try {
+                  bytes = new TextEncoder().encode(JSON.stringify(value, (key, item) => {
+                      if (item && typeof item.toDate === 'function') return item.toDate().toISOString();
+                      return item;
+                  })).length;
+              } catch (error) {
+                  throw new Error(`${operationName}: تعذر التحقق من حجم الأرشيف. لم يتم تغيير أي بيانات.`);
+              }
+              // Leave headroom for field names, Firestore encoding, indexes,
+              // audit documents and transaction protocol overhead.
+              if (bytes > 8 * 1024 * 1024) {
+                  throw new Error(`${operationName}: حجم الأرشيف كبير جداً للمعاملة الذرية (أكثر من 8MiB تقديرياً). لم يتم تغيير أي بيانات.`);
+              }
+              return bytes;
+          }
+
+          function assertFirestoreDocumentSize(value, operationName) {
+              const bytes = new TextEncoder().encode(JSON.stringify(value, (key, item) => {
+                  if (item && typeof item.toDate === 'function') return item.toDate().toISOString();
+                  return item;
+              })).length;
+              if (bytes > 900 * 1024) {
+                  throw new Error(`${operationName}: مستند الأرشيف كبير جداً لحد مستند Firestore. لم يتم تغيير أي بيانات.`);
+              }
+          }
 
           window.updateCarRegistrationExpiry = () => {
             const carId = document.getElementById('assignedCar').value;
@@ -1024,53 +1053,85 @@
                         totalRevenuesAmount: driverRevenues.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
                     };
                     
-                    // 5. Check if already archived (prevent duplicates)
-                    const existingArchive = await getDocs(
-                        query(collection(db, 'archivedDrivers'), 
-                              where('driverData.phone', '==', driverToDelete.phone))
-                    );
-                    
-                    if (existingArchive.empty) {
-                        // Save to archive using employeeNumber as Document ID
-                        await setDoc(doc(db, 'archivedDrivers', driverToDelete.employeeNumber), archiveData);
-                        console.log('✅ تم حفظ الأرشيف الشامل بالرقم الوظيفي:', driverToDelete.employeeNumber);
-                    } else {
-                        console.log('⚠️ السائق موجود بالفعل في الأرشيف - لن يتم التكرار');
-                    }
-                }
-                
-                // Delete from drivers collection
-                // FIX #016 (2026-05-06): حذف الدفعات والمصاريف والإيرادات الأصلية لمنع البيانات اليتيمة
-                  let __cleanupCount = 0;
-                  try {
-                      const __batch = writeBatch(db);
-                      driverPayments.forEach(p => { __batch.delete(doc(db, 'driverPayments', p.id)); __cleanupCount++; });
-                      driverExpenses.forEach(e => { __batch.delete(doc(db, 'expenses', e.id)); __cleanupCount++; });
-                      driverRevenues.forEach(r => { __batch.delete(doc(db, 'revenues', r.id)); __cleanupCount++; });
-                      if (__cleanupCount > 0) { await __batch.commit(); console.log('✅ FIX #016: حذف ' + __cleanupCount + ' سجل أصلي'); }
-                  } catch (__cleanupErr) { console.error('⚠️ FIX #016 فشل (الأرشيف موجود):', __cleanupErr); }
-
-                  // 🔧 FIX #020: تسجيل أرشفة السائق في editHistory (قبل الحذف)
-                    try {
-                        await logEditHistory({
+                    const children = [
+                        ...driverPayments.map(item => ({ collectionName: 'driverPayments', recordType: 'driverPayment', item })),
+                        ...driverExpenses.map(item => ({ collectionName: 'expenses', recordType: 'expense', item })),
+                        ...driverRevenues.map(item => ({ collectionName: 'revenues', recordType: 'revenue', item }))
+                    ];
+                    // archive + driver delete + parent audit, and delete + audit
+                    // for every child. Never split this operation into chunks.
+                    assertAtomicWriteLimit(3 + (children.length * 2), 'أرشفة السائق');
+                    assertFirestoreDocumentSize(archiveData, 'أرشفة السائق');
+                    assertAtomicPayloadSize({
+                        archiveData,
+                        // Each child is present once more in its detailed audit.
+                        detailedChildAuditSnapshots: children.map(child => child.item),
+                        driverAuditSnapshot: driverToDelete
+                    }, 'أرشفة السائق');
+                    const driverRef = doc(db, 'drivers', driverId);
+                    const archiveRef = doc(db, 'archivedDrivers', driverToDelete.employeeNumber);
+                    await runTransaction(db, async tx => {
+                        // Firestore requires every read before every write.
+                        const liveDriverSnap = await tx.get(driverRef);
+                        const archiveSnap = await tx.get(archiveRef);
+                        const liveChildren = [];
+                        for (const child of children) {
+                            liveChildren.push(await tx.get(doc(db, child.collectionName, child.item.id)));
+                        }
+                        if (!liveDriverSnap.exists()) throw new Error('السائق حُذف أو أُرشف بالفعل');
+                        if (archiveSnap.exists()) throw new Error('يوجد أرشيف سابق لهذا الرقم الوظيفي؛ لم يتم حذف شيء');
+                        liveChildren.forEach((snap, index) => {
+                            if (!snap.exists() || snap.data().driverId !== driverId) {
+                                throw new Error(`تغيّر السجل المرتبط ${children[index].item.id} أثناء الأرشفة؛ أعد المحاولة`);
+                            }
+                            const expectedChild = { ...children[index].item };
+                            delete expectedChild.id;
+                            if (JSON.stringify(snap.data()) !== JSON.stringify(expectedChild)) {
+                                throw new Error(`تغيرت بيانات السجل المرتبط ${children[index].item.id} أثناء الأرشفة؛ أعد المحاولة`);
+                            }
+                        });
+                        const liveDriver = { id: liveDriverSnap.id, ...liveDriverSnap.data() };
+                        if (JSON.stringify(liveDriver) !== JSON.stringify(driverToDelete)) {
+                            throw new Error('تغيرت بيانات السائق أثناء الأرشفة؛ أعد المحاولة');
+                        }
+                        tx.set(archiveRef, archiveData);
+                        children.forEach((child, index) => {
+                            const childRef = doc(db, child.collectionName, child.item.id);
+                            tx.delete(childRef);
+                            tx.set(doc(collection(db, 'editHistory')), editHistoryData({
+                                recordType: child.recordType,
+                                recordId: child.item.id,
+                                action: 'archive',
+                                driverId,
+                                driverName: driverToDelete.name || '',
+                                parentArchiveId: archiveRef.id,
+                                sourceCollection: child.collectionName,
+                                description: `أرشفة ${child.recordType} مع السائق`,
+                                editReason: 'حذف السائق من النظام',
+                                fullSnapshotBefore: { id: liveChildren[index].id, ...liveChildren[index].data() }
+                            }));
+                        });
+                        tx.set(doc(collection(db, 'editHistory')), editHistoryData({
                             recordType: 'driver', recordId: driverId, action: 'archive',
-                            driverId: driverId,
-                            driverName: (driverToDelete && driverToDelete.name) || '',
-                            description: 'أرشفة وحذف السائق - ' + (driverToDelete?.name || '') + ' (' + (driverToDelete?.employeeNumber || '') + ')',
+                            driverId, driverName: driverToDelete.name || '',
+                            description: `أرشفة وحذف السائق - ${driverToDelete.name || ''} (${driverToDelete.employeeNumber || ''})`,
                             editReason: 'حذف السائق من النظام',
                             archiveData: {
-                                employeeNumber: driverToDelete?.employeeNumber || null,
-                                phone: driverToDelete?.phone || null,
-                                totalPayments: driverPayments?.length || 0,
-                                totalExpenses: driverExpenses?.length || 0,
-                                totalRevenues: driverRevenues?.length || 0,
-                                cleanupCount: __cleanupCount
+                                employeeNumber: driverToDelete.employeeNumber || null,
+                                phone: driverToDelete.phone || null,
+                                totalPayments: driverPayments.length,
+                                totalExpenses: driverExpenses.length,
+                                totalRevenues: driverRevenues.length,
+                                cleanupCount: children.length
                             },
-                            fullSnapshot: driverToDelete || null
-                        });
-                    } catch (__lge) { console.error('⚠️ FIX #020 archive log:', __lge); }
-                    
-                    await deleteDoc(doc(db, 'drivers', driverId));
+                            fullSnapshotBefore: liveDriver
+                        }));
+                        tx.delete(driverRef);
+                    });
+                    console.log('✅ تم حفظ الأرشيف وحذف السجلات وتدقيقها ذرياً:', driverToDelete.employeeNumber);
+                } else {
+                    throw new Error('السائق غير موجود أو تغيرت القائمة؛ حدّث الصفحة وأعد المحاولة');
+                }
                 alert('تم حذف السائق بنجاح وأرشفة جميع بياناته\n\n' + 
                       `📊 تم أرشفة:\n` +
                       `• ${driverPayments?.length || 0} دفعة\n` +
@@ -1394,10 +1455,9 @@
                     driverData.driverId = driverData.employeeNumber;
                     delete driverData.oldDebts;
                     
-                    await updateDoc(doc(db, 'drivers', editingDriverId), driverData);
-                      
-                      // 🔧 FIX #020: تسجيل تعديل السائق في editHistory
-                      try {
+                      // Build the audit event first; the driver update and this
+                      // event are committed together below.
+                      {
                           const __old = __existingDrv || {};
                           const __changes = [];
                           const __fmap = [
@@ -1432,8 +1492,18 @@
                               const nvs = nvd ? nvd.toISOString().split('T')[0] : '';
                               if (ovs !== nvs) __changes.push({ field: k, fieldLabel: label, oldValue: ovs, newValue: nvs });
                           }
-                          if (__changes.length > 0) {
-                              await logEditHistory({
+                           const driverRef = doc(db, 'drivers', editingDriverId);
+                           await runTransaction(db, async tx => {
+                               const liveSnap = await tx.get(driverRef);
+                               if (!liveSnap.exists()) throw new Error('السائق غير موجود');
+                               const live = liveSnap.data() || {};
+                               const expected = { ...__old };
+                               delete expected.id;
+                               if (JSON.stringify(live) !== JSON.stringify(expected)) {
+                                   throw new Error('تغيرت بيانات السائق أثناء التعديل؛ أعد فتح النموذج وحاول مجدداً');
+                               }
+                               tx.update(driverRef, driverData);
+                               tx.set(doc(collection(db, 'editHistory')), editHistoryData({
                                   recordType: 'driver', recordId: editingDriverId, action: 'edit',
                                   driverId: editingDriverId,
                                   driverName: driverData.name || (__old.name || ''),
@@ -1447,50 +1517,49 @@
                                    debtDelta: (typeof debtBefore !== 'undefined' && typeof debtAfter !== 'undefined' ? debtAfter - debtBefore : null),
                                    auditedAt: serverTimestamp(),
                                    auditedBy: currentUser.name || currentUser.email
-                              });
-                          }
-                      } catch (__lge) { console.error('⚠️ FIX #020 driver edit log:', __lge); }
+                               }));
+                           });
+                       }
                     alert('تم تحديث بيانات السائق بنجاح');
                 } else {
-                    // إضافة سائق جديد - استخدام employeeNumber كـ Document ID
+                    // Driver, automatic account and both audit events are one
+                    // batch: a partial create is never exposed.
                     const employeeNum = driverData.employeeNumber;
-                    await setDoc(doc(db, 'drivers', employeeNum), driverData);
-                    await logEditHistory({
-                        recordType: 'driver', recordId: employeeNum, action: 'create',
-                        driverId: employeeNum, driverName: driverData.name || null,
-                        description: 'إضافة سائق', source: 'drivers.html',
-                        fullSnapshotAfter: { ...driverData, id: employeeNum }
-                    });
-                    console.log('✅ تم إضافة السائق في drivers بالرقم الوظيفي:', employeeNum);
-                    
-                    // إنشاء حساب تلقائي في مجموعة users
-                    try {
-                        const userData = {
-                            name: driverData.name,
-                            email: '',
-                            password: '123',
-                            role: 'driver',
-                            isActive: true,
-                            driverId: employeeNum,
-                            createdAt: new Date(),
-                            createdBy: currentUser.name || currentUser.email
-                        };
-                        
-                        // استخدام addDoc لإنشاء مستند جديد بمعرف تلقائي
-                        const userDoc = await addDoc(collection(db, 'users'), userData);
-                        const { password: omittedPassword, ...safeUserSnapshot } = userData;
-                        await logEditHistory({
-                            recordType: 'user', recordId: userDoc.id, action: 'addUser',
+                    const userData = {
+                        name: driverData.name,
+                        email: '',
+                        password: '123',
+                        role: 'driver',
+                        isActive: true,
+                        driverId: employeeNum,
+                        createdAt: new Date(),
+                        createdBy: currentUser.name || currentUser.email
+                    };
+                    const driverRef = doc(db, 'drivers', employeeNum);
+                    const userRef = doc(collection(db, 'users'));
+                    const { password: omittedPassword, ...safeUserSnapshot } = userData;
+                    await runTransaction(db, async tx => {
+                        const existingDriver = await tx.get(driverRef);
+                        if (existingDriver.exists()) {
+                            throw new Error('الرقم الوظيفي مستخدم بالفعل؛ أعد فتح نموذج الإضافة');
+                        }
+                        tx.set(driverRef, driverData);
+                        tx.set(doc(collection(db, 'editHistory')), editHistoryData({
+                            recordType: 'driver', recordId: employeeNum, action: 'create',
+                            driverId: employeeNum, driverName: driverData.name || null,
+                            description: 'إضافة سائق', source: 'drivers.html',
+                            fullSnapshotAfter: { ...driverData, id: employeeNum }
+                        }));
+                        tx.set(userRef, userData);
+                        tx.set(doc(collection(db, 'editHistory')), editHistoryData({
+                            recordType: 'user', recordId: userRef.id, action: 'addUser',
                             driverId: employeeNum, driverName: driverData.name || null,
                             description: 'إنشاء حساب تلقائي للسائق', source: 'drivers.html',
-                            fullSnapshotAfter: { ...safeUserSnapshot, id: userDoc.id }
-                        });
-                        console.log('✅ تم إنشاء حساب في users:', userDoc.id);
-                        alert('تم إضافة السائق بنجاح وإنشاء حساب له في النظام');
-                    } catch (userError) {
-                        console.error('❌ خطأ في إنشاء حساب المستخدم:', userError);
-                        alert('تم إضافة السائق لكن حدث خطأ في إنشاء حساب له. الخطأ: ' + userError.message);
-                    }
+                            fullSnapshotAfter: { ...safeUserSnapshot, id: userRef.id }
+                        }));
+                    });
+                    console.log('✅ تم إنشاء السائق والحساب وسجلي التدقيق ذرياً:', employeeNum);
+                    alert('تم إضافة السائق بنجاح وإنشاء حساب له في النظام');
                 }
                 
                 closeModal();
@@ -1498,7 +1567,7 @@
                 displayDrivers(allDrivers);
             } catch (error) {
                 console.error('Error saving driver:', error);
-                alert('حدث خطأ في حفظ البيانات');
+                alert('حدث خطأ في حفظ البيانات: ' + error.message);
             }
         });
 
@@ -1977,6 +2046,7 @@
                     updateData.monthlyPayment = newRate;
                 }
 
+                 assertAtomicWriteLimit(legacyPostEndPlans.length + 2, 'إنشاء عقد جديد');
                  await runTransaction(db, async tx => {
                      const driverRef = doc(db, 'drivers', newContractDriverId);
                      const snap = await tx.get(driverRef);
@@ -2065,13 +2135,9 @@
                       historyForWrite.push(existingHistory.find(h => h && h.contractId === contractId) || { contractId, type:'عقد جديد', contractType:newType, startDate:new Date(newStart), endDate:new Date(newEnd), dailyRent:newType === 'daily' ? newRate : 0, monthlyPayment:newType === 'monthly' ? newRate : 0, note:'العقد الحالي' });
                       tx.update(driverRef, { ...updateData, oldDebts:Math.round(parseFloat(live.oldDebts || 0) * 1000) / 1000, oldDebtDetails:reservedDetails, contractHistory:historyForWrite,
                           debtAllocationRevision:(parseInt(live.debtAllocationRevision || 0) || 0) + 1 });
-                 });
-                  
-                  // 🔧 FIX #020: تسجيل عقد جديد في editHistory
-                  try {
-                      await logEditHistory({
+                      tx.set(doc(collection(db, 'editHistory')), editHistoryData({
                           recordType: 'contract', recordId: newContractDriverId, action: 'newContract',
-                          contractId: contractId,
+                          contractId,
                           sourceContractId: priorContractId || null,
                           driverId: newContractDriverId, driverName: driver.name || '',
                           description: 'عقد جديد - ' + (newType === 'daily' ? 'يومي' : 'شهري') + ' ' + newRate.toFixed(3) + ' د.ك',
@@ -2079,12 +2145,12 @@
                           newContract: {
                               type: newType, rate: newRate,
                               startDate: newStart, endDate: newEnd,
-                              carryOver: finalCarryOver, carryOverLabel: carryOverLabel,
+                              carryOver: finalCarryOver, carryOverLabel,
                               oldDebtsBefore: parseFloat(driver.oldDebts || 0),
                               oldDebtsAfter: newOldDebts
                           }
-                      });
-                  } catch (__lge) { console.error('⚠️ FIX #020 newContract log:', __lge); }
+                      }));
+                 });
 
                  alert(`✅ تم إنشاء العقد الجديد بنجاح!\n` +
                      `تم تثبيت أصل الدين المرحّل (${Math.abs(finalCarryOver).toFixed(3)} د.ك) مرة واحدة وتوثيق التخصيصات`);
@@ -2228,17 +2294,19 @@
                     : `♻️ إعادة احتساب هذا السجل في حسابات الديون؟`;
                 if (!confirm(msg)) return;
 
-                const newHistory = driver.contractHistory.map((h, i) => i === historyIndex ? { ...h, hidden: willHide, hiddenAt: willHide ? new Date().toISOString() : null, hiddenBy: willHide ? (currentUser.name || currentUser.email) : null } : h);
-
-                const { doc, updateDoc, addDoc, collection, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-                await updateDoc(doc(db, 'drivers', driverId), { contractHistory: newHistory });
-
-                // editHistory log
-                try {
-                    await addDoc(collection(db, 'editHistory'), {
-                        timestamp: serverTimestamp(),
-                        editedBy: currentUser.name || currentUser.email,
-                        editedByRole: currentUser.role || 'admin',
+                let newHistory;
+                const driverRef = doc(db, 'drivers', driverId);
+                await runTransaction(db, async tx => {
+                    const liveSnap = await tx.get(driverRef);
+                    if (!liveSnap.exists()) throw new Error('السائق غير موجود');
+                    const live = liveSnap.data() || {};
+                    const liveHistory = Array.isArray(live.contractHistory) ? live.contractHistory : [];
+                    if (!liveHistory[historyIndex] || JSON.stringify(liveHistory[historyIndex]) !== JSON.stringify(entry)) {
+                        throw new Error('تغير سجل العقد؛ أعد فتح السجل وحاول مجدداً');
+                    }
+                    newHistory = liveHistory.map((h, i) => i === historyIndex ? { ...h, hidden: willHide, hiddenAt: willHide ? new Date().toISOString() : null, hiddenBy: willHide ? (currentUser.name || currentUser.email) : null } : h);
+                    tx.update(driverRef, { contractHistory: newHistory });
+                    tx.set(doc(collection(db, 'editHistory')), editHistoryData({
                         action: 'edit',
                         recordType: 'contract',
                         recordId: driverId,
@@ -2250,8 +2318,8 @@
                         note: `${action} سجل عقد رقم ${historyIndex + 1}`,
                         changes: [{ field: `contractHistory[${historyIndex}].hidden`, oldValue: !willHide, newValue: willHide }],
                         hiddenEntrySnapshot: entry
-                    });
-                } catch(e) { console.warn('editHistory log failed:', e); }
+                    }));
+                });
 
                 // refresh local + UI
                 driver.contractHistory = newHistory;
@@ -2557,13 +2625,9 @@
                        }
                        tx.update(endRef, { ...endDriverUpdate, oldDebtDetails: mergedDetails, contractHistory: mergedHistory,
                            debtAllocationRevision: (parseInt(live.debtAllocationRevision || 0) || 0) + 1 });
-                   });
-                    
-                    // 🔧 FIX #020: تسجيل إنهاء عقد في editHistory
-                    try {
-                        await logEditHistory({
+                        tx.set(doc(collection(db, 'editHistory')), editHistoryData({
                             recordType: 'contract', recordId: endContractDriverId, action: 'endContract',
-                            contractId: contractId,
+                            contractId,
                             driverId: endContractDriverId, driverName: driver.name || '',
                             description: 'إنهاء عقد - ' + reason,
                             editReason: note || reason,
@@ -2573,10 +2637,10 @@
                                 carryOver: calc.carryOver,
                                 oldDebtsBefore: parseFloat(driver.oldDebts || 0),
                                 oldDebtsAfter: calc.oldDebtsNew,
-                                reason: reason
+                                reason
                             }
-                        });
-                    } catch (__lge) { console.error('⚠️ FIX #020 endContract log:', __lge); }
+                        }));
+                   });
                   
                   alert('✅ تم إنهاء العقد بنجاح');
                   closeEndContractModal();
@@ -2650,27 +2714,33 @@
                     }
                 }
 
-                await updateDoc(doc(db, 'drivers', editOldDebtsDriverId), {
-                    oldDebts: newValue,
-                    ...(updatedDebtDetails.length ? { oldDebtDetails: updatedDebtDetails } : {}),
-                    contractHistory: updatedHistory
+                const driverRef = doc(db, 'drivers', editOldDebtsDriverId);
+                await runTransaction(db, async tx => {
+                    const liveSnap = await tx.get(driverRef);
+                    if (!liveSnap.exists()) throw new Error('السائق غير موجود');
+                    const live = liveSnap.data() || {};
+                    if (parseFloat(live.oldDebts || 0) !== oldValue ||
+                        JSON.stringify(live.contractHistory || []) !== JSON.stringify(currentHistory) ||
+                        JSON.stringify(live.oldDebtDetails || []) !== JSON.stringify(driver.oldDebtDetails || [])) {
+                        throw new Error('تغيرت بيانات الدين أثناء التعديل؛ أعد فتح النافذة وحاول مجدداً');
+                    }
+                    const businessUpdate = {
+                        oldDebts: newValue,
+                        ...(updatedDebtDetails.length ? { oldDebtDetails: updatedDebtDetails } : {}),
+                        contractHistory: updatedHistory
+                    };
+                    tx.update(driverRef, businessUpdate);
+                    tx.set(doc(collection(db, 'editHistory')), editHistoryData({
+                        recordType: 'oldDebts', recordId: editOldDebtsDriverId, action: 'edit',
+                        driverId: editOldDebtsDriverId, driverName: driver.name || '',
+                        field: 'oldDebts', fieldLabel: 'الديون القديمة',
+                        oldValue, newValue,
+                        fullSnapshotBefore: { ...live, id: editOldDebtsDriverId },
+                        fullSnapshotAfter: { ...live, ...businessUpdate, id: editOldDebtsDriverId },
+                        description: 'تعديل ديون قديمة من ' + oldValue.toFixed(3) + ' إلى ' + newValue.toFixed(3) + ' د.ك',
+                        editReason: note
+                    }));
                 });
-                  
-                  // 🔧 FIX #020: تسجيل تعديل ديون قديمة في editHistory
-                  try {
-                      await logEditHistory({
-                          recordType: 'oldDebts', recordId: editOldDebtsDriverId, action: 'edit',
-                          driverId: editOldDebtsDriverId, driverName: driver.name || '',
-                          field: 'oldDebts', fieldLabel: 'الديون القديمة',
-                          oldValue: oldValue, newValue: newValue,
-                          fullSnapshotBefore: { ...driver, id: editOldDebtsDriverId },
-                          fullSnapshotAfter: { ...driver, oldDebts: newValue,
-                              ...(updatedDebtDetails.length ? { oldDebtDetails: updatedDebtDetails } : {}),
-                              contractHistory: updatedHistory, id: editOldDebtsDriverId },
-                          description: 'تعديل ديون قديمة من ' + oldValue.toFixed(3) + ' إلى ' + newValue.toFixed(3) + ' د.ك',
-                          editReason: note
-                      });
-                  } catch (__lge) { console.error('⚠️ FIX #020 oldDebts log:', __lge); }
 
                 alert(`✅ تم تعديل الديون القديمة بنجاح!\nمن: ${oldValue.toFixed(3)} د.ك → إلى: ${newValue.toFixed(3)} د.ك`);
                 closeEditOldDebtsModal();

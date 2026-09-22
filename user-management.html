@@ -162,6 +162,10 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
+        // Provisioning must not replace the signed-in administrator in the
+        // default app. This isolated, non-persistent Auth instance also keeps
+        // the newly-created account available for compensation if Firestore fails.
+        const provisioningAuth = firebase.initializeApp(firebaseConfig, 'userManagementProvisioning').auth();
 
         // Check auth
         let currentUserRole = '';
@@ -307,34 +311,181 @@
         }
 
         // Add user form
-        // 🔧 #025: helper لتسجيل تعديلات المستخدمين في editHistory (Firebase v8 compat)
-        async function logUserEditHistory(entry) {
-            try {
-                const me = (typeof currentUserRole !== 'undefined' && currentUserRole) || localStorage.getItem('userRole') || 'unknown';
-                const meId = (typeof currentUserId !== 'undefined' && currentUserId) || (auth.currentUser ? auth.currentUser.uid : 'unknown');
-                const meEmail = auth.currentUser ? auth.currentUser.email : (localStorage.getItem('userName') || 'unknown');
-                await db.collection('editHistory').add({
-                    recordType: 'user',
-                    action: entry.action,
-                    recordId: entry.recordId || '',
-                    driverId: entry.driverId || null,
-                    driverName: entry.driverName || null,
-                    source: entry.source || 'user-management.html',
-                    description: entry.description || '',
-                    changes: entry.changes || null,
-                    fullSnapshot: entry.fullSnapshot || null,
-                    fullSnapshotBefore: entry.fullSnapshotBefore || null,
-                    fullSnapshotAfter: entry.fullSnapshotAfter || null,
-                    editReason: entry.editReason || null,
-                    editedBy: meEmail,
-                    editedById: meId,
-                    editorRole: me,
-                    editedByRole: me,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        // Build the audit document inside the same Firestore transaction as its
+        // business mutation. Callers must never commit one without the other.
+        function userAuditData(entry) {
+            const me = currentUserRole || localStorage.getItem('userRole') || 'unknown';
+            const meId = currentUserId || (auth.currentUser ? auth.currentUser.uid : 'unknown');
+            const meEmail = auth.currentUser ? auth.currentUser.email : (localStorage.getItem('userName') || 'unknown');
+            return {
+                recordType: 'user',
+                action: entry.action,
+                recordId: entry.recordId || '',
+                driverId: entry.driverId || null,
+                driverName: entry.driverName || null,
+                source: entry.source || 'user-management.html',
+                description: entry.description || '',
+                changes: entry.changes || null,
+                fullSnapshot: entry.fullSnapshot || null,
+                fullSnapshotBefore: entry.fullSnapshotBefore || null,
+                fullSnapshotAfter: entry.fullSnapshotAfter || null,
+                editReason: entry.editReason || null,
+                editedBy: meEmail,
+                editedById: meId,
+                editorRole: me,
+                editedByRole: me,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+        }
+
+        function writeAudit(transaction, entry) {
+            const auditRef = db.collection('editHistory').doc();
+            transaction.set(auditRef, userAuditData(entry));
+        }
+
+        async function updateUserAtomic(userId, name, role) {
+            const userRef = db.collection('users').doc(userId);
+            return db.runTransaction(async transaction => {
+                const userDoc = await transaction.get(userRef);
+                if (!userDoc.exists) throw new Error('المستخدم غير موجود');
+                const before = userDoc.data();
+                if (!canModifyUser(before.role)) throw new Error('ليس لديك صلاحية لتعديل هذا المستخدم');
+                const changes = [];
+                if (before.name !== name) changes.push({ field: 'name', oldValue: before.name ?? null, newValue: name });
+                if (before.role !== role) changes.push({ field: 'role', oldValue: before.role ?? null, newValue: role });
+                transaction.update(userRef, {
+                    name,
+                    role,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-            } catch (e) {
-                console.error('⚠️ #025 logUserEditHistory:', e);
-                alert('⚠️ لم يُحفظ سجل تدقيق المستخدم. راجع المالك قبل إعادة العملية: ' + e.message);
+                writeAudit(transaction, {
+                    action: 'updateUser', recordId: userId,
+                    description: `تعديل المستخدم: ${name}`,
+                    changes
+                });
+            });
+        }
+
+        async function setUserStatusAtomic(userId, isActive) {
+            const userRef = db.collection('users').doc(userId);
+            return db.runTransaction(async transaction => {
+                const userDoc = await transaction.get(userRef);
+                if (!userDoc.exists) throw new Error('المستخدم غير موجود');
+                const before = userDoc.data();
+                if (!canModifyUser(before.role)) throw new Error('ليس لديك صلاحية لتعطيل/تفعيل هذا المستخدم');
+                transaction.update(userRef, {
+                    isActive,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                writeAudit(transaction, {
+                    action: isActive ? 'activateUser' : 'deactivateUser', recordId: userId,
+                    description: `${isActive ? 'تفعيل' : 'تعطيل'} المستخدم: ${before.name || userId}`,
+                    changes: [{ field: 'isActive', oldValue: before.isActive ?? null, newValue: isActive }]
+                });
+            });
+        }
+
+        async function deleteUserAtomic(userId) {
+            const userRef = db.collection('users').doc(userId);
+            return db.runTransaction(async transaction => {
+                const userDoc = await transaction.get(userRef);
+                if (!userDoc.exists) throw new Error('المستخدم غير موجود');
+                const before = userDoc.data();
+                if (!canModifyUser(before.role)) throw new Error('ليس لديك صلاحية لحذف هذا المستخدم');
+                transaction.delete(userRef);
+                writeAudit(transaction, {
+                    action: 'deleteUser', recordId: userId,
+                    description: `حذف المستخدم: ${before.name || ''} (${before.role || ''})`,
+                    fullSnapshot: {
+                        name: before.name || null,
+                        email: before.email || null,
+                        role: before.role || null,
+                        isActive: before.isActive
+                    }
+                });
+            });
+        }
+
+        async function changeUserPasswordAtomic(userId, newPassword) {
+            const userRef = db.collection('users').doc(userId);
+            return db.runTransaction(async transaction => {
+                const userDoc = await transaction.get(userRef);
+                if (!userDoc.exists) throw new Error('المستخدم غير موجود');
+                const before = userDoc.data();
+                if (!canModifyUser(before.role)) throw new Error('ليس لديك صلاحية لتغيير كلمة مرور هذا المستخدم');
+                transaction.update(userRef, {
+                    password: newPassword,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                writeAudit(transaction, {
+                    action: 'changePassword', recordId: userId,
+                    description: `تغيير كلمة مرور المستخدم: ${before.name || userId}`
+                });
+            });
+        }
+
+        async function syncDriverUserAtomic(driver, userData) {
+            // A stable target plus a transactional existence read makes two
+            // concurrent sync runs converge on one account and one audit event.
+            const syncedRef = db.collection('users').doc(`driver_${driver.id}`);
+            return db.runTransaction(async transaction => {
+                const existing = await transaction.get(syncedRef);
+                if (existing.exists) return { created: false, id: syncedRef.id };
+                transaction.set(syncedRef, userData);
+                const { password: omittedPassword, ...safeUserSnapshot } = userData;
+                writeAudit(transaction, {
+                    recordId: syncedRef.id, action: 'addUser',
+                    driverId: driver.id, driverName: driver.name || null,
+                    description: 'إنشاء حساب سائق عبر المزامنة',
+                    fullSnapshotAfter: { ...safeUserSnapshot, id: syncedRef.id }
+                });
+                return { created: true, id: syncedRef.id };
+            });
+        }
+
+        async function provisionUserWithAudit(name, email, password, role) {
+            let provisionedAuthUser = null;
+            try {
+                let userId;
+                if (email && (role === 'admin' || role === 'accountant')) {
+                    await provisioningAuth.setPersistence(firebase.auth.Auth.Persistence.NONE);
+                    const credential = await provisioningAuth.createUserWithEmailAndPassword(email, password);
+                    provisionedAuthUser = credential.user;
+                    userId = credential.user.uid;
+                } else {
+                    userId = `${role}_${name.replace(/\s/g, '_').toLowerCase()}_${Date.now()}`;
+                }
+                const createdUserData = {
+                    name, email: email || null, password, role, isActive: true,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                const { password: omittedPassword, ...safeCreatedUser } = createdUserData;
+                const userRef = db.collection('users').doc(userId);
+                await db.runTransaction(async transaction => {
+                    transaction.set(userRef, createdUserData);
+                    writeAudit(transaction, {
+                        action: 'addUser', recordId: userId,
+                        description: `إضافة مستخدم جديد: ${name} (${role})`,
+                        fullSnapshot: { ...safeCreatedUser, id: userId },
+                        fullSnapshotAfter: { ...safeCreatedUser, id: userId }
+                    });
+                });
+                provisioningAuth.signOut().catch(error =>
+                    console.error('تعذر إنهاء جلسة إنشاء المستخدم المعزولة:', error));
+                return userId;
+            } catch (error) {
+                if (provisionedAuthUser) {
+                    try {
+                        await provisionedAuthUser.delete();
+                    } catch (cleanupError) {
+                        console.error('فشل حذف حساب Auth بعد فشل Firestore:', cleanupError);
+                        error.authCleanupFailed = true;
+                        error.message += '، كما تعذر حذف حساب الدخول الذي تم إنشاؤه؛ يجب على المالك تنظيفه يدوياً';
+                    }
+                    provisioningAuth.signOut().catch(cleanupError =>
+                        console.error('تعذر إنهاء جلسة إنشاء المستخدم المعزولة:', cleanupError));
+                }
+                throw error;
             }
         }
 
@@ -352,36 +503,7 @@
             }
 
             try {
-                let userId;
-                
-                // إذا كان البريد الإلكتروني موجود والدور مدير أو محاسب
-                if (email && (role === 'admin' || role === 'accountant')) {
-                    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-                    userId = userCredential.user.uid;
-                } else {
-                    // للسائقين فقط - إنشاء معرف فريد
-                    userId = `${role}_${name.replace(/\s/g, '_').toLowerCase()}_${Date.now()}`;
-                }
-
-                // حفظ البيانات في Firestore
-                const createdUserData = {
-                    name: name,
-                    email: email || null,
-                    password: password,
-                    role: role,
-                    isActive: true,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-                await db.collection('users').doc(userId).set(createdUserData);
-                const { password: omittedPassword, ...safeCreatedUser } = createdUserData;
-
-                // 🔧 #025: لوغ إضافة مستخدم
-                await logUserEditHistory({
-                    action: 'addUser', recordId: userId,
-                    description: `إضافة مستخدم جديد: ${name} (${role})`,
-                    fullSnapshot: { ...safeCreatedUser, id: userId },
-                    fullSnapshotAfter: { ...safeCreatedUser, id: userId }
-                });
+                await provisionUserWithAudit(name, email, password, role);
 
                 showMessage('تم إضافة المستخدم بنجاح! ✅', 'success');
                 document.getElementById('addUserForm').reset();
@@ -390,13 +512,14 @@
             } catch (error) {
                 console.error('Error adding user:', error);
                 let errorMsg = 'حدث خطأ في إضافة المستخدم';
-                
                 if (error.code === 'auth/email-already-in-use') {
                     errorMsg = 'البريد الإلكتروني مستخدم من قبل';
                 } else if (error.code === 'auth/invalid-email') {
                     errorMsg = 'البريد الإلكتروني غير صحيح';
                 } else if (error.code === 'auth/weak-password') {
                     errorMsg = 'كلمة المرور ضعيفة جداً';
+                } else if (error.authCleanupFailed) {
+                    errorMsg = error.message;
                 }
                 
                 showMessage(errorMsg, 'error');
@@ -434,22 +557,7 @@
             const role = document.getElementById('editUserRole').value;
 
             try {
-                // 🔧 #025: التقاط القيم قبل التعديل
-                const _before = users.find(u => u.id === userId) || {};
-                await db.collection('users').doc(userId).update({
-                    name: name,
-                    role: role,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                // لوغ التعديل
-                const _changes = [];
-                if (_before.name !== name) _changes.push({ field: 'name', oldValue: _before.name ?? null, newValue: name });
-                if (_before.role !== role) _changes.push({ field: 'role', oldValue: _before.role ?? null, newValue: role });
-                await logUserEditHistory({
-                    action: 'updateUser', recordId: userId,
-                    description: `تعديل المستخدم: ${name}`,
-                    changes: _changes
-                });
+                await updateUserAtomic(userId, name, role);
 
                 showMessage('تم تحديث المستخدم بنجاح! ✅', 'success');
                 closeEditModal();
@@ -477,16 +585,7 @@
             if (!confirm(`هل أنت متأكد من ${action} هذا المستخدم؟`)) return;
 
             try {
-                await db.collection('users').doc(userId).update({
-                    isActive: isActive,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                // 🔧 #025: لوغ تفعيل/تعطيل
-                await logUserEditHistory({
-                    action: isActive ? 'activateUser' : 'deactivateUser', recordId: userId,
-                    description: `${action} المستخدم: ${user.name}`,
-                    changes: [{ field: 'isActive', oldValue: user.isActive ?? null, newValue: isActive }]
-                });
+                await setUserStatusAtomic(userId, isActive);
 
                 showMessage(`تم ${action} المستخدم بنجاح! ✅`, 'success');
                 await loadUsers();
@@ -511,13 +610,7 @@
             if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟ هذا الإجراء لا يمكن التراجع عنه!')) return;
 
             try {
-                // 🔧 #025: لوغ قبل الحذف (مع snapshot كامل)
-                await logUserEditHistory({
-                    action: 'deleteUser', recordId: userId,
-                    description: `حذف المستخدم: ${user.name} (${user.role})`,
-                    fullSnapshot: { name: user.name, email: user.email || null, role: user.role, isActive: user.isActive }
-                });
-                await db.collection('users').doc(userId).delete();
+                await deleteUserAtomic(userId);
                 showMessage('تم حذف المستخدم بنجاح! ✅', 'success');
                 await loadUsers();
                 
@@ -582,16 +675,7 @@
             }
 
             try {
-                await db.collection('users').doc(userId).update({
-                    password: newPassword,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                // 🔧 #025: لوغ تغيير كلمة مرور (بدون حفظ الكلمة نفسها)
-                const _u = users.find(u => u.id === userId) || {};
-                await logUserEditHistory({
-                    action: 'changePassword', recordId: userId,
-                    description: `تغيير كلمة مرور المستخدم: ${_u.name || userId}`
-                });
+                await changeUserPasswordAtomic(userId, newPassword);
 
                 showMessage('تم تغيير كلمة المرور بنجاح! ✅', 'success');
                 closePasswordModal();
@@ -667,16 +751,14 @@
                             syncedFromDrivers: true
                         };
 
-                        const syncedRef = await db.collection('users').add(userData);
-                        const { password: omittedPassword, ...safeUserSnapshot } = userData;
-                        await logUserEditHistory({
-                            recordId: syncedRef.id, action: 'addUser',
-                            driverId: driver.id, driverName: driver.name || null,
-                            description: 'إنشاء حساب سائق عبر المزامنة',
-                            fullSnapshotAfter: { ...safeUserSnapshot, id: syncedRef.id }
-                        });
-                        createdCount++;
-                        console.log(`✅ تم إنشاء حساب لـ ${driver.name}`);
+                        const result = await syncDriverUserAtomic(driver, userData);
+                        if (result.created) {
+                            createdCount++;
+                            console.log(`✅ تم إنشاء حساب لـ ${driver.name}`);
+                        } else {
+                            skippedCount++;
+                            console.log(`تم تخطي ${driver.name} - أنشأته مزامنة متزامنة`);
+                        }
                     } catch (error) {
                         console.error(`❌ خطأ في إنشاء حساب لـ ${driver.name}:`, error);
                         errors.push(driver.name);

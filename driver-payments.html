@@ -1042,40 +1042,54 @@
             const today = new Date();
             
             if (expiryDate <= today) {
-                // Add automatic residence renewal debt
-                const renewalData = {
-                    driverId: currentDriverId,
-                    driverName: currentDriver.name,
-                    type: 'سداد رسوم إقامة',
-                    amount: 30,
-                    date: today.toISOString().split('T')[0],
-                    description: 'تجديد إقامة تلقائي',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-                
-                const renewalRef = await db.collection('driverPayments').add(renewalData);
-                await logEditHistoryDP({
-                    recordType: 'driverPayment', recordId: renewalRef.id, action: 'create',
-                    driverId: currentDriverId, driverName: currentDriver.name || null,
-                    description: renewalData.description, source: 'driver-payments.html',
-                    fullSnapshotAfter: { ...renewalData, id: renewalRef.id }
-                });
-                
-                // Update residence expiry date (add one year)
-                const newExpiryDate = new Date(expiryDate);
-                newExpiryDate.setFullYear(newExpiryDate.getFullYear() + 1);
-                
-                await db.collection('drivers').doc(currentDriverId).update({
-                    residenceExpiryDate: newExpiryDate.toISOString().split('T')[0]
-                });
-                await logEditHistoryDP({
-                    recordType: 'driver', recordId: currentDriverId, action: 'edit',
-                    driverId: currentDriverId, driverName: currentDriver.name || null,
-                    description: 'تحديث انتهاء الإقامة بعد التجديد التلقائي',
-                    relatedPaymentId: renewalRef.id,
-                    changes: [{ field: 'residenceExpiryDate', oldValue: currentDriver.residenceExpiryDate,
-                        newValue: newExpiryDate.toISOString().split('T')[0] }],
-                    source: 'driver-payments.html'
+                await db.runTransaction(async tx => {
+                    const driverRef = db.collection('drivers').doc(currentDriverId);
+                    const driverSnap = await tx.get(driverRef);
+                    if (!driverSnap.exists) throw new Error('السائق غير موجود');
+                    const liveDriver = driverSnap.data();
+                    const liveExpiry = new Date(liveDriver.residenceExpiryDate);
+                    if (!liveDriver.residenceExpiryDate || liveExpiry > today) return;
+                    // A second concurrent caller was opened from the same stale page state.
+                    // Only the transaction that still sees that exact expiry may renew it.
+                    if (liveDriver.residenceExpiryDate !== currentDriver.residenceExpiryDate) return;
+                    const renewalRef = db.collection('driverPayments').doc();
+                    const renewalData = {
+                        driverId: currentDriverId,
+                        driverName: liveDriver.name,
+                        type: 'سداد رسوم إقامة',
+                        amount: 30,
+                        date: today.toISOString().split('T')[0],
+                        description: 'تجديد إقامة تلقائي',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    const newExpiryDate = new Date(liveExpiry);
+                    newExpiryDate.setFullYear(newExpiryDate.getFullYear() + 1);
+                    const newExpiryValue = newExpiryDate.toISOString().split('T')[0];
+                    tx.set(renewalRef, renewalData);
+                    tx.update(driverRef, { residenceExpiryDate: newExpiryValue });
+                    tx.set(db.collection('editHistory').doc(), {
+                        recordType: 'driverPayment', recordId: renewalRef.id, action: 'create',
+                        driverId: currentDriverId, driverName: liveDriver.name || null,
+                        description: renewalData.description, source: 'driver-payments.html',
+                        fullSnapshotAfter: { ...renewalData, id: renewalRef.id },
+                        editedBy: localStorage.getItem('userName') || 'غير محدد',
+                        editedByRole: localStorage.getItem('userRole') || 'unknown',
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    tx.set(db.collection('editHistory').doc(), {
+                        recordType: 'driver', recordId: currentDriverId, action: 'edit',
+                        driverId: currentDriverId, driverName: liveDriver.name || null,
+                        description: 'تحديث انتهاء الإقامة بعد التجديد التلقائي',
+                        relatedPaymentId: renewalRef.id,
+                        changes: [{ field: 'residenceExpiryDate', oldValue: liveDriver.residenceExpiryDate,
+                            newValue: newExpiryValue }],
+                        fullSnapshotBefore: { id: currentDriverId, ...liveDriver },
+                        fullSnapshotAfter: { id: currentDriverId, ...liveDriver, residenceExpiryDate: newExpiryValue },
+                        source: 'driver-payments.html',
+                        editedBy: localStorage.getItem('userName') || 'غير محدد',
+                        editedByRole: localStorage.getItem('userRole') || 'unknown',
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
                 });
                 
                 document.getElementById('renewalNotice').style.display = 'block';
@@ -1145,11 +1159,11 @@
                 if (pendingDeletePaymentSnapshot && (pendingDeletePaymentSnapshot.allocationKind || (Array.isArray(pendingDeletePaymentSnapshot.allocations) && pendingDeletePaymentSnapshot.allocations.length))) {
                      await db.runTransaction(async tx => {
                          const paymentRef = db.collection('driverPayments').doc(pendingDeletePaymentId);
-                         const driverRef = db.collection('drivers').doc(pendingDeletePaymentSnapshot.driverId);
                          const paymentSnap = await tx.get(paymentRef);
-                         const driverSnap = await tx.get(driverRef);
                          if (!paymentSnap.exists || paymentSnap.data().status === 'voided') return;
                          const livePayment = paymentSnap.data();
+                         const driverRef = db.collection('drivers').doc(livePayment.driverId);
+                         const driverSnap = await tx.get(driverRef);
                          const liveDriver = driverSnap.exists ? driverSnap.data() : {};
                          const parts = _ubPaymentParts(livePayment).filter(a => a.allocationKind === 'oldDebt' && a.obligationId);
                          const byId = {};
@@ -1170,8 +1184,26 @@
                      });
                 } else {
                     // Legacy rows retain their historical delete behavior.
-                    await db.collection('editHistory').add(auditPayload);
-                    await db.collection('driverPayments').doc(pendingDeletePaymentId).delete();
+                    await db.runTransaction(async tx => {
+                        const paymentRef = db.collection('driverPayments').doc(pendingDeletePaymentId);
+                        const paymentSnap = await tx.get(paymentRef);
+                        if (!paymentSnap.exists) throw new Error('الدفعة غير موجودة أو تم حذفها');
+                        const livePayment = paymentSnap.data();
+                        if (livePayment.allocationKind || livePayment.obligationId || livePayment.contractId ||
+                            (Array.isArray(livePayment.allocations) && livePayment.allocations.length)) {
+                            throw new Error('تغيّر توزيع الدفعة؛ أعد تحميل الصفحة ثم ألغِها بأمان');
+                        }
+                        tx.set(db.collection('editHistory').doc(), {
+                            ...auditPayload,
+                            refNum: livePayment.refNum || null,
+                            description: livePayment.description || livePayment.type || null,
+                            driverName: livePayment.driverName || null,
+                            driverId: livePayment.driverId || null,
+                            fullSnapshot: { id: pendingDeletePaymentId, ...livePayment },
+                            fullSnapshotBefore: { id: pendingDeletePaymentId, ...livePayment }
+                        });
+                        tx.delete(paymentRef);
+                    });
                 }
                 closeDeleteConfirmModal();
                 await loadDriverPayments();
@@ -1547,25 +1579,6 @@
       <script>
           // 🔧 FIX #019: handlers لـ Modal تعديل الديون القديمة (Firebase compat v8)
           
-            // 🔧 FIX #020: Helper موحد لتسجيل في editHistory (compat v8)
-            async function logEditHistoryDP(payload) {
-                try {
-                    const userName = localStorage.getItem('userName') || 'غير محدد';
-                    const userRole = localStorage.getItem('userRole') || 'admin';
-                    await db.collection('editHistory').add({
-                        editedBy: userName, editedByRole: userRole,
-                        editedById: firebase.auth().currentUser ? firebase.auth().currentUser.uid : null,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                        ...payload
-                    });
-                    console.log('📝 logEditHistoryDP:', payload.recordType, payload.action);
-                } catch (e) {
-                    console.error('❌ logEditHistoryDP:', e);
-                    alert('⚠️ لم يُحفظ سجل التدقيق لهذه العملية. لا تكرر العملية المالية؛ أبلغ المالك: ' + e.message);
-                }
-            }
-            window.logEditHistoryDP = logEditHistoryDP;
-
             let editOldDebtsDriverIdLocal = null;
           
           window.openEditOldDebtsModalLocal = () => {
@@ -1604,71 +1617,71 @@
                   return;
               }
               
-              const oldValue = parseFloat(currentDriver.oldDebts || 0);
               const userName = localStorage.getItem('userName') || 'مستخدم';
+              let committedOldValue = 0;
               
               try {
-                  const historyEntry = {
-                      type: 'تعديل',
-                      note: 'تعديل ديون قديمة',
-                      oldValue: oldValue,
-                      newValue: newValue,
-                      reason: note,
-                      editedBy: userName,
-                      editedAt: new Date().toISOString()
-                  };
-                  
-                  const currentHistory = currentDriver.contractHistory || [];
-                  const updatedHistory = [...currentHistory, historyEntry];
-                  const updatedDebtDetails = Array.isArray(currentDriver.oldDebtDetails) ? currentDriver.oldDebtDetails.map(d => ({ ...d })) : [];
-                  if (updatedDebtDetails.length) {
-                    const detailedTotal = updatedDebtDetails.reduce((s, d) => s + (parseFloat(d.originalAmount || 0) + parseFloat(d.adjustmentAmount || d.signedAdjustment || 0)), 0);
-                      let delta = Math.round((newValue - detailedTotal) * 1000) / 1000;
-                      if (delta > 0) {
-                          updatedDebtDetails.push({
-                              id: `${editOldDebtsDriverIdLocal}-adjustment-${Date.now()}`,
-                              contractId: null, contractLabel: 'تعديل رصيد دين قديم', contractType: 'adjustment',
-                              contractStart: null, contractEnd: null, rate: 0, expectedRent: delta,
-                              paidDuringContract: 0, originalAmount: delta, remainingAmount: delta,
-                              createdAt: new Date(), createdBy: userName, status: 'open', note
-                          });
-                      } else if (delta < 0) {
-                          let reduction = Math.abs(delta);
-                          updatedDebtDetails.slice().reverse().forEach(d => {
-                              if (reduction <= 0) return;
-                              const available = Math.max(0, parseFloat(d.originalAmount || 0) + parseFloat(d.adjustmentAmount || d.signedAdjustment || 0));
-                              const applied = Math.min(available, reduction);
-                              d.adjustmentAmount = Math.round((parseFloat(d.adjustmentAmount || d.signedAdjustment || 0) - applied) * 1000) / 1000;
-                              reduction = Math.round((reduction - applied) * 1000) / 1000;
-                          });
+                  await db.runTransaction(async tx => {
+                      const driverRef = db.collection('drivers').doc(editOldDebtsDriverIdLocal);
+                      const driverSnap = await tx.get(driverRef);
+                      if (!driverSnap.exists) throw new Error('السائق غير موجود');
+                      const liveDriver = driverSnap.data();
+                      const oldValue = parseFloat(liveDriver.oldDebts || 0);
+                      committedOldValue = oldValue;
+                      const historyEntry = {
+                          type: 'تعديل', note: 'تعديل ديون قديمة',
+                          oldValue, newValue, reason: note, editedBy: userName,
+                          editedAt: new Date().toISOString()
+                      };
+                      const updatedHistory = [...(liveDriver.contractHistory || []), historyEntry];
+                      const updatedDebtDetails = Array.isArray(liveDriver.oldDebtDetails)
+                          ? liveDriver.oldDebtDetails.map(d => ({ ...d })) : [];
+                      if (updatedDebtDetails.length) {
+                          const detailedTotal = updatedDebtDetails.reduce((s, d) =>
+                              s + (parseFloat(d.originalAmount || 0) + parseFloat(d.adjustmentAmount || d.signedAdjustment || 0)), 0);
+                          let delta = Math.round((newValue - detailedTotal) * 1000) / 1000;
+                          if (delta > 0) {
+                              updatedDebtDetails.push({
+                                  id: `${editOldDebtsDriverIdLocal}-adjustment-${Date.now()}`,
+                                  contractId: null, contractLabel: 'تعديل رصيد دين قديم', contractType: 'adjustment',
+                                  contractStart: null, contractEnd: null, rate: 0, expectedRent: delta,
+                                  paidDuringContract: 0, originalAmount: delta, remainingAmount: delta,
+                                  createdAt: new Date(), createdBy: userName, status: 'open', note
+                              });
+                          } else if (delta < 0) {
+                              let reduction = Math.abs(delta);
+                              updatedDebtDetails.slice().reverse().forEach(d => {
+                                  if (reduction <= 0) return;
+                                  const available = Math.max(0, parseFloat(d.originalAmount || 0) + parseFloat(d.adjustmentAmount || d.signedAdjustment || 0));
+                                  const applied = Math.min(available, reduction);
+                                  d.adjustmentAmount = Math.round((parseFloat(d.adjustmentAmount || d.signedAdjustment || 0) - applied) * 1000) / 1000;
+                                  reduction = Math.round((reduction - applied) * 1000) / 1000;
+                              });
+                          }
                       }
-                  }
-                  
-                  await db.collection('drivers').doc(editOldDebtsDriverIdLocal).update({
-                      oldDebts: newValue,
-                      ...(updatedDebtDetails.length ? { oldDebtDetails: updatedDebtDetails } : {}),
-                      contractHistory: updatedHistory
-                  });
-                    
-                    // 🔧 FIX #020: تسجيل تعديل ديون قديمة في editHistory
-                    try {
-                        await logEditHistoryDP({
-                            recordType: 'oldDebts', recordId: editOldDebtsDriverIdLocal, action: 'edit',
-                            driverId: editOldDebtsDriverIdLocal,
-                            driverName: (currentDriver && currentDriver.name) || '',
-                            field: 'oldDebts', fieldLabel: 'الديون القديمة',
-                            oldValue: oldValue, newValue: newValue,
-                            fullSnapshotBefore: { ...currentDriver, id: editOldDebtsDriverIdLocal },
-                            fullSnapshotAfter: { ...currentDriver, oldDebts: newValue,
-                                ...(updatedDebtDetails.length ? { oldDebtDetails: updatedDebtDetails } : {}),
-                                contractHistory: updatedHistory, id: editOldDebtsDriverIdLocal },
-                            description: 'تعديل ديون قديمة من صفحة الدفعات - من ' + oldValue.toFixed(3) + ' إلى ' + newValue.toFixed(3) + ' د.ك',
-                            editReason: note,
-                            source: 'driver-payments.html'
+                      const updateData = {
+                          oldDebts: newValue,
+                          ...(updatedDebtDetails.length ? { oldDebtDetails: updatedDebtDetails } : {}),
+                          contractHistory: updatedHistory
+                      };
+                      tx.update(driverRef, updateData);
+                      tx.set(db.collection('editHistory').doc(), {
+                          recordType: 'oldDebts', recordId: editOldDebtsDriverIdLocal, action: 'edit',
+                          driverId: editOldDebtsDriverIdLocal, driverName: liveDriver.name || '',
+                          field: 'oldDebts', fieldLabel: 'الديون القديمة',
+                          oldValue, newValue,
+                          fullSnapshotBefore: { ...liveDriver, id: editOldDebtsDriverIdLocal },
+                          fullSnapshotAfter: { ...liveDriver, ...updateData, id: editOldDebtsDriverIdLocal },
+                          description: 'تعديل ديون قديمة من صفحة الدفعات - من ' + oldValue.toFixed(3) + ' إلى ' + newValue.toFixed(3) + ' د.ك',
+                          editReason: note, source: 'driver-payments.html',
+                          editedBy: userName,
+                          editedById: firebase.auth().currentUser ? firebase.auth().currentUser.uid : null,
+                          editedByRole: localStorage.getItem('userRole') || 'admin',
+                          timestamp: firebase.firestore.FieldValue.serverTimestamp()
                         });
-                    } catch (__lge) { console.error('⚠️ FIX #020 DP oldDebts log:', __lge); }
+                  });
                   
-                  alert('✅ تم تعديل الديون القديمة بنجاح!\nمن: ' + oldValue.toFixed(3) + ' د.ك → إلى: ' + newValue.toFixed(3) + ' د.ك');
+                  alert('✅ تم تعديل الديون القديمة بنجاح!\nمن: ' + committedOldValue.toFixed(3) + ' د.ك → إلى: ' + newValue.toFixed(3) + ' د.ك');
                   closeEditOldDebtsModal();
                   
                   await loadDriverData();
@@ -1780,19 +1793,9 @@
                   return;
               }
 
-              const changes = [];
-              if (dpOriginalData.date !== newDate) changes.push({ field:'date', fieldLabel:'التاريخ', oldValue: dpOriginalData.date, newValue: newDate });
-              if (dpOriginalData.type !== newType) changes.push({ field:'type', fieldLabel:'النوع', oldValue: dpOriginalData.type, newValue: newType });
-              if (dpOriginalData.amount !== newAmount) changes.push({ field:'amount', fieldLabel:'المبلغ', oldValue: dpOriginalData.amount, newValue: newAmount });
-              if (dpOriginalData.description !== newDescription) changes.push({ field:'description', fieldLabel:'الوصف', oldValue: dpOriginalData.description, newValue: newDescription });
-
-              if (changes.length === 0) {
-                  alert('لم يتم إجراء أي تغييرات');
-                  return;
-              }
-
               try {
                   const userName = localStorage.getItem('userName') || 'غير محدد';
+                  const userRole = localStorage.getItem('userRole') || 'unknown';
                   const timestamp = firebase.firestore.FieldValue.serverTimestamp();
                   const updateData = {
                       date: newDate,
@@ -1803,23 +1806,41 @@
                       lastEditedAt: timestamp,
                       lastEditedBy: userName
                   };
-                  await db.collection('driverPayments').doc(dpEditingId).update(updateData);
-
-                  try {
-                      await logEditHistoryDP({
+                  await db.runTransaction(async tx => {
+                      const paymentRef = db.collection('driverPayments').doc(dpEditingId);
+                      const paymentSnap = await tx.get(paymentRef);
+                      if (!paymentSnap.exists) throw new Error('الدفعة غير موجودة');
+                      const livePayment = paymentSnap.data();
+                      if (livePayment.allocationKind || livePayment.obligationId || livePayment.contractId ||
+                          (Array.isArray(livePayment.allocations) && livePayment.allocations.length)) {
+                          throw new Error('هذه الدفعة مرتبطة بتوزيع محاسبي. ألغِها وسجّل دفعة جديدة.');
+                      }
+                      const changes = [];
+                      if (livePayment.date !== newDate) changes.push({ field:'date', fieldLabel:'التاريخ', oldValue: livePayment.date, newValue: newDate });
+                      if (livePayment.type !== newType) changes.push({ field:'type', fieldLabel:'النوع', oldValue: livePayment.type, newValue: newType });
+                      if (Number(livePayment.amount) !== newAmount) changes.push({ field:'amount', fieldLabel:'المبلغ', oldValue: livePayment.amount, newValue: newAmount });
+                      if ((livePayment.description || '') !== newDescription) changes.push({ field:'description', fieldLabel:'الوصف', oldValue: livePayment.description || '', newValue: newDescription });
+                      if (!changes.length) throw new Error('لم يتم إجراء أي تغييرات');
+                      const snapshotBefore = { id: dpEditingId, ...livePayment };
+                      const snapshotAfter = { ...snapshotBefore, ...updateData };
+                      tx.update(paymentRef, updateData);
+                      tx.set(db.collection('editHistory').doc(), {
                           recordType: 'driverPayment', recordId: dpEditingId, action: 'edit',
-                          driverId: dpOriginalData.fullSnapshot.driverId || (typeof currentDriverId !== 'undefined' ? currentDriverId : null),
-                          driverName: dpOriginalData.fullSnapshot.driverName || (currentDriver && currentDriver.name) || null,
-                          refNum: dpOriginalData.fullSnapshot.refNum || null,
-                          fullSnapshotBefore: dpOriginalData.fullSnapshot,
-                          fullSnapshotAfter: { ...dpOriginalData.fullSnapshot, ...updateData },
-                          changes: changes,
+                          driverId: livePayment.driverId || (typeof currentDriverId !== 'undefined' ? currentDriverId : null),
+                          driverName: livePayment.driverName || (currentDriver && currentDriver.name) || null,
+                          refNum: livePayment.refNum || null,
+                          fullSnapshotBefore: snapshotBefore,
+                          fullSnapshotAfter: snapshotAfter,
+                          changes,
                           changesCount: changes.length,
                           description: 'تعديل عملية من صفحة دفعات السائق',
-                          editReason: editReason,
-                          source: 'driver-payments.html'
+                          editReason, source: 'driver-payments.html',
+                          editedBy: userName,
+                          editedById: firebase.auth().currentUser ? firebase.auth().currentUser.uid : null,
+                          editedByRole: userRole,
+                          timestamp
                       });
-                  } catch (__lge) { console.error('⚠️ DP edit log:', __lge); }
+                  });
 
                   closeDPEditModal();
                   alert('✅ تم حفظ التعديل بنجاح');
