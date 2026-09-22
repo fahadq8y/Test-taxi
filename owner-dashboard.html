@@ -84,6 +84,8 @@
     .week-cell.late { background: #4d3b00; }
     .week-cell.missed { background: #5a1d1d; }
     .week-cell.no-data { background: #21262d; opacity: 0.4; }
+    #tab-monthly .week-cell { width:auto; min-width:110px; height:auto; padding:6px; line-height:1.6; }
+    #tab-monthly .week-cell.no-data { opacity:0.8; }
 
     .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 14px; margin-bottom: 14px; }
     .card h3 { color: #58a6ff; font-size: 15px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #30363d; }
@@ -731,7 +733,7 @@
           const days = Math.max(0, Math.floor((pEnd - pStart)/86400000));
           expectedRent += days * parseFloat(c.dailyRent||0);
         } else {
-          const months = Math.max(0, (pEnd.getFullYear()-pStart.getFullYear())*12 + (pEnd.getMonth()-pStart.getMonth()));
+          const months = _completedMonthsAnchored(pStart, pEnd);
           expectedRent += months * parseFloat(c.monthlyPayment||0);
         }
       });
@@ -753,7 +755,7 @@
             const d = Math.max(0, Math.floor((iEnd - iStart)/86400000));
             expectedRent += d * drvRate;
           } else {
-            const m = Math.max(0, (iEnd.getFullYear()-iStart.getFullYear())*12 + (iEnd.getMonth()-iStart.getMonth()));
+            const m = _completedMonthsAnchored(iStart, iEnd);
             expectedRent += m * drvRate;
           }
         }
@@ -762,7 +764,7 @@
       const cStart = toDate(driver.contractStartDate) || toDate(driver.createdAt) || atDate;
       let pEnd = toDate(driver.contractEndDate); if (!pEnd || pEnd > atDate) pEnd = atDate;
       if (driver.contractType === 'monthly') {
-        const months = Math.max(0, (pEnd.getFullYear()-cStart.getFullYear())*12 + (pEnd.getMonth()-cStart.getMonth()));
+        const months = _completedMonthsAnchored(cStart, pEnd);
         expectedRent = months * parseFloat(driver.monthlyPayment||0);
       } else {
         const days = Math.max(0, Math.floor((pEnd - cStart)/86400000));
@@ -1163,7 +1165,8 @@
       months.push({ year: d.getFullYear(), month: d.getMonth(),
         label: d.toLocaleDateString('ar-KW', { month:'short', year:'numeric' }) });
     }
-    const monthly = gDrivers.filter(d => !d.isArchived && d.contractType==='monthly');
+    const monthly = gDrivers.filter(d => !d.isArchived &&
+      (detailed(d).periods||[]).some(p => p.contractType==='monthly'));
     gTabNavLists.monthly = monthly.map(d => d.id);
     if (monthly.length === 0) {
       document.getElementById('tab-monthly').innerHTML = '<div class="card"><p style="color:#888;">لا يوجد سائقون شهريون</p></div>';
@@ -1171,21 +1174,32 @@
     }
     const rows = monthly.map(driver => {
       const split = calcDebtSplit(driver.id, driver);
-      const drvPays = gPayments.filter(p => p.driverId===driver.id && RENT_TYPES.includes(p.type));
-      const cStart = toDate(driver.contractStartDate)||toDate(driver.createdAt);
+      const monthlyPeriods = (split.detail?.periods||[]).filter(p => p.contractType==='monthly');
+      const drvPays = gPayments.filter(p =>
+        p.driverId===driver.id && String(p.status||'').toLowerCase()!=='voided');
       let paidM = 0, validM = 0;
       const cells = months.map(m => {
         const mStart = new Date(m.year, m.month, 1);
-        const mEnd = new Date(m.year, m.month+1, 0);
+        const mEnd = new Date(m.year, m.month+1, 0, 23, 59, 59, 999);
         if (mStart > today) return '<td><span class="week-cell no-data">⬜</span></td>';
-        if (cStart && mEnd < cStart) return '<td><span class="week-cell no-data">⬜</span></td>';
-        validM++;
-        const paid = drvPays.filter(p => { const d=toDate(p.date); return d && d>=mStart && d<=mEnd; })
-          .reduce((s,p)=>s+parseFloat(p.amount||0),0);
-        const expected = parseFloat(driver.monthlyPayment||0);
-        if (paid >= expected*0.95) { paidM++; return '<td><span class="week-cell paid">✅</span></td>'; }
-        if (paid > 0) return '<td><span class="week-cell late">🟡</span></td>';
-        return '<td><span class="week-cell missed">❌</span></td>';
+        const due = engineRentDue(monthlyPeriods, mStart, mEnd);
+        const paid = drvPays.reduce((sum,p) => {
+          const d=toDate(p.date);
+          if(!d || d<mStart || d>mEnd) return sum;
+          return sum + ownerPaymentParts(p).reduce((partSum,a) =>
+            partSum + (ownerPartClass(p,a)==='rent' ? Number(a.amount||0) : 0), 0);
+        },0);
+        const overlapsMonthlyPeriod = monthlyPeriods.some(p => {
+          const pStart=toDate(p.start), pEnd=toDate(p.end);
+          return pStart && pStart<=mEnd && (!pEnd || pEnd>=mStart);
+        });
+        if(!overlapsMonthlyPeriod && paid<=0) return '<td><span class="week-cell no-data">⬜</span></td>';
+        if(due>0) validM++;
+        let cls='no-data', icon='—';
+        if(due>0 && paid>=due*0.95) { paidM++; cls='paid'; icon='✅'; }
+        else if(due>0 && paid>0) { cls='late'; icon='🟡'; }
+        else if(due>0) { cls='missed'; icon='❌'; }
+        return `<td><span class="week-cell ${cls}" title="التحصيل مجمّع حسب تاريخ القبض">${icon}<small style="display:block;white-space:nowrap;">مستحق ${fmtKD(due)}</small><small style="display:block;white-space:nowrap;">محصل ${fmtKD(paid)}</small></span></td>`;
       }).join('');
       const reg = validM ? Math.round(paidM/validM*100) : 0;
       const dir = calcDebtDirection(driver);
@@ -1198,7 +1212,8 @@
       </tr>`;
     }).join('');
     document.getElementById('tab-monthly').innerHTML = `
-      <div class="card"><h3>🗓️ الالتزام الشهري - السائقون الشهريون (${monthly.length})</h3>
+      <div class="card"><h3>🗓️ الالتزام الشهري - فترات العقود الشهرية (${monthly.length})</h3>
+      <p style="color:#8b949e;font-size:12px;">المستحق حسب ذكرى بداية العقد الشهرية. المحصل نقدياً مجمّع حسب شهر تاريخ القبض، وليس وعداً بتخصيصه لاستحقاق ذلك الشهر.</p>
       <div class="table-wrap"><table>
         <thead><tr><th>السائق</th><th>الإيجار/شهر</th><th>الدين</th>
         ${months.map(m => `<th>${m.label}</th>`).join('')}
@@ -2318,8 +2333,70 @@
     const rows=gDrivers.filter(d=>!d.isArchived);
     document.getElementById('tab-drivers').innerHTML=`<div class="card"><div class="section-kicker">الملفات المالية والتشغيلية</div><h3>السائقين</h3><input id="driverTableSearch" placeholder="بحث بالاسم أو الرقم" oninput="renderDriverRows(this.value)"><div class="table-wrap"><table><thead><tr><th>السائق</th><th>الحالة المالية</th><th>الدين الموحد</th><th>آخر سداد</th><th>العقد</th><th>التتبع</th><th></th></tr></thead><tbody id="driverRows"></tbody></table></div></div>`;
     window.renderDriverRows=function(value){const v=(value||'').toLowerCase(),body=document.getElementById('driverRows');if(!body)return;body.innerHTML=rows.filter(d=>(d.name||'').toLowerCase().includes(v)||d.id.toLowerCase().includes(v)||(d.employeeNumber||'').toLowerCase().includes(v)).map(d=>{const x=detailed(d);return `<tr><td class="name" onclick="openDriverModal('${safe(d.id)}')">${safe(d.name||d.id)}<div class="small-muted">${safe(d.employeeNumber||d.id)}</div></td><td><span class="badge ${x.status==='منتظم'?'cat-excellent':x.status==='بلا عقد'?'cat-critical':'cat-watch'}">${x.status}</span></td><td>${money(x.totalDebt)}<div class="small-muted">تأخير ${money(x.lateAmount)}</div></td><td>${fmtDate(x.lastPayment)}</td><td>${x.contractEnded?'منتهي':x.contractStart?fmtDate(x.contractStart):'بلا عقد'}</td><td>${trackingLabel(d)}</td><td><button class="btn outline" onclick="openDriverModal('${safe(d.id)}')">فتح الملف</button></td></tr>`}).join('')||'<tr><td colspan="7">ما في نتائج</td></tr>';};renderDriverRows('');}
+   function monitorStoredObject(key){
+     try{const value=JSON.parse(localStorage.getItem(key)||'{}');return value&&typeof value==='object'&&!Array.isArray(value)?value:{};}catch(_){return{};}
+   }
+   function monitorTimestampMs(e){
+     const value=e?.timestamp??e?.createdAt??e?.updatedAt;
+     if(value&&typeof value.toMillis==='function'){const n=value.toMillis();return Number.isFinite(n)?n:null;}
+     if(value&&typeof value.toDate==='function'){const d=value.toDate();return d instanceof Date&&Number.isFinite(d.getTime())?d.getTime():null;}
+     if(value&&typeof value==='object'){
+       const seconds=Number(value.seconds??value._seconds);
+       const nanos=Number(value.nanoseconds??value._nanoseconds??0);
+       if(Number.isFinite(seconds))return seconds*1000+(Number.isFinite(nanos)?nanos/1000000:0);
+     }
+     if(typeof value==='number'&&Number.isFinite(value))return Math.abs(value)<100000000000?value*1000:value;
+     const d=toDate(value);return d&&Number.isFinite(d.getTime())?d.getTime():null;
+   }
+   function monitorCategory(e){
+     const action=String(e.action||'').toLowerCase(),fields=(e.changes||[]).map(c=>String(c.field||c.key||'').toLowerCase());
+     if(action==='delete'||action==='permanentdelete')return'delete';
+     if(fields.some(f=>f==='amount'||f.includes('amount')))return'amount';
+     if(fields.some(f=>/date|paymentdate/.test(f)))return'date';
+     if(fields.some(f=>f==='type'||f.endsWith('type')))return'type';
+     if(fields.some(f=>/olddebts|debt/.test(f)))return'debt';
+     if(/contract/.test(action)||fields.some(f=>/contract|dailyrent|monthlypayment/.test(f)))return'contract';
+     return'other';
+   }
+   function monitorFilterAndSort(rows,filters,decisions){
+     const selected=rows.filter(e=>{
+       if(String(e.status||'').toLowerCase()==='voided')return false;
+       const actor=String(e.editedBy||e.createdBy||'غير معروف');
+       const decision=decisions[String(e.id??'')]||'pending';
+       return(filters.scope!=='review'||Boolean(monitorReason(e)))&&
+         (filters.accountant==='all'||actor===filters.accountant)&&
+         (filters.category==='all'||monitorCategory(e)===filters.category)&&
+         (filters.review==='all'||decision===filters.review);
+     });
+     return selected.slice().sort((a,b)=>{
+       const at=monitorTimestampMs(a),bt=monitorTimestampMs(b),av=at!==null,bv=bt!==null;
+       if(av!==bv)return av?-1:1;
+       if(filters.sort==='largest'){
+         const amountOrder=Math.abs(changeDiff(b))-Math.abs(changeDiff(a));
+         if(amountOrder)return amountOrder;
+       }
+       if(av&&at!==bt)return filters.sort==='oldest'?at-bt:bt-at;
+       return String(a.id??'').localeCompare(String(b.id??''),'en');
+     });
+   }
+   function monitorFilters(){
+     const stored=monitorStoredObject('ownerMonitorFilters'),allowed={
+       sort:['newest','oldest','largest'],category:['all','delete','amount','date','type','debt','contract','other'],
+       review:['all','pending','review','defer','ignore'],scope:['all','review']
+     };
+     return{
+       sort:allowed.sort.includes(stored.sort)?stored.sort:'newest',
+       accountant:typeof stored.accountant==='string'?stored.accountant:'all',
+       category:allowed.category.includes(stored.category)?stored.category:'all',
+       review:allowed.review.includes(stored.review)?stored.review:'all',
+       scope:allowed.scope.includes(stored.scope)?stored.scope:'all'
+     };
+   }
    function buildMonitorSection(){
-     const flagged=gEditHistory.filter(e=>String(e.status||'').toLowerCase()!=='voided'&&monitorReason(e)),decisions=JSON.parse(localStorage.getItem('ownerMonitorDecisions')||'{}'),ignored=Object.keys(decisions).filter(k=>decisions[k]==='ignore');
+     const decisions=monitorStoredObject('ownerMonitorDecisions'),filters=monitorFilters();
+     const accountants=[...new Set(gEditHistory.filter(e=>String(e.status||'').toLowerCase()!=='voided').map(e=>String(e.editedBy||e.createdBy||'غير معروف')))].sort((a,b)=>a.localeCompare(b,'ar'));
+     if(filters.accountant!=='all'&&!accountants.includes(filters.accountant))filters.accountant='all';
+     const rows=monitorFilterAndSort(gEditHistory,filters,decisions);
      const lifecyclePosts=lifecyclePostEndPayments(), lifecycleDates=lifecycleContractDateEvents(), lifecycleDupes=lifecycleDuplicateClosures(), lifecycleOps=lifecycleOperationalMismatches();
      const lifecycleLegacy=gDrivers.filter(d=>!d.isArchived&&Number(d.oldDebts||0)>0&&(!Array.isArray(d.oldDebtDetails)||!d.oldDebtDetails.length));
      const lifecycleHtml=`<div class="card"><div class="section-kicker">دورة العقد · قرار المالك</div><h3>تنبيهات التسوية والعقود</h3><p class="small-muted">تنبيهات مراجعة فقط. لا تعتبر بيانات الحجز أو المراجعة أو الحالة التشغيلية مصدراً محاسبياً، ولا تغيّر أي حساب.</p>
@@ -2329,12 +2406,28 @@
        ${lifecycleOps.slice(0,20).map(d=>lifecycleAlertHtml('تنبيه تشغيلي فقط · '+safe(d.name||d.id),`العقد منتهي بتاريخ ${fmtDate(d.contractEndDate)} لكن السائق ظاهر نشط. لا يغيّر هذا التنبيه الدين أو أي حساب مالي.`,'orange')).join('')}
        ${lifecycleLegacy.slice(0,20).map(d=>lifecycleAlertHtml('دين قديم بلا مصدر · '+safe(d.name||d.id),`الرصيد القديم ${money(d.oldDebts)}. اربطه بعقد أو مستند مصدر قبل أي تعديل.`,'red')).join('')}
        ${!lifecycleDates.length&&!lifecyclePosts.length&&!lifecycleDupes.length&&!lifecycleOps.length&&!lifecycleLegacy.length?'<div class="small-muted">✅ لا توجد تنبيهات دورة عقد حالياً.</div>':''}</div>`;
-     document.getElementById('tab-monitor').innerHTML=lifecycleHtml+`<div class="card"><div class="section-kicker">متابعة محايدة</div><h3>عمليات المحاسب · مراجعة مطلوبة</h3><p class="small-muted">هذه إشارات للمراجعة وليست اتهاماً. نشاط الليل وحده لا يرفع الإشارة.</p><div class="table-wrap"><table><thead><tr><th>العملية</th><th>قبل / بعد</th><th>الفرق المالي</th><th>الفاعل والوقت</th><th>السائق والسبب</th><th>الإجراء</th></tr></thead><tbody>${flagged.length?flagged.map(e=>{const id=e.id;return `<tr style="${ignored.includes(id)?'opacity:.45':''}"><td>${safe(e.action||'تعديل')} · ${safe(e.recordType||'سجل')}</td><td>${safe(changeText(e))}</td><td>${money(changeDiff(e))}</td><td>${safe(e.editedBy||'غير معروف')}<div class="small-muted">${fmtDate(toDate(e.timestamp))}</div></td><td>${safe(gDriverMap[e.driverId]?.name||e.driverId||'عام')}<div class="small-muted">${safe(monitorReason(e))}</div></td><td><button class="btn outline" onclick="monitorDecision('${safe(id)}','review')">مراجعة</button> <button class="btn outline" onclick="monitorDecision('${safe(id)}','defer')">تأجيل</button> <button class="btn outline" onclick="monitorDecision('${safe(id)}','ignore')">تجاهل</button></td></tr>`}).join(''):'<tr><td colspan="6">لا توجد عمليات تحتاج مراجعة</td></tr>'}</tbody></table></div></div>`;
+     const option=(value,label,current)=>`<option value="${value}"${current===value?' selected':''}>${label}</option>`;
+     document.getElementById('tab-monitor').innerHTML=lifecycleHtml+`<div class="card"><div class="section-kicker">متابعة محايدة</div><h3>سجل تدقيق عمليات المحاسب</h3><p class="small-muted">هذه إشارات للمراجعة وليست اتهاماً. نشاط الليل وحده لا يرفع الإشارة.</p>
+       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:12px 0;">
+         <label class="small-muted">الترتيب<select id="monitorSort" onchange="updateMonitorFilters()" style="width:100%;margin-top:4px;">${option('newest','الأحدث أولاً',filters.sort)}${option('oldest','الأقدم أولاً',filters.sort)}${option('largest','أكبر تغيير مالي',filters.sort)}</select></label>
+         <label class="small-muted">المحاسب<select id="monitorAccountant" onchange="updateMonitorFilters()" style="width:100%;margin-top:4px;">${option('all','كل المحاسبين',filters.accountant)}${accountants.map(a=>`<option value="${safe(a)}"${filters.accountant===a?' selected':''}>${safe(a)}</option>`).join('')}</select></label>
+         <label class="small-muted">فئة الإجراء / التغيير<select id="monitorCategory" onchange="updateMonitorFilters()" style="width:100%;margin-top:4px;">${option('all','كل الفئات',filters.category)}${option('delete','حذف سجل',filters.category)}${option('amount','تغيير مبلغ',filters.category)}${option('date','تغيير تاريخ',filters.category)}${option('type','تغيير نوع',filters.category)}${option('debt','تغيير دين',filters.category)}${option('contract','تغيير عقد',filters.category)}${option('other','تعديل آخر',filters.category)}</select></label>
+         <label class="small-muted">حالة المراجعة<select id="monitorReview" onchange="updateMonitorFilters()" style="width:100%;margin-top:4px;">${option('all','كل الحالات',filters.review)}${option('pending','لم تتم المراجعة',filters.review)}${option('review','للمراجعة',filters.review)}${option('defer','مؤجل',filters.review)}${option('ignore','متجاهل',filters.review)}</select></label>
+         <label class="small-muted">النطاق<select id="monitorScope" onchange="updateMonitorFilters()" style="width:100%;margin-top:4px;">${option('all','كل التعديلات',filters.scope)}${option('review','تتطلب مراجعة فقط',filters.scope)}</select></label>
+       </div>
+       <div class="small-muted" style="margin-bottom:8px;">عدد النتائج: <b>${rows.length}</b> من ${gEditHistory.filter(e=>String(e.status||'').toLowerCase()!=='voided').length}</div>
+       <div class="table-wrap"><table><thead><tr><th>العملية</th><th>قبل / بعد</th><th>الفرق المالي</th><th>الفاعل والتاريخ والوقت</th><th>السائق والسبب</th><th>الإجراء</th></tr></thead><tbody>${rows.length?rows.map(e=>{const id=String(e.id??''),decision=decisions[id]||'pending',ms=monitorTimestampMs(e),when=ms===null?'وقت غير مسجل':new Date(ms).toLocaleString('ar-KW',{dateStyle:'medium',timeStyle:'short'});return `<tr style="${decision==='ignore'?'opacity:.45':''}"><td>${safe(e.action||'تعديل')} · ${safe(e.recordType||'سجل')}</td><td>${safe(changeText(e))}</td><td>${money(changeDiff(e))}</td><td>${safe(e.editedBy||e.createdBy||'غير معروف')}<div class="small-muted">${safe(when)}</div></td><td>${safe(gDriverMap[e.driverId]?.name||e.driverId||'عام')}<div class="small-muted">${safe(monitorReason(e)||'لا توجد إشارة مراجعة')}</div></td><td><div class="small-muted">${safe({pending:'لم تتم المراجعة',review:'للمراجعة',defer:'مؤجل',ignore:'متجاهل'}[decision]||'لم تتم المراجعة')}</div><button class="btn outline" data-monitor-id="${safe(id)}" onclick="monitorDecisionFromButton(this,'review')">مراجعة</button> <button class="btn outline" data-monitor-id="${safe(id)}" onclick="monitorDecisionFromButton(this,'defer')">تأجيل</button> <button class="btn outline" data-monitor-id="${safe(id)}" onclick="monitorDecisionFromButton(this,'ignore')">تجاهل</button></td></tr>`}).join(''):'<tr><td colspan="6"><div class="empty-state">لا توجد عمليات مطابقة للفلاتر المحددة</div></td></tr>'}</tbody></table></div></div>`;
    }
   function monitorReason(e){const fields=(e.changes||[]).map(c=>c.field||'').join('|'),a=e.action||'';if(a==='delete'||a==='permanentDelete')return'حذف سجل';if(fields.includes('amount'))return(e.changes||[]).some(c=>+c.newValue<+c.oldValue)?'تخفيض مبلغ':'تغيير مبلغ';if(fields.match(/date|paymentDate/))return'تغيير أو تأخير تاريخ الدفعة';if(fields.includes('type'))return'تغيير نوع الدفعة';if(fields.includes('oldDebts'))return'تغيير الدين القديم';if(fields.match(/contractStart|contractEnd|dailyRent|monthlyPayment/))return'تغيير بيانات العقد';return fields?'تعديل مالي يحتاج مراجعة':'';}
   function changeText(e){return(e.changes||[]).map(c=>`${c.field}: ${c.oldValue??'—'} ← ${c.newValue??'—'}`).join(' · ')||'لا يوجد تفصيل';}
   function changeDiff(e){return(e.changes||[]).filter(c=>c.field==='amount').reduce((s,c)=>s+Number(c.newValue||0)-Number(c.oldValue||0),0);}
-  window.monitorDecision=function(id,decision){const state=JSON.parse(localStorage.getItem('ownerMonitorDecisions')||'{}');state[id]=decision;localStorage.setItem('ownerMonitorDecisions',JSON.stringify(state));buildMonitorSection();};
+  window.updateMonitorFilters=function(){
+    const next={sort:document.getElementById('monitorSort')?.value,accountant:document.getElementById('monitorAccountant')?.value,category:document.getElementById('monitorCategory')?.value,review:document.getElementById('monitorReview')?.value,scope:document.getElementById('monitorScope')?.value};
+    try{localStorage.setItem('ownerMonitorFilters',JSON.stringify(next));}catch(_){}
+    buildMonitorSection();
+  };
+  window.monitorDecision=function(id,decision){if(!['review','defer','ignore'].includes(decision))return;const state=monitorStoredObject('ownerMonitorDecisions');state[String(id)]=decision;try{localStorage.setItem('ownerMonitorDecisions',JSON.stringify(state));}catch(_){}buildMonitorSection();};
+  window.monitorDecisionFromButton=function(button,decision){window.monitorDecision(button?.dataset?.monitorId??'',decision);};
   window.saveFollowup=async function(id){const d=gDriverMap[id],old=d.ownerNotes||{},payload={...old,followUpStatus:document.getElementById('fuStatus').value,followUpDate:document.getElementById('fuDate').value||null,promisedAmount:Number(document.getElementById('fuAmount').value||0),promisedDate:document.getElementById('fuPromised').value||null};try{await firebase.firestore().collection('drivers').doc(id).set({ownerNotes:payload},{merge:true});d.ownerNotes=payload;showToast('تم حفظ المتابعة','تم تحديث سجل المالك بدون حذف الملاحظات السابقة');}catch(e){showToast('تعذر الحفظ',e.message);}};
   function fulfillment(d){const n=d.ownerNotes||{},amt=Number(n.promisedAmount||0),pd=toDate(n.promisedDate);if(!amt||!pd)return'لا يوجد وعد مالي';const paid=gPayments.filter(p=>p.driverId===d.id&&isIncomingPayment(p)&&toDate(p.date)&&toDate(p.date)>=pd).reduce((s,p)=>s+Number(p.amount||0),0);return paid>=amt?'تم الوفاء بالوعد':`المحصّل بعد الوعد ${money(paid)} من ${money(amt)}`;}
   let ownerChart=null,ownerChartMode='detail',ownerChartRange=30;
@@ -2370,12 +2463,19 @@
   };
   function engineRentDue(periods,start,end){
     return (periods||[]).reduce((sum,p)=>{
-      const a=p.start&&new Date(p.start)>start?new Date(p.start):start,b=p.end&&new Date(p.end)<end?new Date(p.end):end;
-      if(!a||!b||b<=a)return sum;
+      const anchor=toDate(p.start);
+      const periodEnd=toDate(p.end);
+      const a=anchor&&anchor>start?anchor:start,b=periodEnd&&periodEnd<end?periodEnd:end;
+      if(!a||!b)return sum;
       if(p.contractType==='monthly'){
-        const months=Math.max(0,(b.getFullYear()-a.getFullYear())*12+b.getMonth()-a.getMonth()-(b.getDate()<Math.min(a.getDate(),new Date(b.getFullYear(),b.getMonth()+1,0).getDate())?1:0));
-        return sum+months*Number(p.rate||0);
+        if(!anchor||b<a)return sum;
+        const throughEnd=_completedMonthsAnchored(anchor,b);
+        const throughStart=_completedMonthsAnchored(anchor,a);
+        const startAnniversary=throughStart>0?_addMonthsClamped(anchor,throughStart):null;
+        const beforeStart=throughStart-(startAnniversary&&startAnniversary>=a?1:0);
+        return sum+Math.max(0,throughEnd-beforeStart)*Number(p.rate||0);
       }
+      if(b<=a)return sum;
       return sum+Math.max(0,Math.floor((b-a)/86400000))*Number(p.rate||0);
     },0);
   }
@@ -2385,7 +2485,10 @@
     const bounds={};
     for(let cursor=new Date(start);cursor<=end;cursor.setDate(cursor.getDate()+1)){
       const dt=new Date(cursor),k=bucketKey(dt);
-      if(!bounds[k])bounds[k]={label:k,start:new Date(dt),end:new Date(dt)};
+      if(!bounds[k]){
+        const bucketStart=new Date(dt);bucketStart.setHours(0,0,0,0);
+        bounds[k]={label:k,start:bucketStart,end:new Date(dt)};
+      }
       bounds[k].end=new Date(dt);bounds[k].end.setHours(23,59,59,999);
     }
     Object.keys(bounds).forEach(k=>map[k]={label:k,rentDue:engineRentDue(detail.periods,bounds[k].start,bounds[k].end),rentPaid:0,violationsCharged:0,violationsCollected:0,oldDebtOpening:0,oldPayment:0,residencyCharged:0,residencyCollected:0,advancesGiven:0,advancesCollected:0,totalDebt:0});
