@@ -839,7 +839,8 @@
               return item.action === 'delete'
                   && ['revenue','expense','driverPayment'].includes(item.recordType)
                   && snap && !item.restoredAt
-                  && !(snap.allocationKind || (Array.isArray(snap.allocations) && snap.allocations.length))
+                  && !(snap.allocationKind || snap.obligationId || snap.contractId
+                      || (Array.isArray(snap.allocations) && snap.allocations.length))
                   && snap.status !== 'voided';
           }
           const restoreCollectionMap = {
@@ -850,9 +851,8 @@
 
           async function commitDeletedRecordRestore(historyId, collName, actor, userName, userRole) {
               const historyRef = db.collection('editHistory').doc(historyId);
-              const newRef = db.collection(collName).doc();
               const restoreAuditRef = db.collection('editHistory').doc();
-              await db.runTransaction(async transaction => {
+              return db.runTransaction(async transaction => {
                   const historyDoc = await transaction.get(historyRef);
                   if (!historyDoc.exists) throw new Error('سجل الحذف غير موجود');
                   const currentItem = { id: historyDoc.id, ...historyDoc.data() };
@@ -876,31 +876,33 @@
                   restoreData.restoredAt = firebase.firestore.FieldValue.serverTimestamp();
                   restoreData.restoredBy = userName;
                   restoreData.restoredFromHistoryId = historyId;
-                  transaction.set(newRef, restoreData);
+                  // Claim the same destination we checked, including across
+                  // distinct legacy delete events for the same original record.
+                  transaction.set(originalTargetRef, restoreData);
                   transaction.update(historyRef, {
                       restoredAt: firebase.firestore.FieldValue.serverTimestamp(),
                       restoredBy: userName,
                       restoredById: actor.uid,
-                      restoredToId: newRef.id,
+                      restoredToId: originalTargetRef.id,
                       restoreAuditId: restoreAuditRef.id
                   });
                   transaction.set(restoreAuditRef, {
-                      recordType: currentItem.recordType, recordId: newRef.id, action: 'restore',
+                      recordType: currentItem.recordType, recordId: originalTargetRef.id, action: 'restore',
                       refNum: currentSnap.refNum || currentItem.refNum || null,
                       description: 'استعادة سجل محذوف - ' + (currentSnap.description || currentSnap.type || currentItem.description || ''),
                       driverName: currentSnap.driverName || currentItem.driverName || null,
                       driverId: currentSnap.driverId || currentItem.driverId || null,
                       editReason: 'استعادة من شاشة سجل التعديلات',
                       restoredFromHistoryId: historyId,
-                      fullSnapshotAfter: { id: newRef.id, ...restoreData },
+                      fullSnapshotAfter: { id: originalTargetRef.id, ...restoreData },
                       editedBy: userName,
                       editedById: actor.uid,
                       editorRole: userRole,
                       editedByRole: userRole,
                       timestamp: firebase.firestore.FieldValue.serverTimestamp()
                   });
+                  return originalTargetRef.id;
               });
-              return newRef.id;
           }
 
           window.restoreRecord = async function(historyId) {
@@ -932,7 +934,7 @@
                   const userRole = localStorage.getItem('userRole') || 'admin';
                   const newRecordId = await commitDeletedRecordRestore(
                       historyId, collName, actor, userName, userRole);
-                  alert('✅ تم استعادة السجل بنجاح\nالـ ID الجديد: ' + newRecordId);
+                  alert('✅ تم استعادة السجل بنجاح\nمعرّف السجل الأصلي: ' + newRecordId);
                   await loadHistory();
               } catch (e) {
                   console.error('❌ خطأ في الاستعادة:', e);

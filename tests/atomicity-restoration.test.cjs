@@ -24,7 +24,9 @@ function loadActualRestoreFunction(db) {
     };
     vm.createContext(context);
     vm.runInContext(source, context);
-    return context.commitDeletedRecordRestoreForTest;
+    const restore = context.commitDeletedRecordRestoreForTest;
+    restore.isRestorable = context.isRestorable;
+    return restore;
 }
 
 function makeDb(initialEntries, failWrite) {
@@ -62,9 +64,10 @@ function makeDb(initialEntries, failWrite) {
                         draft.set(documentRef.key, { ...draft.get(documentRef.key), ...structuredClone(patch) });
                     }
                 };
-                await callback(transaction);
+                const result = await callback(transaction);
                 state.clear();
                 for (const [key, value] of draft) state.set(key, value);
+                return result;
             });
             queue = run.catch(() => {});
             return run;
@@ -88,13 +91,13 @@ test('actual page restore commits target, marker, and detail audit atomically', 
 
     const restoredId = await restore('delete-event', 'revenues', { uid: 'owner' }, 'Owner', 'admin');
 
-    assert.equal(restoredId, 'auto1');
-    assert.equal(fake.state.get('revenues/auto1').restoredFromHistoryId, 'delete-event');
-    assert.equal(fake.state.get('editHistory/delete-event').restoredToId, 'auto1');
-    const detail = fake.state.get('editHistory/auto2');
+    assert.equal(restoredId, 'deleted-revenue');
+    assert.equal(fake.state.get('revenues/deleted-revenue').restoredFromHistoryId, 'delete-event');
+    assert.equal(fake.state.get('editHistory/delete-event').restoredToId, 'deleted-revenue');
+    const detail = fake.state.get('editHistory/auto1');
     assert.equal(detail.action, 'restore');
     assert.equal(detail.restoredFromHistoryId, 'delete-event');
-    assert.equal(detail.recordId, 'auto1');
+    assert.equal(detail.recordId, 'deleted-revenue');
 });
 
 test('actual page restore permits only one concurrent/repeated restoration', async () => {
@@ -127,4 +130,49 @@ test('actual page restore leaves no partial target or marker when audit write fa
     assert.equal([...fake.state.keys()].filter(key => key.startsWith('revenues/')).length, 0);
     assert.equal(fake.state.get('editHistory/delete-event').restoredAt, undefined);
     assert.equal([...fake.state.values()].filter(value => value.action === 'restore').length, 0);
+});
+
+test('distinct legacy delete events for the same record cannot restore duplicate financial records', async () => {
+    const fake = makeDb([
+        ['editHistory/delete-first', deletedRevenue()],
+        ['editHistory/delete-retry', deletedRevenue()]
+    ]);
+    const restore = loadActualRestoreFunction(fake.db);
+    const results = await Promise.allSettled(['delete-first', 'delete-retry'].map(id =>
+        restore(id, 'revenues', { uid: 'owner' }, 'Owner', 'admin')));
+    assert.equal(results.filter(result => result.status === 'fulfilled').length, 1);
+    assert.equal(results.filter(result => result.status === 'rejected').length, 1);
+    assert.equal([...fake.state.keys()].filter(key => key.startsWith('revenues/')).length, 1);
+    assert.equal([...fake.state.values()].filter(value => value.action === 'restore').length, 1);
+    assert.equal([...fake.state.values()].filter(value => value.action === 'delete' && value.restoredAt).length, 1);
+    assert.ok(fake.state.has('revenues/deleted-revenue'));
+});
+
+for (const marker of ['allocationKind', 'obligationId', 'contractId', 'allocations']) {
+    test(`preview and transaction reject allocated payment marker ${marker} alone`, async () => {
+        const event = {
+            action: 'delete', recordType: 'driverPayment', recordId: 'synthetic-payment',
+            fullSnapshot: { amount: 12.5, [marker]: marker === 'allocations' ? [{ amount: 12.5 }] : 'synthetic' }
+        };
+        const fake = makeDb([['editHistory/allocated-delete', event]]);
+        const restore = loadActualRestoreFunction(fake.db);
+        assert.equal(restore.isRestorable(event), false);
+        await assert.rejects(() =>
+            restore('allocated-delete', 'driverPayments', { uid: 'owner' }, 'Owner', 'admin'),
+        /غير قابل للاستعادة/);
+        assert.equal(fake.state.size, 1);
+        assert.equal(fake.state.get('editHistory/allocated-delete').restoredAt, undefined);
+    });
+}
+
+test('an existing original destination is never overwritten', async () => {
+    const original = { amount: 90, description: 'newer live record' };
+    const fake = makeDb([
+        ['editHistory/delete-event', deletedRevenue()],
+        ['revenues/deleted-revenue', original]
+    ]);
+    const restore = loadActualRestoreFunction(fake.db);
+    await assert.rejects(() => restore('delete-event', 'revenues', { uid: 'owner' }, 'Owner', 'admin'), /موجود بالفعل/);
+    assert.deepEqual(fake.state.get('revenues/deleted-revenue'), original);
+    assert.equal(fake.state.size, 2);
 });
