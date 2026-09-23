@@ -1,24 +1,181 @@
+// CANDIDATE ONLY. Do not deploy until every gate in ARCHIVE-DELETION-ROLLOUT.md passes.
+// This deliberately preserves the legacy access model outside the collections named here.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function adminClaim() {
+      return request.auth != null && request.auth.token.archiveAdmin == true;
+    }
 
-    // ===== ownerNotes: للمالك فقط =====
-    match /ownerNotes/{doc} {
+    // Absence preserves the current application until the server protocol is enabled.
+    // The server contract freezes access only while maintenance is literally true.
+    function financialAccessOpen() {
+      return !exists(/databases/$(database)/documents/archiveDeletionControl/state)
+        || get(/databases/$(database)/documents/archiveDeletionControl/state).data.maintenance != true;
+    }
+
+    function unlocked(identifier) {
+      return identifier is string
+        && identifier.size() > 0
+        && !exists(/databases/$(database)/documents/archiveDeletionLocks/$(identifier));
+    }
+
+    // If an association field exists it must be a non-empty string and unlocked.
+    // Both fields are checked independently because legacy rows use both shapes.
+    function associationUnlocked(data, field) {
+      return !(field in data) || unlocked(data[field]);
+    }
+
+    function canonicalUnlocked(identifier) {
+      return unlocked(identifier)
+        && identifier.matches('^[A-Za-z0-9_-]{1,128}$');
+    }
+
+    // Fourteen pinned legacy payment rows use employeeNumber: null while
+    // retaining their canonical driverId. Null is accepted only as an optional
+    // alias in that exact shape; it never becomes an unassociated write.
+    function employeeAliasUnlocked(data) {
+      return !('employeeNumber' in data)
+        || unlocked(data.employeeNumber)
+        || (data.employeeNumber == null
+          && 'driverId' in data
+          && canonicalUnlocked(data.driverId));
+    }
+
+    function financeAssociationsUnlocked(data) {
+      return employeeAliasUnlocked(data)
+        && associationUnlocked(data, 'driverId');
+    }
+
+    function paymentAssociationsUnlocked(data) {
+      // Payments are always driver records in the pinned schema. Missing both
+      // association keys is malformed and therefore denied.
+      return ('employeeNumber' in data || 'driverId' in data)
+        && financeAssociationsUnlocked(data);
+    }
+
+    function driverIdentitiesUnlocked(id, data) {
+      return unlocked(id)
+        && associationUnlocked(data, 'employeeNumber')
+        && associationUnlocked(data, 'driverId');
+    }
+
+    // Protocol state is observable only by identities carrying the archiveAdmin custom
+    // claim. Clients can never create, modify, or clear protocol documents.
+    match /archiveDeletionLocks/{employeeNumber} {
+      allow read: if adminClaim();
+      allow write: if false;
+    }
+
+    match /archiveDeletionOperations/{operationId} {
+      allow read: if adminClaim();
+      allow write: if false;
+    }
+
+    match /archiveDeletionControl/{documentId} {
+      allow read: if adminClaim();
+      allow write: if false;
+    }
+
+    match /driverPayments/{documentId} {
+      allow read: if financialAccessOpen();
+      allow create: if financialAccessOpen()
+        && paymentAssociationsUnlocked(request.resource.data);
+      allow update: if financialAccessOpen()
+        && paymentAssociationsUnlocked(resource.data)
+        && paymentAssociationsUnlocked(request.resource.data);
+      allow delete: if financialAccessOpen()
+        && paymentAssociationsUnlocked(resource.data);
+    }
+
+    match /revenues/{documentId} {
+      allow read: if financialAccessOpen();
+      allow create: if financialAccessOpen()
+        && financeAssociationsUnlocked(request.resource.data);
+      allow update: if financialAccessOpen()
+        && financeAssociationsUnlocked(resource.data)
+        && financeAssociationsUnlocked(request.resource.data);
+      allow delete: if financialAccessOpen()
+        && financeAssociationsUnlocked(resource.data);
+    }
+
+    match /expenses/{documentId} {
+      allow read: if financialAccessOpen();
+      allow create: if financialAccessOpen()
+        && financeAssociationsUnlocked(request.resource.data);
+      allow update: if financialAccessOpen()
+        && financeAssociationsUnlocked(resource.data)
+        && financeAssociationsUnlocked(request.resource.data);
+      allow delete: if financialAccessOpen()
+        && financeAssociationsUnlocked(resource.data);
+    }
+
+    match /drivers/{documentId} {
+      allow read: if financialAccessOpen();
+      allow create: if financialAccessOpen()
+        && driverIdentitiesUnlocked(documentId, request.resource.data);
+      allow update: if financialAccessOpen()
+        && driverIdentitiesUnlocked(documentId, resource.data)
+        && driverIdentitiesUnlocked(documentId, request.resource.data);
+      // Client archival remains possible only as one atomic move. A standalone
+      // driver delete cannot satisfy getAfter().
+      allow delete: if financialAccessOpen()
+        && driverIdentitiesUnlocked(documentId, resource.data)
+        && !exists(/databases/$(database)/documents/archivedDrivers/$(documentId))
+        && existsAfter(/databases/$(database)/documents/archivedDrivers/$(documentId))
+        && driverIdentitiesUnlocked(
+          documentId,
+          getAfter(/databases/$(database)/documents/archivedDrivers/$(documentId)).data
+        );
+    }
+
+    match /archivedDrivers/{documentId} {
+      allow read: if financialAccessOpen();
+      allow create: if financialAccessOpen()
+        && driverIdentitiesUnlocked(documentId, request.resource.data);
+      allow update: if financialAccessOpen()
+        && driverIdentitiesUnlocked(documentId, resource.data)
+        && driverIdentitiesUnlocked(documentId, request.resource.data);
+      // Permanent client deletion is denied. The existing atomic restore is
+      // supported only when this write creates the matching active driver.
+      allow delete: if financialAccessOpen()
+        && driverIdentitiesUnlocked(documentId, resource.data)
+        && !exists(/databases/$(database)/documents/drivers/$(documentId))
+        && existsAfter(/databases/$(database)/documents/drivers/$(documentId))
+        && driverIdentitiesUnlocked(
+          documentId,
+          getAfter(/databases/$(database)/documents/drivers/$(documentId)).data
+        );
+    }
+
+    // Preserve the pinned owner-note behavior.
+    match /ownerNotes/{documentId} {
       allow read, write: if request.auth != null
         && request.auth.token.email == 'f5h5d_q8@hotmail.com';
     }
 
-    // ===== editHistory: الكل يقرأ ويضيف، التعديل/الحذف للمالك فقط =====
-    match /editHistory/{doc} {
+    // Preserve the pinned edit-history behavior.
+    match /editHistory/{documentId} {
       allow read, create: if true;
       allow update, delete: if request.auth != null
         && request.auth.token.email == 'f5h5d_q8@hotmail.com';
     }
 
-    // ===== كل شي ثاني مفتوح للكل (موقع داخلي بسيط) =====
-    match /{collection}/{document=**} {
-      allow read, write: if collection != 'ownerNotes'
-        && collection != 'editHistory';
+    // Preserve unrelated legacy login/tracking collections, but explicitly
+    // exclude every protected collection so no permissive rule overlaps it.
+    match /{collectionName}/{document=**} {
+      allow read, write: if !(collectionName in [
+        'ownerNotes',
+        'editHistory',
+        'drivers',
+        'archivedDrivers',
+        'driverPayments',
+        'revenues',
+        'expenses',
+        'archiveDeletionLocks',
+        'archiveDeletionOperations',
+        'archiveDeletionControl'
+      ]);
     }
   }
 }
