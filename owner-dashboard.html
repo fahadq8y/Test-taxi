@@ -352,7 +352,8 @@
   <!-- Chart.js للجداول البيانية في مودال السائق -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="unified-balance.js?v=033"></script>
-  <script src="audit-history.js?v=202609-audit5-owner-private-labels"></script>
+  <script src="audit-history.js?v=202609-transfer-status"></script>
+  <script src="driver-transfer-status.js?v=001"></script>
   <script>
   const firebaseConfig = {
       apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -376,6 +377,7 @@
   let gDriverMap = {}, gAuthUser = null, gLiveUnsub = null, gOwnerNotesUnsub = null, gAutoTimer = null;
   let gLastEditTs = 0;
   let gWeekOffset = 0; // 0 = الأسبوع الحالي، 1 = الأسبوع الماضي ...
+  let gDriverTransferFilter = 'all';
   let gActiveTab = 'home';            // التبويب المفتوح حالياً (لتنقّل البوب أب)
   const gTabNavLists = {};            // ترتيب السائقين لكل تبويب
   let gNavIds = [], gNavIndex = -1;   // قائمة التنقّل الحالية داخل البوب أب
@@ -1093,16 +1095,16 @@
         if (paid > 0) return '<td><span class="week-cell late">~</span></td>';
         return '<td><span class="week-cell missed">✗</span></td>';
       }).join('');
-      return { id:d.id, sortKey:{critical:0,danger:1,watch:2,good:3,excellent:4}[cls.key], html:`<tr>
+      return { id:d.id, totalDebt:split.total, driver:d, sortKey:{critical:0,danger:1,watch:2,good:3,excellent:4}[cls.key], html:`<tr class="${DriverTransferStatus.className(d)}">
         <td>${trafficDot(cls.key)}</td>
-        <td class="name" onclick="openDriverModal('${d.id}')">${d.name||d.id}</td>
+        <td class="name" onclick="openDriverModal('${d.id}')">${d.name||d.id}<div style="margin-top:5px">${DriverTransferStatus.badge(d)}</div></td>
         <td>${d.contractType==='monthly'?'شهري':'يومي'}</td>
         <td class="${split.total>0?'trend-up':''}">${fmtKD(split.total)}</td>
         <td>${dirBadge(dir, reg)}</td>
         <td>${daysSince===9999?'—':('قبل '+daysSince+' يوم')}</td>
         ${cells}
       </tr>` };
-    }).sort((a,b)=>a.sortKey-b.sortKey);
+    }).filter(r=>DriverTransferStatus.matches(r.driver,gDriverTransferFilter,r.totalDebt)).sort((a,b)=>a.sortKey-b.sortKey);
     gTabNavLists.drivers = rowObjs.map(r=>r.id);
     const rows = rowObjs.map(r=>r.html).join('');
 
@@ -1114,6 +1116,16 @@
       </div>
       <div class="card">
         <h3>👤 كل السائقين — إشارة المرور (مرتّبين من الأخطر)</h3>
+        <label style="display:inline-flex;gap:8px;align-items:center;margin-bottom:10px;">حالة التحويل
+          <select onchange="gDriverTransferFilter=this.value;buildDriversTab()" style="padding:7px;border-radius:6px;">
+            <option value="all" ${gDriverTransferFilter==='all'?'selected':''}>الكل</option>
+            <option value="on_company" ${gDriverTransferFilter==='on_company'?'selected':''}>على الشركة</option>
+            <option value="pending" ${gDriverTransferFilter==='pending'?'selected':''}>قيد التحويل</option>
+            <option value="transferred" ${gDriverTransferFilter==='transferred'?'selected':''}>تم التحويل</option>
+            <option value="unset" ${gDriverTransferFilter==='unset'?'selected':''}>غير محدد</option>
+            <option value="transferred_debt" ${gDriverTransferFilter==='transferred_debt'?'selected':''}>تم التحويل وعليه دين</option>
+          </select>
+        </label>
         <p style="font-size:12px;color:#8b949e;margin-bottom:8px;">الأعمدة الأخيرة = آخر ${WEEKS} أسابيع · ✓ دفع كامل · ~ ناقص · ✗ ما دفع · للبحث استخدم الشريط فوق 🔍</p>
         <div class="table-wrap"><table>
           <thead><tr><th>الحالة</th><th>السائق</th><th>النوع</th><th>الدين</th><th>الانتظام</th><th>آخر دفعة</th>
@@ -1739,7 +1751,7 @@
     document.getElementById('modalContent').innerHTML = `
       <div class="modal-head">
         <div>
-          <h2>${driver.name||driverId} <span class="badge ${cls.cls}">${cls.label}</span></h2>
+          <h2>${driver.name||driverId} <span class="badge ${cls.cls}">${cls.label}</span> ${DriverTransferStatus.badge(driver)}</h2>
           <div class="sub">
             ${driver.employeeNumber||driverId} · ${driver.contractType==='monthly'?'شهري':'يومي'} (${contractRate})
             ${driver.phone ? ' · 📞 <a href="tel:'+driver.phone+'" style="color:#58a6ff;">'+driver.phone+'</a>' : ''}
@@ -1778,6 +1790,12 @@
           </div>
         </div>
        ${ownerDebtAuditHtml(driverId, driver)}
+       <div class="card ${DriverTransferStatus.className(driver)}" data-owner-transfer-summary>
+         <h3>حالة التحويل التشغيلية</h3>
+         <p>${DriverTransferStatus.badge(driver)} · التاريخ: ${driver.companyTransferDate || 'غير مسجل'}</p>
+         <p>${safe(driver.companyTransferNote || 'لا توجد ملاحظة تشغيلية')}</p>
+         ${DriverTransferStatus.normalize(driver)==='transferred' && split.total<=0 ? '<p class="small-muted">تم التحويل ولا يظهر دين حالي. راجع الأرشفة يدوياً عند الحاجة؛ لا توجد أرشفة تلقائية.</p>' : ''}
+       </div>
 
         <div class="card">
           <h3>📅 آخر 12 ${isMonthly?'شهر':'أسبوع'}</h3>
@@ -2724,7 +2742,7 @@
     });
   };
   </script>
-  <script src="owner-driver-tabs.js?v=5-owner-private-identity"></script>
+  <script src="owner-driver-tabs.js?v=202609-transfer-status"></script>
   </body>
   </html>
   

@@ -8,6 +8,16 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2563eb">
     <link rel="stylesheet" href="style.css">
+    <style>
+        .transfer-filters { display:flex; flex-wrap:wrap; gap:8px; align-items:center; width:100%; margin-top:10px; }
+        .transfer-filters label { font-weight:700; color:#334155; }
+        .transfer-filters select { min-width:220px; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; }
+        .transfer-modal-content { max-width:460px; direction:rtl; }
+        .transfer-modal-content .form-group { margin-bottom:14px; }
+        .transfer-modal-content label { display:block; margin-bottom:6px; font-weight:700; color:#334155; }
+        .transfer-modal-content select, .transfer-modal-content input, .transfer-modal-content textarea { width:100%; box-sizing:border-box; padding:10px; border:1px solid #cbd5e1; border-radius:8px; font:inherit; }
+        .transfer-modal-content textarea { resize:vertical; }
+    </style>
 
 </head>
 <body>
@@ -27,6 +37,17 @@
             <input type="text" class="search-input" id="searchInput" placeholder="البحث عن سائق..." onkeyup="filterDrivers()">
             <button class="add-btn" onclick="openModal()">إضافة سائق جديد</button>
             <a href="archived-drivers.html" class="nav-btn" style="background: linear-gradient(45deg, #ff6b6b, #ee5a6f); text-decoration: none; padding: 12px 24px; border-radius: 8px; color: white; font-weight: bold;">📦 الأرشيف</a>
+            <div class="transfer-filters">
+                <label for="transferStatusFilter">حالة التحويل:</label>
+                <select id="transferStatusFilter" onchange="filterDrivers()">
+                    <option value="all">الكل</option>
+                    <option value="on_company">على الشركة</option>
+                    <option value="pending">قيد التحويل</option>
+                    <option value="transferred">تم التحويل</option>
+                    <option value="unset">غير محدد</option>
+                    <option value="transferred_debt">تم التحويل مع دين مستحق</option>
+                </select>
+            </div>
         </div>
 
         <div class="loading" id="loading">
@@ -165,6 +186,40 @@
                 <div class="form-actions">
                     <button type="button" class="cancel-btn" onclick="closeModal()">إلغاء</button>
                     <button type="submit" class="save-btn">حفظ السائق</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="transferStatusModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="transferStatusTitle" style="display:none;">
+        <div class="modal-content transfer-modal-content">
+            <div class="modal-header">
+                <h2 id="transferStatusTitle">حالة التحويل</h2>
+                <button type="button" class="close" onclick="closeTransferStatusModal()" aria-label="إغلاق">&times;</button>
+            </div>
+            <form id="transferStatusForm">
+                <div class="modal-body" style="padding:20px;">
+                    <p id="transferStatusDriverName" style="font-weight:700;margin-top:0;"></p>
+                    <div class="form-group">
+                        <label for="companyTransferStatus">الحالة</label>
+                        <select id="companyTransferStatus" required>
+                            <option value="on_company">على الشركة</option>
+                            <option value="pending">قيد التحويل</option>
+                            <option value="transferred">تم التحويل</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="companyTransferDate">التاريخ</label>
+                        <input type="date" id="companyTransferDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="companyTransferNote">ملاحظة (اختياري)</label>
+                        <textarea id="companyTransferNote" rows="3" maxlength="500"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="cancel-btn" onclick="closeTransferStatusModal()">إلغاء</button>
+                        <button type="submit" class="save-btn">حفظ الحالة</button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -363,6 +418,7 @@
 
     <!-- محرك حساب الديون الموحد -->
     <script src="unified-balance.js?v=033"></script>
+    <script src="driver-transfer-status.js?v=001"></script>
 
     <!-- Firebase SDK -->
     <script type="module">
@@ -389,6 +445,11 @@
         let cars = [];
         let currentUser = null;
         let editingDriverId = null;
+        let editingDriverSnapshot = null;
+        let editingDriverFormSnapshot = null;
+        let transferStatusDriverId = null;
+        let transferStatusOpenedSnapshot = null;
+        let transferStatusFormSnapshot = null;
         let allDrivers = [];
         let allPayments = [];
 
@@ -544,6 +605,9 @@
 
           async function runTransaction(database, callback, options) {
               const actorContext = await resolveActorAuditContext();
+              if (!['admin', 'accountant'].includes(actorContext.role)) {
+                  throw new Error('لا توجد صلاحية موظف موثّقة لتنفيذ هذا التعديل.');
+              }
               return firestoreRunTransaction(database, async tx => {
                   requireFinancialActor(actorContext.uid);
                   const guardedTx = new Proxy(tx, { get(target, key) {
@@ -758,6 +822,67 @@
             });
         }
 
+        function canonicalValue(value) {
+            if (value === undefined) return { type: 'undefined' };
+            if (value === null) return null;
+            if (value && typeof value.toDate === 'function') return { type: 'date', value: value.toDate().toISOString() };
+            if (value instanceof Date) return { type: 'date', value: value.toISOString() };
+            if (Array.isArray(value)) return value.map(canonicalValue);
+            if (value && typeof value === 'object') {
+                return Object.keys(value).sort().reduce((result, key) => {
+                    result[key] = canonicalValue(value[key]);
+                    return result;
+                }, {});
+            }
+            return { type: typeof value, value: value };
+        }
+
+        function valuesEqual(left, right) {
+            return JSON.stringify(canonicalValue(left)) === JSON.stringify(canonicalValue(right));
+        }
+
+        function readDriverFormState() {
+            const contractType = document.getElementById('contractType').value;
+            const months = parseInt(document.getElementById('contractDurationMonths').value) || 0;
+            const dateValue = id => document.getElementById(id).value
+                ? new Date(document.getElementById(id).value)
+                : null;
+            return {
+                name: document.getElementById('driverName').value,
+                phone: document.getElementById('driverPhone').value,
+                employeeNumber: document.getElementById('employeeNumber').value,
+                nationality: document.getElementById('driverNationality').value,
+                address: document.getElementById('driverAddress').value,
+                assignedCar: document.getElementById('assignedCar').value,
+                contractType,
+                dailyRent: contractType === 'daily' ? (parseFloat(document.getElementById('dailyRent').value) || 0) : 0,
+                monthlyPayment: contractType === 'monthly' ? (parseFloat(document.getElementById('monthlyPayment').value) || 0) : 0,
+                contractDurationMonths: months,
+                contractDurationDays: parseInt(document.getElementById('contractDurationDays').value) || 0,
+                contractDuration: months,
+                contractStartDate: dateValue('contractStartDate'),
+                contractEndDate: dateValue('contractEndDate'),
+                carRegistrationExpiry: dateValue('carRegistrationExpiry'),
+                residencyExpiry: dateValue('residencyExpiry'),
+                licenseExpiry: dateValue('licenseExpiry'),
+                permitExpiry: dateValue('permitExpiry'),
+                passportExpiry: dateValue('passportExpiry'),
+                oldDebts: parseFloat(document.getElementById('oldDebts').value) || 0,
+                notes: document.getElementById('driverNotes').value
+            };
+        }
+
+        function transferDebt(driver) {
+            if (typeof calculateDriverDebt !== 'function') return 0;
+            try {
+                const value = calculateDriverDebt(driver.id, driver, allPayments);
+                return Number.isFinite(Number(value)) ? Number(value) : 0;
+            } catch (error) {
+                console.error('تعذر حساب الدين بفلتر التحويل:', error);
+                return 0;
+            }
+        }
+
         // Display drivers
         function displayDrivers(driversToShow) {
             const grid = document.getElementById('driversGrid');
@@ -828,11 +953,12 @@
                 const _daysAfterEnd = _contractEnded ? Math.floor((today - _cEnd) / (1000*60*60*24)) : 0;
                 
                 return `
-                    <div class="driver-card">
+                    <div class="driver-card ${DriverTransferStatus.className(driver)}">
                         ${_contractEnded ? `<div style="background:#fee2e2;color:#dc2626;padding:6px 12px;border-radius:6px;text-align:center;font-weight:600;margin-bottom:8px;font-size:13px;">⏰ العقد منتهي منذ ${_daysAfterEnd} يوم</div>` : ''}
                         <div class="driver-header">
                             <div class="driver-name">${driver.name}</div>
                             <div class="driver-phone">${driver.phone}</div>
+                            <div style="text-align:center;margin-top:8px;">${DriverTransferStatus.badge(driver)}</div>
                             ${driver.employeeNumber ? `<div style="text-align: center; margin-top: 8px;"><span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 12px; border-radius: 15px; font-weight: 600; font-size: 12px;">${driver.employeeNumber}</span></div>` : ''}
                         </div>
                         <div class="driver-body">
@@ -919,6 +1045,7 @@
                             
                             <div class="driver-actions">
                                 <button class="action-btn edit-btn" onclick="editDriver('${driver.id}')">✏️ تعديل</button>
+                                <button class="action-btn" style="background:#334155;color:white;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;" onclick="openTransferStatusModal('${driver.id}')">حالة التحويل</button>
                                 <button class="action-btn" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="openNewContractModal('${driver.id}')">📋 عقد جديد</button>
                                   <button class="action-btn" style="background: linear-gradient(135deg, #f97316, #ea580c); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="openEndContractModal('${driver.id}')">🛑 إنهاء عقد</button>
                                 <button class="action-btn" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="showContractHistory('${driver.id}')">📜 سجل العقود</button>
@@ -934,16 +1061,100 @@
         // Filter drivers
         window.filterDrivers = () => {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const filteredDrivers = allDrivers.filter(driver => 
-                driver.name.toLowerCase().includes(searchTerm) ||
-                driver.phone.includes(searchTerm)
-            );
+            const statusFilter = document.getElementById('transferStatusFilter').value;
+            const filteredDrivers = allDrivers.filter(driver => {
+                const textMatches = String(driver.name || '').toLowerCase().includes(searchTerm) ||
+                    String(driver.phone || '').includes(searchTerm);
+                return textMatches && DriverTransferStatus.matches(driver, statusFilter, transferDebt(driver));
+            });
             displayDrivers(filteredDrivers);
         };
+
+        window.openTransferStatusModal = driverId => {
+            const driver = allDrivers.find(item => item.id === driverId);
+            if (!driver) return;
+            transferStatusDriverId = driverId;
+            transferStatusOpenedSnapshot = {
+                companyTransferStatus: driver.companyTransferStatus,
+                companyTransferDate: driver.companyTransferDate,
+                companyTransferNote: driver.companyTransferNote
+            };
+            const normalized = DriverTransferStatus.normalize(driver);
+            const storedDate = driver.companyTransferDate && typeof driver.companyTransferDate.toDate === 'function'
+                ? driver.companyTransferDate.toDate().toISOString().slice(0, 10)
+                : String(driver.companyTransferDate || '').slice(0, 10);
+            document.getElementById('transferStatusDriverName').textContent = driver.name || driver.employeeNumber || '';
+            document.getElementById('companyTransferStatus').value = normalized === 'unset' ? 'on_company' : normalized;
+            document.getElementById('companyTransferDate').value = storedDate || DriverTransferStatus.localToday();
+            document.getElementById('companyTransferNote').value = driver.companyTransferNote || '';
+            transferStatusFormSnapshot = {
+                companyTransferStatus: document.getElementById('companyTransferStatus').value,
+                companyTransferDate: document.getElementById('companyTransferDate').value,
+                companyTransferNote: document.getElementById('companyTransferNote').value
+            };
+            document.getElementById('transferStatusModal').style.display = 'block';
+            document.getElementById('companyTransferStatus').focus();
+        };
+
+        window.closeTransferStatusModal = () => {
+            document.getElementById('transferStatusModal').style.display = 'none';
+            transferStatusDriverId = null;
+            transferStatusOpenedSnapshot = null;
+            transferStatusFormSnapshot = null;
+        };
+
+        window.saveTransferStatus = async event => {
+            event.preventDefault();
+            const driverId = transferStatusDriverId;
+            const opened = transferStatusOpenedSnapshot;
+            const baseline = transferStatusFormSnapshot;
+            if (!driverId || !opened || !baseline) return;
+            const validation = DriverTransferStatus.validate({
+                status: document.getElementById('companyTransferStatus').value,
+                date: document.getElementById('companyTransferDate').value,
+                note: document.getElementById('companyTransferNote').value
+            });
+            if (!validation.ok) {
+                alert(validation.error);
+                return;
+            }
+            const next = {
+                companyTransferStatus: validation.value.status,
+                companyTransferDate: validation.value.date,
+                companyTransferNote: validation.value.note
+            };
+            try {
+                const driverRef = doc(db, 'drivers', driverId);
+                const result = await DriverTransferStatus.saveTransferStatus({
+                    driverId,
+                    opened,
+                    baseline,
+                    next,
+                    driverRef,
+                    auditRef: () => doc(collection(db, 'editHistory')),
+                    makeAudit: payload => editHistoryData(payload),
+                    runTransaction: callback => runTransaction(db, callback)
+                });
+                closeTransferStatusModal();
+                if (!result.noop) {
+                    await loadDrivers();
+                    filterDrivers();
+                }
+            } catch (error) {
+                console.error('Error saving transfer status:', error);
+                const message = error && error.code === 'optimistic-conflict'
+                    ? 'تغيرت حالة التحويل أثناء فتح النافذة؛ أعد فتحها للمراجعة'
+                    : error.message;
+                alert('تعذر حفظ حالة التحويل: ' + message);
+            }
+        };
+        document.getElementById('transferStatusForm').addEventListener('submit', window.saveTransferStatus);
 
         // Open modal
         window.openModal = async () => {
             editingDriverId = null;
+            editingDriverSnapshot = null;
+            editingDriverFormSnapshot = null;
             document.getElementById('modalTitle').textContent = 'إضافة سائق جديد';
             document.getElementById('driverForm').reset();
               // FIX #015: رفع القفل عن الديون القديمة عند الإضافة الجديدة
@@ -970,10 +1181,14 @@
             if (!driver) return;
 
             editingDriverId = driverId;
+            editingDriverSnapshot = { ...driver };
+            editingDriverFormSnapshot = null;
             document.getElementById('modalTitle').textContent = 'تعديل السائق';
+            document.getElementById('driverForm').reset();
             
             // Fill form            // Set basic info
             document.getElementById('driverName').value = driver.name || '';
+            document.getElementById('employeeNumber').value = driver.employeeNumber || driver.driverId || driver.id || '';
             document.getElementById('driverPhone').value = driver.phone || '';
             document.getElementById('driverNationality').value = driver.nationality || '';
             document.getElementById('driverAddress').value = driver.address || '';
@@ -1027,14 +1242,14 @@
                     new Date(driver.contractStartDate.seconds * 1000) : 
                     new Date(driver.contractStartDate);
                 document.getElementById('contractStartDate').value = startDate.toISOString().split('T')[0];
-            }
+            } else document.getElementById('contractStartDate').value = '';
             
             if (driver.contractEndDate) {
                 const endDate = driver.contractEndDate.seconds ? 
                     new Date(driver.contractEndDate.seconds * 1000) : 
                     new Date(driver.contractEndDate);
                 document.getElementById('contractEndDate').value = endDate.toISOString().split('T')[0];
-            }
+            } else document.getElementById('contractEndDate').value = '';
             
             // Set document expiry dates
             const dateFields = [
@@ -1048,11 +1263,12 @@
                         new Date(driver[field].seconds * 1000) : 
                         new Date(driver[field]);
                     document.getElementById(field).value = date.toISOString().split('T')[0];
-                }
+                } else document.getElementById(field).value = '';
             });
             
             // Update car registration expiry
             updateCarRegistrationExpiry();
+            editingDriverFormSnapshot = readDriverFormState();
             
             document.getElementById('driverModal').style.display = 'block';
         };
@@ -1061,6 +1277,8 @@
         window.closeModal = () => {
             document.getElementById('driverModal').style.display = 'none';
             editingDriverId = null;
+            editingDriverSnapshot = null;
+            editingDriverFormSnapshot = null;
         };
 
         // Delete driver (with complete archiving)
@@ -1233,35 +1451,7 @@
 
             const contractType = document.getElementById('contractType').value;
             const driverData = {
-                name: document.getElementById('driverName').value,
-                phone: document.getElementById('driverPhone').value,
-                employeeNumber: document.getElementById('employeeNumber').value,
-                nationality: document.getElementById('driverNationality').value,
-                address: document.getElementById('driverAddress').value,
-                assignedCar: document.getElementById('assignedCar').value,
-                contractType: contractType,
-                dailyRent: contractType === 'daily' ? (parseFloat(document.getElementById('dailyRent').value) || 0) : 0,
-                monthlyPayment: contractType === 'monthly' ? (parseFloat(document.getElementById('monthlyPayment').value) || 0) : 0,
-                // #002: حفظ الأشهر والأيام بشكل منفصل
-                contractDurationMonths: parseInt(document.getElementById('contractDurationMonths').value) || 0,
-                contractDurationDays: parseInt(document.getElementById('contractDurationDays').value) || 0,
-                contractDuration: (parseInt(document.getElementById('contractDurationMonths').value) || 0), // للتوافق مع البيانات القديمة
-                contractStartDate: document.getElementById('contractStartDate').value ? 
-                    new Date(document.getElementById('contractStartDate').value) : null,
-                contractEndDate: document.getElementById('contractEndDate').value ? 
-                    new Date(document.getElementById('contractEndDate').value) : null,
-                carRegistrationExpiry: document.getElementById('carRegistrationExpiry').value ? 
-                    new Date(document.getElementById('carRegistrationExpiry').value) : null,
-                residencyExpiry: document.getElementById('residencyExpiry').value ? 
-                    new Date(document.getElementById('residencyExpiry').value) : null,
-                licenseExpiry: document.getElementById('licenseExpiry').value ? 
-                    new Date(document.getElementById('licenseExpiry').value) : null,
-                permitExpiry: document.getElementById('permitExpiry').value ? 
-                    new Date(document.getElementById('permitExpiry').value) : null,
-                passportExpiry: document.getElementById('passportExpiry').value ? 
-                    new Date(document.getElementById('passportExpiry').value) : null,
-                oldDebts: parseFloat(document.getElementById('oldDebts').value) || 0,
-                notes: document.getElementById('driverNotes').value,
+                ...readDriverFormState(),
                 updatedAt: new Date(),
                 updatedBy: currentUser.name || currentUser.email
             };
@@ -1297,7 +1487,10 @@
                     // التغيير يحدّث آخر سجل عقد فعلي (مو يضيف سجل) + يعيد حساب الديون بالقيم الجديدة.
                     // ينضاف صف "✏️ تعديل" للعرض في سجل العقود فقط (unified-balance.js يتجاهله).
                     
-                    const __existingDrv = allDrivers.find(d => d.id === editingDriverId);
+                    // Always compare with the record as it was when this edit
+                    // form opened; realtime list refreshes must not move the
+                    // optimistic-concurrency baseline.
+                    const __existingDrv = editingDriverSnapshot;
                     const fmtD = d => {
                         if (!d) return '';
                         const dt = d.toDate ? d.toDate() : (d instanceof Date ? d : new Date(d));
@@ -1554,7 +1747,7 @@
                           for (const [k, label] of __fmap) {
                               const ov = __old[k] ?? null;
                               const nv = driverData[k] ?? null;
-                              if (String(ov) !== String(nv)) {
+                               if (!valuesEqual(ov, nv)) {
                                   __changes.push({ field: k, fieldLabel: label, oldValue: ov, newValue: nv });
                               }
                           }
@@ -1575,24 +1768,59 @@
                               if (ovs !== nvs) __changes.push({ field: k, fieldLabel: label, oldValue: ovs, newValue: nvs });
                           }
                            const driverRef = doc(db, 'drivers', editingDriverId);
+                            const formBaseline = editingDriverFormSnapshot;
+                            if (!formBaseline) throw new Error('انتهت لقطة نموذج التعديل؛ أعد فتح النموذج');
+                            const excludedFromFormPatch = ['updatedAt', 'updatedBy', 'driverId', 'contractHistory'];
+                            const patch = DriverTransferStatus.changedPatch(formBaseline, driverData, excludedFromFormPatch);
+                            const contractSensitive = contractChanges.length > 0;
+                            if (contractSensitive && driverData.contractHistory !== undefined) {
+                                patch.contractHistory = driverData.contractHistory;
+                            }
+                           const changedKeys = Object.keys(patch);
+                           if (changedKeys.length === 0) {
+                               closeModal();
+                               return;
+                           }
+                           patch.updatedAt = new Date();
+                           patch.updatedBy = currentUser.name || currentUser.email;
+                            const auditedChanges = __changes.filter(change => changedKeys.includes(change.field));
+                            if (changedKeys.includes('contractHistory')) {
+                                auditedChanges.push({ field: 'contractHistory', fieldLabel: 'سجل العقود', oldValue: __old.contractHistory || null, newValue: patch.contractHistory });
+                            }
+                           const balanceDependencies = [
+                               'contractType', 'dailyRent', 'monthlyPayment', 'contractStartDate',
+                               'contractEndDate', 'contractDurationMonths', 'contractDurationDays',
+                               'contractHistory', 'currentContractId', 'oldDebts', 'oldDebtDetails'
+                           ];
                            await runTransaction(db, async tx => {
                                const liveSnap = await tx.get(driverRef);
                                if (!liveSnap.exists()) throw new Error('السائق غير موجود');
                                const live = liveSnap.data() || {};
-                               const expected = { ...__old };
-                               delete expected.id;
-                               if (JSON.stringify(live) !== JSON.stringify(expected)) {
-                                   throw new Error('تغيرت بيانات السائق أثناء التعديل؛ أعد فتح النموذج وحاول مجدداً');
+                               try {
+                                   DriverTransferStatus.assertNoConflicts(
+                                       live,
+                                       __old,
+                                       changedKeys,
+                                       contractSensitive ? balanceDependencies : []
+                                   );
+                               } catch (conflictError) {
+                                   if (conflictError && conflictError.code === 'optimistic-conflict') {
+                                       if (contractSensitive && balanceDependencies.includes(conflictError.field)) {
+                                           throw new Error('تغيرت بيانات عقد أو رصيد مرتبطة؛ أعد فتح النموذج ولا يمكن الكتابة فوق البيانات المالية الجديدة');
+                                       }
+                                       throw new Error('تغير الحقل "' + conflictError.field + '" أثناء التعديل؛ أعد فتح النموذج للمراجعة');
+                                   }
+                                   throw conflictError;
                                }
-                               tx.update(driverRef, driverData);
+                               tx.update(driverRef, patch);
                                tx.set(doc(collection(db, 'editHistory')), editHistoryData({
                                   recordType: 'driver', recordId: editingDriverId, action: 'edit',
                                   driverId: editingDriverId,
                                   driverName: driverData.name || (__old.name || ''),
-                                  changes: __changes,
-                                  fullSnapshotBefore: { ...__old, id: editingDriverId },
-                                  fullSnapshotAfter: { ...__old, ...driverData, id: editingDriverId },
-                                  description: 'تعديل بيانات السائق (' + __changes.length + ' حقل)',
+                                   changes: auditedChanges,
+                                  fullSnapshotBefore: { ...live, id: editingDriverId },
+                                  fullSnapshotAfter: { ...live, ...patch, id: editingDriverId },
+                                   description: 'تعديل بيانات السائق (' + auditedChanges.length + ' حقل)',
                                    editReason: contractEditReason || 'تعديل من نموذج السائق',
                                    debtBefore: (typeof debtBefore !== 'undefined' ? debtBefore : null),
                                    debtAfter: (typeof debtAfter !== 'undefined' ? debtAfter : null),
@@ -2840,9 +3068,15 @@
 
         // إغلاق النوافذ عند الضغط خارجها
         window.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('transferStatusModal')) closeTransferStatusModal();
             if (e.target === document.getElementById('newContractModal')) closeNewContractModal();
             if (e.target === document.getElementById('contractHistoryModal')) closeContractHistoryModal();
             if (e.target === document.getElementById('editOldDebtsModal')) closeEditOldDebtsModal();
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && document.getElementById('transferStatusModal').style.display === 'block') {
+                closeTransferStatusModal();
+            }
         });
 
         // Logout function

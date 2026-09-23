@@ -4,9 +4,9 @@
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const text = v => v === undefined || v === null ? 'غير مسجل' : typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v);
   const enumLabels = {
-    create:'إنشاء',add:'إضافة',edit:'تعديل',update:'تحديث',delete:'حذف',permanentDelete:'حذف نهائي',restore:'استعادة',archive:'أرشفة',unarchive:'إلغاء الأرشفة',void:'إلغاء',voided:'ملغى',active:'نشط',
+    create:'إنشاء',add:'إضافة',edit:'تعديل',update:'تحديث',transferStatus:'تحديث حالة التحويل',delete:'حذف',permanentDelete:'حذف نهائي',restore:'استعادة',archive:'أرشفة',unarchive:'إلغاء الأرشفة',void:'إلغاء',voided:'ملغى',active:'نشط',
     newContract:'إنشاء عقد',endContract:'إنهاء عقد',updateContract:'تحديث عقد',closeContract:'إغلاق عقد',settlement:'تسوية',settleContract:'تسوية عقد',duplicateClosure:'محاولة إغلاق مكررة',duplicateEndContract:'محاولة إنهاء مكررة',duplicate_closure:'محاولة إغلاق مكررة',duplicate_end_contract:'محاولة إنهاء مكررة',
-    driver:'ملف سائق',drivers:'ملفات السائقين',payment:'دفعة',payments:'الدفعات',driverPayment:'دفعة سائق',driverPayments:'دفعات السائقين',expense:'مصروف',expenses:'المصروفات',revenue:'إيراد',revenues:'الإيرادات',contract:'عقد',contracts:'العقود',user:'مستخدم',users:'المستخدمون',account:'حساب',accounts:'الحسابات',car:'سيارة',cars:'السيارات',notification:'إشعار',notifications:'الإشعارات',ownerNote:'ملاحظة المالك',ownerNotes:'ملاحظات المالك',owner:'المالك',accountant:'المحاسب',admin:'المدير',system:'النظام',manual:'إدخال يدوي',monthly:'شهري',daily:'يومي'
+    driver:'ملف سائق',drivers:'ملفات السائقين',payment:'دفعة',payments:'الدفعات',driverPayment:'دفعة سائق',driverPayments:'دفعات السائقين',expense:'مصروف',expenses:'المصروفات',revenue:'إيراد',revenues:'الإيرادات',contract:'عقد',contracts:'العقود',user:'مستخدم',users:'المستخدمون',account:'حساب',accounts:'الحسابات',car:'سيارة',cars:'السيارات',notification:'إشعار',notifications:'الإشعارات',ownerNote:'ملاحظة المالك',ownerNotes:'ملاحظات المالك',owner:'المالك',accountant:'المحاسب',admin:'المدير',system:'النظام',manual:'إدخال يدوي',monthly:'شهري',daily:'يومي',on_company:'على الشركة',pending:'قيد التحويل',transferred:'تم التحويل',unset:'غير محدد'
   };
   const fieldLabels = {
     amount:'المبلغ',date:'التاريخ',paymentDate:'تاريخ الدفعة',type:'نوع العملية',category:'التصنيف',status:'الحالة',name:'الاسم',driverName:'اسم السائق',driverId:'مرجع السائق','driver.id':'مرجع السائق',recordId:'مرجع السجل',contractId:'مرجع العقد',
@@ -14,7 +14,8 @@
     contractType:'نوع العقد',contractStartDate:'بداية العقد',contractEndDate:'نهاية العقد',startDate:'تاريخ البداية',endDate:'تاريخ النهاية',dailyWage:'الأجرة اليومية',dailyRent:'الأجرة اليومية',monthlyPayment:'الأجرة الشهرية',
     allocationKind:'نوع التخصيص',account:'الحساب',notes:'الملاحظات',note:'الملاحظة',description:'الوصف',reason:'السبب',editReason:'سبب التعديل',timestamp:'وقت العملية',createdAt:'وقت الإنشاء',updatedAt:'وقت التحديث',
     contracts:'العقود',contractHistory:'تاريخ العقود',sealedPeriods:'الفترات المغلقة',settlements:'التسويات',contractSettlements:'تسويات العقود',oldDebtItems:'بنود الدين القديم',
-    violations:'المخالفات',residencyFees:'رسوم الإقامة',driverBalance:'رصيد السائق',isArchived:'الأرشفة',isActive:'حالة النشاط'
+    violations:'المخالفات',residencyFees:'رسوم الإقامة',driverBalance:'رصيد السائق',isArchived:'الأرشفة',isActive:'حالة النشاط',
+    companyTransferStatus:'حالة تحويل الشركة',companyTransferDate:'تاريخ حالة التحويل',companyTransferNote:'ملاحظة حالة التحويل'
   };
   const label = (v,kind='enum') => {
     if(root.AuditHistory) return root.AuditHistory.label(v);
@@ -311,7 +312,20 @@
     panel.querySelectorAll(':scope > .mini-grid .val').forEach((el,i)=>{if(values[i]!=null)el.textContent=values[i];});
     const amounts=[x.lateAmount,x.violations,x.residencyFees,x.oldDebts,x.netAdvance,-x.driverBalance,x.totalDebt];
     panel.querySelectorAll('.explain-item strong').forEach((el,i)=>{if(amounts[i]!=null)el.textContent=money(amounts[i]);});
+    const transfer=panel.querySelector('[data-owner-transfer-summary]');
+    if(transfer)transfer.outerHTML=transferSummary(d,x.totalDebt);
     if(state.tab==='summary')renderOwnerChart(state.id);
+  }
+  function transferSummary(driver,totalDebt) {
+    const helper=root.DriverTransferStatus;
+    if(!helper)return '';
+    const status=helper.normalize(driver);
+    const dateValue=driver.companyTransferDate || 'غير مسجل';
+    const note=driver.companyTransferNote || 'لا توجد ملاحظة تشغيلية';
+    const archiveReview=status==='transferred' && Number(totalDebt)<=0
+      ? '<p class="small-muted">إذا تمت التسوية المالية، راجع الأرشفة يدوياً. لا ينفذ النظام أي أرشفة تلقائية.</p>' : '';
+    return `<div class="card ${helper.className(driver)} od-transfer-summary" data-owner-transfer-summary><h3>حالة التحويل التشغيلية</h3>
+      <p>${helper.badge(driver)} · التاريخ: ${esc(dateValue)}</p><p>${esc(note)}</p>${archiveReview}</div>`;
   }
   function renderMonitor() {
     const host=document.getElementById('tab-monitor');if(!host)return;
@@ -403,6 +417,13 @@
         else if(key==='notes') content.slice(-2).forEach(el=>panel.append(el));
         else panel.innerHTML=tools(key)+'<div class="od-results"></div>';
         box.append(panel);
+      }
+      const summaryPanel=box.querySelector('#od-summary');
+      if(summaryPanel && !summaryPanel.querySelector('[data-owner-transfer-summary]')){
+        const transfer=document.createElement('div');
+        const driver=gDriverMap[id];
+        transfer.innerHTML=transferSummary(driver,detailed(driver).totalDebt);
+        if(transfer.firstElementChild)summaryPanel.prepend(transfer.firstElementChild);
       }
       const select=key=>{
         state.tab=key;

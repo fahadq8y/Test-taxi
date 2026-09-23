@@ -23,7 +23,7 @@
         };
     }
     const labels = {
-        create:'إنشاء',add:'إضافة',edit:'تعديل',update:'تحديث',delete:'حذف',permanentDelete:'حذف نهائي',
+        create:'إنشاء',add:'إضافة',edit:'تعديل',update:'تحديث',transferStatus:'تحديث حالة التحويل',delete:'حذف',permanentDelete:'حذف نهائي',
         upsert:'حفظ / تحديث',addUser:'إضافة مستخدم',updateUser:'تعديل مستخدم',deleteUser:'حذف مستخدم',activateUser:'تفعيل مستخدم',deactivateUser:'تعطيل مستخدم',changePassword:'تغيير كلمة المرور',
         void:'إلغاء مع حفظ السجل',voided:'ملغى',restore:'استعادة',reversal:'تراجع موثق',archive:'أرشفة',unarchive:'إلغاء الأرشفة',
         newContract:'عقد جديد',endContract:'إنهاء عقد',updateContract:'تعديل عقد',closeContract:'إغلاق عقد',settlement:'تسوية',settleContract:'تسوية عقد',
@@ -34,6 +34,8 @@
         documentChangeRequest:'طلب تغيير مستند',document:'مستند',oilChange:'تغيير زيت',version:'إصدار',
         amount:'المبلغ (ليس الدين)',totalDebt:'إجمالي الدين',debt:'الدين',remainingDebt:'الدين المتبقي',carryOver:'الدين المرحّل',
         status:'الحالة',date:'التاريخ',name:'الاسم',type:'النوع',description:'الوصف',note:'ملاحظة',notes:'ملاحظات',
+        companyTransferStatus:'حالة تحويل الشركة',companyTransferDate:'تاريخ حالة التحويل',companyTransferNote:'ملاحظة حالة التحويل',
+        on_company:'على الشركة',pending:'قيد التحويل',transferred:'تم التحويل',
         followUpStatus:'حالة متابعة المالك',followUpDate:'تاريخ متابعة المالك',promisedAmount:'المبلغ الموعود',promisedDate:'تاريخ الدفع الموعود','entries.added':'الملاحظة الخاصة المضافة',
         driverId:'مرجع السائق',recordId:'مرجع السجل',refNum:'الرقم المرجعي',contractId:'مرجع العقد',source:'صفحة المصدر',
         allocationKind:'نوع التخصيص',allocations:'التخصيصات',obligationId:'مرجع الالتزام',contracts:'العقود',contractHistory:'تاريخ العقود',
@@ -48,7 +50,7 @@
     function structured(v) {
         if (v === undefined) return '<em>غير معروف — لم يُحفظ</em>';
         if (v === null) return '<em>قيمة فارغة (null)</em>';
-        if (typeof v !== 'object') return escape(v);
+        if (typeof v !== 'object') return escape(label(v));
         if (typeof v.toDate === 'function') return escape(date(v)?.toISOString() || 'وقت غير صالح');
         return '<dl>'+Object.entries(v).map(([k,x])=>`<dt>${escape(label(k))}</dt><dd>${structured(x)}</dd>`).join('')+'</dl>';
     }
