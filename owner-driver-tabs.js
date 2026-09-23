@@ -6,7 +6,7 @@
   const enumLabels = {
     create:'إنشاء',add:'إضافة',edit:'تعديل',update:'تحديث',delete:'حذف',permanentDelete:'حذف نهائي',restore:'استعادة',archive:'أرشفة',unarchive:'إلغاء الأرشفة',void:'إلغاء',voided:'ملغى',active:'نشط',
     newContract:'إنشاء عقد',endContract:'إنهاء عقد',updateContract:'تحديث عقد',closeContract:'إغلاق عقد',settlement:'تسوية',settleContract:'تسوية عقد',duplicateClosure:'محاولة إغلاق مكررة',duplicateEndContract:'محاولة إنهاء مكررة',duplicate_closure:'محاولة إغلاق مكررة',duplicate_end_contract:'محاولة إنهاء مكررة',
-    driver:'ملف سائق',drivers:'ملفات السائقين',payment:'دفعة',driverPayment:'دفعة سائق',driverPayments:'دفعات السائقين',expense:'مصروف',expenses:'المصروفات',revenue:'إيراد',revenues:'الإيرادات',contract:'عقد',contracts:'العقود',owner:'المالك',accountant:'المحاسب',admin:'المدير',system:'النظام',manual:'إدخال يدوي',monthly:'شهري',daily:'يومي'
+    driver:'ملف سائق',drivers:'ملفات السائقين',payment:'دفعة',payments:'الدفعات',driverPayment:'دفعة سائق',driverPayments:'دفعات السائقين',expense:'مصروف',expenses:'المصروفات',revenue:'إيراد',revenues:'الإيرادات',contract:'عقد',contracts:'العقود',user:'مستخدم',users:'المستخدمون',account:'حساب',accounts:'الحسابات',car:'سيارة',cars:'السيارات',notification:'إشعار',notifications:'الإشعارات',ownerNote:'ملاحظة المالك',ownerNotes:'ملاحظات المالك',owner:'المالك',accountant:'المحاسب',admin:'المدير',system:'النظام',manual:'إدخال يدوي',monthly:'شهري',daily:'يومي'
   };
   const fieldLabels = {
     amount:'المبلغ',date:'التاريخ',paymentDate:'تاريخ الدفعة',type:'نوع العملية',category:'التصنيف',status:'الحالة',name:'الاسم',driverName:'اسم السائق',driverId:'مرجع السائق','driver.id':'مرجع السائق',recordId:'مرجع السجل',contractId:'مرجع العقد',
@@ -18,7 +18,7 @@
   };
   const label = (v,kind='enum') => {
     if(root.AuditHistory) return root.AuditHistory.label(v);
-    if(v==null||v==='')return 'غير مسجل';
+    if(v==null||v===''||/^(unknown|unset|undefined|null|n\/a)$/i.test(String(v).trim()))return 'غير مسجل';
     const key=String(v), mapped=(kind==='field'?fieldLabels:enumLabels)[key];
     if(mapped)return mapped;
     if(/[\u0600-\u06ff]/.test(key))return key;
@@ -80,7 +80,27 @@
     if(f.source && String(e.source||'')!==f.source)return false;
     return !f.action || String(e.action || '') === f.action;
   }
-  const core = {driverIds, deltas, matches, date};
+  function eventRole(e) {
+    const value=e.editedByRole||e.actorRole||e.actor?.role;
+    return value==null||String(value).trim()===''||/^(unknown|unset|undefined|null|n\/a)$/i.test(String(value).trim())
+      ? 'غير مسجل' : String(value);
+  }
+  function monitorRows(all, f={}, reviewDecision=()=> 'pending') {
+    return all.filter(e=>matches(e,f,e.timestamp)&&
+      (!f.type||String(e.recordType||'')===f.type)&&
+      (!f.role||eventRole(e)===f.role)&&
+      (!f.decision||reviewDecision(e)===f.decision));
+  }
+  function applyRecentSnapshot(eventMap, history, snapshot) {
+    const cache=new Map(history.map(e=>[e.id,e]));
+    snapshot.docs.forEach(doc=>{
+      const e={...(typeof doc.data==='function'?doc.data():doc),id:doc.id};
+      eventMap.set(e.id,e);
+      cache.set(e.id,e);
+    });
+    return [...cache.values()];
+  }
+  const core = {driverIds, deltas, matches, date, eventRole, monitorRows, applyRecentSnapshot};
   root.OwnerAuditCore = core;
   if (typeof module !== 'undefined' && module.exports) module.exports = core;
   if (typeof document === 'undefined') return;
@@ -123,7 +143,7 @@
   const state = {id:null, tab:'summary', filters:{}, cursor:null, complete:false, busy:false, error:'', events:new Map(), open:new Set()};
   const monitor = {q:'',from:'',to:'',action:'',type:'',role:'',actor:'',source:'',decision:''};
   const reviews = new Map();
-  let historyUnsubscribe=null, historyGeneration=0;
+  let historyUnsubscribe=null, recentHistoryUnsubscribe=null, historyGeneration=0;
   const sources = () => ({payments:gPayments,expenses:gExpenses,revenues:gRevenues});
   const normalize = e => root.AuditHistory ? root.AuditHistory.normalize(e,e.id) : e;
   const events = () => {
@@ -135,7 +155,9 @@
   const filters = tab => state.filters[tab] || (state.filters[tab] = {q:'',from:'',to:'',action:''});
   const raw = (label, value) => `<details><summary>${esc(label)}</summary><pre class="od-json">${esc(text(value))}</pre></details>`;
   function eventHtml(e) {
-    return `<details class="card od-event" data-event="${esc(e.id)}"${state.open.has(e.id)?' open':''}><summary>${esc(label(e.action))} · ${esc(label(e.recordType))} · ${esc(date(e.timestamp)?.toLocaleString('ar-KW')||'وقت غير مسجل')} · ${esc(reviewLabels[reviews.get(e.id)?.decision]||reviewLabels.pending)}</summary>${root.AuditHistory.renderEvent(e,events())}<button class="btn outline od-review" data-id="${esc(e.id)}">قرار المراجعة وسجل القرارات</button><div class="od-review-box" aria-live="polite"></div></details>`;
+    const role=e.editedByRole||e.actorRole||e.actor?.role;
+    const reason=e.editReason||e.deleteReason||e.reason||e.note||e.endContractData?.reason;
+    return `<details class="card od-event" data-event="${esc(e.id)}"${state.open.has(e.id)?' open':''}><summary><strong>${esc(label(e.action))} · ${esc(label(e.recordType))}</strong><span class="od-event-meta">المحرر: ${esc(e.editedBy||'غير مسجل')} · الدور: ${esc(label(role))} · الوقت: ${esc(date(e.timestamp)?.toLocaleString('ar-KW')||'غير مسجل')} · المصدر: ${esc(e.source||'غير مسجل')} · السبب: ${esc(reason||'غير مسجل')} · ${esc(reviewLabels[reviews.get(e.id)?.decision]||reviewLabels.pending)}</span></summary>${root.AuditHistory.renderEvent(e,events())}<button class="btn outline od-review" data-id="${esc(e.id)}">قرار المراجعة وسجل القرارات</button><div class="od-review-box" aria-live="polite"></div></details>`;
   }
   function tools(tab) {
     const f=filters(tab);
@@ -161,6 +183,7 @@
   }
   function watchLoadedHistory() {
     if(historyUnsubscribe)historyUnsubscribe();
+    if(recentHistoryUnsubscribe)recentHistoryUnsubscribe();
     const generation=++historyGeneration;
     let query=firebase.firestore().collection('editHistory').orderBy(firebase.firestore.FieldPath.documentId());
     if(!state.complete&&state.cursor)query=query.endAt(state.cursor);
@@ -174,6 +197,14 @@
       gEditHistory=[...cache.values()];
       renderData();renderMonitor();
     },e=>{state.error='تعذر تحديث السجل المباشر: '+e.message;renderData();renderMonitor();});
+    // The document-id listener above keeps modified/deleted loaded pages accurate.
+    // This independent newest-events listener makes a newly created event visible
+    // immediately even when its random document id lies beyond the loaded cursor.
+    recentHistoryUnsubscribe=firebase.firestore().collection('editHistory').orderBy('timestamp','desc').limit(200).onSnapshot(snap=>{
+      if(generation!==historyGeneration)return;
+      gEditHistory=applyRecentSnapshot(state.events,gEditHistory,snap);
+      renderData();renderMonitor();
+    },e=>{state.error='تعذر تحديث أحدث عمليات السجل: '+e.message;renderData();renderMonitor();});
   }
   function renderPanel(tab) {
     const panel=document.getElementById('od-'+tab);if(!panel)return;
@@ -211,14 +242,14 @@
   function renderMonitor() {
     const host=document.getElementById('tab-monitor');if(!host)return;
     if(!host.querySelector('#od-monitor-results')) {
-      host.innerHTML=`<div class="card"><h2>مراقبة العمليات · السجل الكامل</h2><p>يشمل التدقيق العمليات الملغاة؛ لا تؤثر قرارات المراجعة على الحسابات أو السجلات الأصلية.</p>
+      host.innerHTML=`<div class="card"><h2>مراقبة العمليات · السجل الكامل</h2><p>يعرض كل أنواع العمليات وكل المحررين افتراضياً، بما فيها السائق والدفعة والإيراد والمصروف والمستخدم. يشمل التدقيق العمليات الملغاة؛ لا تؤثر قرارات المراجعة على الحسابات أو السجلات الأصلية.</p><p class="small-muted">قد لا تحتوي الأحداث القديمة على دور محفوظ؛ تظهر بدور «غير مسجل» وتبقى ظاهرة عند اختيار «الكل». لا يُستنتج مؤلف الحدث أو دوره من البيانات الحالية.</p>
         <div class="od-filters"><label>النص<input type="search" data-monitor-filter="q"></label><label>من<input type="date" data-monitor-filter="from"></label><label>إلى (شامل)<input type="date" data-monitor-filter="to"></label>
         <label>الإجراء<select data-monitor-filter="action"></select></label><label>نوع السجل<select data-monitor-filter="type"></select></label><label>دور المحرر<select data-monitor-filter="role"></select></label><label>حالة المراجعة<select data-monitor-filter="decision"><option value="">الكل</option>${Object.entries(reviewLabels).map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select></label></div></div><div id="od-monitor-results"></div>`;
       host.oninput=e=>{const k=e.target.dataset.monitorFilter;if(k){monitor[k]=e.target.value;renderMonitor();}};
       host.onclick=handleClick;
       host.addEventListener('toggle',e=>{if(e.target.matches('.od-event')){if(e.target.open)state.open.add(e.target.dataset.event);else state.open.delete(e.target.dataset.event);}},true);
     }
-    const all=events(), role=e=>String(e.editedByRole||e.actorRole||e.actor?.role||'غير مسجل');
+    const all=events(), role=eventRole;
     for(const k of ['actor','source']) if(!host.querySelector(`[data-monitor-filter="${k}"]`)) {
       const node=document.createElement('label');node.textContent=k==='actor'?'هوية المحرر':'صفحة المصدر';
       const select=document.createElement('select');select.dataset.monitorFilter=k;node.appendChild(select);host.querySelector('.od-filters').appendChild(node);
@@ -228,9 +259,31 @@
       const values=[...new Set([...all.map(get),monitor[k]])].filter(Boolean).sort();
       select.innerHTML='<option value="">الكل</option>'+values.map(v=>`<option value="${esc(v)}"${v===monitor[k]?' selected':''}>${esc(label(v))}</option>`).join('');
     }
-    if(host.querySelector('.od-save-review'))return;
-    const rows=all.filter(e=>matches(e,monitor,e.timestamp)&&(!monitor.type||String(e.recordType||'')===monitor.type)&&(!monitor.role||role(e)===monitor.role)&&(!monitor.decision||(reviews.get(e.id)?.decision||'pending')===monitor.decision));
-    host.querySelector('#od-monitor-results').innerHTML=historyScope(false)+`<p>${rows.length} نتيجة مطابقة · الترتيب من الأحدث للأقدم</p>`+rows.map(eventHtml).join('');
+    const rows=monitorRows(all,monitor,e=>reviews.get(e.id)?.decision||'pending');
+    const results=host.querySelector('#od-monitor-results');
+    if(host.querySelector('.od-save-review')) {
+      // Keep the live review form and its in-flight save node intact, while still
+      // inserting/reordering realtime events that match the current filters.
+      const wanted=new Set(rows.map(e=>String(e.id)));
+      results.querySelectorAll('.od-event').forEach(node=>{
+        if(!wanted.has(String(node.dataset.event))&&!node.querySelector('.od-save-review'))node.remove();
+      });
+      const existing=new Map([...results.querySelectorAll('.od-event')].map(node=>[String(node.dataset.event),node]));
+      rows.forEach(e=>{
+        let node=existing.get(String(e.id));
+        if(!node){
+          const holder=document.createElement('div');
+          holder.innerHTML=eventHtml(e);
+          node=holder.firstElementChild;
+          existing.set(String(e.id),node);
+        }
+        results.append(node);
+      });
+      const count=results.querySelector('.od-result-count');
+      if(count)count.textContent=`${rows.length} نتيجة مطابقة · الترتيب من الأحدث للأقدم`;
+      return;
+    }
+    results.innerHTML=historyScope(false)+`<p class="od-result-count">${rows.length} نتيجة مطابقة · الترتيب من الأحدث للأقدم</p>`+rows.map(eventHtml).join('');
   }
   async function review(button) {
     const id=button.dataset.id, box=button.nextElementSibling;
@@ -300,7 +353,7 @@
     }
   };
   const style=document.createElement('style');
-  style.textContent='.od-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0}.od-tabs button{flex:1 1 125px;padding:12px;border:1px solid #475569;border-radius:8px;background:#172336;color:#e2e8f0;cursor:pointer}.od-tabs [aria-selected=true]{background:#0f766e;border-color:#5eead4}.od-tabs button:focus-visible{outline:3px solid #fbbf24}.od-filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin:14px 0}.od-filters label{min-width:0}.od-filters input,.od-review-box select,.od-review-box textarea{display:block;width:100%;box-sizing:border-box;margin:6px 0}.od-json{direction:ltr;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto;background:#101827;padding:12px}.od-event summary{cursor:pointer;line-height:1.9}.od-change{padding:9px;border-bottom:1px solid #334155;overflow-wrap:anywhere}.od-scope{border:1px solid #475569;border-radius:8px;padding:12px;line-height:1.8}#modalContent [hidden]{display:none!important}@media(max-width:600px){.od-filters{grid-template-columns:1fr}.od-tabs button{flex-basis:40%}}';
+  style.textContent='.od-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0}.od-tabs button{flex:1 1 125px;padding:12px;border:1px solid #475569;border-radius:8px;background:#172336;color:#e2e8f0;cursor:pointer}.od-tabs [aria-selected=true]{background:#0f766e;border-color:#5eead4}.od-tabs button:focus-visible{outline:3px solid #fbbf24}.od-filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin:14px 0}.od-filters label{min-width:0}.od-filters input,.od-review-box select,.od-review-box textarea{display:block;width:100%;box-sizing:border-box;margin:6px 0}.od-json{direction:ltr;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto;background:#101827;padding:12px}.od-event summary{cursor:pointer;line-height:1.9}.od-event-meta{display:block;font-size:.9em;font-weight:400;margin-top:3px}.audit-history-facts{border-inline-start:4px solid #0f766e;padding-inline-start:12px;margin-block:12px}.audit-history-facts p{margin:6px 0}.od-change{padding:9px;border-bottom:1px solid #334155;overflow-wrap:anywhere}.od-scope{border:1px solid #475569;border-radius:8px;padding:12px;line-height:1.8}#modalContent [hidden]{display:none!important}@media(max-width:600px){.od-filters{grid-template-columns:1fr}.od-tabs button{flex-basis:40%}}';
   document.head.append(style);
   root.addEventListener('owner-history-updated',()=>{renderData();renderMonitor();refreshSummary();});
   let reviewUnsubscribe=null;
@@ -309,6 +362,7 @@
     reviews.clear();
     if(user?.email!==OWNER_EMAIL){
       if(historyUnsubscribe){historyUnsubscribe();historyUnsubscribe=null;}
+      if(recentHistoryUnsubscribe){recentHistoryUnsubscribe();recentHistoryUnsubscribe=null;}
       ++historyGeneration;return;
     }
     reviewUnsubscribe=firebase.firestore().collection('ownerNotes').where('kind','==','ownerReview').onSnapshot(snap=>{

@@ -14,12 +14,12 @@
             changes,
             action: data.action === 'delete' && after?.status === 'voided' ? 'void' : data.action,
             source: data.source || data.sourcePage || data.channel || '',
-            editedById: data.actorUid || data.editedByUid || data.editedById || data.deletedById || data.actor?.uid || '',
+            editedById: data.actorUid || data.editedByUid || data.editedById || data.deletedById || data.createdById || data.createdByUid || data.actor?.uid || '',
             id: id == null ? data.id : id,
-            editedByRole: data.editedByRole || data.editorRole || data.deletedByRole || data.actor?.role || '',
-            editedBy: data.editedBy || data.deletedBy || data.actor?.email || '',
+            editedByRole: data.editedByRole || data.editorRole || data.deletedByRole || data.createdByRole || data.actor?.role || '',
+            editedBy: data.editedBy || data.deletedBy || data.createdBy || data.actor?.email || '',
             editReason: data.editReason || data.deleteReason ||
-                (data.endContractData && data.endContractData.reason) || ''
+                (data.endContractData && data.endContractData.reason) || data.reason || data.note || ''
         };
     }
     const labels = {
@@ -27,8 +27,10 @@
         upsert:'حفظ / تحديث',addUser:'إضافة مستخدم',updateUser:'تعديل مستخدم',deleteUser:'حذف مستخدم',activateUser:'تفعيل مستخدم',deactivateUser:'تعطيل مستخدم',changePassword:'تغيير كلمة المرور',
         void:'إلغاء مع حفظ السجل',voided:'ملغى',restore:'استعادة',reversal:'تراجع موثق',archive:'أرشفة',unarchive:'إلغاء الأرشفة',
         newContract:'عقد جديد',endContract:'إنهاء عقد',updateContract:'تعديل عقد',closeContract:'إغلاق عقد',settlement:'تسوية',settleContract:'تسوية عقد',
-        driver:'سائق',drivers:'السائقون',payment:'دفعة',driverPayment:'دفعة سائق',driverPayments:'دفعات السائقين',expense:'مصروف',revenue:'إيراد',
-        contract:'عقد',oldDebts:'ديون قديمة',user:'مستخدم',car:'سيارة',notification:'إشعار',appConfig:'إعدادات التطبيق',config:'إعدادات',
+        driver:'سائق',drivers:'السائقون',payment:'دفعة',payments:'الدفعات',driverPayment:'دفعة سائق',driverPayments:'دفعات السائقين',
+        expense:'مصروف',expenses:'المصروفات',revenue:'إيراد',revenues:'الإيرادات',
+        contract:'عقد',contracts:'العقود',oldDebts:'ديون قديمة',user:'مستخدم',users:'المستخدمون',account:'حساب',accounts:'الحسابات',
+        car:'سيارة',cars:'السيارات',notification:'إشعار',notifications:'الإشعارات',ownerNote:'ملاحظة المالك',ownerNotes:'ملاحظات المالك',appConfig:'إعدادات التطبيق',config:'إعدادات',
         documentChangeRequest:'طلب تغيير مستند',document:'مستند',oilChange:'تغيير زيت',version:'إصدار',
         amount:'المبلغ (ليس الدين)',totalDebt:'إجمالي الدين',debt:'الدين',remainingDebt:'الدين المتبقي',carryOver:'الدين المرحّل',
         status:'الحالة',date:'التاريخ',name:'الاسم',type:'النوع',description:'الوصف',note:'ملاحظة',notes:'ملاحظات',
@@ -40,9 +42,10 @@
         fullSnapshotBefore:'لقطة قبل العملية',fullSnapshotAfter:'لقطة بعد العملية',fullSnapshot:'لقطة محفوظة (مرحلتها غير محددة)'
     };
     const escape = v => String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const label = v => Object.hasOwn(labels,String(v)) ? labels[v] : (v == null || v === '' ? 'غير مسجل' : String(v));
+    const missing = v => v == null || String(v).trim() === '' || /^(unknown|unset|undefined|null|n\/a)$/i.test(String(v).trim());
+    const label = v => missing(v) ? 'غير مسجل' : Object.hasOwn(labels,String(v)) ? labels[v] : String(v);
     function structured(v) {
-        if (v === undefined) return '<em>غير مسجل</em>';
+        if (v === undefined) return '<em>غير معروف — لم يُحفظ</em>';
         if (v === null) return '<em>قيمة فارغة (null)</em>';
         if (typeof v !== 'object') return escape(v);
         if (typeof v.toDate === 'function') return escape(date(v)?.toISOString() || 'وقت غير صالح');
@@ -101,13 +104,17 @@
         ensureDisplayStyle();
         const e=normalize(data), rows=comparison(e);
         return `<section class="audit-history-event"><h4 id="audit-${escape(encodeURIComponent(e.id||''))}">${escape(label(e.action))} · ${escape(label(e.recordType))}</h4>
-        <p>${escape(date(e.timestamp)?.toLocaleString('ar-KW')||'وقت غير مسجل')}</p>
-        <p>المحرر: ${escape(e.editedBy||'غير مسجل')} · UID: ${escape(e.editedById||'غير مسجل')} · ${escape(label(e.editedByRole))}</p>
-        <p>المصدر: ${escape(e.source||'غير مسجل')} · السجل: ${escape(e.recordId||'غير مسجل')} · السائق: ${escape(e.driverId||'غير مسجل')} · الحدث: ${escape(e.id)}</p>
+        <div class="audit-history-facts">
+          <p><strong>المحرر:</strong> ${escape(e.editedBy||'غير مسجل')} · <strong>UID:</strong> ${escape(e.editedById||'غير مسجل')} · <strong>الدور وقت التسجيل:</strong> ${escape(label(e.editedByRole))}</p>
+          <p><strong>وقت العملية:</strong> ${escape(date(e.timestamp)?.toLocaleString('ar-KW')||'غير مسجل')}</p>
+          <p><strong>المصدر:</strong> ${escape(e.source||'غير مسجل')} · <strong>نوع السجل:</strong> ${escape(label(e.recordType))} · <strong>مرجع السجل:</strong> ${escape(e.recordId||'غير مسجل')}</p>
+          <p><strong>السبب:</strong> ${escape(e.editReason||'غير مسجل')}</p>
+        </div>
+        <p>السائق: ${escape(e.driverId||'غير مسجل')} · الحدث: ${escape(e.id||'غير مسجل')}</p>
         <p>${escape(e.actorIdentityVerification||'التحقق من الهوية غير مسجل؛ UID وحده لا يثبت ملكية السائق')}</p>
-        <p>${escape(e.editReason)}</p><p>فرق المبلغ لا يمثل فرق الدين. القيم الغائبة غير معروفة.</p>
+        <p>فرق المبلغ لا يمثل فرق الدين. القيم التاريخية غير المحفوظة معروضة صراحةً كغير معروفة ولا تُستنتج من القيمة الحالية.</p>
         <p>${deltas(e).map(d=>escape((d.kind==='amount'?'فرق مبلغ (ليس فرق الدين)':'فرق دين مسجل')+': '+d.value)).join(' · ')||'فرق مالي غير معروف'}</p>
-        <table><thead><tr><th>الحقل</th><th>قبل</th><th>بعد</th></tr></thead><tbody>${rows.map(c=>`<tr><th>${escape(c.field.split('.').map(label).join(' / '))}</th><td data-audit-label="قبل">${structured(c.oldValue)}</td><td data-audit-label="بعد">${structured(c.newValue)}</td></tr>`).join('')}</tbody></table>
+        <table><thead><tr><th>الحقل</th><th>قبل</th><th>بعد</th></tr></thead><tbody>${rows.length?rows.map(c=>`<tr><th>${escape(c.field.split('.').map(label).join(' / '))}</th><td data-audit-label="قبل">${structured(c.oldValue)}</td><td data-audit-label="بعد">${structured(c.newValue)}</td></tr>`).join(''):'<tr><th>القيم التاريخية</th><td data-audit-label="قبل"><em>غير معروف — لم يُحفظ</em></td><td data-audit-label="بعد"><em>غير معروف — لم يُحفظ</em></td></tr>'}</tbody></table>
         ${['fullSnapshotBefore','fullSnapshotAfter','fullSnapshot'].filter(k=>e[k]!==undefined).map(k=>`<details><summary>${escape(label(k))}</summary>${structured(e[k])}</details>`).join('')}
         <details><summary>سلسلة الأحداث المرتبطة ضمن المحمّل فقط (${related(e,all).length})</summary>${related(e,all).map(x=>`<p><a href="#audit-${escape(encodeURIComponent(x.id||''))}">${escape(x.id)}</a> · ${escape(label(x.action))} · ${escape(date(x.timestamp)?.toLocaleString('ar-KW')||'وقت غير مسجل')}</p>`).join('')}</details>
         <details><summary>الدليل الكامل المحفوظ</summary><pre>${escape(JSON.stringify(data,null,2))}</pre></details></section>`;

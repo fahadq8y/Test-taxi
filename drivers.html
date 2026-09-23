@@ -507,23 +507,68 @@
               return value;
           }
 
-          function runTransaction(database, callback, options) {
+          async function resolveActorAuditContext() {
               const actor = requireFinancialActor();
+              const uid = actor.uid;
+              let role = 'unknown';
+              // Role is audit metadata only; authorization remains enforced elsewhere.
+              if (!actor.isAnonymous) {
+                  try {
+                      const profile = await getDoc(doc(db, 'users', uid));
+                      requireFinancialActor(uid);
+                      const profileRole = profile.exists() ? profile.data()?.role : null;
+                      if (typeof profileRole === 'string' && profileRole.trim()) role = profileRole.trim();
+                      else {
+                          const token = await actor.getIdTokenResult();
+                          requireFinancialActor(uid);
+                          if (typeof token?.claims?.role === 'string' && token.claims.role.trim()) {
+                              role = token.claims.role.trim();
+                          }
+                      }
+                  } catch (error) {
+                      requireFinancialActor(uid);
+                      try {
+                          const token = await actor.getIdTokenResult();
+                          requireFinancialActor(uid);
+                          if (typeof token?.claims?.role === 'string' && token.claims.role.trim()) {
+                              role = token.claims.role.trim();
+                          }
+                      } catch (tokenError) {
+                          requireFinancialActor(uid);
+                      }
+                  }
+              }
+              requireFinancialActor(uid);
+              return { uid, role };
+          }
+
+          async function runTransaction(database, callback, options) {
+              const actorContext = await resolveActorAuditContext();
               return firestoreRunTransaction(database, async tx => {
-                  requireFinancialActor(actor.uid);
-                  const result = await callback(tx);
-                  requireFinancialActor(actor.uid);
+                  requireFinancialActor(actorContext.uid);
+                  const guardedTx = new Proxy(tx, { get(target, key) {
+                      if (key === 'set') return (ref, value, ...args) => {
+                          requireFinancialActor(actorContext.uid);
+                          const normalized = ref?.parent?.id === 'editHistory'
+                              ? editHistoryData(value, actorContext) : value;
+                          return target.set(ref, normalized, ...args);
+                      };
+                      const value = target[key];
+                      return typeof value === 'function' ? value.bind(target) : value;
+                  } });
+                  const result = await callback(guardedTx);
+                  requireFinancialActor(actorContext.uid);
                   return result;
               }, options);
           }
 
-          function editHistoryData(payload) {
-              const user = requireFinancialActor();
+          function editHistoryData(payload, actorContext) {
+              const user = requireFinancialActor(actorContext?.uid);
               return cleanAuditValue({
                   timestamp: serverTimestamp(),
                   ...payload,
                   editedBy: user.displayName || user.email || user.uid,
-                  editedByRole: currentUser && currentUser.uid === user.uid ? (currentUser.role || 'unknown') : 'unknown',
+                  editedByRole: actorContext && actorContext.uid === user.uid ? actorContext.role : 'unknown',
                   actorUid: user.uid,
                   actorIdentity: user.isAnonymous ? 'anonymous/unverified' : 'firebase-authenticated',
                   editedByUid: user.uid,

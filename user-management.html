@@ -328,11 +328,57 @@
             return value;
         }
 
-        function userAuditData(entry) {
+        function requireUserAuditActor(expectedUid) {
             const actor = auth.currentUser;
-            if (!actor || !actor.uid) {
+            if (!actor || !actor.uid || (expectedUid && actor.uid !== expectedUid)) {
                 throw new Error('يلزم تسجيل دخول موثّق قبل تغيير بيانات المستخدمين. أعد تسجيل الدخول.');
             }
+            return actor;
+        }
+
+        async function resolveUserAuditContext() {
+            const actor = requireUserAuditActor();
+            const uid = actor.uid;
+            let role = 'unknown';
+            // This role is evidence for the audit trail, not an authorization decision.
+            if (!actor.isAnonymous) {
+                try {
+                    const profile = await db.collection('users').doc(uid).get();
+                    requireUserAuditActor(uid);
+                    const profileRole = profile.exists ? profile.data()?.role : null;
+                    if (typeof profileRole === 'string' && profileRole.trim()) role = profileRole.trim();
+                    else {
+                        const token = await actor.getIdTokenResult();
+                        requireUserAuditActor(uid);
+                        if (typeof token?.claims?.role === 'string' && token.claims.role.trim()) role = token.claims.role.trim();
+                    }
+                } catch (error) {
+                    requireUserAuditActor(uid);
+                    try {
+                        const token = await actor.getIdTokenResult();
+                        requireUserAuditActor(uid);
+                        if (typeof token?.claims?.role === 'string' && token.claims.role.trim()) role = token.claims.role.trim();
+                    } catch (tokenError) {
+                        requireUserAuditActor(uid);
+                    }
+                }
+            }
+            requireUserAuditActor(uid);
+            return { uid, role };
+        }
+
+        async function runUserAuditTransaction(callback) {
+            const actorContext = await resolveUserAuditContext();
+            return db.runTransaction(async transaction => {
+                requireUserAuditActor(actorContext.uid);
+                const result = await callback(transaction, actorContext);
+                requireUserAuditActor(actorContext.uid);
+                return result;
+            });
+        }
+
+        function userAuditData(entry, actorContext) {
+            const actor = requireUserAuditActor(actorContext?.uid);
             return cleanAuditValue({
                 recordType: 'user',
                 action: entry.action,
@@ -351,20 +397,20 @@
                 editedByUid: actor.uid,
                 editedById: actor.uid,
                 actorIdentity: actor.isAnonymous ? 'anonymous/unverified' : 'firebase-authenticated',
-                editorRole: 'unknown',
-                editedByRole: 'unknown',
+                editorRole: actorContext && actorContext.uid === actor.uid ? actorContext.role : 'unknown',
+                editedByRole: actorContext && actorContext.uid === actor.uid ? actorContext.role : 'unknown',
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
 
-        function writeAudit(transaction, entry) {
+        function writeAudit(transaction, entry, actorContext) {
             const auditRef = db.collection('editHistory').doc();
-            transaction.set(auditRef, userAuditData(entry));
+            transaction.set(auditRef, userAuditData(entry, actorContext));
         }
 
         async function updateUserAtomic(userId, name, role) {
             const userRef = db.collection('users').doc(userId);
-            return db.runTransaction(async transaction => {
+            return runUserAuditTransaction(async (transaction, actorContext) => {
                 const userDoc = await transaction.get(userRef);
                 if (!userDoc.exists) throw new Error('المستخدم غير موجود');
                 const before = userDoc.data();
@@ -381,13 +427,13 @@
                     action: 'updateUser', recordId: userId,
                     description: `تعديل المستخدم: ${name}`,
                     changes
-                });
+                }, actorContext);
             });
         }
 
         async function setUserStatusAtomic(userId, isActive) {
             const userRef = db.collection('users').doc(userId);
-            return db.runTransaction(async transaction => {
+            return runUserAuditTransaction(async (transaction, actorContext) => {
                 const userDoc = await transaction.get(userRef);
                 if (!userDoc.exists) throw new Error('المستخدم غير موجود');
                 const before = userDoc.data();
@@ -400,13 +446,13 @@
                     action: isActive ? 'activateUser' : 'deactivateUser', recordId: userId,
                     description: `${isActive ? 'تفعيل' : 'تعطيل'} المستخدم: ${before.name || userId}`,
                     changes: [{ field: 'isActive', oldValue: before.isActive ?? null, newValue: isActive }]
-                });
+                }, actorContext);
             });
         }
 
         async function deleteUserAtomic(userId) {
             const userRef = db.collection('users').doc(userId);
-            return db.runTransaction(async transaction => {
+            return runUserAuditTransaction(async (transaction, actorContext) => {
                 const userDoc = await transaction.get(userRef);
                 if (!userDoc.exists) throw new Error('المستخدم غير موجود');
                 const before = userDoc.data();
@@ -421,13 +467,13 @@
                         role: before.role || null,
                         isActive: before.isActive
                     }
-                });
+                }, actorContext);
             });
         }
 
         async function changeUserPasswordAtomic(userId, newPassword) {
             const userRef = db.collection('users').doc(userId);
-            return db.runTransaction(async transaction => {
+            return runUserAuditTransaction(async (transaction, actorContext) => {
                 const userDoc = await transaction.get(userRef);
                 if (!userDoc.exists) throw new Error('المستخدم غير موجود');
                 const before = userDoc.data();
@@ -439,7 +485,7 @@
                 writeAudit(transaction, {
                     action: 'changePassword', recordId: userId,
                     description: `تغيير كلمة مرور المستخدم: ${before.name || userId}`
-                });
+                }, actorContext);
             });
         }
 
@@ -447,7 +493,7 @@
             // A stable target plus a transactional existence read makes two
             // concurrent sync runs converge on one account and one audit event.
             const syncedRef = db.collection('users').doc(`driver_${driver.id}`);
-            return db.runTransaction(async transaction => {
+            return runUserAuditTransaction(async (transaction, actorContext) => {
                 const existing = await transaction.get(syncedRef);
                 if (existing.exists) return { created: false, id: syncedRef.id };
                 transaction.set(syncedRef, userData);
@@ -457,7 +503,7 @@
                     driverId: driver.id, driverName: driver.name || null,
                     description: 'إنشاء حساب سائق عبر المزامنة',
                     fullSnapshotAfter: { ...safeUserSnapshot, id: syncedRef.id }
-                });
+                }, actorContext);
                 return { created: true, id: syncedRef.id };
             });
         }
@@ -480,14 +526,14 @@
                 };
                 const { password: omittedPassword, ...safeCreatedUser } = createdUserData;
                 const userRef = db.collection('users').doc(userId);
-                await db.runTransaction(async transaction => {
+                await runUserAuditTransaction(async (transaction, actorContext) => {
                     transaction.set(userRef, createdUserData);
                     writeAudit(transaction, {
                         action: 'addUser', recordId: userId,
                         description: `إضافة مستخدم جديد: ${name} (${role})`,
                         fullSnapshot: { ...safeCreatedUser, id: userId },
                         fullSnapshotAfter: { ...safeCreatedUser, id: userId }
-                    });
+                    }, actorContext);
                 });
                 provisioningAuth.signOut().catch(error =>
                     console.error('تعذر إنهاء جلسة إنشاء المستخدم المعزولة:', error));

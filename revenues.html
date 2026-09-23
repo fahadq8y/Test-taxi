@@ -1056,39 +1056,89 @@
             }
             return value;
         }
-        function financialAuditData(payload, uid) {
-            const user = requireFinancialActor(uid);
+        async function resolveActorAuditContext(database) {
+            const actor = requireFinancialActor();
+            const uid = actor.uid;
+            let role = 'unknown';
+            // Audit attribution is descriptive metadata, not an authorization check.
+            if (!actor.isAnonymous) {
+                try {
+                    const profile = await database.collection('users').doc(uid).get();
+                    requireFinancialActor(uid);
+                    const profileRole = profile.exists ? profile.data()?.role : null;
+                    if (typeof profileRole === 'string' && profileRole.trim()) role = profileRole.trim();
+                    else {
+                        const token = await actor.getIdTokenResult();
+                        requireFinancialActor(uid);
+                        if (typeof token?.claims?.role === 'string' && token.claims.role.trim()) role = token.claims.role.trim();
+                    }
+                } catch (error) {
+                    requireFinancialActor(uid);
+                    try {
+                        const token = await actor.getIdTokenResult();
+                        requireFinancialActor(uid);
+                        if (typeof token?.claims?.role === 'string' && token.claims.role.trim()) role = token.claims.role.trim();
+                    } catch (tokenError) {
+                        requireFinancialActor(uid);
+                    }
+                }
+            }
+            requireFinancialActor(uid);
+            return { uid, role };
+        }
+        function financialAuditData(payload, actorContext) {
+            const user = requireFinancialActor(actorContext?.uid);
             return cleanAuditValue({
                 ...payload, actorUid: user.uid, editedByUid: user.uid, editedById: user.uid,
                 editedBy: user.displayName || user.email || user.uid,
-                editedByRole: 'unknown', source: 'revenues.html',
+                editedByRole: actorContext && actorContext.uid === user.uid ? actorContext.role : 'unknown', source: 'revenues.html',
                 actorIdentity: user.isAnonymous ? 'anonymous/unverified' : 'firebase-authenticated'
             });
         }
         // Preserve transaction reads/writes and atomicity; normalize only audit documents.
         function guardedFinanceDb(database) {
-            function guardWriter(writer, uid) {
+            function guardWriter(writer, actorContext) {
                 return new Proxy(writer, { get(target, key) {
                     if (['set', 'update', 'delete', 'commit'].includes(key)) return (...args) => {
-                        requireFinancialActor(uid);
+                        requireFinancialActor(actorContext.uid);
                         if (key === 'set' && args[0]?.parent?.id === 'editHistory') {
-                            args[1] = financialAuditData(args[1], uid);
+                            args[1] = financialAuditData(args[1], actorContext);
                         }
                         const result = target[key](...args);
-                        return result === target ? guardWriter(target, uid) : result;
+                        return result === target ? guardWriter(target, actorContext) : result;
                     };
                     const value = target[key];
                     return typeof value === 'function' ? value.bind(target) : value;
                 } });
             }
+            function deferredBatch() {
+                const contextPromise = resolveActorAuditContext(database);
+                const operations = [];
+                let proxy;
+                proxy = new Proxy({}, { get(target, key) {
+                    if (['set', 'update', 'delete'].includes(key)) return (...args) => {
+                        operations.push([key, args]);
+                        return proxy;
+                    };
+                    if (key === 'commit') return async () => {
+                        const actorContext = await contextPromise;
+                        requireFinancialActor(actorContext.uid);
+                        const batch = guardWriter(database.batch(), actorContext);
+                        for (const [method, args] of operations) batch[method](...args);
+                        requireFinancialActor(actorContext.uid);
+                        return batch.commit();
+                    };
+                } });
+                return proxy;
+            }
             return new Proxy(database, { get(target, key) {
-                if (key === 'batch') return () => guardWriter(target.batch(), requireFinancialActor().uid);
-                if (key === 'runTransaction') return (callback, ...options) => {
-                    const uid = requireFinancialActor().uid;
+                if (key === 'batch') return deferredBatch;
+                if (key === 'runTransaction') return async (callback, ...options) => {
+                    const actorContext = await resolveActorAuditContext(target);
                     return target.runTransaction(async tx => {
-                        requireFinancialActor(uid);
-                        const result = await callback(guardWriter(tx, uid));
-                        requireFinancialActor(uid);
+                        requireFinancialActor(actorContext.uid);
+                        const result = await callback(guardWriter(tx, actorContext));
+                        requireFinancialActor(actorContext.uid);
                         return result;
                     }, ...options);
                 };
