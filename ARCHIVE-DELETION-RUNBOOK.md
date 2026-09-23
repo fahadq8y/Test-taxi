@@ -1,8 +1,8 @@
 # Archive deletion operator runbook
 
-The published callable is staged **disabled**. Publishing this source does not authorize, activate, or run deletion.
+Activation was completed and remotely verified by the activation workstream. Before any operation, independently confirm the live flags, rules, writer locks, reader gate, operator claim, and callable IAM still match the approved state. Publishing this source does not run deletion.
 
-## Before activation
+## Before an operation
 
 1. Deploy this folder as a separate Firebase Functions codebase with `functions.js` as its entry point. Do not replace an existing functions codebase.
 2. Verify the deployed Firestore rules exactly match this repository's `firestore.rules`, and wait for the `evidence` index to become ready.

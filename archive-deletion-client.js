@@ -67,7 +67,7 @@ function disabledReason() {
 }
 
 function friendlyError(error) {
-    const code = String(error?.details?.error || error?.code || '').replace('functions/', '');
+    const code = String(error?.details?.code || error?.details?.error || error?.code || '').replace('functions/', '');
     const serverMessage = error?.details?.message || error?.message || '';
     const messages = {
         'permission-denied': 'رفض الخادم العملية: يلزم تصريح archiveAdmin صادر من الخادم.',
@@ -136,6 +136,8 @@ async function checkCapability() {
     lastError = '';
     render();
     try {
+        // Refresh signed claims after an administrator grants archive access.
+        await getAuth().currentUser?.getIdToken(true);
         capability = await invoke('capability');
         if (!capabilityReady(capability)) lastError = disabledReason();
     } catch (error) {
@@ -155,7 +157,7 @@ async function resume() {
         // same persisted key resumes evidence capture idempotently.
         if (result?.stage === 'preparing') await run('prepare');
     } catch (error) {
-        const code = String(error?.details?.error || error?.code || '');
+        const code = String(error?.details?.code || error?.details?.error || error?.code || '');
         if (code.includes('OPERATION_NOT_FOUND') && operation.stage === 'preparing') {
             operation.stage = 'not-created';
             saveOperation(operation);
