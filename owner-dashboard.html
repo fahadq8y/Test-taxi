@@ -352,7 +352,7 @@
   <!-- Chart.js للجداول البيانية في مودال السائق -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="unified-balance.js?v=033"></script>
-  <script src="audit-history.js?v=202609-audit4"></script>
+  <script src="audit-history.js?v=202609-audit5-owner-private-labels"></script>
   <script>
   const firebaseConfig = {
       apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -372,8 +372,8 @@
   const AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 دقايق
 
   /* ================= STATE ================= */
-  let gDrivers = [], gPayments = [], gExpenses = [], gRevenues = [], gEditHistory = [];
-  let gDriverMap = {}, gAuthUser = null, gLiveUnsub = null, gAutoTimer = null;
+  let gDrivers = [], gPayments = [], gExpenses = [], gRevenues = [], gEditHistory = [], gOwnerNotes = [];
+  let gDriverMap = {}, gAuthUser = null, gLiveUnsub = null, gOwnerNotesUnsub = null, gAutoTimer = null;
   let gLastEditTs = 0;
   let gWeekOffset = 0; // 0 = الأسبوع الحالي، 1 = الأسبوع الماضي ...
   let gActiveTab = 'home';            // التبويب المفتوح حالياً (لتنقّل البوب أب)
@@ -395,6 +395,7 @@
     document.getElementById('mainContent').style.display = 'block';
     loadAllData();
     startLiveListener();
+    startOwnerNotesListener();
     startAutoRefresh();
   });
 
@@ -432,6 +433,7 @@
   }
   async function signOut() {
     if (gLiveUnsub) gLiveUnsub();
+    if (gOwnerNotesUnsub) gOwnerNotesUnsub();
     if (gAutoTimer) clearInterval(gAutoTimer);
     await firebase.auth().signOut();
     location.reload();
@@ -450,12 +452,13 @@
   async function loadAllData() {
     const db = firebase.firestore();
     try {
-      const [dSnap, pSnap, expensesSnap, revenuesSnap, historySnap] = await Promise.all([
+      const [dSnap, pSnap, expensesSnap, revenuesSnap, historySnap, ownerNotesSnap] = await Promise.all([
         db.collection('drivers').get(),
         db.collection('driverPayments').get(),
         db.collection('expenses').get(),
         db.collection('revenues').get(),
-        db.collection('editHistory').orderBy('timestamp','desc').limit(200).get()
+        db.collection('editHistory').orderBy('timestamp','desc').limit(200).get(),
+        db.collection('ownerNotes').get()
       ]);
       gDrivers = dSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       gDriverMap = {}; gDrivers.forEach(d => gDriverMap[d.id] = d);
@@ -465,6 +468,7 @@
       const auditCache = new Map(gEditHistory.map(e => [e.id,e]));
       historySnap.docs.forEach(d => auditCache.set(d.id,{...d.data(),id:d.id}));
       gEditHistory = [...auditCache.values()];
+      gOwnerNotes = ownerNotesSnap.docs.map(d => ({id:d.id,...d.data()}));
 
       renderAll();
       document.getElementById('lastUpdateTime').textContent = '🕒 ' + new Date().toLocaleTimeString('ar-KW');
@@ -517,6 +521,13 @@
   function startAutoRefresh() {
     if (gAutoTimer) clearInterval(gAutoTimer);
     gAutoTimer = setInterval(loadAllData, AUTO_REFRESH_MS);
+  }
+  function startOwnerNotesListener() {
+    if (gOwnerNotesUnsub) gOwnerNotesUnsub();
+    gOwnerNotesUnsub = firebase.firestore().collection('ownerNotes').onSnapshot(snap => {
+      gOwnerNotes = snap.docs.map(d => ({id:d.id,...d.data()}));
+      window.dispatchEvent(new CustomEvent('owner-private-history-updated'));
+    }, err => console.error('owner notes snapshot err', err));
   }
   function describeRecord(e) {
     const drv = e.driverId ? (gDriverMap[e.driverId]?.name || e.driverId) : '';
@@ -1940,6 +1951,34 @@
       if (box) box.innerHTML = '<p style="color:#f85149;font-size:12px;">⚠️ تعذّر تحميل الملاحظات: ' + escapeHtml(e.message||e) + '</p>';
     }
   }
+  function ownerPrivateActor() {
+    if (!gAuthUser || gAuthUser.email !== OWNER_EMAIL) throw new Error('هذه العملية متاحة للمالك فقط');
+    return {uid:gAuthUser.uid,email:gAuthUser.email,role:'owner'};
+  }
+  async function commitOwnerPrivateMutation(driverId, spec, source) {
+    if (!window.OwnerAuditCore?.commitPrivateMutation) throw new Error('أداة تدقيق سجل المالك غير محملة');
+    const committed=await OwnerAuditCore.commitPrivateMutation(
+      firebase.firestore(),driverId,ownerPrivateActor(),spec,{source}
+    );
+    const index=gOwnerNotes.findIndex(n=>n.id===driverId);
+    const cached={...committed.result,id:driverId};
+    if(index<0)gOwnerNotes.push(cached);else gOwnerNotes[index]=cached;
+    window.dispatchEvent(new CustomEvent('owner-private-history-updated',{detail:{driverId,eventId:committed.event.id}}));
+    return committed;
+  }
+  async function saveOwnerFollowup(id) {
+    const d=gDriverMap[id];
+    if(!d)throw new Error('السائق غير موجود');
+    const amount=Number(document.getElementById('fuAmount').value||0);
+    if(!Number.isFinite(amount)||amount<0)throw new Error('المبلغ الموعود غير صالح');
+    const values={followUpStatus:document.getElementById('fuStatus').value,
+      followUpDate:document.getElementById('fuDate').value||null,promisedAmount:amount,
+      promisedDate:document.getElementById('fuPromised').value||null};
+    const committed=await commitOwnerPrivateMutation(id,{kind:'followup',values,driverName:d.name||id,
+      reason:'حفظ حقول متابعة المالك'},'owner-dashboard.html/saveFollowup');
+    d.ownerNotes={...(d.ownerNotes||{}),...committed.patch};
+    return committed;
+  }
   async function addOwnerNote() {
     if (!gModalDriver) return;
     const noteDriver = gModalDriver;
@@ -1958,13 +1997,8 @@
     };
     btn.disabled = true; btn.textContent = '⏳ يضيف...'; status.textContent = '';
     try {
-      await firebase.firestore().collection('ownerNotes').doc(noteDriver.id).set({
-        driverId: noteDriver.id,
-        driverName: noteDriver.name || noteDriver.id,
-        entries: firebase.firestore.FieldValue.arrayUnion(entry),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedBy: entry.by
-      }, { merge: true });
+      await commitOwnerPrivateMutation(noteDriver.id,{kind:'note',entry,driverName:noteDriver.name||noteDriver.id,
+        reason:'إضافة ملاحظة مالك خاصة'},'owner-dashboard.html/addOwnerNote');
       txt.value = '';
       status.innerHTML = '<span style="color:#3fb950;">✅ انضافت الملاحظة</span>';
       setTimeout(() => { status.textContent = ''; }, 3000);
@@ -2544,7 +2578,7 @@
   };
   window.monitorDecision=async function(id,decision){try{await OwnerReviewStore.save(String(id),decision);buildMonitorSection();}catch(e){showToast('لم يتم حفظ قرار المراجعة',e.message);}};
   window.monitorDecisionFromButton=function(button,decision){window.monitorDecision(button?.dataset?.monitorId??'',decision);};
-  window.saveFollowup=async function(id){const d=gDriverMap[id],old=d.ownerNotes||{},payload={...old,followUpStatus:document.getElementById('fuStatus').value,followUpDate:document.getElementById('fuDate').value||null,promisedAmount:Number(document.getElementById('fuAmount').value||0),promisedDate:document.getElementById('fuPromised').value||null};try{await firebase.firestore().collection('drivers').doc(id).set({ownerNotes:payload},{merge:true});d.ownerNotes=payload;showToast('تم حفظ المتابعة','تم تحديث سجل المالك بدون حذف الملاحظات السابقة');}catch(e){showToast('تعذر الحفظ',e.message);}};
+  window.saveFollowup=async function(id){try{await saveOwnerFollowup(id);showToast('تم حفظ المتابعة','تم تحديث سجل المالك الخاص مع سجل التدقيق');}catch(e){showToast('تعذر الحفظ',e.message);}};
   function fulfillment(d){const n=d.ownerNotes||{},amt=Number(n.promisedAmount||0),pd=toDate(n.promisedDate);if(!amt||!pd)return'لا يوجد وعد مالي';const paid=gPayments.filter(p=>p.driverId===d.id&&isIncomingPayment(p)&&toDate(p.date)&&toDate(p.date)>=pd).reduce((s,p)=>s+Number(p.amount||0),0);return paid>=amt?'تم الوفاء بالوعد':`المحصّل بعد الوعد ${money(paid)} من ${money(amt)}`;}
   let ownerChart=null,ownerChartMode='detail',ownerChartRange=30;
   window.setOwnerChartMode=function(m){ownerChartMode=m;renderOwnerChart(gNavIds[gNavIndex]);};
@@ -2655,14 +2689,9 @@
   };
   window.saveFollowup=async function(id){
     try{
-      if (!gAuthUser || gAuthUser.email !== OWNER_EMAIL) throw new Error('غير مصرح');
-      const amount=Number(document.getElementById('fuAmount').value||0);
-      if(!Number.isFinite(amount)||amount<0)throw new Error('المبلغ الموعود غير صالح');
-      const payload={followUpStatus:document.getElementById('fuStatus').value,followUpDate:document.getElementById('fuDate').value||null,promisedAmount:amount,promisedDate:document.getElementById('fuPromised').value||null,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:gAuthUser.email};
-      await firebase.firestore().collection('ownerNotes').doc(id).set(payload,{merge:true});
-      if(gDriverMap[id])gDriverMap[id].ownerNotes={...(gDriverMap[id].ownerNotes||{}),...payload};
+      await saveOwnerFollowup(id);
       if(gModalDriver?.id===id)document.getElementById('followupFulfillment').textContent=fulfillment(gDriverMap[id]);
-      showToast('تم حفظ المتابعة','تم حفظها في سجل ملاحظات المالك بدون استبدال الملاحظات');
+      showToast('تم حفظ المتابعة','تم حفظها مع سجل تدقيق خاص بدون استبدال الملاحظات');
     }catch(e){showToast('تعذر الحفظ',e.message);}
   };
   window.openDriverModal=function(id){
@@ -2695,7 +2724,7 @@
     });
   };
   </script>
-  <script src="owner-driver-tabs.js?v=3-accountant-details"></script>
+  <script src="owner-driver-tabs.js?v=5-owner-private-identity"></script>
   </body>
   </html>
   

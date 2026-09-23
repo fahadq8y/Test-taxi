@@ -100,7 +100,80 @@
     });
     return [...cache.values()];
   }
-  const core = {driverIds, deltas, matches, date, eventRole, monitorRows, applyRecentSnapshot};
+  const PRIVATE_LIMIT_BYTES = 700 * 1024;
+  const byteSize = value => {
+    const json=JSON.stringify(value,(_key,v)=>{
+      if(v&&typeof v.toDate==='function')return v.toDate().toISOString();
+      if(v&&typeof v==='object'&&Number.isFinite(v.seconds))return {seconds:v.seconds,nanoseconds:v.nanoseconds||0};
+      return v;
+    });
+    return typeof TextEncoder!=='undefined' ? new TextEncoder().encode(json).length : Buffer.byteLength(json,'utf8');
+  };
+  function privateEventsFromNotes(notes) {
+    const out=[];
+    for(const doc of notes||[]) {
+      const driverId=doc.id||doc.driverId;
+      for(const item of Array.isArray(doc.auditHistory)?doc.auditHistory:[]) {
+        if(!item||!item.id)continue;
+        out.push({...item,id:`owner-private:${driverId}:${item.id}`,privateOwnerEvent:true,driverId:item.driverId||driverId});
+      }
+    }
+    return out;
+  }
+  function mergePrivateEvents(events,notes) {
+    const all=new Map((events||[]).map(e=>[e.id,e]));
+    for(const event of privateEventsFromNotes(notes))all.set(event.id,event);
+    return [...all.values()];
+  }
+  function privateMutationPlan(current, spec, context) {
+    const base=current&&typeof current==='object'?current:{};
+    const auditHistory=Array.isArray(base.auditHistory)?base.auditHistory.slice():[];
+    let patch,changes,action,recordType,reason;
+    if(spec.kind==='note') {
+      const entries=Array.isArray(base.entries)?base.entries.slice():[];
+      entries.push(spec.entry);
+      patch={entries};
+      changes=[{field:'entries.added',oldValue:null,newValue:spec.entry}];
+      action='add';recordType='ownerNote';reason=spec.reason||'إضافة ملاحظة مالك خاصة';
+    } else if(spec.kind==='followup') {
+      const fields=['followUpStatus','followUpDate','promisedAmount','promisedDate'];
+      patch={};changes=[];
+      for(const field of fields) {
+        const before=base[field]===undefined?null:base[field],after=spec.values[field]===undefined?null:spec.values[field];
+        patch[field]=after;
+        if(JSON.stringify(before)!==JSON.stringify(after))changes.push({field,oldValue:before,newValue:after});
+      }
+      action='update';recordType='ownerFollowup';reason=spec.reason||'تحديث متابعة المالك الخاصة';
+    } else throw new Error('نوع تعديل سجل المالك غير صالح');
+    const event={id:context.eventId,action,recordType,driverId:context.driverId,changes,
+      editedBy:context.actor.email||context.actor.uid,editedById:context.actor.uid,
+      actorUid:context.actor.uid,editedByUid:context.actor.uid,actorIdentity:'firebase-authenticated',
+      editedByRole:'owner',
+      actor:{uid:context.actor.uid,email:context.actor.email||'',role:'owner'},timestamp:context.timestamp,
+      timestampSource:'client-clock',source:context.source,reason,description:reason};
+    auditHistory.push(event);
+    patch={...patch,auditHistory,driverId:context.driverId,driverName:spec.driverName||base.driverName||context.driverId,
+      updatedAt:context.timestamp,updatedBy:context.actor.email||context.actor.uid};
+    const result={...base,...patch};
+    if(byteSize(result)>PRIVATE_LIMIT_BYTES)throw new Error('سجل المالك الخاص تجاوز حد الأمان 700KB؛ لم يتم حفظ أي تغيير');
+    return {patch,result,event};
+  }
+  async function commitPrivateMutation(db,driverId,actor,spec,options={}) {
+    if(!db||typeof db.runTransaction!=='function')throw new Error('قاعدة البيانات غير متاحة');
+    if(!driverId||!actor?.uid)throw new Error('هوية المالك أو السائق غير صالحة');
+    const collection=db.collection('ownerNotes'),ref=collection.doc(driverId);
+    const eventId=options.eventId||collection.doc().id;
+    let committed;
+    await db.runTransaction(async tx=>{
+      const snap=await tx.get(ref), current=snap.exists?snap.data():{};
+      const timestamp=options.timestampFactory?options.timestampFactory():firebase.firestore.Timestamp.now();
+      committed=privateMutationPlan(current,spec,{eventId,driverId,actor,timestamp,source:options.source||'owner-dashboard.html'});
+      tx.set(ref,committed.patch,{merge:true});
+    });
+    return committed;
+  }
+  const core = {driverIds, deltas, matches, date, eventRole, monitorRows, applyRecentSnapshot,
+    byteSize,privateEventsFromNotes,mergePrivateEvents,privateMutationPlan,commitPrivateMutation,PRIVATE_LIMIT_BYTES};
   root.OwnerAuditCore = core;
   if (typeof module !== 'undefined' && module.exports) module.exports = core;
   if (typeof document === 'undefined') return;
@@ -149,7 +222,8 @@
   const events = () => {
     const all = new Map(state.events);
     for (const e of gEditHistory) all.set(e.id,e);
-    return [...all.values()].map(normalize).sort((a,b) => (+date(b.timestamp)||0)-(+date(a.timestamp)||0));
+    return mergePrivateEvents([...all.values()],typeof gOwnerNotes==='undefined'?[]:gOwnerNotes)
+      .map(normalize).sort((a,b) => (+date(b.timestamp)||0)-(+date(a.timestamp)||0));
   };
   const linked = e => driverIds(e,sources()).includes(state.id);
   const filters = tab => state.filters[tab] || (state.filters[tab] = {q:'',from:'',to:'',action:''});
@@ -356,6 +430,7 @@
   style.textContent='.od-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0}.od-tabs button{flex:1 1 125px;padding:12px;border:1px solid #475569;border-radius:8px;background:#172336;color:#e2e8f0;cursor:pointer}.od-tabs [aria-selected=true]{background:#0f766e;border-color:#5eead4}.od-tabs button:focus-visible{outline:3px solid #fbbf24}.od-filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin:14px 0}.od-filters label{min-width:0}.od-filters input,.od-review-box select,.od-review-box textarea{display:block;width:100%;box-sizing:border-box;margin:6px 0}.od-json{direction:ltr;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto;background:#101827;padding:12px}.od-event summary{cursor:pointer;line-height:1.9}.od-event-meta{display:block;font-size:.9em;font-weight:400;margin-top:3px}.audit-history-facts{border-inline-start:4px solid #0f766e;padding-inline-start:12px;margin-block:12px}.audit-history-facts p{margin:6px 0}.od-change{padding:9px;border-bottom:1px solid #334155;overflow-wrap:anywhere}.od-scope{border:1px solid #475569;border-radius:8px;padding:12px;line-height:1.8}#modalContent [hidden]{display:none!important}@media(max-width:600px){.od-filters{grid-template-columns:1fr}.od-tabs button{flex-basis:40%}}';
   document.head.append(style);
   root.addEventListener('owner-history-updated',()=>{renderData();renderMonitor();refreshSummary();});
+  root.addEventListener('owner-private-history-updated',()=>{renderData();renderMonitor();});
   let reviewUnsubscribe=null;
   firebase.auth().onAuthStateChanged(user=>{
     if(reviewUnsubscribe){reviewUnsubscribe();reviewUnsubscribe=null;}
