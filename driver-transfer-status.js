@@ -159,7 +159,8 @@
         });
         await options.runTransaction(async function (tx) {
             var snap = await tx.get(options.driverRef);
-            if (!snap.exists()) throw new Error('driver-not-found');
+            var exists = typeof snap.exists === 'function' ? snap.exists() : snap.exists;
+            if (!exists) throw new Error('driver-not-found');
             var live = snap.data();
             assertNoConflicts(live, options.opened, keys);
             tx.update(options.driverRef, patch);
@@ -168,7 +169,7 @@
                 recordType: 'driver',
                 recordId: options.driverId,
                 driverId: options.driverId,
-                source: 'drivers.html',
+                source: options.source || 'drivers.html',
                 changes: changes,
                 before: {
                     companyTransferStatus: options.opened.companyTransferStatus == null ? null : options.opened.companyTransferStatus,

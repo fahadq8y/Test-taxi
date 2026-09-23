@@ -248,6 +248,33 @@
         .debt-audit-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:7px; margin-top:10px; font-size:12px; }
         .debt-audit-grid span { display:block; color:#64748b; } .debt-audit-grid strong { color:#1e293b; }
         .audit-warning { color:#b45309; background:#fffbeb; border:1px solid #fde68a; border-radius:7px; padding:7px; font-size:12px; margin-top:8px; }
+        .transfer-status-trigger {
+            display:inline-flex;
+            align-items:center;
+            gap:5px;
+            border:0;
+            background:transparent;
+            padding:2px;
+            cursor:pointer;
+            border-radius:999px;
+        }
+        .transfer-status-trigger:hover,
+        .transfer-status-trigger:focus-visible { background:#e2e8f0; outline:2px solid transparent; }
+        .transfer-status-chevron { color:#64748b; font-size:10px; line-height:1; }
+        .transfer-modal-content { max-width:430px; }
+        .transfer-modal-content .form-group { margin-bottom:14px; }
+        .transfer-modal-content label { display:block; font-weight:700; margin-bottom:6px; }
+        .transfer-modal-content select,
+        .transfer-modal-content input,
+        .transfer-modal-content textarea {
+            width:100%;
+            box-sizing:border-box;
+            padding:10px;
+            border:1px solid #cbd5e1;
+            border-radius:8px;
+            font:inherit;
+        }
+        .transfer-save-error { display:none; color:#991b1b; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:9px; margin-bottom:12px; }
     </style>
 </head>
 <body>
@@ -351,6 +378,41 @@
             <div class="modal-body" style="padding: 20px; max-height: 70vh; overflow-y: auto;">
                 <div id="detailModalContent"></div>
             </div>
+        </div>
+    </div>
+
+    <div id="transferStatusModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="transferStatusTitle" style="display:none;">
+        <div class="modal-content transfer-modal-content">
+            <div class="modal-header">
+                <h2 id="transferStatusTitle">حالة التحويل</h2>
+                <button type="button" class="close" onclick="closeTransferStatusModal()" aria-label="إغلاق">&times;</button>
+            </div>
+            <form id="transferStatusForm">
+                <div class="modal-body" style="padding:20px;">
+                    <p id="transferStatusDriverName" style="font-weight:700;margin-top:0;"></p>
+                    <div id="transferStatusError" class="transfer-save-error" role="alert"></div>
+                    <div class="form-group">
+                        <label for="companyTransferStatus">الحالة</label>
+                        <select id="companyTransferStatus" required>
+                            <option value="on_company">على الشركة</option>
+                            <option value="pending">قيد التحويل</option>
+                            <option value="transferred">تم التحويل</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="companyTransferDate">التاريخ</label>
+                        <input type="date" id="companyTransferDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="companyTransferNote">ملاحظة (اختياري)</label>
+                        <textarea id="companyTransferNote" rows="3" maxlength="500"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="cancel-btn" onclick="closeTransferStatusModal()">إلغاء</button>
+                        <button type="submit" class="save-btn" id="transferStatusSaveButton">حفظ الحالة</button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -549,7 +611,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="unified-balance.js?v=033"></script>
-    <script src="driver-transfer-status.js?v=001"></script>
+    <script src="driver-transfer-status.js?v=002-table-edit"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyB8Q9CYIWXPmTdiz3vPiLlPYFxiJu0vE_g",
@@ -568,6 +630,12 @@
         let driverPayments = [];
         let cars = [];
         let allDrivers = []; // For calculateDriverDebt function
+        let currentVerifiedUser = null;
+        let currentStaffProfile = null;
+        let transferStatusDriverId = null;
+        let transferStatusOpenedSnapshot = null;
+        let transferStatusFormSnapshot = null;
+        let transferStatusSaving = false;
 
         // انتظار جاهزية Firebase Auth (يحل race condition مع IndexedDB restoration)
         function waitForAuth() {
@@ -578,6 +646,61 @@
                     unsub();
                     resolve(user);
                 });
+            });
+        }
+
+        function requireVerifiedActor(expectedUid) {
+            const actor = firebase.auth().currentUser;
+            if (!actor || !actor.uid || (expectedUid && actor.uid !== expectedUid)) {
+                throw new Error('انتهت جلسة تسجيل الدخول. أعد تسجيل الدخول ثم حاول مرة أخرى.');
+            }
+            return actor;
+        }
+
+        async function resolveVerifiedStaff() {
+            const actor = requireVerifiedActor();
+            const actorUid = actor.uid;
+            const profileSnapshot = await db.collection('users').doc(actorUid).get();
+            requireVerifiedActor(actorUid);
+            if (!profileSnapshot.exists) {
+                throw new Error('تعذر التحقق من ملف الموظف.');
+            }
+            const profile = profileSnapshot.data() || {};
+            if (!['admin', 'accountant'].includes(profile.role)) {
+                throw new Error('لا توجد صلاحية موظف موثّقة لتنفيذ هذا التعديل.');
+            }
+            currentVerifiedUser = actor;
+            currentStaffProfile = { uid: actorUid, ...profile };
+            return { actor, profile: currentStaffProfile };
+        }
+
+        function cleanAuditValue(value) {
+            if (value === undefined) return null;
+            if (Array.isArray(value)) return value.map(cleanAuditValue);
+            if (value && Object.getPrototypeOf(value) === Object.prototype) {
+                const result = {};
+                const secretField = /password|passwd|pwd/i.test(String(value.field || ''));
+                Object.entries(value).forEach(([key, item]) => {
+                    if (/password|passwd|pwd/i.test(key)) return;
+                    result[key] = secretField && /^(oldValue|newValue)$/.test(key) ? null : cleanAuditValue(item);
+                });
+                return result;
+            }
+            return value;
+        }
+
+        function transferAuditData(payload, actorContext) {
+            const actor = requireVerifiedActor(actorContext && actorContext.actor.uid);
+            return cleanAuditValue({
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                ...payload,
+                editedBy: actor.displayName || actor.email || actor.uid,
+                editedByRole: actorContext.profile.role,
+                actorUid: actor.uid,
+                actorIdentity: actor.isAnonymous ? 'anonymous/unverified' : 'firebase-authenticated',
+                editedByUid: actor.uid,
+                editedById: actor.uid,
+                source: 'drivers-overview.html'
             });
         }
 
@@ -604,6 +727,7 @@
                         '<tr><td colspan="14" class="no-data">⚠️ يجب تسجيل الدخول أولاً. <a href="index.html" style="color:#0a84ff;">↩ صفحة الدخول</a></td></tr>';
                     return;
                 }
+                await resolveVerifiedStaff();
                 console.log('Loading data from Firebase...');
                 
                 // Load drivers
@@ -698,7 +822,7 @@
                 return `
                     <tr class="${DriverTransferStatus.className(driver)}" style="${_rowBg}">
                         <td><span class="driver-name" onclick="showDriverDetails('${driver.id}')">${driver.name || 'غير محدد'}</span>${_expBadge}</td>
-                        <td>${DriverTransferStatus.badge(driver)}</td>
+                        <td><button type="button" class="transfer-status-trigger" onclick="openTransferStatusModal('${driver.id}')" aria-label="تعديل حالة تحويل ${String(driver.name || driver.employeeNumber || 'السائق').replace(/"/g, '&quot;')}" title="اضغط لتعديل حالة التحويل">${DriverTransferStatus.badge(driver)}<span class="transfer-status-chevron" aria-hidden="true">⌄</span></button></td>
                         <td><span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 12px; border-radius: 15px; font-weight: 600; font-size: 12px;">${driver.employeeNumber || 'غير محدد'}</span></td>
                         <td class="amount">${stats.dailyWage.toFixed(3)} د.ك</td>
                         <td>${stats.contractStart ? formatDate(stats.contractStart) : '—'}</td>
@@ -735,6 +859,125 @@
                 return matchesSearch && matchesStatus && matchesTransfer;
             });
         }
+
+        function showTransferStatusError(message) {
+            const errorBox = document.getElementById('transferStatusError');
+            errorBox.textContent = message || '';
+            errorBox.style.display = message ? 'block' : 'none';
+        }
+
+        window.openTransferStatusModal = driverId => {
+            const driver = allDrivers.find(item => item.id === driverId);
+            if (!driver) {
+                alert('تعذر العثور على بيانات السائق الحالية.');
+                return;
+            }
+            transferStatusDriverId = driverId;
+            transferStatusOpenedSnapshot = {
+                companyTransferStatus: driver.companyTransferStatus,
+                companyTransferDate: driver.companyTransferDate,
+                companyTransferNote: driver.companyTransferNote
+            };
+            const normalized = DriverTransferStatus.normalize(driver);
+            const storedDate = driver.companyTransferDate && typeof driver.companyTransferDate.toDate === 'function'
+                ? driver.companyTransferDate.toDate().toISOString().slice(0, 10)
+                : String(driver.companyTransferDate || '').slice(0, 10);
+            document.getElementById('transferStatusDriverName').textContent = driver.name || driver.employeeNumber || '';
+            document.getElementById('companyTransferStatus').value = normalized === 'unset' ? 'on_company' : normalized;
+            document.getElementById('companyTransferDate').value = storedDate || DriverTransferStatus.localToday();
+            document.getElementById('companyTransferNote').value = driver.companyTransferNote || '';
+            transferStatusFormSnapshot = {
+                companyTransferStatus: document.getElementById('companyTransferStatus').value,
+                companyTransferDate: document.getElementById('companyTransferDate').value,
+                companyTransferNote: document.getElementById('companyTransferNote').value
+            };
+            showTransferStatusError('');
+            document.getElementById('transferStatusModal').style.display = 'block';
+            document.getElementById('companyTransferStatus').focus();
+        };
+
+        window.closeTransferStatusModal = () => {
+            if (transferStatusSaving) return;
+            document.getElementById('transferStatusModal').style.display = 'none';
+            transferStatusDriverId = null;
+            transferStatusOpenedSnapshot = null;
+            transferStatusFormSnapshot = null;
+            showTransferStatusError('');
+        };
+
+        async function refreshDriversAfterTransfer() {
+            const snapshot = await db.collection('drivers').get();
+            drivers = [];
+            snapshot.forEach(doc => drivers.push({ id: doc.id, ...doc.data() }));
+            allDrivers = drivers;
+            displayDrivers();
+            updateStats();
+        }
+
+        window.saveTransferStatus = async event => {
+            event.preventDefault();
+            if (transferStatusSaving) return;
+            const driverId = transferStatusDriverId;
+            const opened = transferStatusOpenedSnapshot;
+            const baseline = transferStatusFormSnapshot;
+            if (!driverId || !opened || !baseline) {
+                showTransferStatusError('تعذر تحديد السائق. أغلق النافذة وأعد المحاولة.');
+                return;
+            }
+            const validation = DriverTransferStatus.validate({
+                status: document.getElementById('companyTransferStatus').value,
+                date: document.getElementById('companyTransferDate').value,
+                note: document.getElementById('companyTransferNote').value
+            });
+            if (!validation.ok) {
+                showTransferStatusError(validation.error);
+                return;
+            }
+            const next = {
+                companyTransferStatus: validation.value.status,
+                companyTransferDate: validation.value.date,
+                companyTransferNote: validation.value.note
+            };
+            const saveButton = document.getElementById('transferStatusSaveButton');
+            transferStatusSaving = true;
+            saveButton.disabled = true;
+            saveButton.textContent = 'جارٍ الحفظ...';
+            showTransferStatusError('');
+            try {
+                const actorContext = await resolveVerifiedStaff();
+                const driverRef = db.collection('drivers').doc(driverId);
+                const result = await DriverTransferStatus.saveTransferStatus({
+                    driverId,
+                    opened,
+                    baseline,
+                    next,
+                    driverRef,
+                    auditRef: () => db.collection('editHistory').doc(),
+                    makeAudit: payload => transferAuditData(payload, actorContext),
+                    runTransaction: callback => db.runTransaction(async transaction => {
+                        requireVerifiedActor(actorContext.actor.uid);
+                        return callback(transaction);
+                    }),
+                    source: 'drivers-overview.html'
+                });
+                transferStatusSaving = false;
+                closeTransferStatusModal();
+                if (!result.noop) await refreshDriversAfterTransfer();
+            } catch (error) {
+                console.error('Error saving transfer status:', error);
+                const message = error && error.code === 'optimistic-conflict'
+                    ? 'تغيرت حالة التحويل أثناء فتح النافذة؛ أغلقها وأعد فتحها للمراجعة.'
+                    : error && error.message === 'driver-not-found'
+                        ? 'لم يعد سجل السائق موجوداً.'
+                        : (error && error.message) || 'حدث خطأ غير متوقع أثناء الحفظ.';
+                showTransferStatusError('تعذر حفظ حالة التحويل: ' + message);
+            } finally {
+                transferStatusSaving = false;
+                saveButton.disabled = false;
+                saveButton.textContent = 'حفظ الحالة';
+            }
+        };
+        document.getElementById('transferStatusForm').addEventListener('submit', window.saveTransferStatus);
 
         // Update statistics
         function updateStats() {
