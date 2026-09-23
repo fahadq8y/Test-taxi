@@ -62,14 +62,58 @@ class ArchiveDeletionService {
     }
   }
 
+  assertActiveControl(control, operationId) {
+    if (!control.exists) throw new ProtocolError("CONTROL_MISSING", "Global archive deletion control is missing.");
+    const data = control.data();
+    if (
+      data.maintenance !== true ||
+      !Number.isInteger(data.maintenanceCount) ||
+      data.maintenanceCount <= 0 ||
+      data.activeOperationId !== operationId
+    ) {
+      throw new ProtocolError("CONTROL_CORRUPT", "Global archive deletion control is not active for this operation.");
+    }
+  }
+
+  assertControlConsistent(control) {
+    if (!control.exists) return;
+    const data = control.data();
+    if (
+      !Number.isInteger(data.maintenanceCount) ||
+      data.maintenanceCount < 0 ||
+      data.maintenance !== (data.maintenanceCount > 0)
+    ) {
+      throw new ProtocolError("CONTROL_CORRUPT", "Global archive deletion control is malformed.");
+    }
+  }
+
+  assertMatchingLock(lock, operationId, permanent) {
+    if (
+      !lock.exists ||
+      lock.data().operationId !== operationId ||
+      lock.data().permanent !== permanent
+    ) {
+      throw new ProtocolError(
+        "LOCK_MISMATCH",
+        `${permanent ? "Permanent" : "Provisional"} lock does not match the operation.`,
+      );
+    }
+  }
+
   async captureEvidenceBatch(refs, rows, claims) {
     if (!rows.length) return;
     await this.db.runTransaction(async tx => {
-      const operation = await tx.get(refs.operation);
+      const [operation, lock, control] = await Promise.all([
+        tx.get(refs.operation),
+        tx.get(refs.lock),
+        tx.get(refs.control),
+      ]);
       if (!operation.exists) throw new ProtocolError("OPERATION_NOT_FOUND", "Preparing operation is missing.");
       if (operation.data().stage !== "preparing") {
         throw new ProtocolError("STAGE_CONFLICT", `Evidence cannot be captured in stage ${operation.data().stage}.`);
       }
+      this.assertActiveControl(control, operation.data().operationId);
+      this.assertMatchingLock(lock, operation.data().operationId, false);
       const snapshots = [];
       for (const row of rows) snapshots.push(await tx.get(refs.evidence.doc(row.id)));
       const missing = rows.filter((row, index) => !snapshots[index].exists);
@@ -155,7 +199,23 @@ class ArchiveDeletionService {
     const existing = await refs.operation.get();
     if (existing.exists) {
       this.assertOperationIdentity(existing.data(), employeeNumber, idempotencyKey);
-      if (existing.data().stage !== "preparing") return this.operationResult(existing);
+      if (existing.data().stage !== "preparing") {
+        const [lock, control] = await Promise.all([refs.lock.get(), refs.control.get()]);
+        if (["prepared"].includes(existing.data().stage)) {
+          this.assertActiveControl(control, opId);
+          this.assertMatchingLock(lock, opId, false);
+        } else if (["committed", "purging"].includes(existing.data().stage)) {
+          this.assertActiveControl(control, opId);
+          this.assertMatchingLock(lock, opId, true);
+        } else if (existing.data().stage === "completed") {
+          this.assertControlConsistent(control);
+          this.assertMatchingLock(lock, opId, true);
+        } else if (existing.data().stage === "cancelled") {
+          this.assertControlConsistent(control);
+          if (lock.exists) throw new ProtocolError("LOCK_MISMATCH", "Cancelled operation retained a lock.");
+        }
+        return this.operationResult(existing);
+      }
     }
 
     const archiveSnap = await refs.archive.get();
@@ -188,10 +248,16 @@ class ArchiveDeletionService {
         if (operation.data().archiveVersion !== archiveVersion) {
           throw new ProtocolError("ARCHIVE_CHANGED", "Preparing operation belongs to another archive version.");
         }
+        this.assertActiveControl(control, opId);
+        this.assertMatchingLock(lock, opId, false);
         return;
       }
       if (lock.exists) {
         throw new ProtocolError("LOCK_OPERATION_MISMATCH", "A lock exists without its matching operation.");
+      }
+      this.assertControlConsistent(control);
+      if (control.exists && control.data().maintenanceCount > 0) {
+        throw new ProtocolError("MAINTENANCE_BUSY", "Another archive deletion operation owns global maintenance.");
       }
       if (!liveArchive.exists || versionOf(liveArchive) !== archiveVersion) throw new ProtocolError("ARCHIVE_CHANGED", "Archive changed while acquiring its lock.");
       if ((await this.activeDriverSnapshots(employeeNumber, liveArchive.data(), tx)).length) {
@@ -246,14 +312,18 @@ class ArchiveDeletionService {
     await this.captureAllSources(employeeNumber, archive, refs, claims);
 
     await this.db.runTransaction(async tx => {
-      const [operation, lock, liveArchive] = await Promise.all([tx.get(refs.operation), tx.get(refs.lock), tx.get(refs.archive)]);
+      const [operation, lock, liveArchive, control] = await Promise.all([
+        tx.get(refs.operation),
+        tx.get(refs.lock),
+        tx.get(refs.archive),
+        tx.get(refs.control),
+      ]);
       if (!operation.exists) throw new ProtocolError("OPERATION_NOT_FOUND", "Preparing operation is missing.");
       this.assertOperationIdentity(operation.data(), employeeNumber, idempotencyKey);
+      this.assertActiveControl(control, opId);
+      this.assertMatchingLock(lock, opId, false);
       if (operation.data().stage === "prepared") return;
       nextStage(operation.data().stage, "ready");
-      if (!lock.exists || lock.data().operationId !== opId || lock.data().permanent === true) {
-        throw new ProtocolError("LOCK_LOST", "Provisional archive lock is missing or invalid.");
-      }
       if (!liveArchive.exists || versionOf(liveArchive) !== archiveVersion) throw new ProtocolError("ARCHIVE_CHANGED", "Archive changed after evidence capture.");
       const childCount = (operation.data().capturedCount || 0) - 1;
       if (childCount < 0) throw new ProtocolError("EVIDENCE_INCOMPLETE", "Archive evidence is missing.");
@@ -282,10 +352,9 @@ class ArchiveDeletionService {
       this.assertOperationIdentity(operation.data(), employeeNumber, idempotencyKey);
       if (operation.data().stage === "cancelled") return;
       nextStage(operation.data().stage, "cancel");
-      if (!lock.exists || lock.data().operationId !== operation.data().operationId || lock.data().permanent === true) {
-        throw new ProtocolError("LOCK_LOST", "Cancellable provisional lock does not match.");
-      }
-      const maintenanceCount = Math.max(0, (control.exists ? control.data().maintenanceCount : 0) - 1);
+      this.assertActiveControl(control, operation.data().operationId);
+      this.assertMatchingLock(lock, operation.data().operationId, false);
+      const maintenanceCount = control.data().maintenanceCount - 1;
       tx.delete(refs.lock);
       tx.update(refs.operation, { stage: "cancelled", cancelledAt: this.FieldValue.serverTimestamp(), cancelledBy: claims.uid });
       tx.create(refs.events.doc("cancelled"), { type: "cancelled", actorUid: claims.uid, at: this.FieldValue.serverTimestamp() });
@@ -304,14 +373,26 @@ class ArchiveDeletionService {
     const employeeNumber = canonicalEmployeeNumber(rawEmployeeNumber);
     const refs = this.refs(employeeNumber, operationId(idempotencyKey));
     await this.db.runTransaction(async tx => {
-      const [operation, lock, archive] = await Promise.all([tx.get(refs.operation), tx.get(refs.lock), tx.get(refs.archive)]);
+      const [operation, lock, archive, control] = await Promise.all([
+        tx.get(refs.operation),
+        tx.get(refs.lock),
+        tx.get(refs.archive),
+        tx.get(refs.control),
+      ]);
       if (!operation.exists) throw new ProtocolError("OPERATION_NOT_FOUND", "Operation does not exist.", 404);
       this.assertOperationIdentity(operation.data(), employeeNumber, idempotencyKey);
-      if (["committed", "purging", "completed"].includes(operation.data().stage)) return;
-      nextStage(operation.data().stage, "commit");
-      if (!lock.exists || lock.data().operationId !== operation.data().operationId || lock.data().permanent === true) {
-        throw new ProtocolError("LOCK_LOST", "Provisional lock does not match.");
+      if (["committed", "purging"].includes(operation.data().stage)) {
+        this.assertActiveControl(control, operation.data().operationId);
+        this.assertMatchingLock(lock, operation.data().operationId, true);
+        return;
       }
+      if (operation.data().stage === "completed") {
+        this.assertMatchingLock(lock, operation.data().operationId, true);
+        return;
+      }
+      nextStage(operation.data().stage, "commit");
+      this.assertActiveControl(control, operation.data().operationId);
+      this.assertMatchingLock(lock, operation.data().operationId, false);
       if (!archive.exists || archive.id !== employeeNumber || archive.data().employeeNumber !== employeeNumber || versionOf(archive) !== operation.data().archiveVersion) {
         throw new ProtocolError("ARCHIVE_CHANGED", "Archive identity/version changed before commit.");
       }
@@ -327,9 +408,19 @@ class ArchiveDeletionService {
 
   async beginPurge(refs, claims) {
     await this.db.runTransaction(async tx => {
-      const operation = await tx.get(refs.operation);
+      const [operation, lock, control] = await Promise.all([
+        tx.get(refs.operation),
+        tx.get(refs.lock),
+        tx.get(refs.control),
+      ]);
       if (!operation.exists) throw new ProtocolError("OPERATION_NOT_FOUND", "Operation does not exist.", 404);
-      if (["purging", "completed"].includes(operation.data().stage)) return;
+      if (operation.data().stage === "completed") {
+        this.assertMatchingLock(lock, operation.data().operationId, true);
+        return;
+      }
+      this.assertActiveControl(control, operation.data().operationId);
+      this.assertMatchingLock(lock, operation.data().operationId, true);
+      if (operation.data().stage === "purging") return;
       nextStage(operation.data().stage, "beginPurge");
       tx.update(refs.operation, { stage: "purging", purgeStartedAt: this.FieldValue.serverTimestamp() });
       tx.create(refs.events.doc("purging"), { type: "purging", actorUid: claims.uid, at: this.FieldValue.serverTimestamp() });
@@ -376,8 +467,9 @@ class ArchiveDeletionService {
       if (operation.data().stage === "completed") return;
       this.assertOperationIdentity(operation.data(), employeeNumber, idempotencyKey);
       if (operation.data().stage !== "purging") throw new ProtocolError("STAGE_CONFLICT", "Operation is not purging.");
+      this.assertActiveControl(control, operation.data().operationId);
+      this.assertMatchingLock(lock, operation.data().operationId, true);
       if (operation.data().purgedCount !== start) return; // A concurrent worker won; this retry converges.
-      if (!lock.exists || lock.data().operationId !== operation.data().operationId) throw new ProtocolError("LOCK_LOST", "Permanent lock does not match.");
       const liveRows = [];
       for (const evidence of page.docs) {
         const row = evidence.data();
@@ -389,12 +481,31 @@ class ArchiveDeletionService {
           throw new ProtocolError("SOURCE_CHANGED", `Source ${item.ref.path} changed after evidence capture.`);
         }
       }
-      liveRows.forEach(item => {
-        if (item.live.exists) tx.delete(item.ref);
-      });
       const count = page.size;
       const newCount = start + count;
       const completed = newCount === operation.data().childCount;
+      if (completed) {
+        const deleting = new Set(liveRows.map(item => item.ref.path));
+        for (const spec of buildMatchPlan(employeeNumber, { employeeNumber })) {
+          const remaining = await tx.get(
+            this.db.collection(spec.collection)
+              .where(spec.field, "==", spec.value)
+              .select()
+              .limit(MAX_CHUNK_DOCS + 1),
+          );
+          for (const doc of remaining.docs) {
+            if (!deleting.has(doc.ref.path)) {
+              throw new ProtocolError(
+                "UNEXPECTED_REMAINING_CHILD",
+                `A matching child (${doc.ref.path}) is not covered by immutable evidence.`,
+              );
+            }
+          }
+        }
+      }
+      liveRows.forEach(item => {
+        if (item.live.exists) tx.delete(item.ref);
+      });
       const lastPurgedSequence = page.size
         ? page.docs[page.docs.length - 1].data().sequence
         : operation.data().lastPurgedSequence;
@@ -414,7 +525,7 @@ class ArchiveDeletionService {
         at: this.FieldValue.serverTimestamp(),
       });
       if (completed) {
-        const maintenanceCount = Math.max(0, (control.exists ? control.data().maintenanceCount : 0) - 1);
+        const maintenanceCount = control.data().maintenanceCount - 1;
         tx.set(refs.control, {
           maintenanceCount,
           maintenance: maintenanceCount > 0,

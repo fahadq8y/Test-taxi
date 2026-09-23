@@ -1,24 +1,27 @@
 # Archive deletion operator runbook
 
-Activation was completed and remotely verified by the activation workstream. Before any operation, independently confirm the live flags, rules, writer locks, reader gate, operator claim, and callable IAM still match the approved state. Publishing this source does not run deletion.
+## Current deployment state
 
-## Before an operation
+Archive deletion is emergency-disabled. All four readiness flags are the literal string `false`, and the emergency review verified zero deletion operations. Do **not** enable any flag. Publishing this source does not deploy, activate, authorize, or run deletion. The service deployment owner must deploy the hardened server with every flag still false.
 
-1. Deploy this folder as a separate Firebase Functions codebase with `functions.js` as its entry point. Do not replace an existing functions codebase.
-2. Verify the deployed Firestore rules exactly match this repository's `firestore.rules`, and wait for the `evidence` index to become ready.
-3. Inventory every privileged writer. Each driver or finance writer must check `archiveDeletionControl/state` and the relevant `archiveDeletionLocks` document in the same transaction as its protected write. Readers must stop during maintenance.
-4. Rehearse prepare, resume, pre-commit cancel, commit, bounded purge, and recovery in staging. Confirm legacy pages fail closed during maintenance.
-5. Confirm the trusted operator, grant only the signed `archiveAdmin: true` custom claim, and separately review callable invoker IAM.
-6. Enable all four server flags only during an approved maintenance window and only after every check above is independently recorded:
-   - `ARCHIVE_DELETION_ENABLED`
-   - `ARCHIVE_DELETION_RULES_VERIFIED`
-   - `ARCHIVE_DELETION_WRITER_LOCKS_VERIFIED`
-   - `ARCHIVE_DELETION_READER_GATE_VERIFIED`
+## Activation remains blocked
 
-## Operation
+Do not enable deletion until all of these are completed and independently recorded:
 
-Keep one idempotency key for the whole operation. Preparation creates retained evidence and a provisional lock. Cancel is safe only before commit. Commit is irreversible: after it, keep maintenance active and repeatedly resume bounded `step` calls until the server reports `completed`. Never manually remove a permanent lock or clear maintenance after a failure.
+1. Coordinate every privileged writer and every console, import, service-account, and IAM route that can bypass Firestore Rules. Driver and finance writers must check `archiveDeletionControl/state` and all relevant `archiveDeletionLocks` documents transactionally with their protected write.
+2. Complete full reader and browser acceptance while maintenance is active. Every protected page, report, listener, and legacy route must fail closed without showing partial or cached data as current.
+3. Complete a recovery rehearsal covering prepare, resume, pre-commit cancel, irreversible commit, bounded purge, restart from durable server state, and failure handling. Verify that maintenance and permanent locks are never manually cleared after commitment or failure.
+4. Re-verify the deployed rules, evidence indexes, callable IAM, trusted `archiveAdmin` identity, and exact hardened server source in an approved maintenance window.
 
-## Recovery
+The required flags are:
 
-Retry with the same idempotency key and inspect server status. Do not start another operation for the same driver. If the operation is committed or purging, recovery means completing purge—not rollback. Escalate with the operation ID; do not edit protocol documents by hand.
+- `ARCHIVE_DELETION_ENABLED`
+- `ARCHIVE_DELETION_RULES_VERIFIED`
+- `ARCHIVE_DELETION_WRITER_LOCKS_VERIFIED`
+- `ARCHIVE_DELETION_READER_GATE_VERIFIED`
+
+They must remain false until every blocker above is closed. Source presence, a successful deploy, or an earlier activation does not satisfy these gates.
+
+## Recovery safety
+
+Use one idempotency key for the whole operation. Cancel is safe only before commit. After commit, recovery means resuming bounded purge to verified completion—not rollback. Never delete a permanent lock, edit protocol documents by hand, or clear global maintenance merely because a request or deployment failed. Escalate with the operation ID.
